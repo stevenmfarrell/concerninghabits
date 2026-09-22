@@ -1,0 +1,126 @@
+'use client';
+
+import { useState } from 'react';
+import Form from '@rjsf/core';
+import validator from '@rjsf/validator-ajv8';
+import { logHabitEvent } from '../../actions/db';
+import { useRouter } from 'next/navigation';
+import { ArrowLeft, CheckCircle2, Loader2 } from 'lucide-react';
+import Link from 'next/link';
+
+export default function LogClient({ habit }: { habit: any }) {
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  
+  // Backdate functionality
+  // Default to empty (which means 'now'), but allow user to select a date/time
+  const [logDate, setLogDate] = useState('');
+  const [showBackdate, setShowBackdate] = useState(false);
+
+  const schema = JSON.parse(habit.schema);
+
+  const handleSubmit = async (data: any) => {
+    setLoading(true);
+    
+    // Parse the backdated time if provided
+    let createdAt = undefined;
+    if (logDate) {
+      createdAt = new Date(logDate);
+    }
+    
+    await logHabitEvent(habit.id, data.formData || {}, createdAt);
+    setSuccess(true);
+    setLoading(false);
+    
+    // Redirect back to dashboard after a short delay
+    setTimeout(() => {
+      router.push('/');
+    }, 1500);
+  };
+
+  return (
+    <div className="max-w-xl mx-auto space-y-8">
+      <div>
+        <Link href="/" className="inline-flex items-center gap-2 text-slate-500 hover:text-slate-800 mb-4 transition-colors">
+          <ArrowLeft className="w-4 h-4" /> Back to Dashboard
+        </Link>
+        <h1 className="text-3xl font-bold text-slate-900">{habit.name}</h1>
+        {habit.description && <p className="text-slate-600 mt-2">{habit.description}</p>}
+      </div>
+
+      <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
+        {success ? (
+          <div className="text-center py-8 space-y-4">
+            <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto" />
+            <h2 className="text-2xl font-semibold text-slate-800">Logged Successfully!</h2>
+            <p className="text-slate-500">Redirecting...</p>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            <div className="prose max-w-none">
+              <Form 
+                schema={schema} 
+                validator={validator} 
+                onSubmit={handleSubmit}
+                disabled={loading}
+                className="space-y-6 rjsf"
+              >
+                <div className="space-y-4 pt-4">
+                  {showBackdate && (
+                    <div className="animate-in fade-in slide-in-from-bottom-2 p-4 bg-slate-50 border border-slate-200 rounded-xl">
+                      <div className="flex justify-between items-center mb-2">
+                        <label className="block text-sm font-medium text-slate-700">
+                          Custom Date & Time
+                        </label>
+                        <button 
+                          type="button" 
+                          onClick={() => {
+                            setShowBackdate(false);
+                            setLogDate('');
+                          }}
+                          className="text-xs text-slate-500 hover:text-slate-700 font-medium"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                      <input 
+                        type="datetime-local" 
+                        className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-700 text-sm"
+                        value={logDate}
+                        onChange={(e) => setLogDate(e.target.value)}
+                        disabled={loading}
+                        autoFocus
+                      />
+                    </div>
+                  )}
+
+                  <button 
+                    type="submit" 
+                    disabled={loading}
+                    className="w-full py-4 bg-blue-600 text-white rounded-xl font-medium text-lg hover:bg-blue-700 transition-colors flex justify-center items-center gap-2 disabled:opacity-70 shadow-sm"
+                  >
+                    {loading && <Loader2 className="w-5 h-5 animate-spin" />}
+                    {loading ? 'Logging...' : 'Log Event'}
+                  </button>
+
+                  {!showBackdate && (
+                    <div className="text-center">
+                      <button 
+                        type="button" 
+                        onClick={() => setShowBackdate(true)}
+                        className="text-xs text-slate-400 hover:text-slate-600 transition-colors"
+                      >
+                        Backdate log
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </Form>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

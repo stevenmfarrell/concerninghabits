@@ -1,0 +1,36 @@
+'use server';
+
+import { generateObject } from 'ai';
+import { createGoogleGenerativeAI } from '@ai-sdk/google';
+
+const google = createGoogleGenerativeAI({
+  apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
+});
+import { z } from 'zod';
+
+export async function generateHabitSchema(prompt: string) {
+  try {
+    const { object } = await generateObject({
+      model: google('gemini-flash-lite-latest'),
+      maxRetries: 0,
+      system: `You are an expert at creating JSON Schemas for dynamic forms. 
+      Given a description of a habit, generate a valid JSON schema (draft-07) to collect the required data. 
+      The schema MUST be of type 'object'. Provide human-readable titles for fields.
+      CRITICAL INSTRUCTION: For simple event-based habits (e.g., "take my medicine", "drank water"), the 'properties' object MUST be completely empty ({}). DO NOT add checkboxes, confirmation booleans, or any other fields. The presence of the log entry itself confirms the event.
+      For complex habits, define the properties (e.g., distance, time, notes).`,
+      prompt: `Generate a JSON schema for this habit tracker entry: ${prompt}`,
+      schema: z.object({
+        title: z.string().describe("The name of the habit"),
+        category: z.enum(['Mind', 'Body', 'Chores', 'Other']).describe("The category this habit best fits into"),
+        type: z.literal('object'),
+        properties: z.record(z.any()).describe("The fields required to track this habit. Keep it simple."),
+        required: z.array(z.string()).optional().describe("Array of required property keys"),
+      }),
+    });
+
+    return { success: true, schema: object, category: object.category };
+  } catch (error) {
+    console.error("Error generating schema:", error);
+    return { success: false, error: "Failed to generate schema." };
+  }
+}
