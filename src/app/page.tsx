@@ -2,6 +2,7 @@ import { getHabits, getDefaultUser } from './actions/db';
 import Link from 'next/link';
 import { Plus, ListTodo } from 'lucide-react';
 import Icon from '../components/Icon';
+import ActivityCalendar from '../components/ActivityCalendar';
 
 export default async function Dashboard() {
   const user = await getDefaultUser();
@@ -67,43 +68,32 @@ export default async function Dashboard() {
                   <Icon name={group.icon} className="w-6 h-6 text-slate-500" />
                   <h2 className="text-2xl font-semibold text-slate-800">{group.name}</h2>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                   {group.habits.map((habit) => (
                     <div 
                       key={habit.id} 
-                      className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:border-blue-200 hover:shadow-md transition-all group flex flex-col"
+                      className="bg-white rounded-2xl shadow-sm border border-slate-100 hover:border-blue-200 hover:shadow-md transition-all flex items-stretch"
                     >
-                      <div className="flex-1">
-                        <h3 className="text-xl font-semibold text-slate-800 group-hover:text-blue-600 transition-colors mb-2">
-                          {habit.name}
-                        </h3>
-                        <p className="text-slate-500 text-sm line-clamp-2 mb-4">
-                          {habit.description}
-                        </p>
-                      </div>
-                      <div className="flex justify-between items-center text-sm font-medium pt-4 border-t border-slate-50">
+                      <Link href={`/history/${habit.id}`} className="flex-1 flex items-center justify-between py-3 px-5 group gap-4 min-w-0">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-lg font-semibold text-slate-800 group-hover:text-blue-600 transition-colors truncate">
+                            {habit.name}
+                          </h3>
+                        </div>
+                        
+                        <div className="shrink-0">
+                          <ActivityCalendar dates={habit.logs.map((l: any) => l.createdAt)} weeks={5} frequency={habit.frequency} />
+                        </div>
+                      </Link>
+                      
+                      <div className="border-l border-slate-100 flex flex-col justify-center bg-slate-50/50 rounded-r-2xl shrink-0">
                         <Link 
                           href={`/log/${habit.id}`}
-                          className="text-blue-600 flex items-center gap-1 hover:text-blue-800 transition-colors"
+                          className="text-blue-600 font-medium flex items-center justify-center h-full px-6 hover:bg-blue-100/50 transition-colors rounded-r-2xl"
+                          title="Log entry"
                         >
-                          Log entry &rarr;
+                          <Plus className="w-6 h-6" strokeWidth={2.5} />
                         </Link>
-                        <div className="flex gap-2">
-                          <Link 
-                            href={`/history/${habit.id}`}
-                            title="History"
-                            className="text-slate-400 hover:text-blue-600 bg-slate-50 hover:bg-blue-50 p-2 rounded-lg transition-colors"
-                          >
-                            <Icon name="History" className="w-4 h-4" />
-                          </Link>
-                          <Link 
-                            href={`/edit/${habit.id}`}
-                            title="Edit"
-                            className="text-slate-400 hover:text-blue-600 bg-slate-50 hover:bg-blue-50 p-2 rounded-lg transition-colors"
-                          >
-                            <Icon name="Edit2" className="w-4 h-4" />
-                          </Link>
-                        </div>
                       </div>
                     </div>
                   ))}

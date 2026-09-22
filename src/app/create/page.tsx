@@ -21,6 +21,7 @@ export default function CreateHabit() {
   
   const [categories, setCategories] = useState<any[]>([]);
   const [categoryId, setCategoryId] = useState<string>('');
+  const [frequency, setFrequency] = useState<string>('daily');
   
   // Custom category creation
   const [showNewCat, setShowNewCat] = useState(false);
@@ -56,7 +57,7 @@ export default function CreateHabit() {
   const handleSave = async () => {
     if (!schema) return;
     setSaving(true);
-    await saveHabit(schema.title || 'New Habit', description, prompt, schema, categoryId);
+    await saveHabit(schema.title || 'New Habit', description, prompt, schema, categoryId, frequency);
     router.push('/');
   };
 
@@ -128,6 +129,18 @@ export default function CreateHabit() {
                     />
                   </div>
                 ) : (
+                  <div className="flex items-center gap-3">
+                    <select
+                      className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shrink-0"
+                      value={frequency}
+                      onChange={(e) => setFrequency(e.target.value)}
+                      disabled={saving}
+                    >
+                      <option value="daily">Daily</option>
+                      <option value="weekly">Weekly</option>
+                      <option value="monthly">Monthly</option>
+                      <option value="multiple">Multiple / day</option>
+                    </select>
                     <CategorySelect 
                       categories={categories}
                       value={categoryId}
@@ -135,6 +148,7 @@ export default function CreateHabit() {
                       onNew={() => setShowNewCat(true)}
                       disabled={saving || categories.length === 0}
                     />
+                  </div>
                   )}
                 </div>
               </div>

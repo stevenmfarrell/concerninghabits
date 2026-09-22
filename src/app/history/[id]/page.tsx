@@ -1,8 +1,9 @@
 import { getHabit, getHabitLogs, deleteHabitLog } from '../../actions/db';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Trash2 } from 'lucide-react';
+import { ArrowLeft, Trash2, Settings2, Plus } from 'lucide-react';
 import DeleteButton from './DeleteButton';
+import ActivityCalendar from '../../../components/ActivityCalendar';
 
 export default async function HistoryPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -14,19 +15,6 @@ export default async function HistoryPage({ params }: { params: Promise<{ id: st
 
   const logs = await getHabitLogs(id);
 
-  // Generate last 30 days for the activity grid
-  const today = new Date();
-  const last30Days = Array.from({ length: 30 }).map((_, i) => {
-    const d = new Date(today);
-    d.setDate(d.getDate() - (29 - i));
-    return d.toISOString().split('T')[0]; // YYYY-MM-DD
-  });
-
-  // Map dates to log counts
-  const logDates = new Set(
-    logs.map((log) => new Date(log.createdAt).toISOString().split('T')[0])
-  );
-
   return (
     <main className="min-h-screen p-8 bg-slate-50 font-sans">
       <div className="max-w-4xl mx-auto space-y-8">
@@ -34,34 +22,38 @@ export default async function HistoryPage({ params }: { params: Promise<{ id: st
           <Link href="/" className="inline-flex items-center gap-2 text-slate-500 hover:text-slate-800 mb-4 transition-colors">
             <ArrowLeft className="w-4 h-4" /> Back to Dashboard
           </Link>
-          <div className="flex justify-between items-end">
+          <div className="flex justify-between items-start">
             <div>
-              <h1 className="text-3xl font-bold text-slate-900">{habit.name} - History</h1>
+              <div className="flex items-center gap-3">
+                <h1 className="text-3xl font-bold text-slate-900">{habit.name}</h1>
+                <span className="px-2 py-1 bg-slate-200 text-slate-600 text-xs font-bold rounded-md uppercase tracking-widest">{habit.frequency}</span>
+              </div>
               {habit.description && <p className="text-slate-600 mt-2">{habit.description}</p>}
+              <div className="text-sm font-medium text-slate-500 mt-3">
+                {logs.length} total entries
+              </div>
             </div>
-            <div className="text-sm font-medium text-slate-500">
-              {logs.length} total entries
+            <div className="flex items-center gap-3">
+              <Link 
+                href={`/edit/${habit.id}`}
+                className="px-4 py-3 bg-white text-slate-700 border border-slate-200 rounded-xl font-medium hover:bg-slate-50 transition-colors flex items-center gap-2"
+              >
+                <Settings2 className="w-5 h-5" /> Edit
+              </Link>
+              <Link 
+                href={`/log/${habit.id}`}
+                className="px-6 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors flex items-center gap-2 shadow-sm"
+              >
+                <Plus className="w-5 h-5" /> Log Entry
+              </Link>
             </div>
           </div>
         </div>
 
-        {/* 30-Day Activity Graphic */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-          <h2 className="text-lg font-semibold text-slate-800 mb-4">Last 30 Days</h2>
-          <div className="flex flex-wrap gap-2">
-            {last30Days.map((dateStr) => {
-              const hasLog = logDates.has(dateStr);
-              return (
-                <div
-                  key={dateStr}
-                  title={dateStr}
-                  className={`w-6 h-6 rounded-sm border ${
-                    hasLog ? 'bg-green-500 border-green-600' : 'bg-slate-100 border-slate-200'
-                  }`}
-                />
-              );
-            })}
-          </div>
+        {/* Activity Graphic */}
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center overflow-x-auto">
+          <h2 className="text-lg font-semibold text-slate-800 mb-4 w-full text-left">Activity Overview</h2>
+          <ActivityCalendar dates={logs.map(l => l.createdAt)} weeks={52} frequency={habit.frequency} size="md" />
         </div>
 
         {/* Log Entries Table */}

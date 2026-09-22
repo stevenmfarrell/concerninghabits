@@ -33,6 +33,7 @@ model Habit {
   schema      String
   categoryId  String?
   category    Category?  @relation(fields: [categoryId], references: [id])
+  frequency   String     @default("daily")
   familyId    String
   family      Family     @relation(fields: [familyId], references: [id])
   logs        HabitLog[]

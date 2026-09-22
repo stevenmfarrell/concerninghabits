@@ -86,7 +86,7 @@ export async function deleteCategory(id: string) {
   revalidatePath('/');
 }
 
-export async function saveHabit(name: string, description: string, prompt: string, schema: any, categoryId?: string) {
+export async function saveHabit(name: string, description: string, prompt: string, schema: any, categoryId?: string, frequency: string = 'daily') {
   const user = await getDefaultUser();
   
   const habit = await prisma.habit.create({
@@ -96,6 +96,7 @@ export async function saveHabit(name: string, description: string, prompt: strin
       prompt,
       schema: JSON.stringify(schema),
       categoryId,
+      frequency,
       familyId: user.familyId,
     }
   });
@@ -106,16 +107,32 @@ export async function saveHabit(name: string, description: string, prompt: strin
 
 export async function getHabits() {
   const user = await getDefaultUser();
+  const pastDate = new Date();
+  pastDate.setDate(pastDate.getDate() - 40); // Go back enough for 5 weeks
+  pastDate.setDate(1); // Snap to the 1st of that month to ensure we capture early-month logs for monthly habits
+  pastDate.setDate(pastDate.getDate() - pastDate.getDay()); // Snap to the Sunday before the 1st to capture logs for partial weeks
+  
   return prisma.habit.findMany({
     where: { familyId: user.familyId },
     orderBy: { createdAt: 'desc' },
-    include: { category: true }
+    include: { 
+      category: true,
+      logs: {
+        where: {
+          createdAt: { gte: pastDate }
+        },
+        select: {
+          createdAt: true
+        }
+      }
+    }
   });
 }
 
 export async function getHabit(id: string) {
   return prisma.habit.findUnique({
-    where: { id }
+    where: { id },
+    include: { category: true }
   });
 }
 
@@ -152,7 +169,7 @@ export async function getHabitLogs(habitId: string) {
   });
 }
 
-export async function updateHabit(id: string, name: string, description: string, prompt: string, schema: any, categoryId?: string) {
+export async function updateHabit(id: string, name: string, description: string, prompt: string, schema: any, categoryId?: string, frequency: string = 'daily') {
   const habit = await prisma.habit.update({
     where: { id },
     data: {
@@ -161,6 +178,7 @@ export async function updateHabit(id: string, name: string, description: string,
       prompt,
       schema: JSON.stringify(schema),
       categoryId,
+      frequency,
     }
   });
   

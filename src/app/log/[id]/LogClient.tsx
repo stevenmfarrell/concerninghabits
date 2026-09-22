@@ -42,9 +42,6 @@ export default function LogClient({ habit }: { habit: any }) {
   return (
     <div className="max-w-xl mx-auto space-y-8">
       <div>
-        <Link href="/" className="inline-flex items-center gap-2 text-slate-500 hover:text-slate-800 mb-4 transition-colors">
-          <ArrowLeft className="w-4 h-4" /> Back to Dashboard
-        </Link>
         <h1 className="text-3xl font-bold text-slate-900">{habit.name}</h1>
         {habit.description && <p className="text-slate-600 mt-2">{habit.description}</p>}
       </div>
@@ -120,6 +117,16 @@ export default function LogClient({ habit }: { habit: any }) {
             </div>
           </div>
         )}
+      </div>
+
+      <div className="flex items-center justify-center gap-6 pt-4">
+        <Link href="/" className="text-sm font-medium text-slate-500 hover:text-slate-800 transition-colors">
+          Dashboard
+        </Link>
+        <span className="text-slate-300">&bull;</span>
+        <Link href={`/history/${habit.id}`} className="text-sm font-medium text-slate-500 hover:text-slate-800 transition-colors">
+          History
+        </Link>
       </div>
     </div>
   );

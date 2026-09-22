@@ -1,0 +1,271 @@
+'use client';
+
+interface ActivityCalendarProps {
+  dates: Date[];
+  weeks?: number;
+  frequency?: string;
+  size?: 'sm' | 'md';
+}
+
+export default function ActivityCalendar({ dates, weeks = 5, frequency = 'daily', size = 'sm' }: ActivityCalendarProps) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const currentDayOfWeek = today.getDay(); // 0 (Sun) to 6 (Sat)
+  
+  // End on the Saturday of the current week
+  const endDate = new Date(today);
+  endDate.setDate(today.getDate() + (6 - currentDayOfWeek));
+
+  // Determine start date
+  const startDate = new Date(today);
+  if (weeks >= 52) {
+    // For a year view, go back 11 months and snap to the 1st to ensure exactly 12 months (3 columns of 4)
+    startDate.setMonth(startDate.getMonth() - 11);
+    startDate.setDate(1);
+  } else if (weeks > 7) {
+    // Snap to 1st of the month
+    startDate.setDate(today.getDate() - weeks * 7 + 1);
+    startDate.setDate(1);
+  } else {
+    // Just go back N weeks, aligned to Sunday
+    startDate.setDate(today.getDate() - weeks * 7 + 1);
+    startDate.setDate(startDate.getDate() - startDate.getDay());
+  }
+
+  const allDays = [];
+  for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+    allDays.push(new Date(d));
+  }
+
+  const columns: Date[][] = [];
+  let currentColumn: Date[] = [];
+  let currentMonths = new Set<string>();
+
+  for (let i = 0; i < allDays.length; i++) {
+    const d = allDays[i];
+    const monthStr = `${d.getFullYear()}-${d.getMonth()}`;
+    
+    if (!currentMonths.has(monthStr)) {
+      if (currentMonths.size === 4) {
+        columns.push(currentColumn);
+        currentColumn = [];
+        currentMonths = new Set();
+      }
+      currentMonths.add(monthStr);
+    }
+    currentColumn.push(d);
+  }
+  if (currentColumn.length > 0) columns.push(currentColumn);
+
+  const completedDays = new Set<string>();
+  const completedWeeks = new Set<string>();
+  const completedMonths = new Set<string>();
+  
+  dates.forEach(d => {
+    const dt = new Date(d);
+    completedDays.add(`${dt.getFullYear()}-${dt.getMonth()}-${dt.getDate()}`);
+    
+    const weekSun = new Date(dt);
+    weekSun.setDate(weekSun.getDate() - weekSun.getDay());
+    completedWeeks.add(`${weekSun.getFullYear()}-${weekSun.getMonth()}-${weekSun.getDate()}`);
+    
+    completedMonths.add(`${dt.getFullYear()}-${dt.getMonth()}`);
+  });
+
+  const processedColumns = columns.map(col => {
+    const firstDay = col[0];
+    const padStart = firstDay.getDay();
+    const padded = Array(padStart).fill(null).concat(col);
+    const padEnd = (7 - (padded.length % 7)) % 7;
+    const fullCol = padded.concat(Array(padEnd).fill(null));
+    
+    const grid = [];
+    const colWeeks = fullCol.length / 7;
+    
+    for (let w = 0; w < colWeeks; w++) {
+      for (let d = 0; d < 7; d++) {
+        const day = fullCol[w * 7 + d];
+        if (!day) {
+          grid.push({ isNull: true, date: new Date(), count: 0, isFuture: false, isPeriodCompleted: false, isNewMonthLeft: false, isNewMonthTop: false, w, d });
+          continue;
+        }
+        
+        const isFuture = day > today;
+        let count = 0;
+        let isPeriodCompleted = false;
+        
+        if (!isFuture) {
+          const dayKey = `${day.getFullYear()}-${day.getMonth()}-${day.getDate()}`;
+          const weekSun = new Date(day);
+          weekSun.setDate(weekSun.getDate() - weekSun.getDay());
+          const weekKey = `${weekSun.getFullYear()}-${weekSun.getMonth()}-${weekSun.getDate()}`;
+          const monthKey = `${day.getFullYear()}-${day.getMonth()}`;
+
+          if (frequency === 'multiple') {
+            count = dates.filter(dateObj => {
+              const logDate = new Date(dateObj);
+              return logDate.getDate() === day.getDate() &&
+                     logDate.getMonth() === day.getMonth() &&
+                     logDate.getFullYear() === day.getFullYear();
+            }).length;
+          } else {
+            if (completedDays.has(dayKey)) count = 1;
+          }
+
+          if (frequency === 'weekly' && completedWeeks.has(weekKey)) isPeriodCompleted = true;
+          if (frequency === 'monthly' && completedMonths.has(monthKey)) isPeriodCompleted = true;
+        }
+        
+        const prevDay = d > 0 ? fullCol[w * 7 + d - 1] : null;
+        const isNewMonthLeft = prevDay ? day.getMonth() !== prevDay.getMonth() : false;
+        
+        const prevWeekDay = w > 0 ? fullCol[(w - 1) * 7 + d] : null;
+        const isNewMonthTop = prevWeekDay ? day.getMonth() !== prevWeekDay.getMonth() : false;
+        
+        grid.push({ isNull: false, date: day, count, isFuture, isPeriodCompleted, isNewMonthLeft, isNewMonthTop, w, d });
+      }
+    }
+    return grid;
+  });
+
+  const getBackgroundColor = (count: number, isFuture: boolean, isPeriodCompleted: boolean) => {
+    if (isFuture) return 'bg-transparent border border-slate-100';
+    if (count > 0) {
+      if (frequency === 'multiple') {
+        return count === 1 ? 'bg-blue-300' :
+               count === 2 ? 'bg-blue-400' :
+               'bg-blue-600';
+      }
+      return 'bg-blue-500';
+    }
+    if (isPeriodCompleted) return 'bg-blue-200';
+    return 'bg-slate-100';
+  };
+
+  const CELL_SIZE = size === 'sm' ? 8 : 14;
+  const GAP = size === 'sm' ? 3 : 4; 
+  const STEP = CELL_SIZE + GAP;
+  
+  const cellClass = size === 'sm' ? 'w-2 h-2 rounded-[1px]' : 'w-3.5 h-3.5 rounded-[2px]';
+  const gapClass = size === 'sm' ? 'gap-[3px]' : 'gap-1';
+
+  return (
+    <div className="flex justify-start gap-6">
+      {processedColumns.map((grid, colIndex) => {
+        const monthBlocks = [];
+        let currentBlock: any = null;
+        for (const cell of grid) {
+          if (cell.isNull) continue;
+          if (!currentBlock || currentBlock.month !== cell.date.getMonth()) {
+            if (currentBlock) monthBlocks.push(currentBlock);
+            const monthStr = cell.date.toLocaleString('default', { month: 'short' }).toUpperCase();
+            currentBlock = {
+              month: cell.date.getMonth(),
+              year: cell.date.getFullYear(),
+              startW: cell.w,
+              endW: cell.w,
+              text: monthStr
+            };
+          } else {
+            currentBlock.endW = cell.w;
+          }
+        }
+        if (currentBlock) monthBlocks.push(currentBlock);
+
+        return (
+          <div key={colIndex} className="flex gap-1.5">
+            {size === 'md' && (
+              <div className="relative w-6 shrink-0 mt-1">
+                {monthBlocks.map(block => {
+                  const topPx = block.startW * STEP;
+                  const heightPx = (block.endW - block.startW + 1) * STEP;
+                  return (
+                    <div key={`${block.startW}-${block.month}`}>
+                      {/* Vertical Month Label */}
+                      <div 
+                        className="absolute w-full flex items-center justify-center overflow-visible"
+                        style={{ top: topPx, height: heightPx }}
+                      >
+                        <div className="text-[10px] text-slate-400 font-bold tracking-widest whitespace-nowrap -rotate-90">
+                          {block.text}
+                        </div>
+                      </div>
+                      
+                      {/* Horizontal Year Labels */}
+                      {block.month === 0 && (
+                        <div 
+                          className="absolute w-full text-[9px] text-slate-400 font-bold flex justify-center"
+                          style={{ top: topPx + 8 }}
+                        >
+                          {block.year}
+                        </div>
+                      )}
+                      {block.month === 11 && (
+                        <div 
+                          className="absolute w-full text-[9px] text-slate-400 font-bold flex justify-center"
+                          style={{ top: block.endW * STEP - 8 }}
+                        >
+                          {block.year}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            <div className="relative shrink-0 pr-1 pb-1">
+              <div className={`grid grid-cols-7 ${gapClass}`}>
+                {grid.map((cell, i) => {
+                  if (cell.isNull) {
+                    return <div key={i} className={cellClass} />;
+                  }
+                  return (
+                    <div
+                      key={i}
+                      title={cell.isFuture ? undefined : `${cell.date.toLocaleDateString()}: ${cell.count} logs`}
+                      className={`${cellClass} transition-colors relative z-10 ${getBackgroundColor(cell.count, cell.isFuture, cell.isPeriodCompleted)}`}
+                    />
+                  );
+                })}
+              </div>
+              
+              {/* Month Dividers */}
+              <div className="absolute inset-0 z-20 pointer-events-none">
+                {grid.map((cell, i) => {
+                  if (cell.isNull) return null;
+                  return (
+                    <div key={`boundary-${i}`}>
+                      {cell.isNewMonthLeft && (
+                        <div 
+                          className="absolute bg-slate-400"
+                          style={{
+                            left: cell.d * STEP - 2,
+                            top: cell.w * STEP - 2,
+                            width: 1,
+                            height: STEP + 1
+                          }}
+                        />
+                      )}
+                      {cell.isNewMonthTop && (
+                        <div 
+                          className="absolute bg-slate-400"
+                          style={{
+                            left: cell.d * STEP - 2,
+                            top: cell.w * STEP - 2,
+                            width: STEP + 1,
+                            height: 1
+                          }}
+                        />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}

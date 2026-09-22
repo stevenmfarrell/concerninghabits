@@ -21,6 +21,7 @@ export default function EditClient({ habit }: { habit: any }) {
   const [schema, setSchema] = useState<any>(JSON.parse(habit.schema));
   const [categories, setCategories] = useState<any[]>([]);
   const [categoryId, setCategoryId] = useState<string>(habit.categoryId || '');
+  const [frequency, setFrequency] = useState<string>(habit.frequency || 'daily');
   
   // Custom category creation
   const [showNewCat, setShowNewCat] = useState(false);
@@ -60,7 +61,7 @@ export default function EditClient({ habit }: { habit: any }) {
     setSaving(true);
     const finalSchema = { ...schema, title };
     
-    await updateHabit(habit.id, title, description, prompt, finalSchema, categoryId);
+    await updateHabit(habit.id, title, description, prompt, finalSchema, categoryId, frequency);
     router.push('/');
   };
 
@@ -141,13 +142,26 @@ export default function EditClient({ habit }: { habit: any }) {
                   />
                 </div>
               ) : (
-                <CategorySelect 
-                  categories={categories}
-                  value={categoryId}
-                  onChange={setCategoryId}
-                  onNew={() => setShowNewCat(true)}
-                  disabled={saving || categories.length === 0}
-                />
+                <div className="flex items-center gap-3">
+                  <select
+                    className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shrink-0"
+                    value={frequency}
+                    onChange={(e) => setFrequency(e.target.value)}
+                    disabled={saving}
+                  >
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="monthly">Monthly</option>
+                    <option value="multiple">Multiple / day</option>
+                  </select>
+                  <CategorySelect 
+                    categories={categories}
+                    value={categoryId}
+                    onChange={setCategoryId}
+                    onNew={() => setShowNewCat(true)}
+                    disabled={saving || categories.length === 0}
+                  />
+                </div>
               )}
             </div>
           </div>
