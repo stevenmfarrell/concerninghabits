@@ -229,8 +229,12 @@ export default function ActivityCalendar({ dates, weeks = 5, frequency = 'daily'
                     <div
                       key={i}
                       title={cell.isFuture ? undefined : `${cell.date.toLocaleDateString()}: ${cell.count} logs`}
-                      className={`${cellClass} transition-colors relative z-10 ${getBackgroundColor(cell.count, cell.isFuture, cell.isPeriodCompleted)} ${cell.isToday ? 'ring-1 ring-stone-900 ring-offset-1' : ''}`}
-                    />
+                      className={`${cellClass} transition-colors relative z-10 flex items-center justify-center ${getBackgroundColor(cell.count, cell.isFuture, cell.isPeriodCompleted)}`}
+                    >
+                      {cell.isToday && (
+                        <div className={`rounded-full ${cell.count > 0 ? 'bg-white' : 'bg-stone-500'} ${size === 'sm' ? 'w-[4px] h-[4px]' : 'w-[6px] h-[6px]'}`} />
+                      )}
+                    </div>
                   );
                 })}
               </div>
