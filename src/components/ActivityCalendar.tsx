@@ -5,9 +5,10 @@ interface ActivityCalendarProps {
   weeks?: number;
   frequency?: string;
   size?: 'sm' | 'md';
+  monthsPerColumn?: number;
 }
 
-export default function ActivityCalendar({ dates, weeks = 5, frequency = 'daily', size = 'sm' }: ActivityCalendarProps) {
+export default function ActivityCalendar({ dates, weeks = 5, frequency = 'daily', size = 'sm', monthsPerColumn = 4 }: ActivityCalendarProps) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -47,7 +48,7 @@ export default function ActivityCalendar({ dates, weeks = 5, frequency = 'daily'
     const monthStr = `${d.getFullYear()}-${d.getMonth()}`;
     
     if (!currentMonths.has(monthStr)) {
-      if (currentMonths.size === 4) {
+      if (currentMonths.size === monthsPerColumn) {
         columns.push(currentColumn);
         currentColumn = [];
         currentMonths = new Set();
@@ -178,7 +179,7 @@ export default function ActivityCalendar({ dates, weeks = 5, frequency = 'daily'
         if (currentBlock) monthBlocks.push(currentBlock);
 
         return (
-          <div key={colIndex} className="flex gap-1.5">
+          <div key={colIndex} className="flex gap-1.5 shrink-0">
             {size === 'md' && (
               <div className="relative w-6 shrink-0 mt-1">
                 {monthBlocks.map(block => {

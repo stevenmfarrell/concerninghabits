@@ -62,8 +62,8 @@ export default function CreateHabit() {
   };
 
   return (
-    <main className="min-h-screen p-8 bg-stone-50 font-sans">
-      <div className="max-w-4xl mx-auto space-y-8">
+    <main className="flex-1 p-4 sm:p-8 bg-stone-50 font-sans">
+      <div className="max-w-4xl mx-auto space-y-6 sm:space-y-8">
         
         <div>
           <Link href="/" className="inline-flex items-center gap-2 text-stone-500 hover:text-stone-800 mb-4 transition-colors">
