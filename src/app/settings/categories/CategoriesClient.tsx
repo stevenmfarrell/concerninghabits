@@ -54,37 +54,37 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
   return (
     <div className="max-w-2xl mx-auto space-y-8">
       <div>
-        <Link href="/" className="inline-flex items-center gap-2 text-slate-500 hover:text-slate-800 mb-4 transition-colors">
+        <Link href="/" className="inline-flex items-center gap-2 text-stone-500 hover:text-stone-800 mb-4 transition-colors">
           <ArrowLeft className="w-4 h-4" /> Back to Dashboard
         </Link>
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold text-slate-900">Manage Categories</h1>
-            <p className="text-slate-600 mt-1">Organize your habits with custom categories and icons.</p>
+            <h1 className="text-3xl font-bold text-stone-900">Manage Categories</h1>
+            <p className="text-stone-600 mt-1">Organize your habits with custom categories and icons.</p>
           </div>
           <button 
             onClick={() => setIsAdding(true)}
             disabled={isAdding}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center gap-2 disabled:opacity-50"
+            className="px-4 py-2 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 transition-colors flex items-center gap-2 disabled:opacity-50"
           >
             <Plus className="w-4 h-4" /> New Category
           </button>
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-        <ul className="divide-y divide-slate-100">
+      <div className="bg-white rounded-2xl shadow-sm border border-stone-100 overflow-hidden">
+        <ul className="divide-y divide-stone-100">
           {isAdding && (
-            <li className="p-4 bg-slate-50 flex items-center gap-4">
+            <li className="p-4 bg-stone-50 flex items-center gap-4">
               <NewCategoryInline onSave={handleCreate} onCancel={() => setIsAdding(false)} />
             </li>
           )}
 
           {categories.length === 0 && !isAdding ? (
-            <li className="p-8 text-center text-slate-500">No categories found.</li>
+            <li className="p-8 text-center text-stone-500">No categories found.</li>
           ) : (
             categories.map(cat => (
-              <li key={cat.id} className="p-4 flex items-center gap-4 hover:bg-slate-50/50 transition-colors group">
+              <li key={cat.id} className="p-4 flex items-center gap-4 hover:bg-stone-50/50 transition-colors group">
                 {editingId === cat.id ? (
                   <>
                     <div className="shrink-0">
@@ -93,7 +93,7 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
                     <input 
                       type="text"
                       autoFocus
-                      className="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="flex-1 px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
                       value={editName}
                       onChange={(e) => setEditName(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && handleUpdate(cat.id)}
@@ -108,7 +108,7 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
                       </button>
                       <button 
                         onClick={() => setEditingId(null)}
-                        className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                        className="p-2 text-stone-400 hover:text-stone-600 hover:bg-stone-100 rounded-lg transition-colors"
                       >
                         <X className="w-5 h-5" />
                       </button>
@@ -116,16 +116,16 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
                   </>
                 ) : (
                   <>
-                    <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
                       <Icon name={cat.icon || 'List'} className="w-5 h-5" />
                     </div>
-                    <div className="flex-1 font-medium text-slate-800">
+                    <div className="flex-1 font-medium text-stone-800">
                       {cat.name}
                     </div>
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button 
                         onClick={() => startEdit(cat)}
-                        className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        className="p-2 text-stone-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
                         title="Edit"
                       >
                         <Edit2 className="w-4 h-4" />
@@ -133,7 +133,7 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
                       <button 
                         onClick={() => handleDelete(cat.id)}
                         disabled={loading === cat.id}
-                        className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                        className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
                         title="Delete"
                       >
                         {loading === cat.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}

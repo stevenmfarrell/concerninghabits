@@ -44,18 +44,18 @@ export default function IconPicker({ value, onChange, disabled }: IconPickerProp
         type="button"
         disabled={disabled}
         onClick={() => setIsOpen(!isOpen)}
-        className="h-[38px] px-3 bg-white border border-slate-200 rounded-lg flex items-center justify-center text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 transition-colors"
+        className="h-[38px] px-3 bg-white border border-stone-200 rounded-lg flex items-center justify-center text-stone-700 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50 transition-colors"
         title="Choose Icon"
       >
         <CurrentIcon className="w-4 h-4" />
       </button>
 
       {isOpen && (
-        <div className="absolute z-[100] left-0 mt-1 w-64 bg-white border border-slate-200 rounded-xl shadow-xl p-2">
+        <div className="absolute z-[100] left-0 mt-1 w-64 bg-white border border-stone-200 rounded-xl shadow-xl p-2">
           <input
             type="text"
             placeholder="Search icons..."
-            className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-emerald-500"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             autoFocus
@@ -76,7 +76,7 @@ export default function IconPicker({ value, onChange, disabled }: IconPickerProp
                     setIsOpen(false);
                     setSearch('');
                   }}
-                  className={`p-2 flex items-center justify-center rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors ${value === name ? 'bg-blue-100 text-blue-700' : 'text-slate-600'}`}
+                  className={`p-2 flex items-center justify-center rounded-lg hover:bg-emerald-50 hover:text-emerald-600 transition-colors ${value === name ? 'bg-emerald-100 text-emerald-700' : 'text-stone-600'}`}
                   title={name}
                 >
                   <IconComp className="w-4 h-4" />
@@ -84,7 +84,7 @@ export default function IconPicker({ value, onChange, disabled }: IconPickerProp
               );
             })}
             {filteredIcons.length === 0 && (
-              <div className="col-span-6 text-center py-4 text-sm text-slate-500">
+              <div className="col-span-6 text-center py-4 text-sm text-stone-500">
                 No icons found.
               </div>
             )}

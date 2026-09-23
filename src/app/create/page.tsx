@@ -62,25 +62,25 @@ export default function CreateHabit() {
   };
 
   return (
-    <main className="min-h-screen p-8 bg-slate-50 font-sans">
+    <main className="min-h-screen p-8 bg-stone-50 font-sans">
       <div className="max-w-4xl mx-auto space-y-8">
         
         <div>
-          <Link href="/" className="inline-flex items-center gap-2 text-slate-500 hover:text-slate-800 mb-4 transition-colors">
+          <Link href="/" className="inline-flex items-center gap-2 text-stone-500 hover:text-stone-800 mb-4 transition-colors">
             <ArrowLeft className="w-4 h-4" /> Back to Dashboard
           </Link>
           <div className="text-center space-y-4">
-            <h1 className="text-4xl font-bold text-slate-900">Create a Habit</h1>
-            <p className="text-slate-600">Describe what you want to track, and AI will generate the form for you.</p>
+            <h1 className="text-4xl font-bold text-stone-900">Create a Habit</h1>
+            <p className="text-stone-600">Describe what you want to track, and AI will generate the form for you.</p>
           </div>
         </div>
 
-        <form onSubmit={handleGenerate} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col gap-4">
+        <form onSubmit={handleGenerate} className="bg-white p-6 rounded-2xl shadow-sm border border-stone-100 flex flex-col gap-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Display Description (Optional)</label>
+            <label className="block text-sm font-medium text-stone-700 mb-2">Display Description (Optional)</label>
             <input 
               type="text" 
-              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
               placeholder="A short note about this habit for your dashboard..."
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -88,11 +88,11 @@ export default function CreateHabit() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">AI Schema Prompt (Required)</label>
+            <label className="block text-sm font-medium text-stone-700 mb-2">AI Schema Prompt (Required)</label>
             <div className="flex flex-col sm:flex-row gap-4">
               <input 
                 type="text" 
-                className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="flex-1 px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 placeholder="e.g., Track my runs with distance and time..."
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
@@ -101,7 +101,7 @@ export default function CreateHabit() {
               <button 
                 type="submit" 
                 disabled={loading || saving || !prompt.trim()}
-                className="px-6 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-70"
+                className="px-6 py-3 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-70"
               >
                 {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
                 Generate Form
@@ -112,7 +112,7 @@ export default function CreateHabit() {
 
         {schema && (
           <div className="space-y-6">
-            <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
+            <div className="bg-white p-8 rounded-2xl shadow-sm border border-stone-100">
               <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-6 pb-4 border-b gap-4">
                 <h2 className="text-2xl font-semibold">Preview: {schema.title}</h2>
                 <div className="flex flex-wrap items-center gap-3">
@@ -131,7 +131,7 @@ export default function CreateHabit() {
                 ) : (
                   <div className="flex items-center gap-3">
                     <select
-                      className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shrink-0"
+                      className="px-3 py-2 bg-white border border-stone-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 shrink-0"
                       value={frequency}
                       onChange={(e) => setFrequency(e.target.value)}
                       disabled={saving}
@@ -153,8 +153,8 @@ export default function CreateHabit() {
                 </div>
               </div>
               
-              <div className="prose max-w-none bg-slate-50 p-6 rounded-xl border border-slate-100">
-                <p className="text-sm text-slate-500 mb-4 font-medium uppercase tracking-wider">Test your form below:</p>
+              <div className="prose max-w-none bg-stone-50 p-6 rounded-xl border border-stone-100">
+                <p className="text-sm text-stone-500 mb-4 font-medium uppercase tracking-wider">Test your form below:</p>
                 <Form 
                   schema={schema} 
                   validator={validator} 

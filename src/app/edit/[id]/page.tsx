@@ -11,7 +11,7 @@ export default async function EditPage({ params }: { params: Promise<{ id: strin
   }
 
   return (
-    <main className="min-h-screen p-8 bg-slate-50 font-sans">
+    <main className="min-h-screen p-8 bg-stone-50 font-sans">
       <EditClient habit={habit} />
     </main>
   );

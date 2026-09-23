@@ -20,6 +20,20 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Testing on Mobile (PWA)
+
+Concerning Habits is configured as a Progressive Web App (PWA). To install it on your phone's home screen during development, you must access it over a secure HTTPS connection (a strict requirement for PWAs). 
+
+The easiest way to do this without setting up a reverse proxy or dealing with browser security flags is to use `localtunnel`:
+
+1. Start your local dev server (`npm run dev`).
+2. In a new terminal window, run:
+   ```bash
+   npx localtunnel --port 3000
+   ```
+3. Open the generated `https://` link on your phone.
+4. Use your browser's menu to select **"Install app"** or **"Add to Home Screen"**.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

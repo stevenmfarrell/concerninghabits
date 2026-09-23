@@ -15,7 +15,7 @@ export default function DeleteButton({ action }: { action: () => void }) {
       <button 
         type="submit"
         title="Delete Entry"
-        className="text-slate-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100 p-2"
+        className="text-stone-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100 p-2"
       >
         <Trash2 className="w-5 h-5" />
       </button>

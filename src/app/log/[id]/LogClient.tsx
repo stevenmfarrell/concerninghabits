@@ -42,16 +42,16 @@ export default function LogClient({ habit }: { habit: any }) {
   return (
     <div className="max-w-xl mx-auto space-y-8">
       <div>
-        <h1 className="text-3xl font-bold text-slate-900">{habit.name}</h1>
-        {habit.description && <p className="text-slate-600 mt-2">{habit.description}</p>}
+        <h1 className="text-3xl font-bold text-stone-900">{habit.name}</h1>
+        {habit.description && <p className="text-stone-600 mt-2">{habit.description}</p>}
       </div>
 
-      <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
+      <div className="bg-white p-8 rounded-2xl shadow-sm border border-stone-100">
         {success ? (
           <div className="text-center py-8 space-y-4">
             <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto" />
-            <h2 className="text-2xl font-semibold text-slate-800">Logged Successfully!</h2>
-            <p className="text-slate-500">Redirecting...</p>
+            <h2 className="text-2xl font-semibold text-stone-800">Logged Successfully!</h2>
+            <p className="text-stone-500">Redirecting...</p>
           </div>
         ) : (
           <div className="space-y-6">
@@ -65,9 +65,9 @@ export default function LogClient({ habit }: { habit: any }) {
               >
                 <div className="space-y-4 pt-4">
                   {showBackdate && (
-                    <div className="animate-in fade-in slide-in-from-bottom-2 p-4 bg-slate-50 border border-slate-200 rounded-xl">
+                    <div className="animate-in fade-in slide-in-from-bottom-2 p-4 bg-stone-50 border border-stone-200 rounded-xl">
                       <div className="flex justify-between items-center mb-2">
-                        <label className="block text-sm font-medium text-slate-700">
+                        <label className="block text-sm font-medium text-stone-700">
                           Custom Date & Time
                         </label>
                         <button 
@@ -76,14 +76,14 @@ export default function LogClient({ habit }: { habit: any }) {
                             setShowBackdate(false);
                             setLogDate('');
                           }}
-                          className="text-xs text-slate-500 hover:text-slate-700 font-medium"
+                          className="text-xs text-stone-500 hover:text-stone-700 font-medium"
                         >
                           Cancel
                         </button>
                       </div>
                       <input 
                         type="datetime-local" 
-                        className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-700 text-sm"
+                        className="w-full px-4 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-stone-700 text-sm"
                         value={logDate}
                         onChange={(e) => setLogDate(e.target.value)}
                         disabled={loading}
@@ -95,7 +95,7 @@ export default function LogClient({ habit }: { habit: any }) {
                   <button 
                     type="submit" 
                     disabled={loading}
-                    className="w-full py-4 bg-blue-600 text-white rounded-xl font-medium text-lg hover:bg-blue-700 transition-colors flex justify-center items-center gap-2 disabled:opacity-70 shadow-sm"
+                    className="w-full py-4 bg-emerald-600 text-white rounded-xl font-medium text-lg hover:bg-emerald-700 transition-colors flex justify-center items-center gap-2 disabled:opacity-70 shadow-sm"
                   >
                     {loading && <Loader2 className="w-5 h-5 animate-spin" />}
                     {loading ? 'Logging...' : 'Log Event'}
@@ -106,7 +106,7 @@ export default function LogClient({ habit }: { habit: any }) {
                       <button 
                         type="button" 
                         onClick={() => setShowBackdate(true)}
-                        className="text-xs text-slate-400 hover:text-slate-600 transition-colors"
+                        className="text-xs text-stone-400 hover:text-stone-600 transition-colors"
                       >
                         Backdate log
                       </button>
@@ -120,11 +120,11 @@ export default function LogClient({ habit }: { habit: any }) {
       </div>
 
       <div className="flex items-center justify-center gap-6 pt-4">
-        <Link href="/" className="text-sm font-medium text-slate-500 hover:text-slate-800 transition-colors">
+        <Link href="/" className="text-sm font-medium text-stone-500 hover:text-stone-800 transition-colors">
           Dashboard
         </Link>
-        <span className="text-slate-300">&bull;</span>
-        <Link href={`/history/${habit.id}`} className="text-sm font-medium text-slate-500 hover:text-slate-800 transition-colors">
+        <span className="text-stone-300">&bull;</span>
+        <Link href={`/history/${habit.id}`} className="text-sm font-medium text-stone-500 hover:text-stone-800 transition-colors">
           History
         </Link>
       </div>

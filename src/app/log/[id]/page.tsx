@@ -11,7 +11,7 @@ export default async function LogPage({ params }: { params: Promise<{ id: string
   }
 
   return (
-    <main className="min-h-screen p-8 bg-slate-50 font-sans">
+    <main className="min-h-screen p-8 bg-stone-50 font-sans">
       <LogClient habit={habit} />
     </main>
   );

@@ -68,21 +68,21 @@ export default function EditClient({ habit }: { habit: any }) {
   return (
     <div className="max-w-4xl mx-auto space-y-8">
       <div>
-        <Link href="/" className="inline-flex items-center gap-2 text-slate-500 hover:text-slate-800 mb-4 transition-colors">
+        <Link href="/" className="inline-flex items-center gap-2 text-stone-500 hover:text-stone-800 mb-4 transition-colors">
           <ArrowLeft className="w-4 h-4" /> Back to Dashboard
         </Link>
         <div className="text-center space-y-4">
-          <h1 className="text-4xl font-bold text-slate-900">Edit Habit</h1>
-          <p className="text-slate-600">Update your habit's details or ask AI to regenerate the tracking form.</p>
+          <h1 className="text-4xl font-bold text-stone-900">Edit Habit</h1>
+          <p className="text-stone-600">Update your habit's details or ask AI to regenerate the tracking form.</p>
         </div>
       </div>
 
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 space-y-6">
+      <div className="bg-white p-6 rounded-2xl shadow-sm border border-stone-100 space-y-6">
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-2">Habit Name</label>
+          <label className="block text-sm font-medium text-stone-700 mb-2">Habit Name</label>
           <input 
             type="text" 
-            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             disabled={saving}
@@ -90,10 +90,10 @@ export default function EditClient({ habit }: { habit: any }) {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-2">Display Description (Optional)</label>
+          <label className="block text-sm font-medium text-stone-700 mb-2">Display Description (Optional)</label>
           <input 
             type="text" 
-            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
             placeholder="A short note about this habit for your dashboard..."
             value={description}
             onChange={(e) => setDescription(e.target.value)}
@@ -102,11 +102,11 @@ export default function EditClient({ habit }: { habit: any }) {
         </div>
 
         <form onSubmit={handleGenerate} className="space-y-2">
-          <label className="block text-sm font-medium text-slate-700">AI Schema Prompt</label>
+          <label className="block text-sm font-medium text-stone-700">AI Schema Prompt</label>
           <div className="flex flex-col sm:flex-row gap-4">
             <input 
               type="text" 
-              className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="flex-1 px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               disabled={loading || saving}
@@ -115,7 +115,7 @@ export default function EditClient({ habit }: { habit: any }) {
             <button 
               type="submit" 
               disabled={loading || saving || !prompt.trim()}
-              className="px-6 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-70"
+              className="px-6 py-3 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-70"
             >
               {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
               Regenerate Schema
@@ -125,7 +125,7 @@ export default function EditClient({ habit }: { habit: any }) {
       </div>
 
       <div className="space-y-6">
-        <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
+        <div className="bg-white p-8 rounded-2xl shadow-sm border border-stone-100">
           <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-6 pb-4 border-b gap-4">
             <h2 className="text-2xl font-semibold">Form Preview</h2>
             <div className="flex flex-wrap items-center gap-3">
@@ -144,7 +144,7 @@ export default function EditClient({ habit }: { habit: any }) {
               ) : (
                 <div className="flex items-center gap-3">
                   <select
-                    className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shrink-0"
+                    className="px-3 py-2 bg-white border border-stone-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 shrink-0"
                     value={frequency}
                     onChange={(e) => setFrequency(e.target.value)}
                     disabled={saving}
@@ -166,7 +166,7 @@ export default function EditClient({ habit }: { habit: any }) {
             </div>
           </div>
           
-          <div className="prose max-w-none bg-slate-50 p-6 rounded-xl border border-slate-100">
+          <div className="prose max-w-none bg-stone-50 p-6 rounded-xl border border-stone-100">
             <Form 
               schema={{...schema, title: title}} 
               validator={validator} 

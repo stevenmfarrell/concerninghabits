@@ -122,25 +122,29 @@ export default function ActivityCalendar({ dates, weeks = 5, frequency = 'daily'
         
         const prevWeekDay = w > 0 ? fullCol[(w - 1) * 7 + d] : null;
         const isNewMonthTop = prevWeekDay ? day.getMonth() !== prevWeekDay.getMonth() : false;
+
+        const isToday = day.getDate() === today.getDate() && 
+                        day.getMonth() === today.getMonth() && 
+                        day.getFullYear() === today.getFullYear();
         
-        grid.push({ isNull: false, date: day, count, isFuture, isPeriodCompleted, isNewMonthLeft, isNewMonthTop, w, d });
+        grid.push({ isNull: false, date: day, count, isFuture, isPeriodCompleted, isNewMonthLeft, isNewMonthTop, w, d, isToday });
       }
     }
     return grid;
   });
 
   const getBackgroundColor = (count: number, isFuture: boolean, isPeriodCompleted: boolean) => {
-    if (isFuture) return 'bg-transparent border border-slate-100';
+    if (isFuture) return 'bg-transparent border border-stone-100';
     if (count > 0) {
       if (frequency === 'multiple') {
-        return count === 1 ? 'bg-blue-300' :
-               count === 2 ? 'bg-blue-400' :
-               'bg-blue-600';
+        return count === 1 ? 'bg-emerald-300' :
+               count === 2 ? 'bg-emerald-400' :
+               'bg-emerald-600';
       }
-      return 'bg-blue-500';
+      return 'bg-emerald-500';
     }
-    if (isPeriodCompleted) return 'bg-blue-200';
-    return 'bg-slate-100';
+    if (isPeriodCompleted) return 'bg-emerald-200';
+    return 'bg-stone-100';
   };
 
   const CELL_SIZE = size === 'sm' ? 8 : 14;
@@ -187,7 +191,7 @@ export default function ActivityCalendar({ dates, weeks = 5, frequency = 'daily'
                         className="absolute w-full flex items-center justify-center overflow-visible"
                         style={{ top: topPx, height: heightPx }}
                       >
-                        <div className="text-[10px] text-slate-400 font-bold tracking-widest whitespace-nowrap -rotate-90">
+                        <div className="text-[10px] text-stone-400 font-bold tracking-widest whitespace-nowrap -rotate-90">
                           {block.text}
                         </div>
                       </div>
@@ -195,7 +199,7 @@ export default function ActivityCalendar({ dates, weeks = 5, frequency = 'daily'
                       {/* Horizontal Year Labels */}
                       {block.month === 0 && (
                         <div 
-                          className="absolute w-full text-[9px] text-slate-400 font-bold flex justify-center"
+                          className="absolute w-full text-[9px] text-stone-400 font-bold flex justify-center"
                           style={{ top: topPx + 8 }}
                         >
                           {block.year}
@@ -203,7 +207,7 @@ export default function ActivityCalendar({ dates, weeks = 5, frequency = 'daily'
                       )}
                       {block.month === 11 && (
                         <div 
-                          className="absolute w-full text-[9px] text-slate-400 font-bold flex justify-center"
+                          className="absolute w-full text-[9px] text-stone-400 font-bold flex justify-center"
                           style={{ top: block.endW * STEP - 8 }}
                         >
                           {block.year}
@@ -224,7 +228,7 @@ export default function ActivityCalendar({ dates, weeks = 5, frequency = 'daily'
                     <div
                       key={i}
                       title={cell.isFuture ? undefined : `${cell.date.toLocaleDateString()}: ${cell.count} logs`}
-                      className={`${cellClass} transition-colors relative z-10 ${getBackgroundColor(cell.count, cell.isFuture, cell.isPeriodCompleted)}`}
+                      className={`${cellClass} transition-colors relative z-10 ${getBackgroundColor(cell.count, cell.isFuture, cell.isPeriodCompleted)} ${cell.isToday ? 'ring-1 ring-stone-900 ring-offset-1' : ''}`}
                     />
                   );
                 })}
@@ -238,7 +242,7 @@ export default function ActivityCalendar({ dates, weeks = 5, frequency = 'daily'
                     <div key={`boundary-${i}`}>
                       {cell.isNewMonthLeft && (
                         <div 
-                          className="absolute bg-slate-400"
+                          className="absolute bg-stone-400"
                           style={{
                             left: cell.d * STEP - 2,
                             top: cell.w * STEP - 2,
@@ -249,7 +253,7 @@ export default function ActivityCalendar({ dates, weeks = 5, frequency = 'daily'
                       )}
                       {cell.isNewMonthTop && (
                         <div 
-                          className="absolute bg-slate-400"
+                          className="absolute bg-stone-400"
                           style={{
                             left: cell.d * STEP - 2,
                             top: cell.w * STEP - 2,

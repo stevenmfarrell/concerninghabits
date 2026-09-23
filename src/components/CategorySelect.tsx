@@ -35,23 +35,23 @@ export default function CategorySelect({ categories, value, onChange, onNew, dis
         type="button"
         disabled={disabled}
         onClick={() => setIsOpen(!isOpen)}
-        className="w-48 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center justify-between disabled:opacity-50 transition-colors"
+        className="w-48 px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-sm text-stone-700 hover:bg-stone-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 flex items-center justify-between disabled:opacity-50 transition-colors"
       >
         <div className="flex items-center gap-2 overflow-hidden">
           {selectedCategory ? (
             <>
-              <Icon name={selectedCategory.icon || 'List'} className="w-4 h-4 text-blue-600 shrink-0" />
+              <Icon name={selectedCategory.icon || 'List'} className="w-4 h-4 text-emerald-600 shrink-0" />
               <span className="truncate">{selectedCategory.name}</span>
             </>
           ) : (
-            <span className="text-slate-400">Select Category</span>
+            <span className="text-stone-400">Select Category</span>
           )}
         </div>
-        <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
+        <ChevronDown className="w-4 h-4 text-stone-400 shrink-0" />
       </button>
 
       {isOpen && (
-        <div className="absolute z-10 w-full mt-1 bg-white border border-slate-100 rounded-xl shadow-lg py-1 max-h-60 overflow-auto">
+        <div className="absolute z-10 w-full mt-1 bg-white border border-stone-100 rounded-xl shadow-lg py-1 max-h-60 overflow-auto">
           {categories.map((c) => (
             <button
               key={c.id}
@@ -60,16 +60,16 @@ export default function CategorySelect({ categories, value, onChange, onNew, dis
                 onChange(c.id);
                 setIsOpen(false);
               }}
-              className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-slate-50 transition-colors ${
-                value === c.id ? 'bg-blue-50 text-blue-700 font-medium' : 'text-slate-700'
+              className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-stone-50 transition-colors ${
+                value === c.id ? 'bg-emerald-50 text-emerald-700 font-medium' : 'text-stone-700'
               }`}
             >
-              <Icon name={c.icon || 'List'} className={`w-4 h-4 ${value === c.id ? 'text-blue-600' : 'text-slate-400'}`} />
+              <Icon name={c.icon || 'List'} className={`w-4 h-4 ${value === c.id ? 'text-emerald-600' : 'text-stone-400'}`} />
               <span className="truncate">{c.name}</span>
             </button>
           ))}
           
-          <div className="h-px bg-slate-100 my-1"></div>
+          <div className="h-px bg-stone-100 my-1"></div>
           
           <button
             type="button"
@@ -77,7 +77,7 @@ export default function CategorySelect({ categories, value, onChange, onNew, dis
               onNew();
               setIsOpen(false);
             }}
-            className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 text-blue-600 hover:bg-blue-50 transition-colors"
+            className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 text-emerald-600 hover:bg-emerald-50 transition-colors"
           >
             <Plus className="w-4 h-4" />
             <span className="font-medium">New Category</span>

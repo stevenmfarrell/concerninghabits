@@ -5,7 +5,7 @@ export default async function CategoriesSettingsPage() {
   const categories = await getCategories();
   
   return (
-    <main className="min-h-screen p-8 bg-slate-50 font-sans">
+    <main className="min-h-screen p-8 bg-stone-50 font-sans">
       <CategoriesClient initialCategories={categories} />
     </main>
   );
