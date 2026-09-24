@@ -7,10 +7,7 @@ self.addEventListener('activate', function(event) {
 });
 
 self.addEventListener('fetch', function(event) {
-  // A minimum fetch handler to satisfy PWA requirements
-  event.respondWith(
-    fetch(event.request).catch(() => {
-      return new Response("Offline mode not implemented");
-    })
-  );
+  // A completely passive fetch handler to satisfy PWA requirements
+  // We do not call event.respondWith() so the browser handles all requests natively.
+  // This prevents any accidental SW-level network failures from corrupting JS bundles.
 });

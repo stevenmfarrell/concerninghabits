@@ -1,42 +1,77 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import Form from '@rjsf/core';
 import validator from '@rjsf/validator-ajv8';
-import { logHabitEvent } from '../../actions/db';
+import { logHabitEvent, deleteHabitLog } from '../../actions/db';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, CheckCircle2, Loader2 } from 'lucide-react';
+import { ArrowLeft, Check, Loader2, Undo2 } from 'lucide-react';
 import Link from 'next/link';
 
 export default function LogClient({ habit }: { habit: any }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [undoing, setUndoing] = useState(false);
+  const [createdLogId, setCreatedLogId] = useState<string | null>(null);
+  const redirectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
-  // Backdate functionality
-  // Default to empty (which means 'now'), but allow user to select a date/time
   const [logDate, setLogDate] = useState('');
   const [showBackdate, setShowBackdate] = useState(false);
 
   const schema = JSON.parse(habit.schema);
 
-  const handleSubmit = async (data: any) => {
-    setLoading(true);
+  const [formData, setFormData] = useState<any>({});
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (redirectTimeoutRef.current) clearTimeout(redirectTimeoutRef.current);
+    };
+  }, []);
+
+  const handleManualSubmit = async () => {
+    try {
+      setLoading(true);
+      
+      let createdAt = undefined;
+      if (logDate) {
+        createdAt = new Date(logDate);
+      }
+      
+      const log = await logHabitEvent(habit.id, formData || {}, createdAt);
+      setCreatedLogId(log.id);
+      setSuccess(true);
+      
+      redirectTimeoutRef.current = setTimeout(() => {
+        router.refresh();
+        router.push('/');
+      }, 4000); // 4 seconds gives them time to hit undo
+    } catch (err: any) {
+      alert(`Failed to log entry: ${err.message || 'Unknown error'}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUndo = async () => {
+    if (!createdLogId) return;
     
-    // Parse the backdated time if provided
-    let createdAt = undefined;
-    if (logDate) {
-      createdAt = new Date(logDate);
+    // Stop the automatic redirect
+    if (redirectTimeoutRef.current) {
+      clearTimeout(redirectTimeoutRef.current);
     }
     
-    await logHabitEvent(habit.id, data.formData || {}, createdAt);
-    setSuccess(true);
-    setLoading(false);
-    
-    // Redirect back to dashboard after a short delay
-    setTimeout(() => {
-      router.push('/');
-    }, 1500);
+    try {
+      setUndoing(true);
+      await deleteHabitLog(createdLogId, habit.id);
+      setSuccess(false);
+      setCreatedLogId(null);
+    } catch (err: any) {
+      alert(`Failed to undo: ${err.message}`);
+    } finally {
+      setUndoing(false);
+    }
   };
 
   return (
@@ -46,24 +81,41 @@ export default function LogClient({ habit }: { habit: any }) {
         {habit.description && <p className="text-stone-600 mt-2">{habit.description}</p>}
       </div>
 
-      <div className="bg-white p-8 rounded-2xl shadow-sm border border-stone-100">
+      <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-stone-100">
         {success ? (
-          <div className="text-center py-8 space-y-4">
-            <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto" />
-            <h2 className="text-2xl font-semibold text-stone-800">Logged Successfully!</h2>
-            <p className="text-stone-500">Redirecting...</p>
+          <div className="text-center py-8 animate-in fade-in zoom-in duration-300">
+            <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Check className="w-8 h-8 text-emerald-600" />
+            </div>
+            <h2 className="text-2xl font-bold text-stone-800 mb-2">Logged!</h2>
+            <p className="text-stone-500 mb-8">Redirecting to dashboard...</p>
+            
+            <button
+              type="button"
+              onClick={handleUndo}
+              disabled={undoing}
+              className="inline-flex items-center gap-2 px-6 py-3 text-stone-600 bg-stone-100 hover:bg-stone-200 rounded-xl font-medium transition-colors disabled:opacity-70 cursor-pointer"
+            >
+              {undoing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Undo2 className="w-5 h-5" />}
+              {undoing ? 'Undoing...' : 'Undo Entry'}
+            </button>
           </div>
         ) : (
           <div className="space-y-6">
-            <div className="prose max-w-none">
+            <div className="rjsf-custom">
               <Form 
                 schema={schema} 
                 validator={validator} 
-                onSubmit={handleSubmit}
+                formData={formData}
+                onChange={(e) => setFormData(e.formData)}
                 disabled={loading}
+                noHtml5Validate={true}
+                showErrorList={false}
                 className="space-y-6 rjsf"
               >
-                <div className="space-y-4 pt-4">
+                <></>
+              </Form>
+              <div className="space-y-4 pt-4">
                   {showBackdate && (
                     <div className="animate-in fade-in slide-in-from-bottom-2 p-4 bg-stone-50 border border-stone-200 rounded-xl">
                       <div className="flex justify-between items-center mb-2">
@@ -93,9 +145,13 @@ export default function LogClient({ habit }: { habit: any }) {
                   )}
 
                   <button 
-                    type="submit" 
+                    type="button" 
                     disabled={loading}
-                    className="w-full py-4 bg-emerald-600 text-white rounded-xl font-medium text-lg hover:bg-emerald-700 transition-colors flex justify-center items-center gap-2 disabled:opacity-70 shadow-sm"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleManualSubmit();
+                    }}
+                    className="w-full py-4 bg-emerald-600 text-white rounded-xl font-medium text-lg hover:bg-emerald-700 cursor-pointer transition-colors flex justify-center items-center gap-2 disabled:opacity-70 shadow-sm"
                   >
                     {loading && <Loader2 className="w-5 h-5 animate-spin" />}
                     {loading ? 'Logging...' : 'Log Event'}
@@ -113,7 +169,6 @@ export default function LogClient({ habit }: { habit: any }) {
                     </div>
                   )}
                 </div>
-              </Form>
             </div>
           </div>
         )}
