@@ -3,54 +3,32 @@
 import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 
-// Helper to get or create a default user/family for prototyping
+import { verifySession } from '@/lib/auth';
+import { redirect } from 'next/navigation';
+
 export async function getDefaultUser() {
-  let family = await prisma.family.findFirst({
+  const session = await verifySession();
+  
+  if (!session?.userId) {
+    redirect('/login');
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.userId },
     include: { categories: true }
   });
-  
-  if (!family) {
-    family = await prisma.family.create({
-      data: {
-        name: 'The Smiths',
-      },
-      include: { categories: true }
-    });
-  }
 
-  if (family.categories.length === 0) {
-    // Seed default categories
-    const defaults = [
-      { name: 'Mind', icon: 'Brain' },
-      { name: 'Body', icon: 'Dumbbell' },
-      { name: 'Chores', icon: 'CheckSquare' },
-      { name: 'Other', icon: 'List' }
-    ];
-    for (const cat of defaults) {
-      await prisma.category.create({
-        data: { ...cat, familyId: family.id }
-      });
-    }
-  }
-
-  let user = await prisma.user.findFirst({ include: { family: true } });
   if (!user) {
-    user = await prisma.user.create({
-      data: {
-        name: 'John',
-        familyId: family.id,
-      },
-      include: { family: true }
-    });
+    redirect('/api/logout');
   }
-  
+
   return user;
 }
 
 export async function getCategories() {
   const user = await getDefaultUser();
   return prisma.category.findMany({
-    where: { familyId: user.familyId },
+    where: { userId: user.id },
     orderBy: { name: 'asc' }
   });
 }
@@ -58,7 +36,7 @@ export async function getCategories() {
 export async function createCategory(name: string, icon?: string) {
   const user = await getDefaultUser();
   const category = await prisma.category.create({
-    data: { name, icon, familyId: user.familyId }
+    data: { name, icon, userId: user.id }
   });
   revalidatePath('/');
   return category;
@@ -86,18 +64,17 @@ export async function deleteCategory(id: string) {
   revalidatePath('/');
 }
 
-export async function saveHabit(name: string, description: string, prompt: string, schema: any, categoryId?: string, frequency: string = 'daily') {
+export async function saveHabit(name: string, description: string, schema: any, categoryId?: string, frequency: string = 'daily') {
   const user = await getDefaultUser();
   
   const habit = await prisma.habit.create({
     data: {
       name,
       description,
-      prompt,
       schema: JSON.stringify(schema),
       categoryId,
       frequency,
-      familyId: user.familyId,
+      userId: user.id,
     }
   });
   
@@ -113,7 +90,7 @@ export async function getHabits() {
   pastDate.setDate(pastDate.getDate() - pastDate.getDay()); // Snap to the Sunday before the 1st to capture logs for partial weeks
   
   return prisma.habit.findMany({
-    where: { familyId: user.familyId },
+    where: { userId: user.id },
     orderBy: { createdAt: 'desc' },
     include: { 
       category: true,
@@ -169,13 +146,12 @@ export async function getHabitLogs(habitId: string) {
   });
 }
 
-export async function updateHabit(id: string, name: string, description: string, prompt: string, schema: any, categoryId?: string, frequency: string = 'daily') {
+export async function updateHabit(id: string, name: string, description: string, schema: any, categoryId?: string, frequency: string = 'daily') {
   const habit = await prisma.habit.update({
     where: { id },
     data: {
       name,
       description,
-      prompt,
       schema: JSON.stringify(schema),
       categoryId,
       frequency,

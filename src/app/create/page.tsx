@@ -5,7 +5,7 @@ import { generateHabitSchema } from '../actions/habit';
 import { saveHabit, getCategories, createCategory } from '../actions/db';
 import Form from '@rjsf/core';
 import validator from '@rjsf/validator-ajv8';
-import { Loader2, Sparkles, Save, ArrowLeft, Plus } from 'lucide-react';
+import { Loader2, Sparkles, Save, ArrowLeft, Wand2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import CategorySelect from '../../components/CategorySelect';
@@ -13,21 +13,27 @@ import NewCategoryInline from '../../components/NewCategoryInline';
 
 export default function CreateHabit() {
   const router = useRouter();
-  const [prompt, setPrompt] = useState('');
+  
+  // Phase 1: Genesis Prompt
+  const [initialPrompt, setInitialPrompt] = useState('');
+  
+  // Phase 2: Refinement State
+  const [schema, setSchema] = useState<any>(null);
+  const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [frequency, setFrequency] = useState<string>('daily');
+  const [categoryId, setCategoryId] = useState<string>('');
+  
+  // Tweak Schema State
+  const [tweakPrompt, setTweakPrompt] = useState('');
+  const [isTweaking, setIsTweaking] = useState(false);
+  
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [schema, setSchema] = useState<any>(null);
   
   const [categories, setCategories] = useState<any[]>([]);
-  const [categoryId, setCategoryId] = useState<string>('');
-  const [frequency, setFrequency] = useState<string>('daily');
-  
-  // Custom category creation
   const [showNewCat, setShowNewCat] = useState(false);
 
-  // Use a simple effect to load categories since this is a client component
-  // Real app might use React Query or pass as props from Server Component
   useEffect(() => {
     getCategories().then(cats => {
       setCategories(cats);
@@ -37,14 +43,16 @@ export default function CreateHabit() {
 
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!prompt.trim()) return;
+    if (!initialPrompt.trim()) return;
     
     setLoading(true);
-    const result = await generateHabitSchema(prompt);
+    const result = await generateHabitSchema(initialPrompt);
     if (result.success) {
       setSchema(result.schema);
+      setTitle(result.schema.title || '');
+      if (result.schema.frequency) setFrequency(result.schema.frequency);
+      
       if (result.category) {
-        // Try to match the LLM string to a category name
         const match = categories.find(c => c.name.toLowerCase() === result.category?.toLowerCase());
         if (match) setCategoryId(match.id);
       }
@@ -54,70 +62,108 @@ export default function CreateHabit() {
     setLoading(false);
   };
 
+  const handleTweakSchema = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!tweakPrompt.trim() || !schema) return;
+    
+    setIsTweaking(true);
+    const result = await generateHabitSchema(tweakPrompt, schema);
+    if (result.success) {
+      // ONLY update the schema properties and required array
+      // Don't overwrite manual edits to Title, Category, Frequency
+      setSchema((prev: any) => ({
+        ...prev,
+        properties: result.schema.properties,
+        required: result.schema.required,
+      }));
+      setTweakPrompt('');
+    } else {
+      alert(result.error);
+    }
+    setIsTweaking(false);
+  };
+
   const handleSave = async () => {
-    if (!schema) return;
+    if (!schema || !title) return;
     setSaving(true);
-    await saveHabit(schema.title || 'New Habit', description, prompt, schema, categoryId, frequency);
+    const finalSchema = { ...schema, title }; // Ensure schema has latest title
+    await saveHabit(title, description, finalSchema, categoryId, frequency);
     router.push('/');
   };
 
   return (
-    <main className="flex-1 p-4 sm:p-8 bg-stone-50 font-sans">
-      <div className="max-w-4xl mx-auto space-y-6 sm:space-y-8">
+    <main className="flex-1 p-4 sm:p-8 bg-stone-50 font-sans min-h-screen">
+      <div className="max-w-3xl mx-auto space-y-6 sm:space-y-8">
         
         <div>
           <Link href="/" className="inline-flex items-center gap-2 text-stone-500 hover:text-stone-800 mb-4 transition-colors">
             <ArrowLeft className="w-4 h-4" /> Back to Dashboard
           </Link>
-          <div className="text-center space-y-4">
-            <h1 className="text-4xl font-bold text-stone-900">Create a Habit</h1>
-            <p className="text-stone-600">Describe what you want to track, and AI will generate the form for you.</p>
+          <div className="space-y-2">
+            <h1 className="text-3xl font-bold text-stone-900">New Habit</h1>
           </div>
         </div>
 
-        <form onSubmit={handleGenerate} className="bg-white p-6 rounded-2xl shadow-sm border border-stone-100 flex flex-col gap-4">
-          <div>
-            <label className="block text-sm font-medium text-stone-700 mb-2">Display Description (Optional)</label>
-            <input 
-              type="text" 
-              className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              placeholder="A short note about this habit for your dashboard..."
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              disabled={loading || saving}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-stone-700 mb-2">AI Schema Prompt (Required)</label>
-            <div className="flex flex-col sm:flex-row gap-4">
-              <input 
-                type="text" 
-                className="flex-1 px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                placeholder="e.g., Track my runs with distance and time..."
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                disabled={loading || saving}
+        {!schema ? (
+          <form onSubmit={handleGenerate} className="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-stone-100 flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-2">
+            <div>
+              <label className="block text-stone-700 mb-2 font-medium">What do you want to track?</label>
+              <textarea 
+                className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 min-h-[120px] resize-none"
+                placeholder="e.g., Read 20 pages a day, track my morning run with distance and time, or drink 8 glasses of water..."
+                value={initialPrompt}
+                onChange={(e) => setInitialPrompt(e.target.value)}
+                disabled={loading}
+                autoFocus
               />
+            </div>
+            <div className="flex flex-col sm:flex-row justify-end gap-3 sm:gap-4 mt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setTitle('New Habit');
+                  setSchema({
+                    title: 'New Habit',
+                    type: 'object',
+                    properties: {}
+                  });
+                }}
+                disabled={loading}
+                className="px-6 py-3 text-stone-600 bg-stone-100 hover:bg-stone-200 rounded-xl font-medium transition-colors disabled:opacity-70 order-2 sm:order-1 text-center"
+              >
+                Skip & Build Manually
+              </button>
               <button 
                 type="submit" 
-                disabled={loading || saving || !prompt.trim()}
-                className="px-6 py-3 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-70"
+                disabled={loading || !initialPrompt.trim()}
+                className="px-6 py-3 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-70 order-1 sm:order-2"
               >
                 {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
-                Generate Form
+                {loading ? 'Designing Habit...' : 'Generate with AI'}
               </button>
             </div>
-          </div>
-        </form>
+          </form>
+        ) : (
+          <div className="space-y-8 animate-in fade-in zoom-in duration-300">
+            {/* Metadata Card */}
+            <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-stone-100 space-y-6">
+              <h2 className="text-xl font-bold text-stone-800 border-b pb-4">Habit Details</h2>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-stone-700 mb-2">Title</label>
+                  <input 
+                    type="text" 
+                    className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 font-semibold text-lg"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    disabled={saving}
+                  />
+                </div>
 
-        {schema && (
-          <div className="space-y-6">
-            <div className="bg-white p-8 rounded-2xl shadow-sm border border-stone-100">
-              <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-6 pb-4 border-b gap-4">
-                <h2 className="text-2xl font-semibold">Preview: {schema.title}</h2>
-                <div className="flex flex-wrap items-center gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-stone-700 mb-2">Category</label>
                   {showNewCat ? (
-                  <div className="w-full sm:w-auto">
                     <NewCategoryInline 
                       onSave={async (name, icon) => {
                         const newCat = await createCategory(name, icon);
@@ -127,20 +173,7 @@ export default function CreateHabit() {
                       }} 
                       onCancel={() => setShowNewCat(false)} 
                     />
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-3">
-                    <select
-                      className="px-3 py-2 bg-white border border-stone-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 shrink-0"
-                      value={frequency}
-                      onChange={(e) => setFrequency(e.target.value)}
-                      disabled={saving}
-                    >
-                      <option value="daily">Daily</option>
-                      <option value="weekly">Weekly</option>
-                      <option value="monthly">Monthly</option>
-                      <option value="multiple">Multiple / day</option>
-                    </select>
+                  ) : (
                     <CategorySelect 
                       categories={categories}
                       value={categoryId}
@@ -148,27 +181,109 @@ export default function CreateHabit() {
                       onNew={() => setShowNewCat(true)}
                       disabled={saving || categories.length === 0}
                     />
-                  </div>
                   )}
                 </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-stone-700 mb-2">Cadence</label>
+                  <select
+                    className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    value={frequency}
+                    onChange={(e) => setFrequency(e.target.value)}
+                    disabled={saving}
+                  >
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="monthly">Monthly</option>
+                    <option value="multiple">Multiple times a day</option>
+                  </select>
+                </div>
+
+              </div>
+            </div>
+            
+            {/* Data Schema Card */}
+            <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-stone-100 space-y-6">
+              <div className="flex justify-between items-center border-b pb-4">
+                <h2 className="text-xl font-bold text-stone-800">Live Preview</h2>
               </div>
               
-              <div className="prose max-w-none bg-stone-50 p-6 rounded-xl border border-stone-100">
-                <p className="text-sm text-stone-500 mb-4 font-medium uppercase tracking-wider">Test your form below:</p>
-                <Form 
-                  schema={schema} 
-                  validator={validator} 
-                  onSubmit={(data) => alert(`This is just a preview. Save the habit to start logging!\n\nPayload: ${JSON.stringify(data.formData, null, 2)}`)}
-                  className="space-y-4 rjsf"
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                
+                {/* Schema Preview */}
+                <div className="space-y-4">
+                  <div className="p-6 bg-stone-50 rounded-xl border border-stone-200">
+                    <div className="mb-6">
+                      <h1 className="text-2xl font-bold text-stone-900">{title || 'New Habit'}</h1>
+                      {description !== '' ? (
+                        <input 
+                          type="text" 
+                          autoFocus={description === ' '}
+                          className="w-full mt-2 bg-transparent border-b border-dashed border-stone-300 focus:outline-none focus:border-emerald-500 text-stone-600 placeholder-stone-400"
+                          placeholder="Why are you tracking this?"
+                          value={description.trimStart()}
+                          onChange={(e) => setDescription(e.target.value)}
+                          disabled={saving}
+                        />
+                      ) : (
+                        <button 
+                          type="button"
+                          onClick={() => setDescription(' ')}
+                          className="mt-2 text-sm text-stone-400 hover:text-stone-600 transition-colors border-b border-dashed border-stone-300 pb-0.5"
+                        >
+                          [+ Add Description]
+                        </button>
+                      )}
+                    </div>
+                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-stone-100">
+                      <Form 
+                        schema={{...schema, title: ''}} 
+                        validator={validator} 
+                        onSubmit={() => alert('This is just a preview!')}
+                        className="rjsf rjsf-preview"
+                      >
+                        <button type="submit" className="mt-4 px-6 py-3 bg-stone-900 text-white rounded-xl font-medium hover:bg-stone-800 transition-colors w-full">
+                          Test Submit
+                        </button>
+                      </Form>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Tweak Prompt */}
+                <div className="space-y-4">
+                  <p className="text-sm font-medium text-stone-500 uppercase tracking-wider">Tweak Form with AI</p>
+                  <form onSubmit={handleTweakSchema} className="flex flex-col gap-3">
+                    <textarea 
+                      className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 min-h-[100px] resize-none text-sm"
+                      placeholder="Missing a field? e.g. 'Add a dropdown for mood', 'Make distance optional'"
+                      value={tweakPrompt}
+                      onChange={(e) => setTweakPrompt(e.target.value)}
+                      disabled={isTweaking || saving}
+                    />
+                    <button 
+                      type="submit" 
+                      disabled={isTweaking || saving || !tweakPrompt.trim()}
+                      className="self-end px-4 py-2 bg-stone-800 text-white rounded-lg text-sm font-medium hover:bg-stone-900 transition-colors flex items-center justify-center gap-2 disabled:opacity-70"
+                    >
+                      {isTweaking ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
+                      Apply AI Tweak
+                    </button>
+                  </form>
+
+                  <div className="p-4 bg-blue-50 text-blue-800 rounded-xl text-sm mt-4 border border-blue-100">
+                    <strong>Tip:</strong> If your habit is as simple as "did I do it?", the generated form should be empty. Just clicking the log button will record the event.
+                  </div>
+                </div>
+
               </div>
             </div>
 
-            <div className="flex justify-end">
+            <div className="flex justify-end pt-4">
               <button 
                 onClick={handleSave}
-                disabled={saving || showNewCat}
-                className="px-8 py-4 bg-green-600 text-white rounded-xl font-medium text-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-3 disabled:opacity-70 shadow-sm w-full md:w-auto"
+                disabled={saving || showNewCat || isTweaking}
+                className="px-8 py-4 bg-emerald-600 text-white rounded-xl font-medium text-lg hover:bg-emerald-700 transition-colors flex items-center justify-center gap-3 disabled:opacity-70 shadow-sm w-full md:w-auto"
               >
                 {saving ? <Loader2 className="w-6 h-6 animate-spin" /> : <Save className="w-6 h-6" />}
                 Save Habit

@@ -20,11 +20,24 @@ export default async function Dashboard() {
             <div className="min-w-0">
               <h1 className="text-3xl font-extrabold text-stone-800 tracking-tight truncate">Concerning Habits</h1>
               <p className="text-stone-500 font-medium mt-1 text-sm truncate">
-                The <span className="text-stone-700 font-semibold">{user.family.name}</span> Shire &bull; <span className="text-stone-700 font-semibold">{user.name}</span>
+                <span className="text-stone-700 font-semibold">{user.name}'s</span> Shire
               </p>
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <form action={async () => {
+              'use server';
+              const { logout } = await import('./actions/auth');
+              await logout();
+            }}>
+              <button 
+                type="submit"
+                className="px-4 py-3 bg-white text-stone-700 border border-stone-200 rounded-xl font-medium hover:bg-stone-50 transition-colors flex items-center justify-center gap-2"
+                title="Log out"
+              >
+                <Icon name="LogOut" className="w-5 h-5" />
+              </button>
+            </form>
             <Link 
               href="/settings/categories"
               className="px-4 py-3 bg-white text-stone-700 border border-stone-200 rounded-xl font-medium hover:bg-stone-50 transition-colors flex items-center justify-center gap-2"
@@ -89,7 +102,7 @@ export default async function Dashboard() {
                         </div>
                         
                         <div className="shrink-0">
-                          <ActivityCalendar dates={habit.logs.map((l: any) => l.createdAt)} weeks={5} frequency={habit.frequency} />
+                          <ActivityCalendar dates={habit.logs.map((l: any) => l.createdAt)} weeks={4} frequency={habit.frequency} />
                         </div>
                       </Link>
                       
