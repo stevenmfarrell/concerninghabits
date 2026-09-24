@@ -35,7 +35,7 @@ export default function CategorySelect({ categories, value, onChange, onNew, dis
         type="button"
         disabled={disabled}
         onClick={() => setIsOpen(!isOpen)}
-        className="w-48 px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-sm text-stone-700 hover:bg-stone-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 flex items-center justify-between disabled:opacity-50 transition-colors"
+        className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-sm text-stone-700 hover:bg-stone-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 flex items-center justify-between disabled:opacity-50 transition-colors"
       >
         <div className="flex items-center gap-2 overflow-hidden">
           {selectedCategory ? (

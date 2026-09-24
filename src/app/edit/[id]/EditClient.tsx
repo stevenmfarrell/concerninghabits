@@ -77,85 +77,33 @@ export default function EditClient({ habit }: { habit: any }) {
           </Link>
           <div className="space-y-2">
             <h1 className="text-3xl font-bold text-stone-900">Edit Habit</h1>
+            <p className="text-stone-600">Update your habit's form, category, or cadence.</p>
           </div>
         </div>
 
         <div className="space-y-8 animate-in fade-in zoom-in duration-300">
-          {/* Metadata Card */}
-          <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-stone-100 space-y-6">
-            <h2 className="text-xl font-bold text-stone-800 border-b pb-4">Habit Details</h2>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-stone-700 mb-2">Title</label>
-                <input 
-                  type="text" 
-                  className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 font-semibold text-lg"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  disabled={saving}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-stone-700 mb-2">Category</label>
-                {showNewCat ? (
-                  <NewCategoryInline 
-                    onSave={async (name, icon) => {
-                      const newCat = await createCategory(name, icon);
-                      setCategories([...categories, newCat].sort((a, b) => a.name.localeCompare(b.name)));
-                      setCategoryId(newCat.id);
-                      setShowNewCat(false);
-                    }} 
-                    onCancel={() => setShowNewCat(false)} 
-                  />
-                ) : (
-                  <CategorySelect 
-                    categories={categories}
-                    value={categoryId}
-                    onChange={setCategoryId}
-                    onNew={() => setShowNewCat(true)}
-                    disabled={saving || categories.length === 0}
-                  />
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-stone-700 mb-2">Cadence</label>
-                <select
-                  className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  value={frequency}
-                  onChange={(e) => setFrequency(e.target.value)}
-                  disabled={saving}
-                >
-                  <option value="daily">Daily</option>
-                  <option value="weekly">Weekly</option>
-                  <option value="monthly">Monthly</option>
-                  <option value="multiple">Multiple times a day</option>
-                </select>
-              </div>
-
-              </div>
-            </div>
-          
-          {/* Data Schema Card */}
           <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-stone-100 space-y-6">
             <div className="flex justify-between items-center border-b pb-4">
-              <h2 className="text-xl font-bold text-stone-800">Live Preview</h2>
+              <h2 className="text-xl font-bold text-stone-800">Habit Form</h2>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              
-              {/* Schema Preview */}
               <div className="space-y-4">
                 <div className="p-6 bg-stone-50 rounded-xl border border-stone-200">
                   <div className="mb-6">
-                    <h1 className="text-2xl font-bold text-stone-900">{title || 'New Habit'}</h1>
+                    <input 
+                      type="text"
+                      className="text-2xl font-bold text-stone-900 bg-transparent border-b border-dashed border-stone-300 focus:outline-none focus:border-emerald-500 w-full placeholder-stone-300 pb-1"
+                      value={title}
+                      placeholder="New Habit"
+                      onChange={(e) => setTitle(e.target.value)}
+                      disabled={saving}
+                    />
                     {description !== '' ? (
                       <input 
                         type="text" 
                         autoFocus={description === ' '}
-                        className="w-full mt-2 bg-transparent border-b border-dashed border-stone-300 focus:outline-none focus:border-emerald-500 text-stone-600 placeholder-stone-400"
+                        className="w-full mt-2 bg-transparent border-b border-dashed border-stone-300 focus:outline-none focus:border-emerald-500 text-stone-600 placeholder-stone-400 pb-0.5"
                         placeholder="Why are you tracking this?"
                         value={description.trimStart()}
                         onChange={(e) => setDescription(e.target.value)}
@@ -171,7 +119,7 @@ export default function EditClient({ habit }: { habit: any }) {
                       </button>
                     )}
                   </div>
-                  <div className="bg-white p-6 rounded-2xl shadow-sm border border-stone-100">
+                  <div className="bg-white p-6 rounded-2xl shadow-sm border border-stone-100 mb-6">
                     <Form 
                       schema={{...schema, title: ''}} 
                       validator={validator} 
@@ -182,6 +130,43 @@ export default function EditClient({ habit }: { habit: any }) {
                         Test Submit
                       </button>
                     </Form>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <div className="w-full sm:w-[180px]">
+                      {showNewCat ? (
+                        <NewCategoryInline 
+                          onSave={async (name, icon) => {
+                            const newCat = await createCategory(name, icon);
+                            setCategories([...categories, newCat].sort((a, b) => a.name.localeCompare(b.name)));
+                            setCategoryId(newCat.id);
+                            setShowNewCat(false);
+                          }} 
+                          onCancel={() => setShowNewCat(false)} 
+                        />
+                      ) : (
+                        <CategorySelect 
+                          categories={categories}
+                          value={categoryId}
+                          onChange={setCategoryId}
+                          onNew={() => setShowNewCat(true)}
+                          disabled={saving || categories.length === 0}
+                        />
+                      )}
+                    </div>
+                    <div className="w-full sm:flex-1">
+                      <select
+                        className="w-full h-[42px] px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm shadow-sm"
+                        value={frequency}
+                        onChange={(e) => setFrequency(e.target.value)}
+                        disabled={saving}
+                      >
+                        <option value="daily">Daily</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="monthly">Monthly</option>
+                        <option value="multiple">Multiple times a day</option>
+                      </select>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -195,7 +180,18 @@ export default function EditClient({ habit }: { habit: any }) {
                     placeholder="Missing a field? e.g. 'Add a dropdown for mood', 'Make distance optional'"
                     value={tweakPrompt}
                     onChange={(e) => setTweakPrompt(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        if (tweakPrompt.trim() && !isTweaking && !saving) {
+                          e.currentTarget.form?.requestSubmit();
+                        }
+                      }
+                    }}
                     disabled={isTweaking || saving}
+                    autoComplete="off"
+                    data-1p-ignore
+                    enterKeyHint="send"
                   />
                   <button 
                     type="submit" 
