@@ -7,9 +7,12 @@ const google = createGoogleGenerativeAI({
   apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
 });
 import { z } from 'zod';
+import { getDefaultUser } from './db';
 
 export async function generateHabitSchema(prompt: string, currentSchema?: any) {
   try {
+    const user = await getDefaultUser();
+    
     const { object } = await generateObject({
       model: google('gemini-flash-lite-latest'),
       maxRetries: 0,
@@ -18,12 +21,13 @@ export async function generateHabitSchema(prompt: string, currentSchema?: any) {
       The schema MUST be of type 'object'. Provide human-readable titles for fields.
       CRITICAL INSTRUCTION: For simple event-based habits (e.g., "take my medicine", "drank water"), the 'properties' object MUST be completely empty ({}). DO NOT add checkboxes, confirmation booleans, or any other fields. The presence of the log entry itself confirms the event.
       CRITICAL INSTRUCTION: Keep the habit title extremely short and concise. Do NOT prefix the title with words like "Track", "Log", or "Record". (e.g. use "Morning Run" instead of "Track morning run").
+      ${user.useEmojiTitle ? 'CRITICAL INSTRUCTION: You MUST put exactly one relevant emoji at the very start of the habit title (e.g., "🏃 Morning Run").' : 'CRITICAL INSTRUCTION: Do NOT include any emojis in the habit title.'}
       For complex habits, define the properties (e.g., distance, time, notes).
       
       ${currentSchema ? `The user wants to tweak an existing schema. Here is the current schema:\n${JSON.stringify(currentSchema, null, 2)}\nUpdate it according to their new instructions. Preserve the existing title unless asked to change it.` : ''}`,
       prompt: `User instructions: ${prompt}`,
       schema: z.object({
-        title: z.string().describe("A short, concise name for the habit. Do NOT prefix with 'Track' or 'Log'."),
+        title: z.string().describe(`A short, concise name for the habit. Do NOT prefix with 'Track' or 'Log'. ${user.useEmojiTitle ? 'MUST start with a relevant emoji.' : 'NO emojis.'}`),
         category: z.enum(['Mind', 'Body', 'Chores', 'Other']).describe("The category this habit best fits into"),
         frequency: z.enum(['daily', 'weekly', 'monthly', 'multiple']).optional().describe("The suggested tracking cadence"),
         type: z.literal('object'),

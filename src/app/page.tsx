@@ -39,7 +39,7 @@ export default async function Dashboard() {
               </button>
             </form>
             <Link 
-              href="/settings/categories"
+              href="/settings"
               className="px-4 py-3 bg-white text-stone-700 border border-stone-200 rounded-xl font-medium hover:bg-stone-50 transition-colors flex items-center justify-center gap-2"
               title="Settings"
             >
@@ -102,7 +102,7 @@ export default async function Dashboard() {
                         </div>
                         
                         <div className="shrink-0">
-                          <ActivityCalendar dates={habit.logs.map((l: any) => l.createdAt)} weeks={4} frequency={habit.frequency} />
+                          <ActivityCalendar dates={habit.logs.map((l: any) => l.createdAt)} weeks={4} frequency={habit.frequency} bedtime={user.bedtime} weekStartsOn={user.weekStartsOn} />
                         </div>
                       </Link>
                       

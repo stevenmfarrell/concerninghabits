@@ -1,4 +1,4 @@
-import { getHabit, getHabitLogs, deleteHabitLog } from '../../actions/db';
+import { getHabit, getHabitLogs, deleteHabitLog, getDefaultUser } from '../../actions/db';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Trash2, Settings2, Plus } from 'lucide-react';
@@ -8,6 +8,7 @@ import Icon from '../../../components/Icon';
 
 export default async function HistoryPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const user = await getDefaultUser();
   const habit = await getHabit(id);
   
   if (!habit) {
@@ -60,10 +61,10 @@ export default async function HistoryPage({ params }: { params: Promise<{ id: st
         <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-stone-100 flex flex-col items-start overflow-x-auto">
           <h2 className="text-lg font-semibold text-stone-800 mb-4 w-full text-left">Activity Overview</h2>
           <div className="hidden sm:block">
-            <ActivityCalendar dates={logs.map(l => l.createdAt)} weeks={52} frequency={habit.frequency} size="md" monthsPerColumn={4} />
+            <ActivityCalendar dates={logs.map(l => l.createdAt)} weeks={52} frequency={habit.frequency} size="md" monthsPerColumn={4} bedtime={user.bedtime} weekStartsOn={user.weekStartsOn} />
           </div>
           <div className="block sm:hidden">
-            <ActivityCalendar dates={logs.map(l => l.createdAt)} weeks={52} frequency={habit.frequency} size="md" monthsPerColumn={6} />
+            <ActivityCalendar dates={logs.map(l => l.createdAt)} weeks={52} frequency={habit.frequency} size="md" monthsPerColumn={6} bedtime={user.bedtime} weekStartsOn={user.weekStartsOn} />
           </div>
         </div>
 

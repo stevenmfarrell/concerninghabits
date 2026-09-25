@@ -253,7 +253,7 @@ export default function RefineHabit() {
                 </form>
 
                 <div className="p-4 bg-blue-50 text-blue-800 rounded-xl text-sm mt-4 border border-blue-100">
-                  <strong>Tip:</strong> If your habit is as simple as "did I do it?", the generated form should be empty. Just clicking the log button will record the event.
+                  <strong>Tip:</strong> If your habit is as simple as "did I do it?", the generated form should be empty. Just clicking the submit button records the event.
                 </div>
               </div>
             </div>

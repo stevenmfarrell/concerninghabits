@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { generateHabitSchema } from '../../actions/habit';
-import { updateHabit, getCategories, createCategory } from '../../actions/db';
+import { updateHabit, getCategories, createCategory, deleteHabit } from '../../actions/db';
 import Form from '@rjsf/core';
 import validator from '@rjsf/validator-ajv8';
-import { Loader2, Save, ArrowLeft, Wand2, SquarePen } from 'lucide-react';
+import { Loader2, Save, ArrowLeft, Wand2, SquarePen, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import CategorySelect from '../../../components/CategorySelect';
@@ -20,6 +20,7 @@ export default function EditClient({ habit }: { habit: any }) {
   const [description, setDescription] = useState(habit.description || '');
   const [frequency, setFrequency] = useState<string>(habit.frequency || 'daily');
   const [categoryId, setCategoryId] = useState<string>(habit.categoryId || '');
+  const [deleting, setDeleting] = useState(false);
   
   // Tweak Schema State
   const [tweakPrompt, setTweakPrompt] = useState('');
@@ -57,6 +58,19 @@ export default function EditClient({ habit }: { habit: any }) {
       alert(result.error);
     }
     setIsTweaking(false);
+  };
+
+  const handleDelete = async () => {
+    if (window.confirm(`Are you sure you want to delete "${habit.name}"? This will permanently delete all of its history and logs.`)) {
+      setDeleting(true);
+      try {
+        await deleteHabit(habit.id);
+        router.push('/');
+      } catch (e: any) {
+        alert("Failed to delete habit: " + e.message);
+        setDeleting(false);
+      }
+    }
   };
 
   const handleSave = async () => {
@@ -218,10 +232,19 @@ export default function EditClient({ habit }: { habit: any }) {
             </div>
           </div>
 
-          <div className="flex justify-end pt-4">
+          <div className="flex flex-col-reverse md:flex-row justify-between items-center gap-4 pt-4">
+            <button 
+              type="button"
+              onClick={handleDelete}
+              disabled={deleting || saving}
+              className="px-6 py-4 text-red-600 hover:bg-red-50 rounded-xl font-medium transition-colors flex items-center justify-center gap-2 w-full md:w-auto"
+            >
+              {deleting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Trash2 className="w-5 h-5" />}
+              Delete Habit
+            </button>
             <button 
               onClick={handleSave}
-              disabled={saving || showNewCat || isTweaking}
+              disabled={saving || showNewCat || isTweaking || deleting}
               className="px-8 py-4 bg-emerald-600 text-white rounded-xl font-medium text-lg hover:bg-emerald-700 transition-colors flex items-center justify-center gap-3 disabled:opacity-70 shadow-sm w-full md:w-auto"
             >
               {saving ? <Loader2 className="w-6 h-6 animate-spin" /> : <Save className="w-6 h-6" />}

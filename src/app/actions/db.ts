@@ -163,3 +163,22 @@ export async function updateHabit(id: string, name: string, description: string,
   revalidatePath(`/history/${id}`);
   return habit;
 }
+
+export async function updateUserPreferences(prefs: { bedtime?: string, weekStartsOn?: string, useEmojiTitle?: boolean }) {
+  const user = await getDefaultUser();
+  await prisma.user.update({
+    where: { id: user.id },
+    data: prefs
+  });
+  revalidatePath('/settings');
+  revalidatePath('/');
+}
+
+export async function deleteHabit(habitId: string) {
+  const user = await getDefaultUser();
+  await prisma.$transaction([
+    prisma.habitLog.deleteMany({ where: { habitId, userId: user.id } }),
+    prisma.habit.delete({ where: { id: habitId, userId: user.id } })
+  ]);
+  revalidatePath('/');
+}

@@ -16,6 +16,9 @@ model User {
   habitLogs    HabitLog[]
   habits       Habit[]
   categories   Category[]
+  bedtime      String     @default("01:00")
+  weekStartsOn String     @default("sunday")
+  useEmojiTitle Boolean   @default(true)
   createdAt    DateTime   @default(now())
 }
 

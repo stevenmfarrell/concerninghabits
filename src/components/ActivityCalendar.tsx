@@ -6,17 +6,36 @@ interface ActivityCalendarProps {
   frequency?: string;
   size?: 'sm' | 'md';
   monthsPerColumn?: number;
+  bedtime?: string;
+  weekStartsOn?: string;
 }
 
-export default function ActivityCalendar({ dates, weeks = 5, frequency = 'daily', size = 'sm', monthsPerColumn = 4 }: ActivityCalendarProps) {
+export default function ActivityCalendar({ dates, weeks = 5, frequency = 'daily', size = 'sm', monthsPerColumn = 4, bedtime = '00:00', weekStartsOn = 'sunday' }: ActivityCalendarProps) {
+  let bedtimeOffsetMinutes = 0;
+  if (bedtime && bedtime !== '00:00') {
+    const [h, m] = bedtime.split(':').map(Number);
+    bedtimeOffsetMinutes = (h || 0) * 60 + (m || 0);
+  }
+
   const today = new Date();
+  if (bedtimeOffsetMinutes > 0) {
+    today.setMinutes(today.getMinutes() - bedtimeOffsetMinutes);
+  }
   today.setHours(0, 0, 0, 0);
 
-  const currentDayOfWeek = today.getDay(); // 0 (Sun) to 6 (Sat)
-  
-  // End on the Saturday of the current week
-  const endDate = new Date(today);
-  endDate.setDate(today.getDate() + (6 - currentDayOfWeek));
+  const getStartOfWeek = (d: Date) => {
+    const dt = new Date(d);
+    const day = dt.getDay();
+    if (weekStartsOn === 'monday') {
+      dt.setDate(dt.getDate() - day + (day === 0 ? -6 : 1));
+    } else {
+      dt.setDate(dt.getDate() - day);
+    }
+    return dt;
+  };
+
+  const endDate = getStartOfWeek(today);
+  endDate.setDate(endDate.getDate() + 6);
 
   // Determine start date
   const startDate = new Date(today);
@@ -29,9 +48,10 @@ export default function ActivityCalendar({ dates, weeks = 5, frequency = 'daily'
     startDate.setDate(today.getDate() - weeks * 7 + 1);
     startDate.setDate(1);
   } else {
-    // Just go back N weeks, aligned to Sunday
+    // Just go back N weeks, aligned to start of week
     startDate.setDate(today.getDate() - weeks * 7 + 1);
-    startDate.setDate(startDate.getDate() - startDate.getDay());
+    const alignedStart = getStartOfWeek(startDate);
+    startDate.setTime(alignedStart.getTime());
   }
 
   const allDays = [];
@@ -65,18 +85,20 @@ export default function ActivityCalendar({ dates, weeks = 5, frequency = 'daily'
   
   dates.forEach(d => {
     const dt = new Date(d);
+    if (bedtimeOffsetMinutes > 0) {
+      dt.setMinutes(dt.getMinutes() - bedtimeOffsetMinutes);
+    }
     completedDays.add(`${dt.getFullYear()}-${dt.getMonth()}-${dt.getDate()}`);
     
-    const weekSun = new Date(dt);
-    weekSun.setDate(weekSun.getDate() - weekSun.getDay());
-    completedWeeks.add(`${weekSun.getFullYear()}-${weekSun.getMonth()}-${weekSun.getDate()}`);
+    const weekStart = getStartOfWeek(dt);
+    completedWeeks.add(`${weekStart.getFullYear()}-${weekStart.getMonth()}-${weekStart.getDate()}`);
     
     completedMonths.add(`${dt.getFullYear()}-${dt.getMonth()}`);
   });
 
   const processedColumns = columns.map(col => {
     const firstDay = col[0];
-    const padStart = firstDay.getDay();
+    const padStart = (firstDay.getDay() - (weekStartsOn === 'monday' ? 1 : 0) + 7) % 7;
     const padded = Array(padStart).fill(null).concat(col);
     const padEnd = (7 - (padded.length % 7)) % 7;
     const fullCol = padded.concat(Array(padEnd).fill(null));
@@ -98,9 +120,8 @@ export default function ActivityCalendar({ dates, weeks = 5, frequency = 'daily'
         
         if (!isFuture) {
           const dayKey = `${day.getFullYear()}-${day.getMonth()}-${day.getDate()}`;
-          const weekSun = new Date(day);
-          weekSun.setDate(weekSun.getDate() - weekSun.getDay());
-          const weekKey = `${weekSun.getFullYear()}-${weekSun.getMonth()}-${weekSun.getDate()}`;
+          const weekStart = getStartOfWeek(day);
+          const weekKey = `${weekStart.getFullYear()}-${weekStart.getMonth()}-${weekStart.getDate()}`;
           const monthKey = `${day.getFullYear()}-${day.getMonth()}`;
 
           if (frequency === 'multiple') {
