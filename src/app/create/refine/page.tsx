@@ -5,7 +5,7 @@ import { generateHabitSchema } from '../../actions/habit';
 import { saveHabit, getCategories, createCategory } from '../../actions/db';
 import Form from '@rjsf/core';
 import validator from '@rjsf/validator-ajv8';
-import { Loader2, Save, ArrowLeft, Wand2 } from 'lucide-react';
+import { Loader2, Save, ArrowLeft, Wand2, SquarePen } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import CategorySelect from '../../../components/CategorySelect';
@@ -129,36 +129,43 @@ export default function RefineHabit() {
               <div className="space-y-4">
                 <div className="p-6 bg-stone-50 rounded-xl border border-stone-200">
                   <div className="mb-6">
-                    <input
-                      type="text"
-                      className="text-2xl font-bold text-stone-900 bg-transparent border-b border-dashed border-stone-300 focus:outline-none focus:border-emerald-500 w-full placeholder-stone-300 pb-1"
-                      value={title}
-                      placeholder="New Habit"
-                      onChange={(e) => {
-                        setTitle(e.target.value);
-                        const draft = JSON.parse(sessionStorage.getItem('draftHabit') || '{}');
-                        if (draft.schema) draft.schema.title = e.target.value;
-                        sessionStorage.setItem('draftHabit', JSON.stringify(draft));
-                      }}
-                      disabled={saving}
-                    />
-                    {description !== '' ? (
+                    <div className="relative group flex items-center">
                       <input
                         type="text"
-                        autoFocus={description === ' '}
-                        className="w-full mt-2 bg-transparent border-b border-dashed border-stone-300 focus:outline-none focus:border-emerald-500 text-stone-600 placeholder-stone-400 pb-0.5"
-                        placeholder="Why are you tracking this?"
-                        value={description.trimStart()}
-                        onChange={(e) => setDescription(e.target.value)}
+                        className="text-2xl font-bold text-stone-900 bg-transparent border-b border-dashed border-stone-300 focus:outline-none focus:border-emerald-500 w-full placeholder-stone-300 pb-1 pr-8"
+                        value={title}
+                        placeholder="New Habit"
+                        onChange={(e) => {
+                          setTitle(e.target.value);
+                          const draft = JSON.parse(sessionStorage.getItem('draftHabit') || '{}');
+                          if (draft.schema) draft.schema.title = e.target.value;
+                          sessionStorage.setItem('draftHabit', JSON.stringify(draft));
+                        }}
                         disabled={saving}
                       />
+                      <SquarePen className="w-5 h-5 text-stone-400 absolute right-1 top-2 pointer-events-none" />
+                    </div>
+                    {description !== '' ? (
+                      <div className="relative group flex items-center mt-2">
+                        <input
+                          type="text"
+                          autoFocus={description === ' '}
+                          className="w-full bg-transparent border-b border-dashed border-stone-300 focus:outline-none focus:border-emerald-500 text-stone-600 placeholder-stone-400 pb-0.5 pr-8"
+                          placeholder="Why are you tracking this?"
+                          value={description.trimStart()}
+                          onChange={(e) => setDescription(e.target.value)}
+                          disabled={saving}
+                        />
+                        <SquarePen className="w-4 h-4 text-stone-400 absolute right-1 top-1 pointer-events-none" />
+                      </div>
                     ) : (
                       <button
                         type="button"
                         onClick={() => setDescription(' ')}
-                        className="mt-2 text-sm text-stone-400 hover:text-stone-600 transition-colors border-b border-dashed border-stone-300 pb-0.5"
+                        className="mt-2 text-sm text-stone-400 hover:text-stone-600 transition-colors border-b border-dashed border-stone-300 pb-0.5 inline-flex items-center gap-1.5"
                       >
-                        [+ Add Description]
+                        [Add Description]
+                        <SquarePen className="w-3.5 h-3.5" />
                       </button>
                     )}
                   </div>

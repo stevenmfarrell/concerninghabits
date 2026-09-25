@@ -116,7 +116,7 @@ export default async function HistoryPage({ params }: { params: Promise<{ id: st
                           <span className="text-stone-400 italic text-sm">Completed</span>
                         )}
                       </td>
-                      <td className="p-4 align-top">
+                      <td className="p-4 align-top text-right">
                         <DeleteButton action={deleteAction} />
                       </td>
                     </tr>

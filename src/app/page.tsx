@@ -1,6 +1,6 @@
 import { getHabits, getDefaultUser } from './actions/db';
 import Link from 'next/link';
-import { Plus, ListTodo, SquarePen } from 'lucide-react';
+import { Plus, ListTodo } from 'lucide-react';
 import Icon from '../components/Icon';
 import ActivityCalendar from '../components/ActivityCalendar';
 
@@ -112,7 +112,7 @@ export default async function Dashboard() {
                           className="text-emerald-600 font-medium flex items-center justify-center h-full px-4 sm:px-6 hover:bg-emerald-100/50 transition-colors rounded-r-2xl"
                           title="Log entry"
                         >
-                          <SquarePen className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={2} />
+                          <Plus className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={2} />
                         </Link>
                       </div>
                     </div>
