@@ -187,15 +187,7 @@ export default function LogClient({ habit }: { habit: any }) {
         </div>
       </div>
 
-      <div className="flex items-center justify-center gap-6 pt-4">
-        <Link href="/" className="text-sm font-medium text-stone-500 hover:text-stone-800 transition-colors">
-          Dashboard
-        </Link>
-        <span className="text-stone-300">&bull;</span>
-        <Link href={`/history/${habit.id}`} className="text-sm font-medium text-stone-500 hover:text-stone-800 transition-colors">
-          History
-        </Link>
-      </div>
+
     </div>
   );
 }

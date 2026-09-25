@@ -24,35 +24,6 @@ export default async function Dashboard() {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <form action={async () => {
-              'use server';
-              const { logout } = await import('./actions/auth');
-              await logout();
-            }}>
-              <button 
-                type="submit"
-                className="px-4 py-3 bg-white text-stone-700 border border-stone-200 rounded-xl font-medium hover:bg-stone-50 transition-colors flex items-center justify-center gap-2"
-                title="Log out"
-              >
-                <Icon name="LogOut" className="w-5 h-5" />
-              </button>
-            </form>
-            <Link 
-              href="/settings"
-              className="px-4 py-3 bg-white text-stone-700 border border-stone-200 rounded-xl font-medium hover:bg-stone-50 transition-colors flex items-center justify-center gap-2"
-              title="Settings"
-            >
-              <Icon name="Settings" className="w-5 h-5" />
-            </Link>
-            <Link 
-              href="/create"
-              className="px-6 py-3 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2 flex-1 sm:flex-none"
-            >
-              <Plus className="w-5 h-5 shrink-0" />
-              <span className="whitespace-nowrap">New Habit</span>
-            </Link>
-          </div>
         </div>
 
         {habits.length === 0 ? (

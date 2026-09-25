@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import SWUnregister from "../components/SWUnregister";
 import { Toaster } from "react-hot-toast";
+import BottomNav from "../components/BottomNav";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -22,6 +23,9 @@ export const metadata: Metadata = {
     title: "Habits",
     statusBarStyle: "default",
   },
+};
+
+export const viewport = {
   themeColor: "#047857", // emerald-700
 };
 
@@ -35,6 +39,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         {children}
         <Toaster 
           position="bottom-center" 
+          containerStyle={{ bottom: 100 }} 
           toastOptions={{ 
             duration: 4000,
             success: {
@@ -50,6 +55,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             }
           }} 
         />
+        <BottomNav />
         <SWUnregister />
       </body>
     </html>
