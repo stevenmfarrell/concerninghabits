@@ -19,6 +19,7 @@ model User {
   bedtime      String     @default("01:00")
   weekStartsOn String     @default("sunday")
   useEmojiTitle Boolean   @default(true)
+  emojiModifier String    @default("")
   passwordNeedsUpdate Boolean @default(false)
   createdAt    DateTime   @default(now())
 }

@@ -23,7 +23,7 @@ export default async function SettingsPage() {
           <h2 className="text-xl font-bold text-stone-800 border-b pb-4">Personal Preferences</h2>
           
           <div className="max-w-md">
-            <PreferencesForm initialBedtime={user.bedtime} initialWeekStartsOn={user.weekStartsOn} initialUseEmojiTitle={user.useEmojiTitle} />
+            <PreferencesForm initialBedtime={user.bedtime} initialWeekStartsOn={user.weekStartsOn} initialUseEmojiTitle={user.useEmojiTitle} initialEmojiModifier={user.emojiModifier} />
           </div>
         </div>
 

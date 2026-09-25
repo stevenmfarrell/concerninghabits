@@ -102,17 +102,17 @@ export default async function Dashboard() {
                         </div>
                         
                         <div className="shrink-0">
-                          <ActivityCalendar dates={habit.logs.map((l: any) => l.createdAt)} weeks={4} frequency={habit.frequency} bedtime={user.bedtime} weekStartsOn={user.weekStartsOn} />
+                          <ActivityCalendar dates={habit.logs.map((l: any) => l.createdAt)} weeks={3} frequency={habit.frequency} bedtime={user.bedtime} weekStartsOn={user.weekStartsOn} />
                         </div>
                       </Link>
                       
                       <div className="border-l border-stone-100 flex flex-col justify-center bg-stone-50/50 rounded-r-2xl shrink-0">
                         <Link 
                           href={`/log/${habit.id}`}
-                          className="text-emerald-600 font-medium flex items-center justify-center h-full px-4 sm:px-6 hover:bg-emerald-100/50 transition-colors rounded-r-2xl"
+                          className="text-emerald-600 flex items-center justify-center h-full px-6 sm:px-8 hover:bg-emerald-50 transition-colors rounded-r-2xl"
                           title="Log entry"
                         >
-                          <Plus className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={2} />
+                          <Plus className="w-6 h-6 sm:w-8 sm:h-8" strokeWidth={3} />
                         </Link>
                       </div>
                     </div>

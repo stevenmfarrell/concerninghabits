@@ -33,7 +33,23 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full flex flex-col">
         {children}
-        <Toaster position="bottom-center" toastOptions={{ duration: 4000 }} />
+        <Toaster 
+          position="bottom-center" 
+          toastOptions={{ 
+            duration: 4000,
+            success: {
+              style: {
+                background: '#1c1917', // stone-900
+                color: '#fff',
+                fontWeight: '500',
+              },
+              iconTheme: {
+                primary: '#10b981', // emerald-500
+                secondary: '#fff',
+              }
+            }
+          }} 
+        />
         <SWUnregister />
       </body>
     </html>
