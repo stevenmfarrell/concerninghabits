@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { updateUserPreferences } from '../actions/db';
 import { Loader2, Save } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import toast from 'react-hot-toast';
 
 export default function PreferencesForm({ initialBedtime, initialWeekStartsOn, initialUseEmojiTitle }: { initialBedtime: string, initialWeekStartsOn: string, initialUseEmojiTitle: boolean }) {
   const [bedtime, setBedtime] = useState(initialBedtime || '01:00');
@@ -17,9 +18,9 @@ export default function PreferencesForm({ initialBedtime, initialWeekStartsOn, i
     try {
       await updateUserPreferences({ bedtime, weekStartsOn, useEmojiTitle });
       router.refresh();
-      alert("Settings saved!");
+      toast.success("Settings saved!");
     } catch (err: any) {
-      alert("Error saving settings: " + err.message);
+      toast.error("Error saving settings: " + err.message);
     } finally {
       setSaving(false);
     }

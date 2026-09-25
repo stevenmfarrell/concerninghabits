@@ -7,6 +7,7 @@ import IconPicker from '../../../components/IconPicker';
 import NewCategoryInline from '../../../components/NewCategoryInline';
 import { Plus, Trash2, Edit2, Check, X, Loader2, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
+import ConfirmDialog from '../../../components/ConfirmDialog';
 
 export default function CategoriesClient({ initialCategories }: { initialCategories: any[] }) {
   const [categories, setCategories] = useState(initialCategories);
@@ -28,6 +29,8 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
     setIsAdding(false);
   };
 
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
   const handleUpdate = async (id: string) => {
     if (!editName.trim()) return;
     setLoading(id);
@@ -37,12 +40,13 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
     setLoading('');
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this category? Habits using it will be moved to "Other".')) return;
-    setLoading(id);
-    await deleteCategory(id);
-    setCategories(categories.filter(c => c.id !== id));
+  const executeDelete = async () => {
+    if (!deleteConfirmId) return;
+    setLoading(deleteConfirmId);
+    await deleteCategory(deleteConfirmId);
+    setCategories(categories.filter(c => c.id !== deleteConfirmId));
     setLoading('');
+    setDeleteConfirmId(null);
   };
 
   const startEdit = (cat: any) => {
@@ -131,7 +135,7 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
                         <Edit2 className="w-4 h-4" />
                       </button>
                       <button 
-                        onClick={() => handleDelete(cat.id)}
+                        onClick={() => setDeleteConfirmId(cat.id)}
                         disabled={loading === cat.id}
                         className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
                         title="Delete"
@@ -146,6 +150,16 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
           )}
         </ul>
       </div>
+
+      <ConfirmDialog
+        isOpen={deleteConfirmId !== null}
+        title="Delete Category"
+        message='Are you sure you want to delete this category? Habits using it will be moved to "Other".'
+        confirmText="Delete Category"
+        isProcessing={!!(deleteConfirmId && loading === deleteConfirmId)}
+        onConfirm={executeDelete}
+        onCancel={() => setDeleteConfirmId(null)}
+      />
     </div>
   );
 }

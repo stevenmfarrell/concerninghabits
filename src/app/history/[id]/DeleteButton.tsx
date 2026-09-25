@@ -2,9 +2,11 @@
 
 import { MoreVertical, Trash2 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
+import ConfirmDialog from '../../../components/ConfirmDialog';
 
 export default function DeleteButton({ action }: { action: () => void }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -29,25 +31,32 @@ export default function DeleteButton({ action }: { action: () => void }) {
 
       {isOpen && (
         <div className="absolute right-0 top-full mt-1 w-32 origin-top-right rounded-xl bg-white shadow-lg border border-stone-100 focus:outline-none z-50 overflow-hidden">
-          <form 
-            action={action} 
-            onSubmit={(e) => {
-              if (!confirm('Are you sure you want to delete this log entry? This cannot be undone.')) {
-                e.preventDefault();
-              } else {
-                setIsOpen(false);
-              }
-            }}
-          >
+          <div>
             <button 
-              type="submit"
+              type="button"
+              onClick={() => {
+                setIsOpen(false);
+                setShowConfirm(true);
+              }}
               className="flex items-center gap-2 w-full text-left px-4 py-3 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
             >
               <Trash2 className="w-4 h-4" /> Delete
             </button>
-          </form>
+          </div>
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={showConfirm}
+        title="Delete Log Entry"
+        message="Are you sure you want to delete this log entry? This cannot be undone."
+        confirmText="Delete Entry"
+        onConfirm={() => {
+          action();
+          setShowConfirm(false);
+        }}
+        onCancel={() => setShowConfirm(false)}
+      />
     </div>
   );
 }

@@ -7,6 +7,7 @@ import { logHabitEvent, deleteHabitLog } from '../../actions/db';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Check, Loader2, Undo2 } from 'lucide-react';
 import Link from 'next/link';
+import toast from 'react-hot-toast';
 
 export default function LogClient({ habit }: { habit: any }) {
   const router = useRouter();
@@ -48,7 +49,7 @@ export default function LogClient({ habit }: { habit: any }) {
         router.push('/');
       }, 4000); // 4 seconds gives them time to hit undo
     } catch (err: any) {
-      alert(`Failed to log entry: ${err.message || 'Unknown error'}`);
+      toast.error(`Failed to log entry: ${err.message || 'Unknown error'}`);
     } finally {
       setLoading(false);
     }
@@ -67,8 +68,9 @@ export default function LogClient({ habit }: { habit: any }) {
       await deleteHabitLog(createdLogId, habit.id);
       setSuccess(false);
       setCreatedLogId(null);
+      toast.success("Log entry undone");
     } catch (err: any) {
-      alert(`Failed to undo: ${err.message}`);
+      toast.error(`Failed to undo: ${err.message}`);
     } finally {
       setUndoing(false);
     }

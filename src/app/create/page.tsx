@@ -5,6 +5,7 @@ import { generateHabitSchema } from '../actions/habit';
 import { Loader2, Sparkles, ArrowLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import toast from 'react-hot-toast';
 
 export default function CreateHabit() {
   const router = useRouter();
@@ -21,7 +22,7 @@ export default function CreateHabit() {
       sessionStorage.setItem('draftHabit', JSON.stringify(result));
       router.push('/create/refine');
     } else {
-      alert(result.error);
+      toast.error(result.error || "An error occurred");
       setLoading(false);
     }
   };
