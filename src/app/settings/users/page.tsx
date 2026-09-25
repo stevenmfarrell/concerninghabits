@@ -3,8 +3,10 @@ import { prisma } from '@/lib/prisma';
 import { redirect } from 'next/navigation';
 import ProvisionUserForm from './ProvisionUserForm';
 import DeleteUserButton from './DeleteUserButton';
-import { User, Shield } from 'lucide-react';
+import { Shield } from 'lucide-react';
 import Link from 'next/link';
+import { ArrowLeft } from 'lucide-react';
+import SettingsNav from '../SettingsNav';
 
 export default async function UsersSettingsPage() {
   const currentUser = await getDefaultUser();
@@ -18,42 +20,42 @@ export default async function UsersSettingsPage() {
   });
 
   return (
-    <main className="flex-1 p-4 sm:p-8 bg-stone-50 font-sans">
+    <main className="flex-1 p-4 sm:p-8 bg-stone-50 font-sans min-h-screen">
       <div className="max-w-4xl mx-auto space-y-6 sm:space-y-8">
-        <div className="flex items-center gap-4">
-          <Link href="/settings/categories" className="text-stone-400 hover:text-stone-600">
-            Categories
+        <div>
+          <Link href="/" className="inline-flex items-center gap-2 text-stone-500 hover:text-stone-800 mb-4 transition-colors">
+            <ArrowLeft className="w-4 h-4" /> Back to Dashboard
           </Link>
-          <span className="text-stone-300">/</span>
-          <h1 className="text-2xl font-bold text-stone-900">Manage Users</h1>
+          <h1 className="text-3xl font-bold text-stone-900">Settings</h1>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div className="space-y-4">
-            <h2 className="text-lg font-semibold text-stone-800">Family Members</h2>
-            <div className="bg-white rounded-2xl shadow-sm border border-stone-100 divide-y divide-stone-100">
+        <SettingsNav currentTab="users" />
+
+        <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-stone-100 space-y-6">
+          <div className="flex justify-between items-center border-b pb-4">
+            <h2 className="text-xl font-bold text-stone-800">Manage Users</h2>
+            <ProvisionUserForm />
+          </div>
+          
+          <div className="space-y-6">
+            <ul className="space-y-3">
               {users.map(user => (
-                <div key={user.id} className="p-4 flex items-center justify-between">
-                  <div>
-                    <p className="font-medium text-stone-900 flex items-center gap-2">
-                      {user.name}
-                      {user.isAdmin && <Shield className="w-4 h-4 text-emerald-600" />}
-                    </p>
-                    <p className="text-sm text-stone-500">{user.email}</p>
+                <li key={user.id} className="p-4 bg-stone-50 border border-stone-200 rounded-xl flex items-center justify-between">
+                  <div className="flex flex-col">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-stone-900">{user.name}</span>
+                      {user.isAdmin && (
+                        <Shield className="w-3.5 h-3.5 text-emerald-600" title="Admin" />
+                      )}
+                    </div>
+                    <span className="text-sm text-stone-500">ID: {user.id.slice(0, 8)}...</span>
                   </div>
                   {user.id !== currentUser.id && (
                     <DeleteUserButton userId={user.id} userName={user.name} />
                   )}
-                </div>
+                </li>
               ))}
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <h2 className="text-lg font-semibold text-stone-800">Provision New Account</h2>
-            <div className="bg-white rounded-2xl shadow-sm border border-stone-100 p-6">
-              <ProvisionUserForm />
-            </div>
+            </ul>
           </div>
         </div>
       </div>

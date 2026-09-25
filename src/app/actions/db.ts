@@ -6,7 +6,7 @@ import { revalidatePath } from 'next/cache';
 import { verifySession } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 
-export async function getDefaultUser() {
+export async function getDefaultUser(allowNeedsUpdate = false) {
   const session = await verifySession();
   
   if (!session?.userId) {
@@ -20,6 +20,10 @@ export async function getDefaultUser() {
 
   if (!user) {
     redirect('/api/logout');
+  }
+
+  if (user.passwordNeedsUpdate && !allowNeedsUpdate) {
+    redirect('/update-password');
   }
 
   return user;

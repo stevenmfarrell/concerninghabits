@@ -1,26 +1,28 @@
-import { getCategories, getDefaultUser } from '../../actions/db';
+import { getCategories } from '../../actions/db';
 import CategoriesClient from './CategoriesClient';
 import Link from 'next/link';
-import { Users } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
+import SettingsNav from '../SettingsNav';
 
 export default async function CategoriesSettingsPage() {
   const categories = await getCategories();
-  const user = await getDefaultUser();
   
   return (
-    <main className="min-h-screen p-8 bg-stone-50 font-sans">
-      <div className="max-w-2xl mx-auto mb-6 flex justify-end">
-        {user.isAdmin && (
-          <Link 
-            href="/settings/users"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-stone-200 text-stone-700 rounded-xl font-medium hover:bg-stone-300 transition-colors"
-          >
-            <Users className="w-4 h-4" />
-            Manage Users
+    <main className="flex-1 p-4 sm:p-8 bg-stone-50 font-sans min-h-screen">
+      <div className="max-w-4xl mx-auto space-y-6 sm:space-y-8">
+        <div>
+          <Link href="/" className="inline-flex items-center gap-2 text-stone-500 hover:text-stone-800 mb-4 transition-colors">
+            <ArrowLeft className="w-4 h-4" /> Back to Dashboard
           </Link>
-        )}
+          <h1 className="text-3xl font-bold text-stone-900">Settings</h1>
+        </div>
+
+        <SettingsNav currentTab="categories" />
+
+        <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-stone-100 space-y-6">
+          <CategoriesClient initialCategories={categories} />
+        </div>
       </div>
-      <CategoriesClient initialCategories={categories} />
     </main>
   );
 }

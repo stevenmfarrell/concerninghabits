@@ -56,16 +56,10 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
   };
 
   return (
-    <div className="max-w-2xl mx-auto space-y-8">
+    <div className="space-y-6">
       <div>
-        <Link href="/" className="inline-flex items-center gap-2 text-stone-500 hover:text-stone-800 mb-4 transition-colors">
-          <ArrowLeft className="w-4 h-4" /> Back to Dashboard
-        </Link>
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold text-stone-900">Manage Categories</h1>
-            <p className="text-stone-600 mt-1">Organize your habits with custom categories and icons.</p>
-          </div>
+        <div className="flex justify-between items-center border-b pb-4">
+          <h2 className="text-xl font-bold text-stone-800">Custom Categories</h2>
           <button 
             onClick={() => setIsAdding(true)}
             disabled={isAdding}

@@ -1,7 +1,8 @@
 import { getDefaultUser } from '../actions/db';
 import Link from 'next/link';
-import { ArrowLeft, User, List, Users } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import PreferencesForm from './PreferencesForm';
+import SettingsNav from './SettingsNav';
 
 export default async function SettingsPage() {
   const user = await getDefaultUser();
@@ -16,25 +17,26 @@ export default async function SettingsPage() {
           <h1 className="text-3xl font-bold text-stone-900">Settings</h1>
         </div>
 
-        <div className="flex gap-4 border-b border-stone-200 pb-4 overflow-x-auto">
-          <Link href="/settings" className="flex items-center gap-2 px-4 py-2 bg-stone-200 text-stone-800 rounded-lg font-medium whitespace-nowrap">
-            <User className="w-4 h-4" /> Profile
-          </Link>
-          <Link href="/settings/categories" className="flex items-center gap-2 px-4 py-2 text-stone-600 hover:bg-stone-100 rounded-lg font-medium whitespace-nowrap">
-            <List className="w-4 h-4" /> Categories
-          </Link>
-          {user.isAdmin && (
-            <Link href="/settings/users" className="flex items-center gap-2 px-4 py-2 text-stone-600 hover:bg-stone-100 rounded-lg font-medium whitespace-nowrap">
-              <Users className="w-4 h-4" /> Manage Users
-            </Link>
-          )}
-        </div>
+        <SettingsNav currentTab="profile" />
 
         <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-stone-100 space-y-6">
           <h2 className="text-xl font-bold text-stone-800 border-b pb-4">Personal Preferences</h2>
           
           <div className="max-w-md">
             <PreferencesForm initialBedtime={user.bedtime} initialWeekStartsOn={user.weekStartsOn} initialUseEmojiTitle={user.useEmojiTitle} />
+          </div>
+        </div>
+
+        <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-stone-100 space-y-6">
+          <h2 className="text-xl font-bold text-stone-800 border-b pb-4">Account Security</h2>
+          
+          <div className="max-w-md">
+            <Link 
+              href="/update-password"
+              className="inline-flex items-center justify-center px-4 py-2 border border-stone-200 rounded-xl text-sm font-medium text-stone-700 bg-stone-50 hover:bg-stone-100 transition-colors"
+            >
+              Change Password
+            </Link>
           </div>
         </div>
       </div>

@@ -113,6 +113,7 @@ export async function provisionUser(formData: FormData) {
       email,
       passwordHash,
       isAdmin: false,
+      passwordNeedsUpdate: true,
     },
   });
 
@@ -166,5 +167,52 @@ export async function deleteUser(userIdToDelete: string) {
 
   const { revalidatePath } = await import('next/cache');
   revalidatePath('/settings/users');
+  return { success: true };
+}
+
+export async function updatePassword(formData: FormData) {
+  const { verifySession } = await import('@/lib/auth');
+  const session = await verifySession();
+  
+  if (!session?.userId) {
+    return { error: 'Unauthorized' };
+  }
+
+  const currentPassword = formData.get('currentPassword') as string;
+  const newPassword = formData.get('newPassword') as string;
+  const confirmPassword = formData.get('confirmPassword') as string;
+
+  if (!currentPassword || !newPassword || !confirmPassword) {
+    return { error: 'All fields are required' };
+  }
+
+  if (newPassword !== confirmPassword) {
+    return { error: 'New passwords do not match' };
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.userId }
+  });
+
+  if (!user) {
+    return { error: 'User not found' };
+  }
+
+  const isValidPassword = await bcrypt.compare(currentPassword, user.passwordHash);
+
+  if (!isValidPassword) {
+    return { error: 'Current password is incorrect' };
+  }
+
+  const newPasswordHash = await bcrypt.hash(newPassword, 10);
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { 
+      passwordHash: newPasswordHash,
+      passwordNeedsUpdate: false
+    }
+  });
+
   return { success: true };
 }
