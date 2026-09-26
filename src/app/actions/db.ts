@@ -47,6 +47,10 @@ export async function createCategory(name: string, icon?: string) {
 }
 
 export async function updateCategory(id: string, name: string, icon: string) {
+  const user = await getDefaultUser();
+  const existing = await prisma.category.findUnique({ where: { id } });
+  if (!existing || existing.userId !== user.id) throw new Error("Unauthorized");
+
   const category = await prisma.category.update({
     where: { id },
     data: { name, icon }
@@ -56,9 +60,13 @@ export async function updateCategory(id: string, name: string, icon: string) {
 }
 
 export async function deleteCategory(id: string) {
+  const user = await getDefaultUser();
+  const existing = await prisma.category.findUnique({ where: { id } });
+  if (!existing || existing.userId !== user.id) throw new Error("Unauthorized");
+
   // First nullify any habits using this category
   await prisma.habit.updateMany({
-    where: { categoryId: id },
+    where: { categoryId: id, userId: user.id },
     data: { categoryId: null }
   });
   
@@ -111,14 +119,19 @@ export async function getHabits() {
 }
 
 export async function getHabit(id: string) {
-  return prisma.habit.findUnique({
+  const user = await getDefaultUser();
+  const habit = await prisma.habit.findUnique({
     where: { id },
     include: { category: true }
   });
+  if (!habit || habit.userId !== user.id) return null;
+  return habit;
 }
 
 export async function logHabitEvent(habitId: string, payload: any, createdAt?: Date) {
   const user = await getDefaultUser();
+  const habit = await prisma.habit.findUnique({ where: { id: habitId } });
+  if (!habit || habit.userId !== user.id) throw new Error("Unauthorized");
   
   const log = await prisma.habitLog.create({
     data: {
@@ -136,6 +149,10 @@ export async function logHabitEvent(habitId: string, payload: any, createdAt?: D
 }
 
 export async function deleteHabitLog(logId: string, habitId: string) {
+  const user = await getDefaultUser();
+  const log = await prisma.habitLog.findUnique({ where: { id: logId } });
+  if (!log || log.userId !== user.id) throw new Error("Unauthorized");
+
   await prisma.habitLog.delete({
     where: { id: logId }
   });
@@ -144,13 +161,18 @@ export async function deleteHabitLog(logId: string, habitId: string) {
 }
 
 export async function getHabitLogs(habitId: string) {
+  const user = await getDefaultUser();
   return prisma.habitLog.findMany({
-    where: { habitId },
+    where: { habitId, userId: user.id },
     orderBy: { createdAt: 'desc' }
   });
 }
 
 export async function updateHabit(id: string, name: string, description: string, schema: any, categoryId?: string, frequency: string = 'daily') {
+  const user = await getDefaultUser();
+  const existing = await prisma.habit.findUnique({ where: { id } });
+  if (!existing || existing.userId !== user.id) throw new Error("Unauthorized");
+
   const habit = await prisma.habit.update({
     where: { id },
     data: {

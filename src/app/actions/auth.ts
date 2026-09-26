@@ -5,27 +5,41 @@ import { createSession, deleteSession } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import bcrypt from 'bcryptjs';
 
-const rateLimitMap = new Map<string, { count: number, resetTime: number }>();
-
-function checkRateLimit(identifier: string) {
-  const now = Date.now();
-  const limit = rateLimitMap.get(identifier);
+async function checkRateLimit(identifier: string) {
+  const now = new Date();
+  
+  const limit = await prisma.rateLimit.findUnique({
+    where: { identifier }
+  });
   
   if (limit) {
     if (now > limit.resetTime) {
-      rateLimitMap.set(identifier, { count: 1, resetTime: now + 15 * 60 * 1000 });
+      await prisma.rateLimit.update({
+        where: { identifier },
+        data: { count: 1, resetTime: new Date(now.getTime() + 15 * 60 * 1000) }
+      });
       return true;
     }
     if (limit.count >= 5) {
       return false;
     }
-    limit.count += 1;
+    await prisma.rateLimit.update({
+      where: { identifier },
+      data: { count: limit.count + 1 }
+    });
     return true;
   }
   
-  rateLimitMap.set(identifier, { count: 1, resetTime: now + 15 * 60 * 1000 });
+  await prisma.rateLimit.create({
+    data: { 
+      identifier, 
+      count: 1, 
+      resetTime: new Date(now.getTime() + 15 * 60 * 1000) 
+    }
+  });
   return true;
 }
+
 export async function login(formData: FormData) {
   const email = formData.get('email') as string;
   const password = formData.get('password') as string;
@@ -34,7 +48,7 @@ export async function login(formData: FormData) {
     return { error: 'Email and password are required' };
   }
   
-  if (!checkRateLimit(email)) {
+  if (!(await checkRateLimit(email))) {
     return { error: 'Too many login attempts. Please try again later.' };
   }
 

@@ -44,6 +44,9 @@ RUN npm install -g prisma
 RUN mkdir .next
 RUN chown nextjs:nodejs .next
 
+# Pre-create data directory for SQLite named volume to inherit permissions
+RUN mkdir -p /app/data && chown nextjs:nodejs /app/data
+
 # Automatically leverage output traces to reduce image size
 # https://nextjs.org/docs/advanced-features/output-file-tracing
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./

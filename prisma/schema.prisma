@@ -67,3 +67,9 @@ model HabitLog {
   payload   String
   createdAt DateTime @default(now())
 }
+
+model RateLimit {
+  identifier String   @id
+  count      Int      @default(1)
+  resetTime  DateTime
+}
