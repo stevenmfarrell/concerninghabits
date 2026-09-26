@@ -73,8 +73,8 @@ export default function HabitEditor({
     if (result.success) {
       setSchema((prev: any) => ({
         ...prev,
-        properties: result.schema.properties,
-        required: result.schema.required,
+        properties: result.schema?.properties,
+        required: result.schema?.required,
       }));
       setTweakPrompt('');
     } else {

@@ -11,9 +11,9 @@ export default function ProvisionUserForm() {
     async (prevState: any, formData: FormData) => {
       const result = await provisionUser(formData);
       if (result?.error) {
-        return result;
+        return { error: result.error, success: false };
       }
-      return { success: true };
+      return { error: null, success: true };
     },
     null
   );

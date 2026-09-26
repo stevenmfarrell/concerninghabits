@@ -29,7 +29,7 @@ export default function HabitChart({
   const [chartTypes, setChartTypes] = useState<Record<string, 'line' | 'bar'>>(defaultChartTypes);
   const [isOpen, setIsOpen] = useState(false);
 
-  const yDomain = chartTypes[selectedField] === 'bar' ? [0, 'auto'] : ['auto', 'auto'];
+  const yDomain: any = chartTypes[selectedField] === 'bar' ? [0, 'auto'] : ['auto', 'auto'];
 
   const handleFieldChange = (field: string) => {
     setSelectedField(field);
@@ -203,8 +203,8 @@ export default function HabitChart({
                   contentStyle={{ borderRadius: '12px', border: '1px solid #e7e5e4', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                   labelStyle={{ color: '#57534e', fontWeight: 600, marginBottom: '4px' }}
                   itemStyle={{ color: '#047857', fontWeight: 700 }}
-                  labelFormatter={(label) => new Date(label).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
-                  formatter={(value: number) => [formatLogValue(value, schemaObj?.properties?.[selectedField]), selectedField.replace(/([A-Z])/g, ' $1').trim().replace(/^./, str => str.toUpperCase())]}
+                  labelFormatter={(label: any) => new Date(label).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+                  formatter={(value: any) => [formatLogValue(value, schemaObj?.properties?.[selectedField]), selectedField.replace(/([A-Z])/g, ' $1').trim().replace(/^./, str => str.toUpperCase())]}
                 />
                 <Bar 
                   dataKey="value" 
@@ -242,8 +242,8 @@ export default function HabitChart({
                   contentStyle={{ borderRadius: '12px', border: '1px solid #e7e5e4', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                   labelStyle={{ color: '#57534e', fontWeight: 600, marginBottom: '4px' }}
                   itemStyle={{ color: '#047857', fontWeight: 700 }}
-                  labelFormatter={(label) => new Date(label).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
-                  formatter={(value: number) => [formatLogValue(value, schemaObj?.properties?.[selectedField]), selectedField.replace(/([A-Z])/g, ' $1').trim().replace(/^./, str => str.toUpperCase())]}
+                  labelFormatter={(label: any) => new Date(label).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+                  formatter={(value: any) => [formatLogValue(value, schemaObj?.properties?.[selectedField]), selectedField.replace(/([A-Z])/g, ' $1').trim().replace(/^./, str => str.toUpperCase())]}
                 />
                 <Line 
                   type="monotone" 

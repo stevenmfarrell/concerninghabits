@@ -31,7 +31,7 @@ export async function generateHabitSchema(prompt: string, currentSchema?: any) {
         category: z.enum(['Mind', 'Body', 'Chores', 'Other']).describe("The category this habit best fits into"),
         frequency: z.enum(['daily', 'weekly', 'monthly', 'multiple']).optional().describe("The suggested tracking cadence"),
         type: z.literal('object'),
-        properties: z.record(z.any()).describe(`The fields required. Keep it simple. Use empty {} for simple boolean tasks. CRITICAL: For time durations, set 'type': 'number' AND 'x-widget': 'duration'. For other numeric fields, include an 'x-unit' key specifying the unit of measurement (e.g., 'miles', 'lbs', 'oz', 'pages'). The user prefers the ${user.unitSystem} measurement system.`),
+        properties: z.record(z.string(), z.any()).describe(`The fields required. Keep it simple. Use empty {} for simple boolean tasks. CRITICAL: For time durations, set 'type': 'number' AND 'x-widget': 'duration'. For other numeric fields, include an 'x-unit' key specifying the unit of measurement (e.g., 'miles', 'lbs', 'oz', 'pages'). The user prefers the ${user.unitSystem} measurement system.`),
         required: z.array(z.string()).optional().describe("Array of required property keys"),
       }),
     });
@@ -49,7 +49,7 @@ export async function parseVoiceLog(schemaStr: string, transcript: string) {
   try {
     const { object } = await generateObject({
       model: google('gemini-flash-lite-latest'),
-      schema: z.record(z.any()),
+      schema: z.record(z.string(), z.any()),
       system: `You are an AI assistant that extracts structured data from a user's voice transcript to fill out a habit tracking form.
 You are given the JSON schema for the form.
 You must map the transcript to the schema's 'properties'. 
@@ -72,7 +72,7 @@ export async function parseImageLog(schemaStr: string, base64Image: string) {
     
     const { object } = await generateObject({
       model: google('gemini-flash-lite-latest'),
-      schema: z.record(z.any()),
+      schema: z.record(z.string(), z.any()),
       system: `You are an AI assistant that extracts structured data from an image to fill out a habit tracking form.
 You are given the JSON schema for the form.
 Analyze the image (e.g. a treadmill screen, a handwritten log, a meal) and map the relevant information to the schema's 'properties'.

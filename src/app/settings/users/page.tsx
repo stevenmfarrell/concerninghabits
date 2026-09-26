@@ -42,7 +42,7 @@ export default async function UsersSettingsPage() {
                     <div className="flex items-center gap-2">
                       <span className="font-medium text-stone-900">{user.name}</span>
                       {user.isAdmin && (
-                        <Shield className="w-3.5 h-3.5 text-emerald-600" title="Admin" />
+                        <Shield className="w-3.5 h-3.5 text-emerald-600" aria-label="Admin" />
                       )}
                     </div>
                     <span className="text-sm text-stone-500">ID: {user.id.slice(0, 8)}...</span>

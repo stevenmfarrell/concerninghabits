@@ -14,9 +14,9 @@ export default function UpdatePasswordForm({ needsUpdate }: { needsUpdate: boole
     async (prevState: any, formData: FormData) => {
       const result = await updatePassword(formData);
       if (result?.error) {
-        return result;
+        return { error: result.error, success: false };
       }
-      return { success: true };
+      return { error: null, success: true };
     },
     null
   );
