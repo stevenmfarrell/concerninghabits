@@ -42,3 +42,57 @@ export async function generateHabitSchema(prompt: string, currentSchema?: any) {
     return { success: false, error: "Failed to generate schema." };
   }
 }
+
+import { generateText } from 'ai';
+
+export async function parseVoiceLog(schemaStr: string, transcript: string) {
+  try {
+    const { object } = await generateObject({
+      model: google('gemini-flash-lite-latest'),
+      schema: z.record(z.any()),
+      system: `You are an AI assistant that extracts structured data from a user's voice transcript to fill out a habit tracking form.
+You are given the JSON schema for the form.
+You must map the transcript to the schema's 'properties'. 
+Return ONLY a flat JSON object where the keys exactly match the property keys from the schema, and the values are the extracted data.
+DO NOT nest your response inside a 'properties' key.
+If the transcript implies a value that matches a field, include it. Otherwise omit it.`,
+      prompt: `Form Schema:\n${schemaStr}\n\nVoice Transcript:\n"${transcript}"`,
+    });
+
+    return { success: true, data: object };
+  } catch (error) {
+    console.error("Error parsing voice log:", error);
+    return { success: false, error: "Failed to parse voice log." };
+  }
+}
+
+export async function parseImageLog(schemaStr: string, base64Image: string) {
+  try {
+    const base64Data = base64Image.split(',')[1];
+    
+    const { object } = await generateObject({
+      model: google('gemini-flash-lite-latest'),
+      schema: z.record(z.any()),
+      system: `You are an AI assistant that extracts structured data from an image to fill out a habit tracking form.
+You are given the JSON schema for the form.
+Analyze the image (e.g. a treadmill screen, a handwritten log, a meal) and map the relevant information to the schema's 'properties'.
+Return ONLY a flat JSON object where the keys exactly match the property keys from the schema, and the values are the extracted data.
+DO NOT nest your response inside a 'properties' key.
+If the image implies a value that matches a field, include it. Otherwise omit it.`,
+      messages: [
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: `Form Schema:\n${schemaStr}\n\nExtract the relevant data from this image.` },
+            { type: 'image', image: base64Data }
+          ],
+        },
+      ],
+    });
+
+    return { success: true, data: object };
+  } catch (error) {
+    console.error("Error parsing image log:", error);
+    return { success: false, error: "Failed to parse image log." };
+  }
+}

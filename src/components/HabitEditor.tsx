@@ -5,7 +5,7 @@ import { generateHabitSchema } from '../app/actions/habit';
 import { getCategories, createCategory } from '../app/actions/db';
 import Form from '@rjsf/core';
 import validator from '@rjsf/validator-ajv8';
-import { Loader2, Save, Wand2, SquarePen, Trash2 } from 'lucide-react';
+import { Loader2, Save, Wand2, SquarePen, Trash2, Mic, Camera } from 'lucide-react';
 import CategorySelect from './CategorySelect';
 import NewCategoryInline from './NewCategoryInline';
 import toast from 'react-hot-toast';
@@ -41,6 +41,9 @@ export default function HabitEditor({
   const [categoryId, setCategoryId] = useState<string>(initialCategoryId);
   const [deleting, setDeleting] = useState(false);
   const [saving, setSaving] = useState(false);
+  
+  const [enableVoice, setEnableVoice] = useState(initialSchema.enableVoice !== false);
+  const [enablePhoto, setEnablePhoto] = useState(initialSchema.enablePhoto !== false);
   
   const [tweakPrompt, setTweakPrompt] = useState('');
   const [isTweaking, setIsTweaking] = useState(false);
@@ -85,7 +88,7 @@ export default function HabitEditor({
   const handleSaveAction = async () => {
     if (!schema || !title) return;
     setSaving(true);
-    const finalSchema = { ...schema, title };
+    const finalSchema = { ...schema, title, enableVoice, enablePhoto };
     await onSave(title, description, finalSchema, categoryId, frequency);
     // Component will typically unmount here due to navigation
   };
@@ -237,6 +240,44 @@ export default function HabitEditor({
             <div className="p-4 bg-blue-50 text-blue-800 rounded-xl text-sm mt-4 border border-blue-100">
               <strong>Tip:</strong> If your habit is as simple as "did I do it?", the generated form should be empty. Just clicking the submit button records the event.
             </div>
+
+            {Object.keys(schema?.properties || {}).length > 0 && (
+              <div className="mt-8 pt-6 border-t border-stone-100 space-y-4">
+                <p className="text-sm font-medium text-stone-500 uppercase tracking-wider">AI Input Methods</p>
+                
+                <label className="flex items-center justify-between p-4 bg-stone-50 border border-stone-200 rounded-xl cursor-pointer hover:bg-stone-100 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <div className={`p-2 rounded-lg ${enableVoice ? 'bg-emerald-100 text-emerald-600' : 'bg-stone-200 text-stone-500'}`}>
+                      <Mic className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="font-semibold text-stone-900 text-sm">Voice Log</div>
+                      <div className="text-xs text-stone-500">Extract fields from speech</div>
+                    </div>
+                  </div>
+                  <div className={`w-12 h-6 rounded-full transition-colors relative ${enableVoice ? 'bg-emerald-500' : 'bg-stone-300'}`}>
+                    <input type="checkbox" className="sr-only" checked={enableVoice} onChange={(e) => setEnableVoice(e.target.checked)} disabled={saving} />
+                    <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${enableVoice ? 'translate-x-7' : 'translate-x-1'}`} />
+                  </div>
+                </label>
+
+                <label className="flex items-center justify-between p-4 bg-stone-50 border border-stone-200 rounded-xl cursor-pointer hover:bg-stone-100 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <div className={`p-2 rounded-lg ${enablePhoto ? 'bg-blue-100 text-blue-600' : 'bg-stone-200 text-stone-500'}`}>
+                      <Camera className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="font-semibold text-stone-900 text-sm">Photo Log</div>
+                      <div className="text-xs text-stone-500">Extract fields from images</div>
+                    </div>
+                  </div>
+                  <div className={`w-12 h-6 rounded-full transition-colors relative ${enablePhoto ? 'bg-blue-500' : 'bg-stone-300'}`}>
+                    <input type="checkbox" className="sr-only" checked={enablePhoto} onChange={(e) => setEnablePhoto(e.target.checked)} disabled={saving} />
+                    <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${enablePhoto ? 'translate-x-7' : 'translate-x-1'}`} />
+                  </div>
+                </label>
+              </div>
+            )}
           </div>
 
         </div>

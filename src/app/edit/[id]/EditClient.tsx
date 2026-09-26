@@ -11,8 +11,10 @@ export default function EditClient({ habit }: { habit: any }) {
   const router = useRouter();
 
   const handleSave = async (title: string, description: string, schema: any, categoryId: string, frequency: string) => {
+    const saveToast = toast.loading("Saving changes...");
     await updateHabit(habit.id, title, description, schema, categoryId, frequency);
-    router.push('/');
+    toast.success("Changes saved!", { id: saveToast });
+    window.location.href = '/';
   };
 
   const handleDelete = async () => {
