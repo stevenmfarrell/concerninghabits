@@ -28,26 +28,23 @@ export default function EditClient({ habit }: { habit: any }) {
   };
 
   return (
-    <main className="flex-1 p-4 sm:p-8 bg-stone-50 font-sans min-h-screen">
-      <div className="max-w-3xl mx-auto space-y-6 sm:space-y-8">
-        <div>
-
-          <div className="space-y-2">
-            <h1 className="text-3xl font-bold text-stone-900">Edit Habit</h1>
-            <p className="text-stone-600">Update your habit's form, category, or cadence.</p>
-          </div>
+    <div className="max-w-3xl mx-auto space-y-6 sm:space-y-8">
+      <div>
+        <div className="space-y-2">
+          <h1 className="text-3xl font-bold text-stone-900">Edit Habit</h1>
+          <p className="text-stone-600">Update your habit's form, category, or cadence.</p>
         </div>
-
-        <HabitEditor
-          initialTitle={habit.name}
-          initialDescription={habit.description || ''}
-          initialSchema={JSON.parse(habit.schema)}
-          initialFrequency={habit.frequency || 'daily'}
-          initialCategoryId={habit.categoryId || ''}
-          onSave={handleSave}
-          onDelete={handleDelete}
-        />
       </div>
-    </main>
+
+      <HabitEditor
+        initialTitle={habit.name}
+        initialDescription={habit.description || ''}
+        initialSchema={JSON.parse(habit.schema)}
+        initialFrequency={habit.frequency || 'daily'}
+        initialCategoryId={habit.categoryId || ''}
+        onSave={handleSave}
+        onDelete={handleDelete}
+      />
+    </div>
   );
 }

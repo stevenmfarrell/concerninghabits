@@ -401,10 +401,9 @@ export default function LogClient({ habit }: { habit: any }) {
               noHtml5Validate={true}
               showErrorList={false}
               className="space-y-6 rjsf"
+              onSubmit={() => handleManualSubmit()}
             >
-              <></>
-            </Form>
-            <div className="space-y-4 pt-4">
+              <div className="space-y-4 pt-4">
               {showBackdate && (
                 <div className="animate-in fade-in slide-in-from-bottom-2 p-4 bg-stone-50 border border-stone-200 rounded-xl">
                   <div className="flex justify-between items-center mb-2">
@@ -434,12 +433,8 @@ export default function LogClient({ habit }: { habit: any }) {
               )}
 
               <button
-                type="button"
+                type="submit"
                 disabled={loading}
-                onClick={(e) => {
-                  e.preventDefault();
-                  handleManualSubmit();
-                }}
                 className="w-full py-4 bg-emerald-600 text-white rounded-xl font-medium text-lg hover:bg-emerald-700 cursor-pointer transition-colors flex justify-center items-center gap-2 disabled:opacity-70 shadow-sm"
               >
                 {loading && <Loader2 className="w-5 h-5 animate-spin" />}
@@ -458,6 +453,7 @@ export default function LogClient({ habit }: { habit: any }) {
                 </div>
               )}
             </div>
+            </Form>
           </div>
         </div>
       </div>
