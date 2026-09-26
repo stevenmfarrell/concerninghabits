@@ -1,8 +1,9 @@
 import { getHabits, getDefaultUser } from './actions/db';
 import Link from 'next/link';
-import { Plus, ListTodo, PenLine } from 'lucide-react';
+import { Plus, ListTodo } from 'lucide-react';
 import Icon from '../components/Icon';
 import ActivityCalendar from '../components/ActivityCalendar';
+import QuillIcon from '../components/QuillIcon';
 
 export default async function Dashboard() {
   const user = await getDefaultUser();
@@ -103,7 +104,7 @@ export default async function Dashboard() {
                               className="text-emerald-600 flex items-center justify-center h-full px-6 sm:px-8 hover:bg-emerald-50 transition-colors rounded-r-2xl"
                               title="Log entry"
                             >
-                              <PenLine className="w-6 h-6 sm:w-7 sm:h-7" strokeWidth={2.5} />
+                              <QuillIcon className="w-6 h-6 sm:w-7 sm:h-7" strokeWidth={2.5} />
                             </Link>
                           </div>
                         </div>

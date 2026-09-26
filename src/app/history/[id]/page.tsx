@@ -1,7 +1,7 @@
 import { getHabit, getHabitLogs, deleteHabitLog, getDefaultUser } from '../../actions/db';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { Trash2, Settings2, PenLine } from 'lucide-react';
+import { Trash2, Settings2 } from 'lucide-react';
 import { cookies } from 'next/headers';
 import DeleteButton from './DeleteButton';
 import InteractiveCalendar from './InteractiveCalendar';
@@ -9,6 +9,7 @@ import Icon from '../../../components/Icon';
 import HorizonToggle from './HorizonToggle';
 import HabitChart from './HabitChart';
 import { formatLogValue } from '../../../lib/format';
+import QuillIcon from '../../../components/QuillIcon';
 
 export default async function HistoryPage(props: { params: Promise<{ id: string }>, searchParams: Promise<{ horizon?: string, page?: string, highlight?: string, t?: string }> }) {
   const params = await props.params;
@@ -111,7 +112,7 @@ export default async function HistoryPage(props: { params: Promise<{ id: string 
                 href={`/log/${habit.id}`}
                 className="px-6 py-3 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2 shadow-sm flex-1 sm:flex-none"
               >
-                <PenLine className="w-5 h-5 shrink-0" /> Log Entry
+                <QuillIcon className="w-5 h-5 shrink-0" /> Log Entry
               </Link>
             </div>
           </div>

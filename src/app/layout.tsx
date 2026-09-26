@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Noto_Emoji } from "next/font/google";
 import SWUnregister from "../components/SWUnregister";
 import { Toaster } from "react-hot-toast";
 import BottomNav from "../components/BottomNav";
@@ -13,6 +13,12 @@ const geistSans = Geist({
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+});
+
+const notoEmoji = Noto_Emoji({
+  variable: "--font-noto-emoji",
+  subsets: ["emoji"],
+  weight: ["400"],
 });
 
 export const metadata: Metadata = {
@@ -33,7 +39,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${notoEmoji.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
         {children}
