@@ -1,7 +1,7 @@
 import { getHabit, getHabitLogs, deleteHabitLog, getDefaultUser } from '../../actions/db';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { Trash2, Settings2, Plus } from 'lucide-react';
+import { Trash2, Settings2, PenLine } from 'lucide-react';
 import { cookies } from 'next/headers';
 import DeleteButton from './DeleteButton';
 import InteractiveCalendar from './InteractiveCalendar';
@@ -102,26 +102,37 @@ export default async function HistoryPage(props: { params: Promise<{ id: string 
             <div className="flex items-center gap-3 w-full sm:w-auto">
               <Link 
                 href={`/edit/${habit.id}`}
-                className="px-4 py-3 bg-white text-stone-700 border border-stone-200 rounded-xl font-medium hover:bg-stone-50 transition-colors flex items-center justify-center gap-2 flex-1 sm:flex-none"
+                className="p-3 text-stone-400 hover:text-stone-700 hover:bg-stone-100 rounded-xl transition-colors flex items-center justify-center"
+                title="Edit Habit Settings"
               >
-                <Settings2 className="w-5 h-5 shrink-0" /> Edit
+                <Settings2 className="w-6 h-6 shrink-0" strokeWidth={2} />
               </Link>
               <Link 
                 href={`/log/${habit.id}`}
                 className="px-6 py-3 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2 shadow-sm flex-1 sm:flex-none"
               >
-                <Plus className="w-5 h-5 shrink-0" /> Log Entry
+                <PenLine className="w-5 h-5 shrink-0" /> Log Entry
               </Link>
             </div>
           </div>
         </div>
 
-        {/* Activity Graphic */}
-        <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-stone-100 flex flex-col items-start overflow-x-auto">
-          <div className="flex w-full items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-stone-800">Activity Overview</h2>
-            <HorizonToggle habitId={habit.id} currentWeeks={weeks} />
+        {logs.length === 0 ? (
+          <div className="py-24 px-8 sm:px-12 text-center flex flex-col items-center justify-center">
+            <img src="/hobbit-hole.svg" alt="Hobbit Hole" className="w-80 max-w-full h-auto opacity-10 mb-8" />
+            <h2 className="text-2xl font-semibold text-stone-700 mb-2">No logs here yet</h2>
+            <p className="text-base text-stone-500 max-w-sm">Time to step out your front door and start an adventure. Log your first entry!</p>
           </div>
+        ) : (
+          <>
+            {/* Time Horizon Toolbar */}
+            <div className="flex justify-end mb-2">
+              <HorizonToggle habitId={habit.id} currentWeeks={weeks} />
+            </div>
+
+            {/* Activity Graphic */}
+            <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-stone-100 flex flex-col items-start overflow-x-auto">
+              <h2 className="text-lg font-semibold text-stone-800 mb-4">Activity Overview</h2>
           <InteractiveCalendar 
             logs={filteredLogs.map(l => ({ id: l.id, createdAt: l.createdAt }))} 
             weeks={weeks} 
@@ -161,7 +172,7 @@ export default async function HistoryPage(props: { params: Promise<{ id: string 
               {paginatedLogs.length === 0 ? (
                 <tr>
                   <td colSpan={3} className="p-8 text-center text-stone-500">
-                    No logs yet.
+                    No logs found in this period.
                   </td>
                 </tr>
               ) : (
@@ -181,11 +192,15 @@ export default async function HistoryPage(props: { params: Promise<{ id: string 
                         isHighlighted ? 'animate-highlight-fade' : 'hover:bg-stone-50/50'
                       }`}
                     >
-                      <td className="p-4 text-stone-800 whitespace-nowrap align-top">
-                        {new Date(log.createdAt).toLocaleString(undefined, { 
-                          dateStyle: 'medium', 
-                          timeStyle: 'short' 
-                        })}
+                      <td className="p-4 text-stone-800 whitespace-nowrap align-top w-px">
+                        <div className="inline-flex flex-col">
+                          <span className="font-medium">
+                            {new Date(log.createdAt).toLocaleDateString(undefined, { dateStyle: 'medium' })}
+                          </span>
+                          <span className="text-sm text-stone-500 text-right">
+                            {new Date(log.createdAt).toLocaleTimeString(undefined, { timeStyle: 'short' })}
+                          </span>
+                        </div>
                       </td>
                       <td className="p-4 text-stone-600">
                         {hasDetails ? (
@@ -238,6 +253,8 @@ export default async function HistoryPage(props: { params: Promise<{ id: string 
             </div>
           )}
         </div>
+          </>
+        )}
       </div>
     </main>
   );

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { BarChart2, LineChart as LineChartIcon, ArrowDownToLine, Minimize2 } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -28,6 +28,21 @@ export default function HabitChart({
   const [selectedField, setSelectedField] = useState<string>(defaultSelectedField);
   const [chartTypes, setChartTypes] = useState<Record<string, 'line' | 'bar'>>(defaultChartTypes);
   const [isOpen, setIsOpen] = useState(false);
+  const chartWrapperRef = useRef<HTMLDivElement>(null);
+
+  // Recharts tooltips can get stuck on mobile/touch devices.
+  // This listener forces a mouseleave event on the chart when touching outside it, which clears the tooltip.
+  useEffect(() => {
+    const handleTouchOutside = (e: TouchEvent) => {
+      if (chartWrapperRef.current && !chartWrapperRef.current.contains(e.target as Node)) {
+        // Recharts listens to mouseleave on the wrapper container
+        const event = new MouseEvent('mouseleave', { bubbles: true, cancelable: true });
+        chartWrapperRef.current.dispatchEvent(event);
+      }
+    };
+    document.addEventListener('touchstart', handleTouchOutside, { passive: true });
+    return () => document.removeEventListener('touchstart', handleTouchOutside);
+  }, []);
 
   const yDomain: any = chartTypes[selectedField] === 'bar' ? [0, 'auto'] : ['auto', 'auto'];
 
@@ -174,7 +189,7 @@ export default function HabitChart({
         </div>
       </div>
 
-      <div className="w-full h-64">
+      <div ref={chartWrapperRef} className="w-full h-64">
         {!hasData ? (
           <div className="w-full h-full flex items-center justify-center text-stone-400 text-sm italic">
             No data recorded for this metric yet.

@@ -14,7 +14,6 @@ export default function BottomNav() {
 
   const navItems = [
     { name: 'Dashboard', href: '/', icon: Home },
-    { name: 'Add Habit', href: '/create', icon: PlusCircle },
     { name: 'Settings', href: '/settings', icon: Settings, matchPrefix: '/settings' },
   ];
 

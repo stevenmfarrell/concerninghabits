@@ -50,9 +50,9 @@ export default function ActivityCalendar({ dates, weeks = 5, frequency = 'daily'
     startDate.setDate(today.getDate() - weeks * 7 + 1);
     startDate.setDate(1);
   } else {
-    // Just go back N weeks, aligned to start of week
-    startDate.setDate(today.getDate() - weeks * 7 + 1);
-    const alignedStart = getStartOfWeek(startDate);
+    // Start date is exactly (weeks - 1) weeks prior to the start of the current week
+    const alignedStart = getStartOfWeek(today);
+    alignedStart.setDate(alignedStart.getDate() - (weeks - 1) * 7);
     startDate.setTime(alignedStart.getTime());
   }
 
@@ -244,7 +244,7 @@ export default function ActivityCalendar({ dates, weeks = 5, frequency = 'daily'
                 })}
               </div>
             )}
-            <div className="relative shrink-0 pr-1 pb-1">
+            <div className="relative shrink-0">
               <div className={`grid grid-cols-7 ${gapClass}`}>
                 {grid.map((cell, i) => {
                   if (cell.isNull) {
