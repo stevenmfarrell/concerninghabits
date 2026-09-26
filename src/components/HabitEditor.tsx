@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { generateHabitSchema } from '../app/actions/habit';
-import { getCategories, createCategory } from '../app/actions/db';
+import { getCategories, createCategory, isMqttConfigured } from '../app/actions/db';
 import Form from '@rjsf/core';
 import validator from '@rjsf/validator-ajv8';
 import { Loader2, Save, Wand2, SquarePen, Trash2, Mic, Camera } from 'lucide-react';
@@ -20,8 +20,9 @@ interface HabitEditorProps {
   initialSchema: any;
   initialFrequency: string;
   initialCategoryId: string;
+  initialPublishToMqtt?: boolean;
   isCreateMode?: boolean;
-  onSave: (title: string, description: string, schema: any, categoryId: string, frequency: string) => Promise<void>;
+  onSave: (title: string, description: string, schema: any, categoryId: string, frequency: string, publishToMqtt: boolean) => Promise<void>;
   onDelete?: () => Promise<void>;
   onChangeTitle?: (title: string) => void;
 }
@@ -32,6 +33,7 @@ export default function HabitEditor({
   initialSchema,
   initialFrequency,
   initialCategoryId,
+  initialPublishToMqtt,
   isCreateMode,
   onSave,
   onDelete,
@@ -43,6 +45,7 @@ export default function HabitEditor({
   const [frequency, setFrequency] = useState<string>(initialFrequency);
   const [targetCount, setTargetCount] = useState<number>(initialSchema.targetCount || 3);
   const [categoryId, setCategoryId] = useState<string>(initialCategoryId);
+  const [publishToMqtt, setPublishToMqtt] = useState(initialPublishToMqtt || false);
   const [deleting, setDeleting] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -54,6 +57,7 @@ export default function HabitEditor({
 
   const [categories, setCategories] = useState<any[]>([]);
   const [showNewCat, setShowNewCat] = useState(false);
+  const [mqttConfigured, setMqttConfigured] = useState(false);
 
   useEffect(() => {
     getCategories().then(cats => {
@@ -62,6 +66,7 @@ export default function HabitEditor({
         setCategoryId(cats[0].id);
       }
     });
+    isMqttConfigured().then(setMqttConfigured);
   }, []);
 
   const handleTweakSchema = async (e: React.FormEvent) => {
@@ -93,8 +98,12 @@ export default function HabitEditor({
     if (!schema || !title) return;
     setSaving(true);
     const finalSchema = { ...schema, title, enableVoice, enablePhoto, targetCount: frequency === 'multiple' ? targetCount : undefined };
-    await onSave(title, description, finalSchema, categoryId, frequency);
-    // Component will typically unmount here due to navigation
+    try {
+      await onSave(title, description, finalSchema, categoryId, frequency, publishToMqtt);
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to save habit');
+      setSaving(false);
+    }
   };
 
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
@@ -251,6 +260,29 @@ export default function HabitEditor({
                   <div className={`w-12 h-6 rounded-full transition-colors relative ${enablePhoto ? 'bg-blue-500' : 'bg-stone-300'}`}>
                     <input type="checkbox" className="sr-only" checked={enablePhoto} onChange={(e) => setEnablePhoto(e.target.checked)} disabled={saving} />
                     <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${enablePhoto ? 'translate-x-7' : 'translate-x-1'}`} />
+                  </div>
+                </label>
+              </div>
+            )}
+            
+            {mqttConfigured && (
+              <div className="mt-8 pt-6 border-t border-stone-100 space-y-4">
+                <p className="text-sm font-medium text-stone-500 uppercase tracking-wider">Integrations</p>
+                <label className="flex items-center justify-between p-4 bg-stone-50 border border-stone-200 rounded-xl cursor-pointer hover:bg-stone-100 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <div className={`p-2 rounded-lg ${publishToMqtt ? 'bg-amber-100 text-amber-600' : 'bg-stone-200 text-stone-500'}`}>
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <div className="font-semibold text-stone-900 text-sm">Home Assistant (MQTT)</div>
+                      <div className="text-xs text-stone-500">Publish log events to MQTT</div>
+                    </div>
+                  </div>
+                  <div className={`w-12 h-6 rounded-full transition-colors relative ${publishToMqtt ? 'bg-amber-500' : 'bg-stone-300'}`}>
+                    <input type="checkbox" className="sr-only" checked={publishToMqtt} onChange={(e) => setPublishToMqtt(e.target.checked)} disabled={saving} />
+                    <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${publishToMqtt ? 'translate-x-7' : 'translate-x-1'}`} />
                   </div>
                 </label>
               </div>

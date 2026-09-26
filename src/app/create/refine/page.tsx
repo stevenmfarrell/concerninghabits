@@ -21,8 +21,8 @@ export default function RefineHabit() {
     setDraft(JSON.parse(draftData));
   }, [router]);
 
-  const handleSave = async (title: string, description: string, schema: any, categoryId: string, frequency: string) => {
-    await saveHabit(title, description, schema, categoryId, frequency);
+  const handleSave = async (title: string, description: string, schema: any, categoryId: string, frequency: string, publishToMqtt: boolean) => {
+    await saveHabit(title, description, schema, categoryId, frequency, publishToMqtt);
     sessionStorage.removeItem('draftHabit');
     router.push('/');
   };

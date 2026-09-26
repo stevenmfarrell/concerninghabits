@@ -10,9 +10,9 @@ import toast from 'react-hot-toast';
 export default function EditClient({ habit }: { habit: any }) {
   const router = useRouter();
 
-  const handleSave = async (title: string, description: string, schema: any, categoryId: string, frequency: string) => {
+  const handleSave = async (title: string, description: string, schema: any, categoryId: string, frequency: string, publishToMqtt: boolean) => {
     const saveToast = toast.loading("Saving changes...");
-    await updateHabit(habit.id, title, description, schema, categoryId, frequency);
+    await updateHabit(habit.id, title, description, schema, categoryId, frequency, publishToMqtt);
     toast.success("Changes saved!", { id: saveToast });
     window.location.href = '/';
   };
@@ -42,6 +42,7 @@ export default function EditClient({ habit }: { habit: any }) {
         initialSchema={JSON.parse(habit.schema)}
         initialFrequency={habit.frequency || 'daily'}
         initialCategoryId={habit.categoryId || ''}
+        initialPublishToMqtt={habit.publishToMqtt}
         onSave={handleSave}
         onDelete={handleDelete}
       />

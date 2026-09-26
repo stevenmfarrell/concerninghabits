@@ -35,6 +35,7 @@ model Session {
 }
 
 model Habit {
+  publishToMqtt Boolean @default(false)
   id          String     @id @default(uuid())
   name        String
   description String?

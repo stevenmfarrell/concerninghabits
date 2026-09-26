@@ -76,22 +76,27 @@ export async function deleteCategory(id: string) {
   revalidatePath('/');
 }
 
-export async function saveHabit(name: string, description: string, schema: any, categoryId?: string, frequency: string = 'daily') {
+export async function saveHabit(name: string, description: string, schema: any, categoryId?: string, frequency: string = 'daily', publishToMqtt: boolean = false) {
   const user = await getDefaultUser();
   
-  const habit = await prisma.habit.create({
-    data: {
-      name,
-      description,
-      schema: JSON.stringify(schema),
-      categoryId,
-      frequency,
-      userId: user.id,
-    }
-  });
-  
-  revalidatePath('/');
-  return habit;
+  try {
+    const habit = await prisma.habit.create({
+      data: {
+        name,
+        description,
+        schema: JSON.stringify(schema),
+        categoryId: categoryId || null,
+        frequency,
+        publishToMqtt,
+        userId: user.id,
+      }
+    });
+    
+    revalidatePath('/');
+    return habit;
+  } catch (error: any) {
+    throw new Error("Prisma Create Error: " + error.message);
+  }
 }
 
 export async function getHabits() {
@@ -141,6 +146,15 @@ export async function logHabitEvent(habitId: string, payload: any, createdAt?: D
       ...(createdAt ? { createdAt } : {})
     }
   });
+
+  try {
+    if (habit.publishToMqtt) {
+      const { publishHabitLog } = await import('@/lib/mqtt');
+      publishHabitLog(user, habit, payload);
+    }
+  } catch (e) {
+    console.error('Failed to trigger MQTT publish', e);
+  }
   
   revalidatePath(`/log/${habitId}`);
   revalidatePath(`/history/${habitId}`);
@@ -168,26 +182,31 @@ export async function getHabitLogs(habitId: string) {
   });
 }
 
-export async function updateHabit(id: string, name: string, description: string, schema: any, categoryId?: string, frequency: string = 'daily') {
+export async function updateHabit(id: string, name: string, description: string, schema: any, categoryId?: string, frequency: string = 'daily', publishToMqtt: boolean = false) {
   const user = await getDefaultUser();
   const existing = await prisma.habit.findUnique({ where: { id } });
   if (!existing || existing.userId !== user.id) throw new Error("Unauthorized");
 
-  const habit = await prisma.habit.update({
-    where: { id },
-    data: {
-      name,
-      description,
-      schema: JSON.stringify(schema),
-      categoryId,
-      frequency,
-    }
-  });
-  
-  revalidatePath('/');
-  revalidatePath(`/log/${id}`);
-  revalidatePath(`/history/${id}`);
-  return habit;
+  try {
+    const habit = await prisma.habit.update({
+      where: { id },
+      data: {
+        name,
+        description,
+        schema: JSON.stringify(schema),
+        categoryId: categoryId || null,
+        frequency,
+        publishToMqtt,
+      }
+    });
+    
+    revalidatePath('/');
+    revalidatePath(`/log/${id}`);
+    revalidatePath(`/history/${id}`);
+    return habit;
+  } catch (error: any) {
+    throw new Error("Prisma Update Error: " + error.message);
+  }
 }
 
 export async function updateUserPreferences(prefs: { bedtime?: string, weekStartsOn?: string, useEmojiTitle?: boolean, emojiModifier?: string, unitSystem?: string }) {
@@ -207,4 +226,8 @@ export async function deleteHabit(habitId: string) {
     prisma.habit.delete({ where: { id: habitId, userId: user.id } })
   ]);
   revalidatePath('/');
+}
+
+export async function isMqttConfigured() {
+  return !!process.env.MQTT_URL;
 }

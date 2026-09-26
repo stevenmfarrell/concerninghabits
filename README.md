@@ -80,6 +80,12 @@ services:
     environment:
       # Add your Gemini API key for AI features
       - GOOGLE_GENERATIVE_AI_API_KEY=your-google-gemini-api-key
+      
+      # Optional: Home Assistant (MQTT) Integration
+      - MQTT_URL=mqtt://homeassistant.local:1883
+      # - MQTT_USERNAME=your-username
+      # - MQTT_PASSWORD=your-password
+      # - MQTT_TOPIC_PREFIX=habiton
     volumes:
       - concerning-habits_data:/app/data
     restart: unless-stopped
