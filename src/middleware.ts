@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifySession } from './lib/auth';
 
 const publicRoutes = ['/login', '/setup'];
 
@@ -16,13 +15,13 @@ export default async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  const session = await verifySession();
+  const sessionCookie = req.cookies.get('session');
 
-  if (!session?.userId && !isPublicRoute) {
+  if (!sessionCookie && !isPublicRoute) {
     return NextResponse.redirect(new URL('/login', req.nextUrl));
   }
 
-  if (session?.userId && isPublicRoute) {
+  if (sessionCookie && isPublicRoute) {
     return NextResponse.redirect(new URL('/', req.nextUrl));
   }
 
