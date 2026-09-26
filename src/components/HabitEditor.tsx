@@ -10,6 +10,7 @@ import CategorySelect from './CategorySelect';
 import NewCategoryInline from './NewCategoryInline';
 import toast from 'react-hot-toast';
 import ConfirmDialog from './ConfirmDialog';
+import DurationWidget from './widgets/DurationWidget';
 
 interface HabitEditorProps {
   initialTitle: string;
@@ -154,16 +155,30 @@ export default function HabitEditor({
                 )}
               </div>
               <div className="bg-white p-6 rounded-2xl shadow-sm border border-stone-100 mb-6">
-                <Form
-                  schema={{ ...schema, title: '' }}
-                  validator={validator}
-                  onSubmit={() => toast.success('Form valid! (Test mode - nothing was saved)')}
-                  className="rjsf rjsf-preview"
-                >
-                  <button type="submit" className="mt-4 px-6 py-3 bg-stone-900 text-white rounded-xl font-medium hover:bg-stone-800 transition-colors w-full">
-                    Test Submit
-                  </button>
-                </Form>
+                {(() => {
+                  const uiSchema: any = {};
+                  if (schema?.properties) {
+                    Object.keys(schema.properties).forEach(key => {
+                      if (schema.properties[key]['x-widget'] === 'duration') {
+                        uiSchema[key] = { 'ui:widget': 'duration' };
+                      }
+                    });
+                  }
+                  return (
+                    <Form
+                      schema={{ ...schema, title: '' }}
+                      uiSchema={uiSchema}
+                      widgets={{ duration: DurationWidget }}
+                      validator={validator}
+                      onSubmit={() => toast.success('Form valid! (Test mode - nothing was saved)')}
+                      className="rjsf rjsf-preview"
+                    >
+                      <button type="submit" className="mt-4 px-6 py-3 bg-stone-900 text-white rounded-xl font-medium hover:bg-stone-800 transition-colors w-full">
+                        Test Submit
+                      </button>
+                    </Form>
+                  );
+                })()}
               </div>
 
               <div className="flex flex-col sm:flex-row gap-3">

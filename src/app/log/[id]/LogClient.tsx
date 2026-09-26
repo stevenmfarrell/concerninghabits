@@ -9,6 +9,8 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft, Check, Loader2, Undo2, Link2, Mic, MicOff, Camera } from 'lucide-react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
+import DurationWidget from '../../../components/widgets/DurationWidget';
+import { formatLogValue } from '../../../lib/format';
 
 export default function LogClient({ habit }: { habit: any }) {
   const router = useRouter();
@@ -21,6 +23,16 @@ export default function LogClient({ habit }: { habit: any }) {
   const [aiSuccessLog, setAiSuccessLog] = useState<{ logId: string, data: any } | null>(null);
 
   const schema = JSON.parse(habit.schema);
+  
+  // Build uiSchema for custom widgets
+  const uiSchema: any = {};
+  if (schema.properties) {
+    Object.keys(schema.properties).forEach(key => {
+      if (schema.properties[key]['x-widget'] === 'duration') {
+        uiSchema[key] = { 'ui:widget': 'duration' };
+      }
+    });
+  }
 
   const [formData, setFormData] = useState<any>({});
   
@@ -271,7 +283,7 @@ export default function LogClient({ habit }: { habit: any }) {
               return (
                 <div key={key} className="flex justify-between items-center py-2 border-b border-stone-100 last:border-0">
                   <span className="text-sm font-medium text-stone-500">{label}</span>
-                  <span className="text-sm font-semibold text-stone-900">{String(val)}</span>
+                  <span className="text-sm font-semibold text-stone-900">{formatLogValue(val, schema.properties?.[key])}</span>
                 </div>
               );
             })}
@@ -376,6 +388,8 @@ export default function LogClient({ habit }: { habit: any }) {
           <div className="rjsf-custom">
             <Form
               schema={schema}
+              uiSchema={uiSchema}
+              widgets={{ duration: DurationWidget }}
               validator={validator}
               formData={formData}
               onChange={(e) => setFormData(e.formData)}

@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { BarChart2, LineChart as LineChartIcon, ArrowDownToLine, Minimize2 } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { formatLogValue } from '../../../lib/format';
 
 export default function HabitChart({ 
   logs, 
@@ -11,14 +12,16 @@ export default function HabitChart({
   pageSize,
   habitId,
   defaultSelectedField,
-  defaultChartTypes
+  defaultChartTypes,
+  schemaObj
 }: { 
   logs: { id: string, createdAt: Date, payload: string }[], 
   numericFields: string[],
   pageSize: number,
   habitId: string,
   defaultSelectedField: string,
-  defaultChartTypes: Record<string, 'line' | 'bar'>
+  defaultChartTypes: Record<string, 'line' | 'bar'>,
+  schemaObj?: any
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -177,6 +180,7 @@ export default function HabitChart({
                   axisLine={false}
                   tickLine={false}
                   tick={{ fill: '#78716c', fontSize: 12 }}
+                  tickFormatter={(tick) => formatLogValue(tick, schemaObj?.properties?.[selectedField])}
                 />
                 <Tooltip 
                   cursor={{ fill: '#f5f5f4' }}
@@ -184,6 +188,7 @@ export default function HabitChart({
                   labelStyle={{ color: '#57534e', fontWeight: 600, marginBottom: '4px' }}
                   itemStyle={{ color: '#047857', fontWeight: 700 }}
                   labelFormatter={(label) => new Date(label).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+                  formatter={(value: number) => [formatLogValue(value, schemaObj?.properties?.[selectedField]), selectedField.replace(/([A-Z])/g, ' $1').trim().replace(/^./, str => str.toUpperCase())]}
                 />
                 <Bar 
                   dataKey="value" 
@@ -214,6 +219,7 @@ export default function HabitChart({
                   axisLine={false}
                   tickLine={false}
                   tick={{ fill: '#78716c', fontSize: 12 }}
+                  tickFormatter={(tick) => formatLogValue(tick, schemaObj?.properties?.[selectedField])}
                 />
                 <Tooltip 
                   cursor={false}
@@ -221,6 +227,7 @@ export default function HabitChart({
                   labelStyle={{ color: '#57534e', fontWeight: 600, marginBottom: '4px' }}
                   itemStyle={{ color: '#047857', fontWeight: 700 }}
                   labelFormatter={(label) => new Date(label).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+                  formatter={(value: number) => [formatLogValue(value, schemaObj?.properties?.[selectedField]), selectedField.replace(/([A-Z])/g, ' $1').trim().replace(/^./, str => str.toUpperCase())]}
                 />
                 <Line 
                   type="monotone" 

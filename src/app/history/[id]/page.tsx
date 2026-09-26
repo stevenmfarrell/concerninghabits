@@ -8,6 +8,7 @@ import InteractiveCalendar from './InteractiveCalendar';
 import Icon from '../../../components/Icon';
 import HorizonToggle from './HorizonToggle';
 import HabitChart from './HabitChart';
+import { formatLogValue } from '../../../lib/format';
 
 export default async function HistoryPage(props: { params: Promise<{ id: string }>, searchParams: Promise<{ horizon?: string, page?: string, highlight?: string, t?: string }> }) {
   const params = await props.params;
@@ -62,8 +63,9 @@ export default async function HistoryPage(props: { params: Promise<{ id: string 
   let numericFields: string[] = [];
   const defaultChartTypes: Record<string, 'line' | 'bar'> = {};
   
+  let schemaObj: any = {};
   try {
-    const schemaObj = JSON.parse(habit.schema || '{}');
+    schemaObj = JSON.parse(habit.schema || '{}');
     const properties = schemaObj.properties || {};
     numericFields = Object.keys(properties).filter(
       key => properties[key].type === 'number' || properties[key].type === 'integer'
@@ -140,6 +142,7 @@ export default async function HistoryPage(props: { params: Promise<{ id: string 
             habitId={habit.id}
             defaultSelectedField={savedChartField && numericFields.includes(savedChartField) ? savedChartField : numericFields[0]}
             defaultChartTypes={defaultChartTypes}
+            schemaObj={schemaObj}
           />
         )}
 
@@ -191,7 +194,7 @@ export default async function HistoryPage(props: { params: Promise<{ id: string 
                                 <span className="font-medium text-stone-700 capitalize">
                                   {key.replace(/([A-Z])/g, ' $1').trim()}:
                                 </span>{' '}
-                                {String(value)}
+                                {formatLogValue(value, schemaObj?.properties?.[key])}
                               </div>
                             ))}
                           </div>
