@@ -74,7 +74,7 @@ export default async function Dashboard() {
                           </div>
                           
                           <div className="shrink-0">
-                            <ActivityCalendar dates={habit.logs.map((l: any) => l.createdAt)} weeks={3} frequency={habit.frequency} targetCount={targetCount} bedtime={user.bedtime} weekStartsOn={user.weekStartsOn} />
+                            <ActivityCalendar dates={habit.logs.map((l: any) => l.createdAt)} weeks={2} frequency={habit.frequency} targetCount={targetCount} bedtime={user.bedtime} weekStartsOn={user.weekStartsOn} />
                           </div>
                         </Link>
                       

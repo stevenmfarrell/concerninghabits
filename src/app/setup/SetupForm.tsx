@@ -16,9 +16,11 @@ export default function SetupForm() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-stone-50 p-4">
       <div className="w-full max-w-md bg-white rounded-2xl shadow-sm border border-stone-100 p-8">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-stone-900">Setup Admin</h1>
-          <p className="text-stone-500 mt-2">Create the first family admin account</p>
+        <div className="text-center mb-10 flex flex-col items-center">
+          <img src="/hobbit-hole.svg" alt="Hobbit Hole" className="w-full max-w-xs h-auto" />
+          <img src="/title-text.svg" alt="Concerning Habits" className="w-full max-w-xs h-auto mt-2" />
+          <img src="/plant-icon.svg" alt="Plant Icon" className="w-12 h-auto -mt-2" />
+          <p className="text-stone-500 mt-10 font-medium">Create the first family admin account</p>
         </div>
 
         <form action={action} className="space-y-6">

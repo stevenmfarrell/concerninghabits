@@ -1,9 +1,9 @@
 import { ImageResponse } from 'next/og'
- 
+
 export const runtime = 'edge'
-export const size = { width: 180, height: 180 }
+export const size = { width: 512, height: 512 }
 export const contentType = 'image/png'
- 
+
 export default function Icon() {
   return new ImageResponse(
     (
@@ -14,14 +14,31 @@ export default function Icon() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor: '#047857',
+          backgroundColor: '#059669',
         }}
       >
-        <svg xmlns="http://www.w3.org/2000/svg" width="90" height="90" viewBox="0 0 24 24" fill="none" stroke="#ecfdf5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M10 10v.2A3 3 0 0 1 8.9 16v0H5v0h0a3 3 0 0 1-1-5.8V10a3 3 0 0 1 6 0Z"/>
-          <path d="M7 16v6"/>
-          <path d="M13 19v3"/>
-          <path d="M12 19h8.3a1 1 0 0 0 .7-1.7L18 14h.3a1 1 0 0 0 .7-1.7L16 9h.2a1 1 0 0 0 .8-1.7L13 3l-1.4 1.5"/>
+        <svg 
+          width="300" height="161" 
+          viewBox="234.22 429.39 131.56 70.62"
+          preserveAspectRatio="xMidYMid meet"
+        >
+          <g transform="translate(0.000000,600.000000) scale(0.100000,-0.100000)" fill="white" stroke="none">
+            <path fillRule="evenodd" d="M3051 1615 c10 -22 19 -57 19 -78 0
+            -40 -28 -104 -55 -127 -13 -11 -18 -10 -30 6 -60 79 -60 162 -1 248 19 28 20
+            28 34 10 8 -11 23 -37 33 -59z M2870 1463 c19 -7 43 -21 54 -31 25 -23 56 -90
+            56 -126 0 -27 -1 -28 -37 -21 -88 16 -163 96 -163 174 0 29 2 31 28 25 15 -4
+            43 -13 62 -21z M3230 1463 c-1 -37 -31 -103 -61 -130 -24 -22 -98 -53 -125 -53
+            -18 0 -18 51 0 93 18 44 54 74 112 97 66 26 74 25 74 -7z M2594 1359 c59 -54
+            116 -152 116 -200 0 -55 6 -59 88 -59 l75 0 -26 24 c-45 42 -92 163 -62 160
+            94 -10 167 -64 187 -137 10 -39 16 -47 35 -47 16 0 23 6 23 20 0 66 78 143
+            158 156 40 6 42 5 42 -17 -1 -36 -34 -103 -66 -133 l-29 -26 81 0 81 0 7 46
+            c12 90 68 183 140 236 53 38 61 35 31 -11 -37 -54 -64 -131 -71 -198 l-6 -58
+            21 33 c23 36 104 92 134 92 18 0 17 -3 -8 -27 -24 -24 -65 -92 -65 -108 0 -3
+            22 -5 49 -5 67 0 102 -35 69 -68 -17 -17 -1179 -17 -1196 0 -35 35 3 68 78 68
+            l59 0 -10 29 c-6 16 -26 47 -45 70 -20 23 -31 41 -24 41 28 0 81 -32 119 -71
+            22 -24 41 -39 41 -34 -1 45 -36 159 -65 211 -19 35 -31 64 -26 64 5 0 34 -23
+            65 -51z" />
+          </g>
         </svg>
       </div>
     ),
