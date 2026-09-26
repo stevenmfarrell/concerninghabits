@@ -5,6 +5,7 @@ const nextConfig: NextConfig = {
   // This prevents Next.js from blocking the JS bundles on mobile devices
   allowedDevOrigins: ['192.168.4.x', '192.168.4.79', '192.168.0.x', '*.loca.lt'],
   serverExternalPackages: [],
+  output: "standalone",
   experimental: {
     // Next 14/15 security blocks cross-origin dev asset requests
   }
