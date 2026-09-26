@@ -33,11 +33,21 @@ export default function InteractiveCalendar(props: {
     params.set('page', page.toString());
     if (highlightId) {
       params.set('highlight', highlightId);
+      params.set('t', Date.now().toString());
     } else {
       params.delete('highlight');
+      params.delete('t');
     }
     
     router.push(`/history/${props.habitId}?${params.toString()}`, { scroll: false });
+    
+    // Smoothly glide down to the target log (or the table if no log)
+    setTimeout(() => {
+      const targetElement = highlightId ? document.getElementById(`log-${highlightId}`) : document.getElementById('logs-table');
+      if (targetElement) {
+        targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 150); // slight delay to allow Next.js to render the new page
   };
 
   return (

@@ -25,6 +25,7 @@ export default async function HistoryPage(props: { params: Promise<{ id: string 
   
   const cookieStore = await cookies();
   const savedHorizon = cookieStore.get(`horizon_${id}`)?.value;
+  const savedChartField = cookieStore.get(`chartField_${id}`)?.value;
   
   const horizon = searchParams?.horizon || savedHorizon || '26';
   const weeks = parseInt(horizon, 10);
@@ -59,12 +60,18 @@ export default async function HistoryPage(props: { params: Promise<{ id: string 
   
   // Extract numeric fields for plotting
   let numericFields: string[] = [];
+  const defaultChartTypes: Record<string, 'line' | 'bar'> = {};
+  
   try {
     const schemaObj = JSON.parse(habit.schema || '{}');
     const properties = schemaObj.properties || {};
     numericFields = Object.keys(properties).filter(
       key => properties[key].type === 'number' || properties[key].type === 'integer'
     );
+    numericFields.forEach(field => {
+      const savedType = cookieStore.get(`chartType_${habit.id}_${field}`)?.value;
+      defaultChartTypes[field] = (savedType === 'bar') ? 'bar' : 'line';
+    });
   } catch (e) {
     // Ignore JSON parse errors
   }
@@ -131,6 +138,8 @@ export default async function HistoryPage(props: { params: Promise<{ id: string 
             numericFields={numericFields}
             pageSize={pageSize}
             habitId={habit.id}
+            defaultSelectedField={savedChartField && numericFields.includes(savedChartField) ? savedChartField : numericFields[0]}
+            defaultChartTypes={defaultChartTypes}
           />
         )}
 
@@ -162,6 +171,7 @@ export default async function HistoryPage(props: { params: Promise<{ id: string 
                   
                   return (
                     <tr 
+                      id={`log-${log.id}`}
                       key={isHighlighted ? `${log.id}-${searchParams?.t || '1'}` : log.id} 
                       className={`border-b border-stone-50 last:border-0 group transition-colors ${
                         isHighlighted ? 'animate-highlight-fade' : 'hover:bg-stone-50/50'
