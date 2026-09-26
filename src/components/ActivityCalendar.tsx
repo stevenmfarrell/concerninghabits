@@ -8,9 +8,10 @@ interface ActivityCalendarProps {
   monthsPerColumn?: number;
   bedtime?: string;
   weekStartsOn?: string;
+  onDateClick?: (date: Date) => void;
 }
 
-export default function ActivityCalendar({ dates, weeks = 5, frequency = 'daily', size = 'sm', monthsPerColumn = 4, bedtime = '00:00', weekStartsOn = 'sunday' }: ActivityCalendarProps) {
+export default function ActivityCalendar({ dates, weeks = 5, frequency = 'daily', size = 'sm', monthsPerColumn = 4, bedtime = '00:00', weekStartsOn = 'sunday', onDateClick }: ActivityCalendarProps) {
   let bedtimeOffsetMinutes = 0;
   if (bedtime && bedtime !== '00:00') {
     const [h, m] = bedtime.split(':').map(Number);
@@ -250,7 +251,10 @@ export default function ActivityCalendar({ dates, weeks = 5, frequency = 'daily'
                     <div
                       key={i}
                       title={cell.isFuture ? undefined : `${cell.date.toLocaleDateString()}: ${cell.count} logs`}
-                      className={`${cellClass} transition-colors relative z-10 flex items-center justify-center ${getBackgroundColor(cell.count, cell.isFuture, cell.isPeriodCompleted)}`}
+                      onClick={() => {
+                        if (onDateClick && !cell.isFuture) onDateClick(cell.date);
+                      }}
+                      className={`${cellClass} transition-colors relative z-10 flex items-center justify-center ${getBackgroundColor(cell.count, cell.isFuture, cell.isPeriodCompleted)} ${onDateClick && !cell.isFuture ? 'cursor-pointer hover:opacity-80' : ''}`}
                     >
                       {cell.isToday && (
                         <div className={`rounded-full ${cell.count > 0 ? 'bg-white' : 'bg-stone-500'} ${size === 'sm' ? 'w-[4px] h-[4px]' : 'w-[6px] h-[6px]'}`} />

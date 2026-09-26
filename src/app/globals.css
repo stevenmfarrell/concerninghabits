@@ -11,6 +11,13 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --animate-highlight-fade: highlight-fade 2s ease-out forwards;
+}
+
+@keyframes highlight-fade {
+  0% { background-color: #ecfdf5; }
+  15% { background-color: #d1fae5; }
+  100% { background-color: transparent; }
 }
 
 body {
@@ -30,6 +37,12 @@ input, textarea, select {
 
 .rjsf fieldset {
   @apply border-0 p-0 m-0;
+}
+
+/* Recharts overrides to prevent bounding box focus outlines on click */
+.recharts-wrapper, .recharts-surface, .recharts-responsive-container, .recharts-wrapper * {
+  outline: none !important;
+  -webkit-tap-highlight-color: transparent !important;
 }
 
 .rjsf legend {

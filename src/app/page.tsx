@@ -12,18 +12,13 @@ export default async function Dashboard() {
     <main className="flex-1 p-4 sm:p-8 bg-stone-50 font-sans">
       <div className="max-w-4xl mx-auto space-y-6 sm:space-y-8">
         
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-6">
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 bg-emerald-700 rounded-full flex items-center justify-center shadow-md border-2 border-emerald-800/20 shrink-0">
-              <Icon name="Trees" className="w-8 h-8 text-emerald-50" />
-            </div>
-            <div className="min-w-0">
-              <h1 className="text-3xl font-extrabold text-stone-800 tracking-tight truncate">Concerning Habits</h1>
-              <p className="text-stone-500 font-medium mt-1 text-sm truncate">
-                <span className="text-stone-700 font-semibold">{user.name}'s</span> Shire
-              </p>
-            </div>
-          </div>
+        <div>
+          <p className="text-stone-500 font-semibold text-sm uppercase tracking-wider mb-1">
+            {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+          </p>
+          <h1 className="text-3xl sm:text-4xl font-extrabold text-stone-900 tracking-tight">
+            My Habits
+          </h1>
         </div>
 
         {habits.length === 0 ? (
