@@ -11,6 +11,7 @@ import NewCategoryInline from './NewCategoryInline';
 import toast from 'react-hot-toast';
 import ConfirmDialog from './ConfirmDialog';
 import DurationWidget from './widgets/DurationWidget';
+import UnitWidget from './widgets/UnitWidget';
 
 interface HabitEditorProps {
   initialTitle: string;
@@ -159,8 +160,11 @@ export default function HabitEditor({
                   const uiSchema: any = {};
                   if (schema?.properties) {
                     Object.keys(schema.properties).forEach(key => {
-                      if (schema.properties[key]['x-widget'] === 'duration') {
+                      const prop = schema.properties[key];
+                      if (prop['x-widget'] === 'duration') {
                         uiSchema[key] = { 'ui:widget': 'duration' };
+                      } else if (prop['x-unit']) {
+                        uiSchema[key] = { 'ui:widget': 'unit' };
                       }
                     });
                   }
@@ -168,7 +172,7 @@ export default function HabitEditor({
                     <Form
                       schema={{ ...schema, title: '' }}
                       uiSchema={uiSchema}
-                      widgets={{ duration: DurationWidget }}
+                      widgets={{ duration: DurationWidget, unit: UnitWidget }}
                       validator={validator}
                       onSubmit={() => toast.success('Form valid! (Test mode - nothing was saved)')}
                       className="rjsf rjsf-preview"

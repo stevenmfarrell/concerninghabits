@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { BarChart2, LineChart as LineChartIcon, ArrowDownToLine, Minimize2 } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { formatLogValue } from '../../../lib/format';
+import { formatLogValue, formatDuration } from '../../../lib/format';
 
 export default function HabitChart({ 
   logs, 
@@ -64,6 +64,13 @@ export default function HabitChart({
   if (numericFields.length === 0) return null;
 
   const hasData = data.length > 0;
+  
+  const isDuration = schemaObj?.properties?.[selectedField]?.['x-widget'] === 'duration';
+  
+  const yAxisTickFormatter = (tick: any) => {
+    if (isDuration) return formatDuration(tick);
+    return tick;
+  };
 
   const handleChartClick = (e: any) => {
     // This catches clicks anywhere on the chart's vertical slice
@@ -101,6 +108,15 @@ export default function HabitChart({
     }, 150);
   };
 
+  const getFieldLabel = (field: string) => {
+    let label = field.replace(/([A-Z])/g, ' $1').trim().replace(/^./, str => str.toUpperCase());
+    const fieldUnit = schemaObj?.properties?.[field]?.['x-unit'];
+    if (fieldUnit) {
+      label += ` (${fieldUnit})`;
+    }
+    return label;
+  };
+
   return (
     <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-stone-100 flex flex-col mt-6">
       <div className="flex w-full items-center justify-between mb-6">
@@ -113,7 +129,7 @@ export default function HabitChart({
                 onClick={() => setIsOpen(!isOpen)}
                 className="flex items-center gap-2 px-3 py-1.5 bg-stone-50 hover:bg-stone-100 border border-stone-200 rounded-lg text-sm font-medium text-stone-700 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
               >
-                {selectedField.replace(/([A-Z])/g, ' $1').trim().replace(/^./, str => str.toUpperCase())}
+                {getFieldLabel(selectedField)}
                 <svg className="w-4 h-4 text-stone-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
               </button>
               {isOpen && (
@@ -128,7 +144,7 @@ export default function HabitChart({
                           selectedField === field ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-stone-700 hover:bg-stone-50'
                         }`}
                       >
-                        {field.replace(/([A-Z])/g, ' $1').trim().replace(/^./, str => str.toUpperCase())}
+                        {getFieldLabel(field)}
                       </button>
                     ))}
                   </div>
@@ -180,7 +196,7 @@ export default function HabitChart({
                   axisLine={false}
                   tickLine={false}
                   tick={{ fill: '#78716c', fontSize: 12 }}
-                  tickFormatter={(tick) => formatLogValue(tick, schemaObj?.properties?.[selectedField])}
+                  tickFormatter={yAxisTickFormatter}
                 />
                 <Tooltip 
                   cursor={{ fill: '#f5f5f4' }}
@@ -219,7 +235,7 @@ export default function HabitChart({
                   axisLine={false}
                   tickLine={false}
                   tick={{ fill: '#78716c', fontSize: 12 }}
-                  tickFormatter={(tick) => formatLogValue(tick, schemaObj?.properties?.[selectedField])}
+                  tickFormatter={yAxisTickFormatter}
                 />
                 <Tooltip 
                   cursor={false}

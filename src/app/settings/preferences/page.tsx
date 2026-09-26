@@ -23,6 +23,7 @@ export default async function PreferencesPage() {
               initialWeekStartsOn={user.weekStartsOn} 
               initialUseEmojiTitle={user.useEmojiTitle} 
               initialEmojiModifier={user.emojiModifier} 
+              initialUnitSystem={user.unitSystem}
             />
           </div>
         </div>

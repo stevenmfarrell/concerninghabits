@@ -23,5 +23,11 @@ export function formatLogValue(val: any, propSchema?: any): string {
   if (typeof val === 'boolean') {
     return val ? 'Yes' : 'No';
   }
-  return String(val);
+  
+  const strVal = String(val);
+  if (propSchema?.['x-unit']) {
+    return `${strVal} ${propSchema['x-unit']}`;
+  }
+  
+  return strVal;
 }

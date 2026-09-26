@@ -10,6 +10,7 @@ import { ArrowLeft, Check, Loader2, Undo2, Link2, Mic, MicOff, Camera } from 'lu
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import DurationWidget from '../../../components/widgets/DurationWidget';
+import UnitWidget from '../../../components/widgets/UnitWidget';
 import { formatLogValue } from '../../../lib/format';
 
 export default function LogClient({ habit }: { habit: any }) {
@@ -28,8 +29,11 @@ export default function LogClient({ habit }: { habit: any }) {
   const uiSchema: any = {};
   if (schema.properties) {
     Object.keys(schema.properties).forEach(key => {
-      if (schema.properties[key]['x-widget'] === 'duration') {
+      const prop = schema.properties[key];
+      if (prop['x-widget'] === 'duration') {
         uiSchema[key] = { 'ui:widget': 'duration' };
+      } else if (prop['x-unit']) {
+        uiSchema[key] = { 'ui:widget': 'unit' };
       }
     });
   }
@@ -389,7 +393,7 @@ export default function LogClient({ habit }: { habit: any }) {
             <Form
               schema={schema}
               uiSchema={uiSchema}
-              widgets={{ duration: DurationWidget }}
+              widgets={{ duration: DurationWidget, unit: UnitWidget }}
               validator={validator}
               formData={formData}
               onChange={(e) => setFormData(e.formData)}

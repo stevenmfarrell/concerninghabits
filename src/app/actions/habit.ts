@@ -31,7 +31,7 @@ export async function generateHabitSchema(prompt: string, currentSchema?: any) {
         category: z.enum(['Mind', 'Body', 'Chores', 'Other']).describe("The category this habit best fits into"),
         frequency: z.enum(['daily', 'weekly', 'monthly', 'multiple']).optional().describe("The suggested tracking cadence"),
         type: z.literal('object'),
-        properties: z.record(z.any()).describe("The fields required. Keep it simple. Use empty {} for simple boolean tasks. CRITICAL: For time durations (e.g. running time, reading time), you MUST set 'type': 'number' AND 'x-widget': 'duration' so it renders as a mm:ss input."),
+        properties: z.record(z.any()).describe(`The fields required. Keep it simple. Use empty {} for simple boolean tasks. CRITICAL: For time durations, set 'type': 'number' AND 'x-widget': 'duration'. For other numeric fields, include an 'x-unit' key specifying the unit of measurement (e.g., 'miles', 'lbs', 'oz', 'pages'). The user prefers the ${user.unitSystem} measurement system.`),
         required: z.array(z.string()).optional().describe("Array of required property keys"),
       }),
     });

@@ -21,6 +21,7 @@ model User {
   useEmojiTitle Boolean   @default(true)
   emojiModifier String    @default("")
   passwordNeedsUpdate Boolean @default(false)
+  unitSystem   String     @default("imperial")
   createdAt    DateTime   @default(now())
 }
 
