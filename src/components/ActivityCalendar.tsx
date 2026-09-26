@@ -8,10 +8,11 @@ interface ActivityCalendarProps {
   monthsPerColumn?: number;
   bedtime?: string;
   weekStartsOn?: string;
+  targetCount?: number;
   onDateClick?: (date: Date) => void;
 }
 
-export default function ActivityCalendar({ dates, weeks = 5, frequency = 'daily', size = 'sm', monthsPerColumn = 4, bedtime = '00:00', weekStartsOn = 'sunday', onDateClick }: ActivityCalendarProps) {
+export default function ActivityCalendar({ dates, weeks = 5, frequency = 'daily', size = 'sm', monthsPerColumn = 4, bedtime = '00:00', weekStartsOn = 'sunday', targetCount = 3, onDateClick }: ActivityCalendarProps) {
   let bedtimeOffsetMinutes = 0;
   if (bedtime && bedtime !== '00:00') {
     const [h, m] = bedtime.split(':').map(Number);
@@ -160,9 +161,11 @@ export default function ActivityCalendar({ dates, weeks = 5, frequency = 'daily'
     if (isFuture) return 'bg-transparent border border-stone-100';
     if (count > 0) {
       if (frequency === 'multiple') {
-        return count === 1 ? 'bg-emerald-300' :
-               count === 2 ? 'bg-emerald-400' :
-               'bg-emerald-600';
+        const ratio = count / targetCount;
+        return ratio >= 1 ? 'bg-emerald-600' :
+               ratio >= 0.66 ? 'bg-emerald-500' :
+               ratio >= 0.33 ? 'bg-emerald-400' :
+               'bg-emerald-300';
       }
       return 'bg-emerald-500';
     }

@@ -7,6 +7,7 @@ export default function InteractiveCalendar(props: {
   logs: { id: string; createdAt: Date }[];
   weeks: number;
   frequency: string;
+  targetCount: number;
   mobileMonthsPerColumn: number;
   desktopMonthsPerColumn: number;
   bedtime: string;
@@ -53,10 +54,10 @@ export default function InteractiveCalendar(props: {
   return (
     <>
       <div className={`hidden sm:flex w-full ${props.weeks === 5 ? 'justify-center' : 'justify-center sm:justify-start'}`}>
-        <ActivityCalendar dates={props.logs.map(l => l.createdAt)} weeks={props.weeks} frequency={props.frequency} size="md" monthsPerColumn={props.desktopMonthsPerColumn} bedtime={props.bedtime} weekStartsOn={props.weekStartsOn} onDateClick={handleDateClick} />
+        <ActivityCalendar dates={props.logs.map(l => l.createdAt)} weeks={props.weeks} frequency={props.frequency} targetCount={props.targetCount} size="md" monthsPerColumn={props.desktopMonthsPerColumn} bedtime={props.bedtime} weekStartsOn={props.weekStartsOn} onDateClick={handleDateClick} />
       </div>
       <div className={`flex sm:hidden w-full ${props.weeks === 5 ? 'justify-center' : 'justify-start'}`}>
-        <ActivityCalendar dates={props.logs.map(l => l.createdAt)} weeks={props.weeks} frequency={props.frequency} size="md" monthsPerColumn={props.mobileMonthsPerColumn} bedtime={props.bedtime} weekStartsOn={props.weekStartsOn} onDateClick={handleDateClick} />
+        <ActivityCalendar dates={props.logs.map(l => l.createdAt)} weeks={props.weeks} frequency={props.frequency} targetCount={props.targetCount} size="md" monthsPerColumn={props.mobileMonthsPerColumn} bedtime={props.bedtime} weekStartsOn={props.weekStartsOn} onDateClick={handleDateClick} />
       </div>
     </>
   );

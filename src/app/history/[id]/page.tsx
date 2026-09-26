@@ -126,6 +126,7 @@ export default async function HistoryPage(props: { params: Promise<{ id: string 
             logs={filteredLogs.map(l => ({ id: l.id, createdAt: l.createdAt }))} 
             weeks={weeks} 
             frequency={habit.frequency} 
+            targetCount={schemaObj?.targetCount || 3}
             mobileMonthsPerColumn={mobileMonthsPerColumn} 
             desktopMonthsPerColumn={desktopMonthsPerColumn} 
             bedtime={user.bedtime} 

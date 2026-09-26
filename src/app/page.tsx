@@ -55,22 +55,28 @@ export default async function Dashboard() {
                   <h2 className="text-2xl font-semibold text-stone-800">{group.name}</h2>
                 </div>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                  {group.habits.map((habit) => (
-                    <div 
-                      key={habit.id} 
-                      className="bg-white rounded-2xl shadow-sm border border-stone-100 hover:border-emerald-200 hover:shadow-md transition-all flex items-stretch"
-                    >
-                      <Link href={`/history/${habit.id}`} className="flex-1 flex items-center justify-between py-3 px-4 sm:px-5 group gap-2 sm:gap-4 min-w-0">
-                        <div className="flex-1 min-w-0 pr-2">
-                          <h3 className="text-base sm:text-lg font-semibold text-stone-800 group-hover:text-emerald-600 transition-colors truncate">
-                            {habit.name}
-                          </h3>
-                        </div>
-                        
-                        <div className="shrink-0">
-                          <ActivityCalendar dates={habit.logs.map((l: any) => l.createdAt)} weeks={3} frequency={habit.frequency} bedtime={user.bedtime} weekStartsOn={user.weekStartsOn} />
-                        </div>
-                      </Link>
+                  {group.habits.map((habit) => {
+                    let targetCount = 3;
+                    try {
+                      targetCount = JSON.parse(habit.schema).targetCount || 3;
+                    } catch (e) {}
+
+                    return (
+                      <div 
+                        key={habit.id} 
+                        className="bg-white rounded-2xl shadow-sm border border-stone-100 hover:border-emerald-200 hover:shadow-md transition-all flex items-stretch"
+                      >
+                        <Link href={`/history/${habit.id}`} className="flex-1 flex items-center justify-between py-3 px-4 sm:px-5 group gap-2 sm:gap-4 min-w-0">
+                          <div className="flex-1 min-w-0 pr-2">
+                            <h3 className="text-base sm:text-lg font-semibold text-stone-800 group-hover:text-emerald-600 transition-colors truncate">
+                              {habit.name}
+                            </h3>
+                          </div>
+                          
+                          <div className="shrink-0">
+                            <ActivityCalendar dates={habit.logs.map((l: any) => l.createdAt)} weeks={3} frequency={habit.frequency} targetCount={targetCount} bedtime={user.bedtime} weekStartsOn={user.weekStartsOn} />
+                          </div>
+                        </Link>
                       
                       <div className="border-l border-stone-100 flex flex-col justify-center bg-stone-50/50 rounded-r-2xl shrink-0">
                         <Link 
@@ -82,7 +88,8 @@ export default async function Dashboard() {
                         </Link>
                       </div>
                     </div>
-                  ))}
+                  );
+                })}
                 </div>
               </div>
             ))}

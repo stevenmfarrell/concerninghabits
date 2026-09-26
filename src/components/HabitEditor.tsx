@@ -40,6 +40,8 @@ export default function HabitEditor({
   const [title, setTitle] = useState(initialTitle);
   const [description, setDescription] = useState(initialDescription);
   const [frequency, setFrequency] = useState<string>(initialFrequency);
+  const [frequencyDropdownOpen, setFrequencyDropdownOpen] = useState(false);
+  const [targetCount, setTargetCount] = useState<number>(initialSchema.targetCount || 3);
   const [categoryId, setCategoryId] = useState<string>(initialCategoryId);
   const [deleting, setDeleting] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -90,7 +92,7 @@ export default function HabitEditor({
   const handleSaveAction = async () => {
     if (!schema || !title) return;
     setSaving(true);
-    const finalSchema = { ...schema, title, enableVoice, enablePhoto };
+    const finalSchema = { ...schema, title, enableVoice, enablePhoto, targetCount: frequency === 'multiple' ? targetCount : undefined };
     await onSave(title, description, finalSchema, categoryId, frequency);
     // Component will typically unmount here due to navigation
   };
@@ -209,19 +211,73 @@ export default function HabitEditor({
                 </div>
                 
                 <div className="w-full sm:flex-1">
-                  <select
-                    className="w-full h-[42px] px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm shadow-sm"
-                    value={frequency}
-                    onChange={(e) => setFrequency(e.target.value)}
-                    disabled={saving}
-                  >
-                    <option value="daily">Daily</option>
-                    <option value="weekly">Weekly</option>
-                    <option value="monthly">Monthly</option>
-                    <option value="multiple">Multiple times a day</option>
-                  </select>
+                  <div className="relative w-full">
+                    <button 
+                      type="button"
+                      onClick={() => setFrequencyDropdownOpen(!frequencyDropdownOpen)}
+                      className="w-full h-[42px] flex items-center justify-between px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-left text-sm text-stone-900 shadow-sm"
+                      disabled={saving}
+                    >
+                      {frequency === 'daily' ? 'Daily' : frequency === 'weekly' ? 'Weekly' : frequency === 'monthly' ? 'Monthly' : 'Multiple times a day'}
+                      <svg className="w-4 h-4 text-stone-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </button>
+                    {frequencyDropdownOpen && (
+                      <>
+                        <div className="fixed inset-0 z-40" onClick={() => setFrequencyDropdownOpen(false)}></div>
+                        <div className="absolute left-0 mt-2 w-full bg-white border border-stone-100 rounded-xl shadow-lg z-50 overflow-hidden py-1">
+                          <button
+                            type="button"
+                            onClick={() => { setFrequency('daily'); setFrequencyDropdownOpen(false); }}
+                            className={`w-full text-left px-4 py-2 text-sm transition-colors ${frequency === 'daily' ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-stone-700 hover:bg-stone-50'}`}
+                          >
+                            Daily
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => { setFrequency('weekly'); setFrequencyDropdownOpen(false); }}
+                            className={`w-full text-left px-4 py-2 text-sm transition-colors ${frequency === 'weekly' ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-stone-700 hover:bg-stone-50'}`}
+                          >
+                            Weekly
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => { setFrequency('monthly'); setFrequencyDropdownOpen(false); }}
+                            className={`w-full text-left px-4 py-2 text-sm transition-colors ${frequency === 'monthly' ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-stone-700 hover:bg-stone-50'}`}
+                          >
+                            Monthly
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => { setFrequency('multiple'); setFrequencyDropdownOpen(false); }}
+                            className={`w-full text-left px-4 py-2 text-sm transition-colors ${frequency === 'multiple' ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-stone-700 hover:bg-stone-50'}`}
+                          >
+                            Multiple times a day
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
+              
+              {frequency === 'multiple' && (
+                <div className="mt-4 animate-in fade-in slide-in-from-top-2">
+                  <label className="block text-sm font-semibold text-stone-700 mb-1">
+                    Daily Target Count
+                  </label>
+                  <p className="text-xs text-stone-500 mb-2">
+                    How many times per day saturates the calendar history?
+                  </p>
+                  <input
+                    type="number"
+                    min="1"
+                    className="w-full sm:w-32 h-[42px] px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm shadow-sm"
+                    value={targetCount}
+                    onChange={(e) => setTargetCount(parseInt(e.target.value) || 1)}
+                    disabled={saving}
+                  />
+                </div>
+              )}
             </div>
           </div>
 
