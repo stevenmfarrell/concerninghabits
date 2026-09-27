@@ -285,13 +285,13 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
       <li 
         ref={dndProps?.setNodeRef}
         style={dndProps?.style}
-        className={`transition-colors group relative ${dndProps?.isOverlay ? 'bg-stone-50 z-50 shadow-2xl rounded-xl cursor-grabbing scale-[1.02]' : dndProps?.isDragging ? 'opacity-30 bg-stone-100 rounded-xl dashed-border' : 'bg-white'}`}
+        className={`transition-colors group relative ${dndProps?.isOverlay ? 'bg-stone-50 z-50 shadow-2xl rounded-xl cursor-grabbing scale-[1.02]' : dndProps?.isDragging ? 'opacity-30 bg-stone-100 rounded-xl dashed-border' : ''}`}
       >
-        <div className={`p-3 sm:p-4 flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-4 ${!dndProps?.isDragging && 'hover:bg-stone-50/50'} rounded-xl relative`}>
+        <div className={`py-3 sm:py-4 pr-3 sm:pr-4 ${cat.parentId ? 'pl-1 sm:pl-2' : 'pl-3 sm:pl-4'} flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-4 ${!dndProps?.isDragging && 'hover:bg-stone-50/50'} rounded-xl relative`}>
         <div 
           {...dndProps?.attributes}
           {...dndProps?.listeners}
-          className={`cursor-grab active:cursor-grabbing text-stone-300 hover:text-stone-600 transition-colors shrink-0 ${cat.parentId ? 'ml-8' : ''} touch-none`}
+          className={`cursor-grab active:cursor-grabbing text-stone-300 hover:text-stone-600 transition-colors shrink-0 touch-none`}
         >
           <GripVertical className="w-5 h-5" />
         </div>
@@ -444,7 +444,7 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
                         projectedParentId={projectedParentId} 
                         childrenNode={
                           (children.length > 0 || addingParentId === parent.id) ? (
-                            <ul className="pl-4 sm:pl-8 border-l-2 border-stone-100 ml-6 sm:ml-8 mb-2">
+                            <ul className="ml-6 sm:ml-8 border-l-2 border-stone-200">
                               <SortableContext items={children.map(c => c.id)} strategy={verticalListSortingStrategy}>
                                 {children.map(child => (
                                   <SortableItem key={child.id} cat={child} renderCategoryRow={renderCategoryRow} disabled={isDraggingTopLevel} activeId={activeId} activeHasChildren={activeHasChildren} projectedParentId={projectedParentId} />
@@ -499,7 +499,7 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
               
               const children = categories.filter(c => c.parentId === activeCat.id).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
               const childrenNode = children.length > 0 ? (
-                <ul className="pl-4 sm:pl-8 border-l-2 border-stone-100 ml-6 sm:ml-8 mb-2">
+                <ul className="ml-6 sm:ml-8 border-l-2 border-stone-200">
                   {children.map(child => <Fragment key={child.id}>{renderCategoryRow(child, { isOverlay: true })}</Fragment>)}
                 </ul>
               ) : null;
