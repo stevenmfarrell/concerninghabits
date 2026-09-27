@@ -33,9 +33,10 @@ export async function getCategoriesWithHierarchy() {
   const user = await getDefaultUser();
   return prisma.category.findMany({
     where: { userId: user.id, parentId: null },
-    orderBy: { name: 'asc' },
+    orderBy: [{ order: 'asc' }, { name: 'asc' }],
     include: {
       children: {
+        orderBy: [{ order: 'asc' }, { name: 'asc' }],
         include: {
           habits: {
             include: { logs: { select: { createdAt: true } } }
@@ -55,6 +56,7 @@ export async function getCategory(id: string) {
     where: { id },
     include: {
       children: {
+        orderBy: [{ order: 'asc' }, { name: 'asc' }],
         include: {
           habits: {
             include: { logs: { select: { createdAt: true, payload: true } } }
@@ -75,7 +77,8 @@ export async function getCategories() {
   const user = await getDefaultUser();
   return prisma.category.findMany({
     where: { userId: user.id },
-    orderBy: { name: 'asc' }
+    orderBy: [{ order: 'asc' }, { name: 'asc' }]
+    
   });
 }
 
@@ -272,4 +275,20 @@ export async function deleteHabit(habitId: string) {
 
 export async function isMqttConfigured() {
   return !!process.env.MQTT_URL;
+}
+
+export async function reorderCategories(updates: { id: string, order: number }[]) {
+  const user = await getDefaultUser();
+  
+  // Use a transaction to ensure all updates succeed or fail together
+  await prisma.$transaction(
+    updates.map(update => 
+      prisma.category.updateMany({
+        where: { id: update.id, userId: user.id },
+        data: { order: update.order }
+      })
+    )
+  );
+  
+  revalidatePath('/');
 }

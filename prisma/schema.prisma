@@ -57,6 +57,7 @@ model Category {
   user      User     @relation(fields: [userId], references: [id])
   habits    Habit[]
   parentId  String?
+  order     Int      @default(0)
   parent    Category?  @relation("Subcategories", fields: [parentId], references: [id])
   children  Category[] @relation("Subcategories")
   createdAt DateTime @default(now())

@@ -16,9 +16,7 @@ export default async function CategoriesSettingsPage() {
           <h1 className="text-3xl font-bold text-stone-900">Categories</h1>
         </div>
 
-        <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-stone-100 space-y-6">
-          <CategoriesClient initialCategories={categories} />
-        </div>
+        <CategoriesClient initialCategories={categories} />
       </div>
     </main>
   );
