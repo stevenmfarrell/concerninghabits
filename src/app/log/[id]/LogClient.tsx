@@ -389,10 +389,10 @@ export default function LogClient({ habit, user }: { habit: any, user: any }) {
         {habit.description && <p className="text-stone-600 text-center">{habit.description}</p>}
 
       <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-stone-100">
-        <h2 className="text-lg font-semibold text-stone-800 mb-6">New Entry</h2>
-        <div className="space-y-6">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-lg font-semibold text-stone-800">New Entry</h2>
           {Object.keys(schema.properties || {}).length > 0 && (schema.enableVoice !== false || schema.enablePhoto !== false) && (
-            <div className={`grid gap-3 ${schema.enableVoice !== false && schema.enablePhoto !== false ? 'grid-cols-2' : 'grid-cols-1'}`}>
+            <div className="flex items-center gap-2">
               <input 
                 type="file" 
                 accept="image/*" 
@@ -405,17 +405,17 @@ export default function LogClient({ habit, user }: { habit: any, user: any }) {
                 <button
                   onClick={() => fileInputRef.current?.click()}
                   disabled={aiLoading}
-                  className="w-full py-4 flex items-center justify-center rounded-xl border-2 transition-all shadow-sm bg-blue-50 border-blue-100 text-blue-700 hover:bg-blue-100 hover:border-blue-200 disabled:opacity-70"
+                  className="w-14 h-14 flex items-center justify-center rounded-xl border-2 transition-all shadow-sm bg-blue-50 border-blue-100 text-blue-700 hover:bg-blue-100 hover:border-blue-200 disabled:opacity-70"
                   title="Photo Log"
                 >
-                  {aiLoading ? <Loader2 className="w-7 h-7 animate-spin" /> : <Camera className="w-7 h-7" strokeWidth={2.5} />}
+                  {aiLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : <Camera className="w-6 h-6" strokeWidth={2.5} />}
                 </button>
               )}
               {schema.enableVoice !== false && (
                 <button
                   onClick={toggleListen}
                   disabled={aiLoading}
-                  className={`w-full py-4 flex items-center justify-center rounded-xl border-2 transition-all shadow-sm ${
+                  className={`w-14 h-14 flex items-center justify-center rounded-xl border-2 transition-all shadow-sm ${
                     isListening
                       ? 'bg-red-50 border-red-200 text-red-600 animate-pulse'
                       : 'bg-emerald-50 border-emerald-100 text-emerald-700 hover:bg-emerald-100 hover:border-emerald-200'
@@ -423,16 +423,18 @@ export default function LogClient({ habit, user }: { habit: any, user: any }) {
                   title="Voice Log"
                 >
                   {aiLoading ? (
-                     <Loader2 className="w-7 h-7 animate-spin" />
+                     <Loader2 className="w-6 h-6 animate-spin" />
                   ) : isListening ? (
-                     <Mic className="w-7 h-7" strokeWidth={2.5} />
+                     <Mic className="w-6 h-6" strokeWidth={2.5} />
                   ) : (
-                     <Mic className="w-7 h-7" strokeWidth={2.5} />
+                     <Mic className="w-6 h-6" strokeWidth={2.5} />
                   )}
                 </button>
               )}
             </div>
           )}
+        </div>
+        <div className="space-y-6">
 
           <div className="rjsf-custom">
             <Form

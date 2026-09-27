@@ -6,10 +6,11 @@ import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import Select from '@/components/Select';
 
-export default function PreferencesForm({ initialBedtime, initialWeekStartsOn, initialUseEmojiTitle, initialUnitSystem }: { initialBedtime: string, initialWeekStartsOn: string, initialUseEmojiTitle: boolean, initialUnitSystem: string }) {
+export default function PreferencesForm({ initialBedtime, initialWeekStartsOn, initialUseEmojiTitle, initialUnitSystem, initialEmojiModifier }: { initialBedtime: string, initialWeekStartsOn: string, initialUseEmojiTitle: boolean, initialUnitSystem: string, initialEmojiModifier: string | null }) {
   const [bedtime, setBedtime] = useState(initialBedtime || '01:00');
   const [weekStartsOn, setWeekStartsOn] = useState(initialWeekStartsOn || 'sunday');
   const [useEmojiTitle, setUseEmojiTitle] = useState(initialUseEmojiTitle ?? true);
+  const [emojiModifier, setEmojiModifier] = useState(initialEmojiModifier || '');
   const [unitSystem, setUnitSystem] = useState(initialUnitSystem || 'imperial');
   const [saving, setSaving] = useState(false);
   const router = useRouter();
@@ -18,7 +19,7 @@ export default function PreferencesForm({ initialBedtime, initialWeekStartsOn, i
     e.preventDefault();
     setSaving(true);
     try {
-      await updateUserPreferences({ bedtime, weekStartsOn, useEmojiTitle, unitSystem });
+      await updateUserPreferences({ bedtime, weekStartsOn, useEmojiTitle, unitSystem, emojiModifier });
       router.refresh();
       toast.success("Settings saved!");
     } catch (err: any) {
@@ -28,7 +29,7 @@ export default function PreferencesForm({ initialBedtime, initialWeekStartsOn, i
     }
   };
 
-  const hasChanges = bedtime !== initialBedtime || weekStartsOn !== initialWeekStartsOn || useEmojiTitle !== initialUseEmojiTitle || unitSystem !== initialUnitSystem;
+  const hasChanges = bedtime !== initialBedtime || weekStartsOn !== initialWeekStartsOn || useEmojiTitle !== initialUseEmojiTitle || unitSystem !== initialUnitSystem || emojiModifier !== (initialEmojiModifier || '');
 
   return (
     <form onSubmit={handleSave} className="space-y-6">
@@ -99,6 +100,22 @@ export default function PreferencesForm({ initialBedtime, initialWeekStartsOn, i
           </p>
         </div>
       </div>
+
+      {useEmojiTitle && (
+        <div className="ml-7">
+          <label className="block text-sm font-semibold text-stone-700 mb-1">Emoji Style Modifiers</label>
+          <p className="text-sm text-stone-500 mb-3">
+            Instruct the AI to use specific emoji styles, such as skin tone or gender (e.g., "medium-light skin tone, female").
+          </p>
+          <input 
+            type="text" 
+            placeholder="e.g. female, light skin tone"
+            value={emojiModifier}
+            onChange={e => setEmojiModifier(e.target.value)}
+            className="w-full sm:w-64 px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+          />
+        </div>
+      )}
 
       <button 
         type="submit" 

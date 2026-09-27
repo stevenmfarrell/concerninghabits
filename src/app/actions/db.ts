@@ -209,7 +209,7 @@ export async function updateHabit(id: string, name: string, description: string,
   }
 }
 
-export async function updateUserPreferences(prefs: { bedtime?: string, weekStartsOn?: string, useEmojiTitle?: boolean, unitSystem?: string }) {
+export async function updateUserPreferences(prefs: { bedtime?: string, weekStartsOn?: string, useEmojiTitle?: boolean, unitSystem?: string, emojiModifier?: string | null }) {
   const user = await getDefaultUser();
   await prisma.user.update({
     where: { id: user.id },
