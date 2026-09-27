@@ -29,6 +29,48 @@ export async function getDefaultUser(allowNeedsUpdate = false) {
   return user;
 }
 
+export async function getCategoriesWithHierarchy() {
+  const user = await getDefaultUser();
+  return prisma.category.findMany({
+    where: { userId: user.id, parentId: null },
+    orderBy: { name: 'asc' },
+    include: {
+      children: {
+        include: {
+          habits: {
+            include: { logs: { select: { createdAt: true } } }
+          }
+        }
+      },
+      habits: {
+        include: { logs: { select: { createdAt: true } } }
+      }
+    }
+  });
+}
+
+export async function getCategory(id: string) {
+  const user = await getDefaultUser();
+  const category = await prisma.category.findUnique({
+    where: { id },
+    include: {
+      children: {
+        include: {
+          habits: {
+            include: { logs: { select: { createdAt: true, payload: true } } }
+          }
+        }
+      },
+      habits: {
+        include: { logs: { select: { createdAt: true, payload: true } } }
+      },
+      parent: true
+    }
+  });
+  if (!category || category.userId !== user.id) return null;
+  return category;
+}
+
 export async function getCategories() {
   const user = await getDefaultUser();
   return prisma.category.findMany({
@@ -37,23 +79,23 @@ export async function getCategories() {
   });
 }
 
-export async function createCategory(name: string, icon?: string) {
+export async function createCategory(name: string, icon?: string, parentId?: string) {
   const user = await getDefaultUser();
   const category = await prisma.category.create({
-    data: { name, icon, userId: user.id }
+    data: { name, icon, userId: user.id, parentId: parentId || null }
   });
   revalidatePath('/');
   return category;
 }
 
-export async function updateCategory(id: string, name: string, icon: string) {
+export async function updateCategory(id: string, name: string, icon: string, parentId?: string | null) {
   const user = await getDefaultUser();
   const existing = await prisma.category.findUnique({ where: { id } });
   if (!existing || existing.userId !== user.id) throw new Error("Unauthorized");
 
   const category = await prisma.category.update({
     where: { id },
-    data: { name, icon }
+    data: { name, icon, parentId: parentId || null }
   });
   revalidatePath('/');
   return category;

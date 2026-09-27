@@ -2,13 +2,13 @@
 
 import { useRouter } from 'next/navigation';
 
-export default function HorizonToggle({ habitId, currentWeeks }: { habitId: string, currentWeeks: number }) {
+export default function HorizonToggle({ habitId, currentWeeks, basePath = '/history' }: { habitId: string, currentWeeks: number, basePath?: string }) {
   const router = useRouter();
 
   const handleToggle = (weeks: number) => {
     // Save preference in a cookie (expires in 1 year)
     document.cookie = `horizon_${habitId}=${weeks}; path=/; max-age=31536000`;
-    router.replace(`/history/${habitId}?horizon=${weeks}`);
+    router.replace(`${basePath}/${habitId}?horizon=${weeks}`);
   };
 
   return (

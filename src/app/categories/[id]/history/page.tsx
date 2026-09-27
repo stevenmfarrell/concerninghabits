@@ -1,0 +1,83 @@
+import { getCategory, getDefaultUser } from '../../../actions/db';
+import { notFound } from 'next/navigation';
+import Link from 'next/link';
+import Icon from '../../../../components/Icon';
+import ActivityCalendar from '../../../../components/ActivityCalendar';
+import BackButton from '../../../history/[id]/BackButton';
+import { ChevronRight, FolderTree } from 'lucide-react';
+import QuillIconWavy from '../../../../components/QuillIconWavy';
+import { cookies } from 'next/headers';
+import HorizonToggle from '../../../history/[id]/HorizonToggle';
+
+export default async function CategoryOverview(props: { params: Promise<{ id: string }>, searchParams: Promise<{ horizon?: string }> }) {
+  const params = await props.params;
+  const searchParams = await props.searchParams;
+  const user = await getDefaultUser();
+  const category = await getCategory(params.id);
+  
+  const cookieStore = await cookies();
+  const savedHorizon = cookieStore.get(`horizon_${params.id}`)?.value;
+  const horizon = searchParams?.horizon || savedHorizon || '26';
+  const weeks = parseInt(horizon, 10);
+  
+  const mobileMonthsPerColumn = weeks === 52 ? 6 : 4;
+  const desktopMonthsPerColumn = weeks === 52 ? 4 : 4;
+
+  if (!category) return notFound();
+
+  // Aggregate logs
+  const allLogs = [
+    ...category.habits.flatMap(h => h.logs),
+    ...(category.children ? category.children.flatMap(c => c.habits.flatMap(h => h.logs)) : [])
+  ];
+  const dates = allLogs.map(l => l.createdAt);
+  const habitCount = category.habits.length + (category.children ? category.children.reduce((acc, c) => acc + c.habits.length, 0) : 0);
+  const targetCount = habitCount > 0 ? habitCount : 1;
+
+  const isTopLevel = category.parentId === null;
+
+  return (
+    <main className="flex-1 bg-stone-50 font-sans flex flex-col h-full">
+      <div className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-stone-200 px-4 py-3 sm:px-8 sm:py-4 flex items-center justify-between shadow-sm">
+        <div className="relative z-10">
+          <BackButton />
+        </div>
+        <h1 className="absolute inset-0 flex items-center justify-center text-xl sm:text-2xl font-bold text-stone-900 pointer-events-none px-14">
+          <span className="truncate">{category.name} History</span>
+        </h1>
+        <Link 
+          href={`/categories/${category.id}`}
+          className="p-2 -mr-2 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-full transition-colors shrink-0 relative z-10"
+          title="Category Overview"
+        >
+          <QuillIconWavy className="w-6 h-6" strokeWidth={2.5} />
+        </Link>
+      </div>
+
+      <div className="p-4 sm:p-8 max-w-4xl mx-auto w-full space-y-6 sm:space-y-8 pb-32">
+        
+        {/* Time Horizon Toolbar */}
+        <div className="flex justify-end mb-2">
+          <HorizonToggle habitId={category.id} currentWeeks={weeks} basePath="/categories" />
+        </div>
+
+        {/* Aggregated Heatmap */}
+        <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-stone-100 overflow-hidden">
+          <h2 className="text-lg font-semibold text-stone-800 mb-4">Activity Heatmap</h2>
+          <div className="flex flex-col w-full overflow-x-auto pb-4">
+            <div className={`hidden sm:flex w-full ${weeks === 5 ? 'justify-center' : 'justify-center sm:justify-start'}`}>
+              <ActivityCalendar dates={dates} weeks={weeks} frequency="multiple" targetCount={targetCount} size="md" monthsPerColumn={desktopMonthsPerColumn} bedtime={user.bedtime} weekStartsOn={user.weekStartsOn} />
+            </div>
+            <div className={`flex sm:hidden w-full ${weeks === 5 ? 'justify-center' : 'justify-start'}`}>
+              <ActivityCalendar dates={dates} weeks={weeks} frequency="multiple" targetCount={targetCount} size="md" monthsPerColumn={mobileMonthsPerColumn} bedtime={user.bedtime} weekStartsOn={user.weekStartsOn} />
+            </div>
+          </div>
+          <p className="text-center text-sm text-stone-500 mt-2">
+            Target density: {targetCount} {targetCount === 1 ? 'habit' : 'habits'} per day
+          </p>
+        </div>
+
+      </div>
+    </main>
+  );
+}

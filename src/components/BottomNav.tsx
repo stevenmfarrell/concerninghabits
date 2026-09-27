@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, PlusCircle, Settings } from 'lucide-react';
+import { Home, PlusCircle, Settings, FolderTree } from 'lucide-react';
 
 export default function BottomNav() {
   const pathname = usePathname();
@@ -14,6 +14,7 @@ export default function BottomNav() {
 
   const navItems = [
     { name: 'Dashboard', href: '/', icon: Home },
+    { name: 'Categories', href: '/categories', icon: FolderTree, matchPrefix: '/categories' },
     { name: 'Settings', href: '/settings', icon: Settings, matchPrefix: '/settings' },
   ];
 

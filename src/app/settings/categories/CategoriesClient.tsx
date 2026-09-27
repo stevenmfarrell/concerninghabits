@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { createCategory, updateCategory, deleteCategory } from '../../actions/db';
 import Icon from '../../../components/Icon';
 import IconPicker from '../../../components/IconPicker';
+import Select from '../../../components/Select';
 import NewCategoryInline from '../../../components/NewCategoryInline';
 import { Plus, Trash2, Edit2, Check, X, Loader2, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
@@ -22,6 +23,7 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editIcon, setEditIcon] = useState('List');
+  const [editParentId, setEditParentId] = useState<string>('');
 
   const handleCreate = async (name: string, icon: string) => {
     const cat = await createCategory(name, icon);
@@ -34,7 +36,7 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
   const handleUpdate = async (id: string) => {
     if (!editName.trim()) return;
     setLoading(id);
-    const updated = await updateCategory(id, editName.trim(), editIcon);
+    const updated = await updateCategory(id, editName.trim(), editIcon, editParentId || null);
     setCategories(categories.map(c => c.id === id ? updated : c).sort((a, b) => a.name.localeCompare(b.name)));
     setEditingId(null);
     setLoading('');
@@ -53,6 +55,7 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
     setEditingId(cat.id);
     setEditName(cat.name);
     setEditIcon(cat.icon || 'List');
+    setEditParentId(cat.parentId || '');
   };
 
   return (
@@ -96,6 +99,16 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
                       onChange={(e) => setEditName(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && handleUpdate(cat.id)}
                     />
+                    <div className="w-40 relative shrink-0">
+                      <Select 
+                        value={editParentId} 
+                        onChange={setEditParentId}
+                        options={[
+                          { id: '', label: 'Top-Level' },
+                          ...categories.filter(c => c.id !== cat.id && !c.parentId).map(c => ({ id: c.id, label: `Sub of ${c.name}` }))
+                        ]}
+                      />
+                    </div>
                     <div className="flex items-center gap-2">
                       <button 
                         onClick={() => handleUpdate(cat.id)}
@@ -117,8 +130,13 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
                     <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
                       <Icon name={cat.icon || 'List'} className="w-5 h-5" />
                     </div>
-                    <div className="flex-1 font-medium text-stone-800">
+                    <div className="flex-1 font-medium text-stone-800 flex items-center gap-2">
                       {cat.name}
+                      {cat.parentId && (
+                        <span className="text-xs bg-stone-100 text-stone-500 px-2 py-0.5 rounded-md font-medium border border-stone-200">
+                          {categories.find(c => c.id === cat.parentId)?.name || 'Subcategory'}
+                        </span>
+                      )}
                     </div>
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button 
