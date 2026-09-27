@@ -14,8 +14,15 @@ export default function QuillIcon({ className = "", strokeWidth }: { className?:
     >
       <path d="M 14.086 18.412 A 2 2 0 0 1 12.67 19 H 5 V 11.328 A 2 2 0 0 1 5.586 9.914 L 11.75 3.75 a 6.003 6.003 0 1 1 8.49 8.49 z" />
       <path d="M 16 8 L 0.2 23.8" />
-      <path d="M 17.488 15 H 9" />
       
+      {/* Pair 1: Meets at spine (13, 11) */}
+      <path d="M 21.2 11 H 13" />
+      <path d="M 13 2.8 V 11" />
+
+      {/* Pair 2: Meets at spine (9, 15) */}
+      <path d="M 17.5 15 H 9" />
+      <path d="M 9 6.5 V 15" />
+
       {/* Ink line shifted right and down for spacing */}
       <path d="M 7 25 H 21.5" />
     </svg>
