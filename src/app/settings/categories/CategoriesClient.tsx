@@ -10,7 +10,7 @@ import { Plus, Trash2, Edit2, Check, X, Loader2, ArrowLeft, GripVertical } from 
 import { Fragment } from 'react';
 import Link from 'next/link';
 import ConfirmDialog from '../../../components/ConfirmDialog';
-import { DndContext, closestCenter, pointerWithin, rectIntersection, PointerSensor, TouchSensor, KeyboardSensor, useSensor, useSensors, MeasuringStrategy, DragOverlay, defaultDropAnimationSideEffects, CollisionDetection } from '@dnd-kit/core';
+import { DndContext, closestCenter, pointerWithin, rectIntersection, PointerSensor, TouchSensor, KeyboardSensor, useSensor, useSensors, MeasuringStrategy, DragOverlay, defaultDropAnimationSideEffects, CollisionDetection, useDroppable } from '@dnd-kit/core';
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
@@ -30,19 +30,31 @@ const customCollisionDetection: CollisionDetection = (args) => {
   return closestCenter(args);
 };
 
-const SortableItem = ({ cat, renderCategoryRow, childrenNode, disabled }: { cat: any, renderCategoryRow: any, childrenNode?: React.ReactNode, disabled?: boolean }) => {
+
+const SubcategoryDropZone = ({ isProjected }: { isProjected: boolean }) => {
+  return (
+    <div 
+      className={`absolute right-4 top-1/2 -translate-y-1/2 h-10 px-4 rounded-lg border-2 flex items-center justify-center transition-colors z-50 shadow-sm ${isProjected ? 'border-emerald-500 bg-emerald-50 text-emerald-700 font-bold scale-110' : 'border-dashed border-stone-200 bg-white/80 text-stone-400 font-medium'}`}
+    >
+      <span className="text-xs whitespace-nowrap pointer-events-none">{isProjected ? 'Release to Nest' : 'Drag Right to Nest'}</span>
+    </div>
+  );
+}
+
+const SortableItem = ({ cat, renderCategoryRow, childrenNode, disabled, activeId, activeHasChildren, projectedParentId }: { cat: any, renderCategoryRow: any, childrenNode?: React.ReactNode, disabled?: boolean, activeId?: string | null, activeHasChildren?: boolean, projectedParentId?: string | null }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: cat.id, disabled });
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
   };
-  return renderCategoryRow(cat, { attributes, listeners, setNodeRef, style, isDragging }, childrenNode);
+  return renderCategoryRow(cat, { attributes, listeners, setNodeRef, style, isDragging, activeId, activeHasChildren, projectedParentId }, childrenNode);
 };
 
 export default function CategoriesClient({ initialCategories }: { initialCategories: any[] }) {
   const [categories, setCategories] = useState(initialCategories);
   const [loading, setLoading] = useState('');
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [projectedParentId, setProjectedParentId] = useState<string | null>(null);
   
   // New Category State
   const [addingParentId, setAddingParentId] = useState<string | null>(null);
@@ -99,6 +111,44 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
 
   const handleDragCancel = () => {
     setActiveId(null);
+    setProjectedParentId(null);
+  };
+
+  const handleDragMove = (event: any) => {
+    const { active, over, delta } = event;
+    if (!over) {
+      setProjectedParentId(null);
+      return;
+    }
+    
+    let newParentId = null;
+    if (delta.x > 30) {
+      const sourceId = active.id;
+      const targetId = over.id;
+      const source = categories.find(c => c.id === sourceId);
+      const target = categories.find(c => c.id === targetId);
+      
+      if (source && !source.parentId) {
+        const sourceHasChildren = categories.some(c => c.parentId === sourceId);
+        if (!sourceHasChildren) {
+          if (targetId !== sourceId && target) {
+            newParentId = target.parentId || target.id;
+          } else {
+            const topLevels = categories.filter(c => !c.parentId).sort((a,b) => (a.order ?? 0) - (b.order ?? 0));
+            const idx = topLevels.findIndex(c => c.id === sourceId);
+            if (idx > 0) newParentId = topLevels[idx - 1].id;
+          }
+        }
+      }
+    } else if (delta.x < -30) {
+      // Outdent - no projected parent
+    } else if (active.id !== over.id) {
+       const target = categories.find(c => c.id === over.id);
+       if (target && target.parentId) {
+         newParentId = target.parentId;
+       }
+    }
+    setProjectedParentId(newParentId);
   };
 
   const handleDragEnd = async (event: any) => {
@@ -107,14 +157,13 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
     if (!over) return;
     
     const sourceId = active.id;
-    const targetId = over.id;
+    let targetId = over.id;
     const source = categories.find(c => c.id === sourceId);
-    const target = categories.find(c => c.id === targetId);
     if (!source) return;
 
     let newParentId = source.parentId;
-    let isLevelChanged = false;
-
+    let target = categories.find(c => c.id === targetId);
+    
     if (delta.x > 30) {
       if (!source.parentId) {
         const sourceHasChildren = categories.some(c => c.parentId === sourceId);
@@ -126,21 +175,26 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
             const idx = topLevels.findIndex(c => c.id === sourceId);
             if (idx > 0) newParentId = topLevels[idx - 1].id;
           }
-          isLevelChanged = true;
         }
       }
     } else if (delta.x < -30) {
       if (source.parentId) {
         newParentId = null;
-        isLevelChanged = true;
       }
-    } else if (sourceId !== targetId && target) {
+    } else if (targetId !== sourceId && target) {
       if (source.parentId && target.parentId) {
         newParentId = target.parentId;
       }
     }
 
     if (newParentId === source.id) newParentId = null;
+    
+    if (newParentId !== null && !source.parentId) {
+      const sourceHasChildren = categories.some(c => c.parentId === sourceId);
+      if (sourceHasChildren) newParentId = null;
+    }
+    
+    let isLevelChanged = newParentId !== source.parentId;
     
     if (sourceId === targetId && !isLevelChanged) return;
 
@@ -173,9 +227,6 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
         if (target.parentId === newParentId) {
           const tIdx = siblings.findIndex(c => c.id === targetId);
           if (tIdx !== -1) {
-            // When dropping from another list, we usually insert after the target if we are dragging down
-            // But without knowing vertical direction easily, inserting at tIdx or tIdx+1 is a guess.
-            // Let's insert at tIdx (before target) as default.
             insertIndex = tIdx; 
           }
         } else if (newParentId === target.id) {
@@ -235,7 +286,7 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
       <li 
         ref={dndProps?.setNodeRef}
         style={dndProps?.style}
-        className={`transition-colors group ${dndProps?.isOverlay ? 'bg-stone-50 z-50 shadow-2xl rounded-xl cursor-grabbing scale-[1.02]' : dndProps?.isDragging ? 'opacity-30 bg-stone-100 rounded-xl dashed-border' : 'bg-white'}`}
+        className={`transition-colors group relative ${dndProps?.isOverlay ? 'bg-stone-50 z-50 shadow-2xl rounded-xl cursor-grabbing scale-[1.02]' : dndProps?.isDragging ? 'opacity-30 bg-stone-100 rounded-xl dashed-border' : 'bg-white'}`}
       >
         <div className={`p-3 sm:p-4 flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-4 ${!dndProps?.isDragging && 'hover:bg-stone-50/50'} rounded-xl`}>
         <div 
@@ -322,6 +373,9 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
           </>
         )}
         </div>
+        {dndProps?.activeId && dndProps.activeId !== cat.id && !cat.parentId && !dndProps.activeHasChildren && !dndProps.isOverlay && (
+          <SubcategoryDropZone isProjected={dndProps.projectedParentId === cat.id} />
+        )}
         {childrenNode}
       </li>
     );
@@ -350,6 +404,7 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
           sensors={sensors}
           collisionDetection={customCollisionDetection}
           onDragStart={handleDragStart}
+          onDragMove={handleDragMove}
           onDragCancel={handleDragCancel}
           onDragEnd={handleDragEnd}
           measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
@@ -395,18 +450,22 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
                   const children = categories.filter(c => c.parentId === parent.id).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
                   const activeCat = activeId ? categories.find(c => c.id === activeId) : null;
                   const isDraggingTopLevel = activeCat ? !activeCat.parentId : false;
+                  const activeHasChildren = activeId ? categories.some(c => c.parentId === activeId) : false;
                   
                   return (
                     <Fragment key={parent.id}>
                       <SortableItem 
                         cat={parent} 
-                        renderCategoryRow={renderCategoryRow} 
+                        renderCategoryRow={renderCategoryRow}
+                        activeId={activeId}
+                        activeHasChildren={activeHasChildren}
+                        projectedParentId={projectedParentId} 
                         childrenNode={
                           (children.length > 0 || addingParentId === parent.id) ? (
                             <ul className="pl-4 sm:pl-8 border-l-2 border-stone-100 ml-6 sm:ml-8 mb-2">
                               <SortableContext items={children.map(c => c.id)} strategy={verticalListSortingStrategy}>
                                 {children.map(child => (
-                                  <SortableItem key={child.id} cat={child} renderCategoryRow={renderCategoryRow} disabled={isDraggingTopLevel} />
+                                  <SortableItem key={child.id} cat={child} renderCategoryRow={renderCategoryRow} disabled={isDraggingTopLevel} activeId={activeId} activeHasChildren={activeHasChildren} projectedParentId={projectedParentId} />
                                 ))}
                               </SortableContext>
                               {addingParentId === parent.id && (
