@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { createCategory, updateCategory, deleteCategory, reorderCategories } from '../../actions/db';
 import Icon from '../../../components/Icon';
 import IconPicker from '../../../components/IconPicker';
-import Select from '../../../components/Select';
 import NewCategoryInline from '../../../components/NewCategoryInline';
 import { Plus, Trash2, Edit2, Check, X, Loader2, ArrowLeft, GripVertical } from 'lucide-react';
 import { Fragment } from 'react';
@@ -288,7 +287,7 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
         style={dndProps?.style}
         className={`transition-colors group relative ${dndProps?.isOverlay ? 'bg-stone-50 z-50 shadow-2xl rounded-xl cursor-grabbing scale-[1.02]' : dndProps?.isDragging ? 'opacity-30 bg-stone-100 rounded-xl dashed-border' : 'bg-white'}`}
       >
-        <div className={`p-3 sm:p-4 flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-4 ${!dndProps?.isDragging && 'hover:bg-stone-50/50'} rounded-xl`}>
+        <div className={`p-3 sm:p-4 flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-4 ${!dndProps?.isDragging && 'hover:bg-stone-50/50'} rounded-xl relative`}>
         <div 
           {...dndProps?.attributes}
           {...dndProps?.listeners}
@@ -310,16 +309,7 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
               onChange={(e) => setEditName(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleUpdate(cat.id)}
             />
-            <div className="flex-1 sm:flex-none sm:w-40 min-w-[140px] relative shrink-0">
-              <Select 
-                value={editParentId} 
-                onChange={setEditParentId}
-                options={[
-                  { id: '', label: 'Top-Level' },
-                  ...categories.filter(c => c.id !== cat.id && !c.parentId).map(c => ({ id: c.id, label: `Sub of ${c.name}` }))
-                ]}
-              />
-            </div>
+
             <div className="flex items-center gap-2">
               <button 
                 onClick={() => handleUpdate(cat.id)}
@@ -345,15 +335,7 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
               {cat.name}
             </div>
             <div className="flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-              {!cat.parentId && (
-                <button 
-                  onClick={() => { setAddingParentId(cat.id); setNewName(''); setNewIcon('List'); }}
-                  className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors flex items-center gap-1 text-sm font-medium mr-1 sm:mr-2"
-                  title="Add Subcategory"
-                >
-                  <Plus className="w-4 h-4" /> <span className="hidden sm:inline">Subcategory</span>
-                </button>
-              )}
+
               <button 
                 onClick={() => startEdit(cat)}
                 className="p-2 text-stone-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
@@ -372,10 +354,10 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
             </div>
           </>
         )}
+          {dndProps?.activeId && dndProps.activeId !== cat.id && !cat.parentId && !dndProps.activeHasChildren && !dndProps.isOverlay && (
+            <SubcategoryDropZone isProjected={dndProps.projectedParentId === cat.id} />
+          )}
         </div>
-        {dndProps?.activeId && dndProps.activeId !== cat.id && !cat.parentId && !dndProps.activeHasChildren && !dndProps.isOverlay && (
-          <SubcategoryDropZone isProjected={dndProps.projectedParentId === cat.id} />
-        )}
         {childrenNode}
       </li>
     );
