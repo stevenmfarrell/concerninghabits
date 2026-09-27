@@ -31,7 +31,7 @@ export default async function CategoriesHub() {
             </Link>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="bg-white rounded-2xl shadow-sm border border-stone-100 overflow-hidden divide-y divide-stone-100 flex flex-col">
             {categories.map((cat) => {
               const allLogs = [
                 ...cat.habits.flatMap(h => h.logs),
@@ -42,40 +42,43 @@ export default async function CategoriesHub() {
               const targetCount = habitCount > 0 ? habitCount : 1;
 
               return (
-                <div
+                <Link
                   key={cat.id}
-                  className="bg-white rounded-2xl shadow-sm border border-stone-100 hover:border-emerald-200 hover:shadow-md transition-all flex flex-col sm:flex-row items-stretch overflow-hidden"
+                  href={`/categories/${cat.id}`}
+                  className="flex items-stretch transition-colors hover:bg-stone-50 group/row"
                 >
-                  <Link href={`/categories/${cat.id}`} className="flex-1 flex flex-col justify-center py-4 px-5 group hover:bg-emerald-50/50 transition-colors">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-stone-100 flex items-center justify-center text-stone-600 group-hover:bg-emerald-100 group-hover:text-emerald-600 transition-colors">
+                  <div className="flex-1 flex items-center py-4 px-4 sm:px-6 gap-3 sm:gap-6 min-w-0">
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <div className="w-10 h-10 rounded-full bg-stone-100 flex items-center justify-center text-stone-600 group-hover/row:bg-emerald-100 group-hover/row:text-emerald-600 transition-colors shrink-0">
                         <Icon name={cat.icon || 'Folder'} className="w-5 h-5" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h3 className="text-lg font-semibold text-stone-800 group-hover:text-emerald-600 transition-colors truncate">
+                        <h3 className="text-lg font-semibold text-stone-800 group-hover/row:text-emerald-600 transition-colors truncate">
                           {cat.name}
                         </h3>
                         <p className="text-sm text-stone-500">
                           {habitCount} {habitCount === 1 ? 'habit' : 'habits'}
                         </p>
                       </div>
-                      <ChevronRight className="w-5 h-5 text-stone-400 group-hover:text-emerald-600 transition-colors" />
                     </div>
-                  </Link>
-
-                  <div className="border-t sm:border-t-0 sm:border-l border-stone-100 py-3 px-5 flex flex-col justify-center bg-stone-50/50 shrink-0">
-                    <div className="opacity-80 transition-opacity mx-auto">
-                      <ActivityCalendar 
-                        dates={dates} 
-                        weeks={3} 
-                        frequency="multiple" 
-                        targetCount={targetCount} 
-                        bedtime={user.bedtime} 
-                        weekStartsOn={user.weekStartsOn} 
-                      />
+                    
+                    <div className="shrink-0 flex flex-col justify-center">
+                      <div className="opacity-80 group-hover/row:opacity-100 transition-opacity">
+                        <ActivityCalendar 
+                          dates={dates} 
+                          weeks={3} 
+                          frequency="multiple" 
+                          targetCount={targetCount} 
+                          bedtime={user.bedtime} 
+                          weekStartsOn={user.weekStartsOn} 
+                        />
+                      </div>
+                    </div>
+                    <div className="shrink-0 text-stone-300 group-hover/row:text-emerald-600 transition-colors">
+                      <ChevronRight className="w-5 h-5" />
                     </div>
                   </div>
-                </div>
+                </Link>
               );
             })}
           </div>

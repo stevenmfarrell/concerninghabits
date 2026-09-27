@@ -47,12 +47,12 @@ export default async function CategoryLogPage(props: { params: Promise<{ id: str
         {isTopLevel && category.children && category.children.length > 0 && (
           <div className="space-y-4">
             <h2 className="text-xl font-bold text-stone-900 px-2">Subcategories</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="bg-white rounded-2xl shadow-sm border border-stone-100 overflow-hidden divide-y divide-stone-100 flex flex-col">
               {category.children.map(sub => (
                 <Link 
                   key={sub.id} 
                   href={`/categories/${sub.id}`}
-                  className="bg-white p-5 rounded-2xl shadow-sm border border-stone-100 hover:border-emerald-200 hover:shadow-md transition-all flex justify-between items-center group"
+                  className="p-4 sm:p-5 transition-colors hover:bg-stone-50 flex justify-between items-center group"
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-stone-100 flex items-center justify-center text-stone-600 group-hover:bg-emerald-100 group-hover:text-emerald-600 transition-colors">
@@ -63,7 +63,7 @@ export default async function CategoryLogPage(props: { params: Promise<{ id: str
                       <p className="text-sm text-stone-500">{sub.habits.length} habits</p>
                     </div>
                   </div>
-                  <ChevronRight className="w-5 h-5 text-stone-400 group-hover:text-emerald-600 transition-colors" />
+                  <ChevronRight className="w-5 h-5 text-stone-300 group-hover:text-emerald-600 transition-colors" />
                 </Link>
               ))}
             </div>
@@ -73,7 +73,7 @@ export default async function CategoryLogPage(props: { params: Promise<{ id: str
         {category.habits && category.habits.length > 0 && (
           <div className="space-y-4">
             <h2 className="text-xl font-bold text-stone-900 px-2">Habits in {category.name}</h2>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="bg-white rounded-2xl shadow-sm border border-stone-100 overflow-hidden divide-y divide-stone-100 flex flex-col">
               {category.habits.map(habit => {
                 let habitTargetCount = 3;
                 try {
@@ -81,28 +81,19 @@ export default async function CategoryLogPage(props: { params: Promise<{ id: str
                 } catch (e) {}
                   
                 return (
-                  <div
+                  <Link
                     key={habit.id}
-                    className="bg-white rounded-2xl shadow-sm border border-stone-100 hover:border-emerald-200 hover:shadow-md transition-all flex items-stretch overflow-hidden"
+                    href={`/log/${habit.id}`}
+                    className="flex items-stretch transition-colors hover:bg-stone-50 group/row"
                   >
-                    <Link href={`/log/${habit.id}`} className="flex-1 flex items-center justify-between py-3 px-4 sm:px-5 group gap-2 sm:gap-4 min-w-0 hover:bg-emerald-50/50 transition-colors">
-                      <div className="flex-1 min-w-0 pr-2">
-                        <h3 className="text-base sm:text-lg font-semibold text-stone-800 group-hover:text-emerald-600 transition-colors truncate">
+                    <div className="flex-1 flex items-center py-4 px-4 sm:px-6 gap-3 sm:gap-6 min-w-0">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-base sm:text-lg font-semibold text-stone-800 group-hover/row:text-emerald-600 transition-colors truncate">
                           {habit.name}
                         </h3>
                       </div>
-                      <div className="shrink-0 text-emerald-600">
-                        <QuillIconWavy className="w-6 h-6 sm:w-7 sm:h-7" strokeWidth={2.5} />
-                      </div>
-                    </Link>
-
-                    <div className="border-l border-stone-100 flex flex-col justify-center bg-stone-50/50 shrink-0">
-                      <Link
-                        href={`/history/${habit.id}`}
-                        className="flex items-center justify-center h-full px-4 sm:px-5 hover:bg-stone-100 transition-colors group"
-                        title="History preview"
-                      >
-                        <div className="opacity-80 group-hover:opacity-100 transition-opacity">
+                      <div className="shrink-0 flex flex-col justify-center">
+                        <div className="opacity-80 group-hover/row:opacity-100 transition-opacity">
                           <ActivityCalendar 
                             dates={habit.logs.map((l: any) => l.createdAt)} 
                             weeks={3} 
@@ -112,9 +103,12 @@ export default async function CategoryLogPage(props: { params: Promise<{ id: str
                             weekStartsOn={user.weekStartsOn} 
                           />
                         </div>
-                      </Link>
+                      </div>
+                      <div className="shrink-0 text-stone-300 group-hover/row:text-emerald-600 transition-colors">
+                        <QuillIconWavy className="w-6 h-6 sm:w-7 sm:h-7" strokeWidth={2.5} />
+                      </div>
                     </div>
-                  </div>
+                  </Link>
                 );
               })}
             </div>

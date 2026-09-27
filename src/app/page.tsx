@@ -1,6 +1,6 @@
 import { getHabits, getDefaultUser } from './actions/db';
 import Link from 'next/link';
-import { Plus, ListTodo } from 'lucide-react';
+import { Plus, ListTodo, ChevronRight } from 'lucide-react';
 import Icon from '../components/Icon';
 import ActivityCalendar from '../components/ActivityCalendar';
 import QuillIconWavy from '../components/QuillIconWavy';
@@ -74,7 +74,7 @@ export default async function Dashboard() {
                     <Icon name={group.icon} className="w-6 h-6 text-stone-500" />
                     <h2 className="text-2xl font-semibold text-stone-800">{group.name}</h2>
                   </div>
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <div className="bg-white rounded-2xl shadow-sm border border-stone-100 overflow-hidden divide-y divide-stone-100 flex flex-col">
                     {group.habits.map((habit) => {
                       let targetCount = 3;
                       try {
@@ -82,35 +82,27 @@ export default async function Dashboard() {
                       } catch (e) { }
 
                       return (
-                        <div
+                        <Link
                           key={habit.id}
-                          className="bg-white rounded-2xl shadow-sm border border-stone-100 hover:border-emerald-200 hover:shadow-md transition-all flex items-stretch overflow-hidden"
+                          href={`/log/${habit.id}`}
+                          className="flex items-stretch transition-colors hover:bg-stone-50 group/row"
                         >
-                          {/* First Section: Links to Log Page */}
-                          <Link href={`/log/${habit.id}`} className="flex-1 flex items-center justify-between py-3 px-4 sm:px-5 group gap-2 sm:gap-4 min-w-0 hover:bg-emerald-50/50 transition-colors">
-                            <div className="flex-1 min-w-0 pr-2">
-                              <h3 className="text-base sm:text-lg font-semibold text-stone-800 group-hover:text-emerald-600 transition-colors truncate">
+                          <div className="flex-1 flex items-center py-4 px-4 sm:px-6 gap-3 sm:gap-6 min-w-0">
+                            <div className="flex-1 min-w-0">
+                              <h3 className="text-base sm:text-lg font-semibold text-stone-800 group-hover/row:text-emerald-600 transition-colors truncate">
                                 {habit.name}
                               </h3>
                             </div>
-                            <div className="shrink-0 text-emerald-600">
-                              <QuillIconWavy className="w-6 h-6 sm:w-7 sm:h-7" strokeWidth={2.5} />
-                            </div>
-                          </Link>
-
-                          {/* Second Section: Links to History Page */}
-                          <div className="border-l border-stone-100 flex flex-col justify-center bg-stone-50/50 shrink-0">
-                            <Link
-                              href={`/history/${habit.id}`}
-                              className="flex items-center justify-center h-full px-4 sm:px-5 hover:bg-stone-100 transition-colors group"
-                              title="History preview"
-                            >
-                              <div className="opacity-80 group-hover:opacity-100 transition-opacity">
+                            <div className="shrink-0 flex flex-col justify-center">
+                              <div className="opacity-80 group-hover/row:opacity-100 transition-opacity">
                                 <ActivityCalendar dates={habit.logs.map((l: any) => l.createdAt)} weeks={3} frequency={habit.frequency} targetCount={targetCount} bedtime={user.bedtime} weekStartsOn={user.weekStartsOn} />
                               </div>
-                            </Link>
+                            </div>
+                            <div className="shrink-0 text-stone-300 group-hover/row:text-emerald-600 transition-colors">
+                              <QuillIconWavy className="w-6 h-6 sm:w-7 sm:h-7" strokeWidth={2.5} />
+                            </div>
                           </div>
-                        </div>
+                        </Link>
                       );
                     })}
                   </div>
