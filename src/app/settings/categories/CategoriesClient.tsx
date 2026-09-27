@@ -10,14 +10,28 @@ import { Plus, Trash2, Edit2, Check, X, Loader2, ArrowLeft, GripVertical } from 
 import { Fragment } from 'react';
 import Link from 'next/link';
 import ConfirmDialog from '../../../components/ConfirmDialog';
-import { DndContext, closestCenter, PointerSensor, TouchSensor, KeyboardSensor, useSensor, useSensors, MeasuringStrategy, DragOverlay, defaultDropAnimationSideEffects } from '@dnd-kit/core';
+import { DndContext, closestCenter, pointerWithin, rectIntersection, PointerSensor, TouchSensor, KeyboardSensor, useSensor, useSensors, MeasuringStrategy, DragOverlay, defaultDropAnimationSideEffects, CollisionDetection } from '@dnd-kit/core';
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
 
 
-const SortableItem = ({ cat, renderCategoryRow, childrenNode }: { cat: any, renderCategoryRow: any, childrenNode?: React.ReactNode }) => {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: cat.id });
+
+const customCollisionDetection: CollisionDetection = (args) => {
+  // First, let's see if the pointer is within any droppable
+  const pointerIntersections = pointerWithin(args);
+  
+  if (pointerIntersections.length > 0) {
+    return pointerIntersections;
+  }
+  
+  // If the pointer is completely outside (e.g. in a gap or off screen),
+  // fallback to closestCenter so it doesn't return null and reset the position!
+  return closestCenter(args);
+};
+
+const SortableItem = ({ cat, renderCategoryRow, childrenNode, disabled }: { cat: any, renderCategoryRow: any, childrenNode?: React.ReactNode, disabled?: boolean }) => {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: cat.id, disabled });
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -103,14 +117,17 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
 
     if (delta.x > 30) {
       if (!source.parentId) {
-        if (targetId !== sourceId && target) {
-          newParentId = target.parentId || target.id;
-        } else {
-          const topLevels = categories.filter(c => !c.parentId).sort((a,b) => (a.order ?? 0) - (b.order ?? 0));
-          const idx = topLevels.findIndex(c => c.id === sourceId);
-          if (idx > 0) newParentId = topLevels[idx - 1].id;
+        const sourceHasChildren = categories.some(c => c.parentId === sourceId);
+        if (!sourceHasChildren) {
+          if (targetId !== sourceId && target) {
+            newParentId = target.parentId || target.id;
+          } else {
+            const topLevels = categories.filter(c => !c.parentId).sort((a,b) => (a.order ?? 0) - (b.order ?? 0));
+            const idx = topLevels.findIndex(c => c.id === sourceId);
+            if (idx > 0) newParentId = topLevels[idx - 1].id;
+          }
+          isLevelChanged = true;
         }
-        isLevelChanged = true;
       }
     } else if (delta.x < -30) {
       if (source.parentId) {
@@ -118,7 +135,9 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
         isLevelChanged = true;
       }
     } else if (sourceId !== targetId && target) {
-      newParentId = target.parentId;
+      if (source.parentId && target.parentId) {
+        newParentId = target.parentId;
+      }
     }
 
     if (newParentId === source.id) newParentId = null;
@@ -329,7 +348,7 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
         <DndContext
           id="categories-dnd-context"
           sensors={sensors}
-          collisionDetection={closestCenter}
+          collisionDetection={customCollisionDetection}
           onDragStart={handleDragStart}
           onDragCancel={handleDragCancel}
           onDragEnd={handleDragEnd}
@@ -374,6 +393,9 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
               ) : (
                 categories.filter(c => !c.parentId).sort((a, b) => (a.order ?? 0) - (b.order ?? 0)).map(parent => {
                   const children = categories.filter(c => c.parentId === parent.id).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+                  const activeCat = activeId ? categories.find(c => c.id === activeId) : null;
+                  const isDraggingTopLevel = activeCat ? !activeCat.parentId : false;
+                  
                   return (
                     <Fragment key={parent.id}>
                       <SortableItem 
@@ -384,7 +406,7 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
                             <ul className="pl-4 sm:pl-8 border-l-2 border-stone-100 ml-6 sm:ml-8 mb-2">
                               <SortableContext items={children.map(c => c.id)} strategy={verticalListSortingStrategy}>
                                 {children.map(child => (
-                                  <SortableItem key={child.id} cat={child} renderCategoryRow={renderCategoryRow} />
+                                  <SortableItem key={child.id} cat={child} renderCategoryRow={renderCategoryRow} disabled={isDraggingTopLevel} />
                                 ))}
                               </SortableContext>
                               {addingParentId === parent.id && (
