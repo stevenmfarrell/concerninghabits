@@ -112,7 +112,7 @@ export default function ActivityCalendar({ dates, weeks = 5, frequency = 'daily'
       for (let d = 0; d < 7; d++) {
         const day = fullCol[w * 7 + d];
         if (!day) {
-          grid.push({ isNull: true, date: new Date(), count: 0, isFuture: false, isPeriodCompleted: false, isNewMonthLeft: false, isNewMonthTop: false, w, d });
+          grid.push({ isNull: true, date: new Date(), count: 0, isFuture: false, isPeriodCompleted: false, isNewMonthLeft: false, isNewMonthRight: false, isNewMonthTop: false, isNewMonthBottom: false, w, d });
           continue;
         }
         
@@ -142,16 +142,23 @@ export default function ActivityCalendar({ dates, weeks = 5, frequency = 'daily'
         }
         
         const prevDay = d > 0 ? fullCol[w * 7 + d - 1] : null;
-        const isNewMonthLeft = prevDay ? day.getMonth() !== prevDay.getMonth() : false;
-        
+        const nextDay = d < 6 ? fullCol[w * 7 + d + 1] : null;
         const prevWeekDay = w > 0 ? fullCol[(w - 1) * 7 + d] : null;
-        const isNewMonthTop = prevWeekDay ? day.getMonth() !== prevWeekDay.getMonth() : false;
+        const nextWeekDay = w < colWeeks - 1 ? fullCol[(w + 1) * 7 + d] : null;
+
+        const isNewMonthLeft = d > 0 && (!prevDay || prevDay.getMonth() !== day.getMonth());
+        const isNewMonthRight = d < 6 && (!nextDay || nextDay.getMonth() !== day.getMonth());
+        
+        const isNewMonthTop = (w > 0 && (!prevWeekDay || prevWeekDay.getMonth() !== day.getMonth())) || (w === 0 && day.getDate() <= 7);
+        
+        const daysInMonth = new Date(day.getFullYear(), day.getMonth() + 1, 0).getDate();
+        const isNewMonthBottom = (w < colWeeks - 1 && (!nextWeekDay || nextWeekDay.getMonth() !== day.getMonth())) || (w === colWeeks - 1 && day.getDate() > daysInMonth - 7);
 
         const isToday = day.getDate() === today.getDate() && 
                         day.getMonth() === today.getMonth() && 
                         day.getFullYear() === today.getFullYear();
         
-        grid.push({ isNull: false, date: day, count, isFuture, isPeriodCompleted, isNewMonthLeft, isNewMonthTop, w, d, isToday });
+        grid.push({ isNull: false, date: day, count, isFuture, isPeriodCompleted, isNewMonthLeft, isNewMonthRight, isNewMonthTop, isNewMonthBottom, w, d, isToday });
       }
     }
     return grid;
@@ -209,18 +216,21 @@ export default function ActivityCalendar({ dates, weeks = 5, frequency = 'daily'
               <div className="relative w-6 shrink-0 mt-1">
                 {monthBlocks.map(block => {
                   const topPx = block.startW * STEP;
-                  const heightPx = (block.endW - block.startW + 1) * STEP;
+                  const weeksCount = block.endW - block.startW + 1;
+                  const heightPx = weeksCount * STEP;
                   return (
                     <div key={`${block.startW}-${block.month}`}>
                       {/* Vertical Month Label */}
-                      <div 
-                        className="absolute w-full flex items-center justify-center overflow-visible"
-                        style={{ top: topPx, height: heightPx }}
-                      >
-                        <div className="text-[10px] text-stone-400 font-bold tracking-widest whitespace-nowrap -rotate-90">
-                          {block.text}
+                      {weeksCount >= 2 && (
+                        <div 
+                          className="absolute w-full flex items-center justify-center overflow-visible"
+                          style={{ top: topPx, height: heightPx }}
+                        >
+                          <div className="text-[10px] text-stone-400 font-bold tracking-widest whitespace-nowrap -rotate-90">
+                            {block.text}
+                          </div>
                         </div>
-                      </div>
+                      )}
                       
                       {/* Horizontal Year Labels */}
                       {block.month === 0 && (
@@ -284,12 +294,34 @@ export default function ActivityCalendar({ dates, weeks = 5, frequency = 'daily'
                           }}
                         />
                       )}
+                      {cell.isNewMonthRight && (
+                        <div 
+                          className="absolute bg-stone-400"
+                          style={{
+                            left: (cell.d + 1) * STEP - 2,
+                            top: cell.w * STEP - 2,
+                            width: 1,
+                            height: STEP + 1
+                          }}
+                        />
+                      )}
                       {cell.isNewMonthTop && (
                         <div 
                           className="absolute bg-stone-400"
                           style={{
                             left: cell.d * STEP - 2,
                             top: cell.w * STEP - 2,
+                            width: STEP + 1,
+                            height: 1
+                          }}
+                        />
+                      )}
+                      {cell.isNewMonthBottom && (
+                        <div 
+                          className="absolute bg-stone-400"
+                          style={{
+                            left: cell.d * STEP - 2,
+                            top: (cell.w + 1) * STEP - 2,
                             width: STEP + 1,
                             height: 1
                           }}

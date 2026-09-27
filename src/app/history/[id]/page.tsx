@@ -35,8 +35,10 @@ export default async function HistoryPage(props: { params: Promise<{ id: string 
   
   // To get 2 columns for 26 weeks, we need to wrap at 4 months, because 26 weeks spans ~7 calendar months.
   // To get 1 column for 13 weeks, we wrap at 4 months (spans ~4 calendar months).
-  const mobileMonthsPerColumn = weeks === 52 ? 6 : 4;
-  const desktopMonthsPerColumn = weeks === 52 ? 4 : 4;
+  // Use 7 and 5 to guarantee exactly 2 columns (mobile) and 3 columns (desktop) 
+  // even when the 52-week window bleeds into a 13th calendar month.
+  const mobileMonthsPerColumn = weeks === 52 ? 7 : 4;
+  const desktopMonthsPerColumn = weeks === 52 ? 5 : 4;
 
   // Filter logs based on chosen horizon cutoff date
   const now = new Date();

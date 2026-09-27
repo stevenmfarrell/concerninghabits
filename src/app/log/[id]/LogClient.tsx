@@ -515,7 +515,7 @@ export default function LogClient({ habit, user }: { habit: any, user: any }) {
             View All <ChevronRight className="w-4 h-4 ml-1" />
           </div>
         </div>
-        <div className="opacity-80 group-hover:opacity-100 transition-opacity flex justify-center w-full overflow-hidden">
+        <div className="opacity-80 group-hover:opacity-100 transition-opacity flex justify-center w-full overflow-hidden py-2">
           <ActivityCalendar 
             dates={habit.logs.map((l: any) => l.createdAt)} size="md" 
             weeks={5} 

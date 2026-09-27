@@ -4,7 +4,7 @@ import Link from 'next/link';
 import Icon from '../../../components/Icon';
 import ActivityCalendar from '../../../components/ActivityCalendar';
 import BackButton from '../../history/[id]/BackButton';
-import { ChevronRight, ArrowRight } from 'lucide-react';
+import { ChevronRight, } from 'lucide-react';
 import QuillIconWavy from '../../../components/QuillIconWavy';
 import CategoryMenu from './CategoryMenu';
 
@@ -33,7 +33,10 @@ export default async function CategoryLogPage(props: { params: Promise<{ id: str
           <BackButton />
         </div>
         <h1 className="absolute inset-0 flex items-center justify-center text-xl sm:text-2xl font-bold text-stone-900 pointer-events-none px-14">
-          <span className="truncate">{category.name}</span>
+          <div className="flex items-center gap-2">
+            <Icon name={category.icon || 'Folder'} className="w-5 h-5 sm:w-6 sm:h-6 text-stone-500 shrink-0" />
+            <span className="truncate">{category.name}</span>
+          </div>
         </h1>
         <CategoryMenu />
       </div>
@@ -119,17 +122,17 @@ export default async function CategoryLogPage(props: { params: Promise<{ id: str
         )}
 
         {/* Recent History Card */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-stone-100 overflow-hidden mt-8">
-          <div className="flex items-center justify-between mb-6">
+        <Link 
+          href={`/categories/${category.id}/history`}
+          className="block bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-stone-100 hover:border-emerald-200 hover:shadow-md transition-all group mt-8"
+        >
+          <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-stone-800">Recent History</h2>
-            <Link 
-              href={`/categories/${category.id}/history`}
-              className="text-emerald-600 hover:text-emerald-700 font-medium text-sm flex items-center gap-1 group"
-            >
-              Full History <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
-            </Link>
+            <div className="flex items-center text-sm font-medium text-stone-400 group-hover:text-emerald-600 transition-colors">
+              View All <ChevronRight className="w-4 h-4 ml-1" />
+            </div>
           </div>
-          <div className="flex justify-center w-full overflow-x-auto pb-2">
+          <div className="opacity-80 group-hover:opacity-100 transition-opacity flex justify-center w-full overflow-hidden py-2">
             <ActivityCalendar 
               dates={dates} 
               size="md"
@@ -140,7 +143,7 @@ export default async function CategoryLogPage(props: { params: Promise<{ id: str
               weekStartsOn={user.weekStartsOn} 
             />
           </div>
-        </div>
+        </Link>
         
       </div>
     </main>

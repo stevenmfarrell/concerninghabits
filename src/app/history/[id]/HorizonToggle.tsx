@@ -1,14 +1,15 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 
-export default function HorizonToggle({ habitId, currentWeeks, basePath = '/history' }: { habitId: string, currentWeeks: number, basePath?: string }) {
+export default function HorizonToggle({ habitId, currentWeeks }: { habitId: string, currentWeeks: number }) {
   const router = useRouter();
+  const pathname = usePathname();
 
   const handleToggle = (weeks: number) => {
     // Save preference in a cookie (expires in 1 year)
     document.cookie = `horizon_${habitId}=${weeks}; path=/; max-age=31536000`;
-    router.replace(`${basePath}/${habitId}?horizon=${weeks}`);
+    router.replace(`${pathname}?horizon=${weeks}`);
   };
 
   return (

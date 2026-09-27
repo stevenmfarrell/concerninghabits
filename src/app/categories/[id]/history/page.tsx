@@ -20,8 +20,10 @@ export default async function CategoryOverview(props: { params: Promise<{ id: st
   const horizon = searchParams?.horizon || savedHorizon || '26';
   const weeks = parseInt(horizon, 10);
   
-  const mobileMonthsPerColumn = weeks === 52 ? 6 : 4;
-  const desktopMonthsPerColumn = weeks === 52 ? 4 : 4;
+  // Use 7 and 5 to guarantee exactly 2 columns (mobile) and 3 columns (desktop) 
+  // even when the 52-week window bleeds into a 13th calendar month.
+  const mobileMonthsPerColumn = weeks === 52 ? 7 : 4;
+  const desktopMonthsPerColumn = weeks === 52 ? 5 : 4;
 
   if (!category) return notFound();
 
@@ -58,7 +60,7 @@ export default async function CategoryOverview(props: { params: Promise<{ id: st
         
         {/* Time Horizon Toolbar */}
         <div className="flex justify-end mb-2">
-          <HorizonToggle habitId={category.id} currentWeeks={weeks} basePath="/categories" />
+          <HorizonToggle habitId={category.id} currentWeeks={weeks} />
         </div>
 
         {/* Aggregated Heatmap */}
