@@ -6,14 +6,16 @@ import validator from '@rjsf/validator-ajv8';
 import { logHabitEvent, deleteHabitLog } from '../../actions/db';
 import { parseVoiceLog, parseImageLog } from '../../actions/habit';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Check, Loader2, Undo2, Link2, Mic, MicOff, Camera } from 'lucide-react';
+import { ArrowLeft, Check, Loader2, Undo2, Link2, Mic, Camera, MoreVertical, Edit2, ChevronRight } from 'lucide-react';
+import ActivityCalendar from '../../../components/ActivityCalendar';
+import QuillIconWavy from '../../../components/QuillIconWavy';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import DurationWidget from '../../../components/widgets/DurationWidget';
 import UnitWidget from '../../../components/widgets/UnitWidget';
 import { formatLogValue } from '../../../lib/format';
 
-export default function LogClient({ habit }: { habit: any }) {
+export default function LogClient({ habit, user }: { habit: any, user: any }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
@@ -22,6 +24,7 @@ export default function LogClient({ habit }: { habit: any }) {
   const [logDate, setLogDate] = useState('');
   const [showBackdate, setShowBackdate] = useState(false);
   const [aiSuccessLog, setAiSuccessLog] = useState<{ logId: string, data: any } | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const schema = JSON.parse(habit.schema);
   
@@ -333,24 +336,60 @@ export default function LogClient({ habit }: { habit: any }) {
   }
 
   return (
-    <div className="max-w-xl mx-auto space-y-8">
-      <div className="flex justify-between items-start gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-stone-900">{habit.name}</h1>
-          {habit.description && <p className="text-stone-600 mt-2">{habit.description}</p>}
-        </div>
-        <div className="flex items-center gap-2">
+    <div className="flex flex-col h-full">
+      <div className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-stone-200 px-4 py-3 sm:px-8 sm:py-4 flex items-center justify-between shadow-sm mb-6 sm:mb-8">
+        <Link 
+          href="/"
+          className="p-2 -ml-2 text-stone-500 hover:text-stone-800 hover:bg-stone-100 rounded-full transition-colors shrink-0 z-10"
+          title="Back to Dashboard"
+        >
+          <ArrowLeft className="w-6 h-6" strokeWidth={2.5} />
+        </Link>
+        
+        <h1 className="absolute inset-0 flex items-center justify-center text-xl sm:text-2xl font-bold text-stone-900 pointer-events-none px-14">
+          <span className="truncate">{habit.name}</span>
+        </h1>
+        
+        <div className="relative z-10">
           <button
-            onClick={handleCopyUrl}
-            title="Copy URL for NFC automation"
-            className="p-2 text-stone-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-colors shrink-0"
+            onClick={() => setMenuOpen(!menuOpen)}
+            className="p-2 -mr-2 text-stone-500 hover:text-stone-700 hover:bg-stone-100 rounded-full transition-colors shrink-0"
           >
-            <Link2 className="w-5 h-5" />
+            <MoreVertical className="w-6 h-6" />
           </button>
+          
+          {menuOpen && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
+              <div className="absolute right-0 mt-1 w-56 bg-white rounded-xl shadow-lg border border-stone-100 py-2 z-50">
+                <Link 
+                  href={`/edit/${habit.id}`}
+                  className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-stone-700 hover:bg-stone-50 hover:text-emerald-600 transition-colors"
+                >
+                  <Edit2 className="w-4 h-4" />
+                  Edit Habit
+                </Link>
+                <button
+                  onClick={() => {
+                    handleCopyUrl();
+                    setMenuOpen(false);
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-stone-700 hover:bg-stone-50 hover:text-emerald-600 transition-colors text-left"
+                >
+                  <Link2 className="w-4 h-4" />
+                  Copy URL
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
+      <div className="p-4 sm:p-8 max-w-xl mx-auto w-full space-y-6 sm:space-y-8">
+        {habit.description && <p className="text-stone-600 text-center">{habit.description}</p>}
+
       <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-stone-100">
+        <h2 className="text-lg font-semibold text-stone-800 mb-6">New Entry</h2>
         <div className="space-y-6">
           {Object.keys(schema.properties || {}).length > 0 && (schema.enableVoice !== false || schema.enablePhoto !== false) && (
             <div className={`grid gap-3 ${schema.enableVoice !== false && schema.enablePhoto !== false ? 'grid-cols-2' : 'grid-cols-1'}`}>
@@ -366,24 +405,30 @@ export default function LogClient({ habit }: { habit: any }) {
                 <button
                   onClick={() => fileInputRef.current?.click()}
                   disabled={aiLoading}
-                  className="w-full py-4 flex flex-col items-center justify-center gap-2 rounded-xl border-2 transition-all font-semibold text-sm shadow-sm bg-blue-50 border-blue-100 text-blue-700 hover:bg-blue-100 hover:border-blue-200"
+                  className="w-full py-4 flex items-center justify-center rounded-xl border-2 transition-all shadow-sm bg-blue-50 border-blue-100 text-blue-700 hover:bg-blue-100 hover:border-blue-200 disabled:opacity-70"
+                  title="Photo Log"
                 >
-                  <Camera className="w-6 h-6" />
-                  {aiLoading ? 'Processing...' : 'Photo Log'}
+                  {aiLoading ? <Loader2 className="w-7 h-7 animate-spin" /> : <Camera className="w-7 h-7" strokeWidth={2.5} />}
                 </button>
               )}
               {schema.enableVoice !== false && (
                 <button
                   onClick={toggleListen}
                   disabled={aiLoading}
-                  className={`w-full py-4 flex flex-col items-center justify-center gap-2 rounded-xl border-2 transition-all font-semibold text-sm shadow-sm ${
+                  className={`w-full py-4 flex items-center justify-center rounded-xl border-2 transition-all shadow-sm ${
                     isListening
                       ? 'bg-red-50 border-red-200 text-red-600 animate-pulse'
                       : 'bg-emerald-50 border-emerald-100 text-emerald-700 hover:bg-emerald-100 hover:border-emerald-200'
-                  }`}
+                  } disabled:opacity-70`}
+                  title="Voice Log"
                 >
-                  {isListening ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
-                  {isListening ? 'Listening...' : 'Voice Log'}
+                  {aiLoading ? (
+                     <Loader2 className="w-7 h-7 animate-spin" />
+                  ) : isListening ? (
+                     <Mic className="w-7 h-7" strokeWidth={2.5} />
+                  ) : (
+                     <Mic className="w-7 h-7" strokeWidth={2.5} />
+                  )}
                 </button>
               )}
             </div>
@@ -437,8 +482,8 @@ export default function LogClient({ habit }: { habit: any }) {
                 disabled={loading}
                 className="w-full py-4 bg-emerald-600 text-white rounded-xl font-medium text-lg hover:bg-emerald-700 cursor-pointer transition-colors flex justify-center items-center gap-2 disabled:opacity-70 shadow-sm"
               >
-                {loading && <Loader2 className="w-5 h-5 animate-spin" />}
-                {loading ? 'Logging...' : 'Log Event'}
+                {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : <QuillIconWavy className="w-6 h-6" strokeWidth={2.5} />}
+                {loading ? 'Logging...' : 'Log Habit'}
               </button>
 
               {!showBackdate && (
@@ -458,7 +503,29 @@ export default function LogClient({ habit }: { habit: any }) {
         </div>
       </div>
 
+      <Link 
+        href={`/history/${habit.id}`}
+        className="block bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-stone-100 hover:border-emerald-200 hover:shadow-md transition-all group"
+      >
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-stone-800">Recent History</h2>
+          <div className="flex items-center text-sm font-medium text-stone-400 group-hover:text-emerald-600 transition-colors">
+            View All <ChevronRight className="w-4 h-4 ml-1" />
+          </div>
+        </div>
+        <div className="opacity-80 group-hover:opacity-100 transition-opacity flex justify-center w-full overflow-hidden">
+          <ActivityCalendar 
+            dates={habit.logs.map((l: any) => l.createdAt)} size="md" 
+            weeks={5} 
+            frequency={habit.frequency} 
+            targetCount={JSON.parse(habit.schema).targetCount || 3} 
+            bedtime={user.bedtime} 
+            weekStartsOn={user.weekStartsOn} 
+          />
+        </div>
+      </Link>
 
+    </div>
     </div>
   );
 }

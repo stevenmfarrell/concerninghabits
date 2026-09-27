@@ -1,7 +1,8 @@
 import { getHabit, getHabitLogs, deleteHabitLog, getDefaultUser } from '../../actions/db';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { Trash2, Settings2 } from 'lucide-react';
+import BackButton from './BackButton';
+import { Trash2, Settings2, ArrowLeft } from 'lucide-react';
 import { cookies } from 'next/headers';
 import DeleteButton from './DeleteButton';
 import InteractiveCalendar from './InteractiveCalendar';
@@ -80,43 +81,26 @@ export default async function HistoryPage(props: { params: Promise<{ id: string 
   }
 
   return (
-    <main className="flex-1 p-4 sm:p-8 bg-stone-50 font-sans">
-      <div className="max-w-4xl mx-auto space-y-6 sm:space-y-8">
-        <div>
-
-          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-6">
-            <div className="flex items-start gap-4 min-w-0 w-full sm:w-auto">
-              <div className="w-12 h-12 bg-emerald-700 rounded-full flex items-center justify-center shadow-md border-2 border-emerald-800/20 shrink-0">
-                <Icon name={habit.category?.icon || 'Trees'} className="w-6 h-6 text-emerald-50" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-3">
-                  <h1 className="text-2xl sm:text-3xl font-extrabold text-stone-800 tracking-tight break-words">{habit.name}</h1>
-                  <span className="px-2 py-1 bg-stone-200 text-stone-600 text-[10px] sm:text-xs font-bold rounded-md uppercase tracking-widest shrink-0">{habit.frequency}</span>
-                </div>
-                {habit.description && <p className="text-stone-600 mt-1">{habit.description}</p>}
-                <div className="text-sm font-medium text-stone-500 mt-3">
-                  {filteredLogs.length} entries in view
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 w-full sm:w-auto">
-              <Link 
-                href={`/edit/${habit.id}`}
-                className="p-3 text-stone-400 hover:text-stone-700 hover:bg-stone-100 rounded-xl transition-colors flex items-center justify-center"
-                title="Edit Habit Settings"
-              >
-                <Settings2 className="w-6 h-6 shrink-0" strokeWidth={2} />
-              </Link>
-              <Link 
-                href={`/log/${habit.id}`}
-                className="px-6 py-3 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2 shadow-sm flex-1 sm:flex-none"
-              >
-                <QuillIconWavy className="w-6 h-6 shrink-0" /> Log Entry
-              </Link>
-            </div>
-          </div>
+    <main className="flex-1 bg-stone-50 font-sans flex flex-col h-full">
+      <div className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-stone-200 px-4 py-3 sm:px-8 sm:py-4 flex items-center justify-between shadow-sm">
+        <div className="relative z-10">
+          <BackButton />
         </div>
+        
+        <h1 className="absolute inset-0 flex items-center justify-center text-xl sm:text-2xl font-bold text-stone-900 pointer-events-none px-14">
+          <span className="truncate">{habit.name} History</span>
+        </h1>
+        
+        <Link 
+          href={`/log/${habit.id}`}
+          className="p-2 -mr-2 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-full transition-colors shrink-0 relative z-10"
+          title="Log Entry"
+        >
+          <QuillIconWavy className="w-6 h-6" strokeWidth={2.5} />
+        </Link>
+      </div>
+
+      <div className="p-4 sm:p-8 max-w-4xl mx-auto w-full space-y-6 sm:space-y-8">
 
         {logs.length === 0 ? (
           <div className="py-24 px-8 sm:px-12 text-center flex flex-col items-center justify-center">
@@ -238,14 +222,14 @@ export default async function HistoryPage(props: { params: Promise<{ id: string 
               <div className="flex items-center gap-2">
                 <Link
                   href={`/history/${habit.id}?horizon=${weeks}&page=${page > 1 ? page - 1 : 1}`}
-                  scroll={false}
+                  scroll={false} replace
                   className={`px-3 py-1 text-sm font-semibold rounded-lg border transition-colors ${page === 1 ? 'border-stone-200 text-stone-400 pointer-events-none' : 'border-stone-300 text-stone-700 hover:bg-stone-100'}`}
                 >
                   Previous
                 </Link>
                 <Link
                   href={`/history/${habit.id}?horizon=${weeks}&page=${page < totalPages ? page + 1 : totalPages}`}
-                  scroll={false}
+                  scroll={false} replace
                   className={`px-3 py-1 text-sm font-semibold rounded-lg border transition-colors ${page === totalPages ? 'border-stone-200 text-stone-400 pointer-events-none' : 'border-stone-300 text-stone-700 hover:bg-stone-100'}`}
                 >
                   Next

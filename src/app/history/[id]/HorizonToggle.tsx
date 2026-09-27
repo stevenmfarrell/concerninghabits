@@ -8,7 +8,7 @@ export default function HorizonToggle({ habitId, currentWeeks }: { habitId: stri
   const handleToggle = (weeks: number) => {
     // Save preference in a cookie (expires in 1 year)
     document.cookie = `horizon_${habitId}=${weeks}; path=/; max-age=31536000`;
-    router.push(`/history/${habitId}?horizon=${weeks}`);
+    router.replace(`/history/${habitId}?horizon=${weeks}`);
   };
 
   return (

@@ -84,27 +84,30 @@ export default async function Dashboard() {
                       return (
                         <div
                           key={habit.id}
-                          className="bg-white rounded-2xl shadow-sm border border-stone-100 hover:border-emerald-200 hover:shadow-md transition-all flex items-stretch"
+                          className="bg-white rounded-2xl shadow-sm border border-stone-100 hover:border-emerald-200 hover:shadow-md transition-all flex items-stretch overflow-hidden"
                         >
-                          <Link href={`/history/${habit.id}`} className="flex-1 flex items-center justify-between py-3 px-4 sm:px-5 group gap-2 sm:gap-4 min-w-0">
+                          {/* First Section: Links to Log Page */}
+                          <Link href={`/log/${habit.id}`} className="flex-1 flex items-center justify-between py-3 px-4 sm:px-5 group gap-2 sm:gap-4 min-w-0 hover:bg-emerald-50/50 transition-colors">
                             <div className="flex-1 min-w-0 pr-2">
                               <h3 className="text-base sm:text-lg font-semibold text-stone-800 group-hover:text-emerald-600 transition-colors truncate">
                                 {habit.name}
                               </h3>
                             </div>
-
-                            <div className="shrink-0">
-                              <ActivityCalendar dates={habit.logs.map((l: any) => l.createdAt)} weeks={3} frequency={habit.frequency} targetCount={targetCount} bedtime={user.bedtime} weekStartsOn={user.weekStartsOn} />
+                            <div className="shrink-0 text-emerald-600">
+                              <QuillIconWavy className="w-6 h-6 sm:w-7 sm:h-7" strokeWidth={2.5} />
                             </div>
                           </Link>
 
-                          <div className="border-l border-stone-100 flex flex-col justify-center bg-stone-50/50 rounded-r-2xl shrink-0">
+                          {/* Second Section: Links to History Page */}
+                          <div className="border-l border-stone-100 flex flex-col justify-center bg-stone-50/50 shrink-0">
                             <Link
-                              href={`/log/${habit.id}`}
-                              className="text-emerald-600 flex items-center justify-center h-full px-6 sm:px-8 hover:bg-emerald-50 transition-colors rounded-r-2xl"
-                              title="Log entry"
+                              href={`/history/${habit.id}`}
+                              className="flex items-center justify-center h-full px-4 sm:px-5 hover:bg-stone-100 transition-colors group"
+                              title="History preview"
                             >
-                              <QuillIconWavy className="w-6 h-6 sm:w-7 sm:h-7" strokeWidth={2.5} />
+                              <div className="opacity-80 group-hover:opacity-100 transition-opacity">
+                                <ActivityCalendar dates={habit.logs.map((l: any) => l.createdAt)} weeks={3} frequency={habit.frequency} targetCount={targetCount} bedtime={user.bedtime} weekStartsOn={user.weekStartsOn} />
+                              </div>
                             </Link>
                           </div>
                         </div>
