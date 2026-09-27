@@ -54,7 +54,7 @@ export default async function CategoryOverview(props: { params: Promise<{ id: st
         </Link>
       </div>
 
-      <div className="p-4 sm:p-8 max-w-4xl mx-auto w-full space-y-6 sm:space-y-8 pb-32">
+      <div className="p-4 sm:p-8 max-w-4xl mx-auto w-full space-y-6 sm:space-y-8">
         
         {/* Time Horizon Toolbar */}
         <div className="flex justify-end mb-2">

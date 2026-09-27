@@ -3,7 +3,7 @@ import { ArrowLeft, Map } from 'lucide-react';
 
 export default function NotFound() {
   return (
-    <main className="flex-1 p-4 sm:p-8 bg-stone-50 font-sans min-h-screen flex items-center justify-center">
+    <main className="flex-1 p-4 sm:p-8 bg-stone-50 font-sans flex items-center justify-center">
       <div className="max-w-md w-full text-center space-y-6 animate-in fade-in zoom-in duration-300">
         <div className="w-20 h-20 bg-stone-200 rounded-full flex items-center justify-center mx-auto mb-4">
           <Map className="w-10 h-10 text-stone-500" />

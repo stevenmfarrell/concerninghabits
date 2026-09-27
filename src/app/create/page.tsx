@@ -28,7 +28,7 @@ export default function CreateHabit() {
   };
 
   return (
-    <main className="flex-1 p-4 sm:p-8 bg-stone-50 font-sans min-h-screen">
+    <main className="flex-1 p-4 sm:p-8 bg-stone-50 font-sans">
       <div className="max-w-3xl mx-auto space-y-6 sm:space-y-8">
         <div>
 

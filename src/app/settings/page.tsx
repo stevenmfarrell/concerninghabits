@@ -7,7 +7,7 @@ export default async function SettingsPage() {
   const user = await getDefaultUser();
 
   return (
-    <main className="flex-1 p-4 sm:p-8 bg-stone-50 font-sans min-h-screen">
+    <main className="flex-1 p-4 sm:p-8 bg-stone-50 font-sans">
       <div className="max-w-3xl mx-auto space-y-6 sm:space-y-8">
         <div>
           <h1 className="text-3xl font-bold text-stone-900">Settings</h1>
