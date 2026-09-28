@@ -5,6 +5,7 @@ import Icon from '../components/Icon';
 import ActivityCalendar from '../components/ActivityCalendar';
 import { SortableHabitList } from './categories/[id]/SortableLists';
 import { UNCATEGORIZED_ID, UNCATEGORIZED_ICON } from '@/lib/constants';
+import { parseBedtimeOffsetMinutes, toCivilDate } from '@/lib/timezone';
 
 type CategoryRowProps = {
   href: string;
@@ -14,9 +15,10 @@ type CategoryRowProps = {
   habitCount: number;
   bedtime: string;
   weekStartsOn: string;
+  timeZone: string;
 };
 
-function CategoryRow({ href, name, icon, dates, habitCount, bedtime, weekStartsOn }: CategoryRowProps) {
+function CategoryRow({ href, name, icon, dates, habitCount, bedtime, weekStartsOn, timeZone }: CategoryRowProps) {
   return (
     <Link
       href={href}
@@ -46,6 +48,7 @@ function CategoryRow({ href, name, icon, dates, habitCount, bedtime, weekStartsO
               targetCount={habitCount > 0 ? habitCount : 1}
               bedtime={bedtime}
               weekStartsOn={weekStartsOn}
+              timeZone={timeZone}
             />
           </div>
         </div>
@@ -78,6 +81,9 @@ export default async function Dashboard() {
     })
     .filter(cat => cat.habitCount > 0);
 
+  // Today in the viewer's time zone, following the same bedtime rule as the calendars
+  const today = toCivilDate(new Date(), user.timeZone, parseBedtimeOffsetMinutes(user.bedtime));
+
   const totalHabits = categoryRows.reduce((acc, c) => acc + c.habitCount, 0) + uncategorized.length;
 
   return (
@@ -87,7 +93,7 @@ export default async function Dashboard() {
         <div className="flex items-center justify-between">
           <div>
             <p className="text-stone-500 font-semibold text-sm uppercase tracking-wider mb-1">
-              {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+              {today.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC' })}
             </p>
             <h1 className="text-3xl sm:text-4xl font-extrabold text-stone-900 tracking-tight">
               My Habits
@@ -153,6 +159,7 @@ export default async function Dashboard() {
                     habitCount={cat.habitCount}
                     bedtime={user.bedtime}
                     weekStartsOn={user.weekStartsOn}
+                    timeZone={user.timeZone}
                   />
                 ))}
                 {uncategorized.length > 0 && (
@@ -164,6 +171,7 @@ export default async function Dashboard() {
                     habitCount={uncategorized.length}
                     bedtime={user.bedtime}
                     weekStartsOn={user.weekStartsOn}
+                    timeZone={user.timeZone}
                   />
                 )}
               </div>

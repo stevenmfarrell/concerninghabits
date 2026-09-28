@@ -68,10 +68,10 @@ export default async function CategoryOverview(props: { params: Promise<{ id: st
           <h2 className="text-lg font-semibold text-stone-800 mb-4">Activity Heatmap</h2>
           <div className="flex flex-col w-full overflow-x-auto pb-4">
             <div className={`hidden sm:flex w-full ${weeks === 5 ? 'justify-center' : 'justify-center sm:justify-start'}`}>
-              <ActivityCalendar dates={dates} weeks={weeks} frequency="multiple" targetCount={targetCount} size="md" monthsPerColumn={desktopMonthsPerColumn} bedtime={user.bedtime} weekStartsOn={user.weekStartsOn} />
+              <ActivityCalendar dates={dates} weeks={weeks} frequency="multiple" targetCount={targetCount} size="md" monthsPerColumn={desktopMonthsPerColumn} bedtime={user.bedtime} weekStartsOn={user.weekStartsOn} timeZone={user.timeZone} />
             </div>
             <div className={`flex sm:hidden w-full ${weeks === 5 ? 'justify-center' : 'justify-start'}`}>
-              <ActivityCalendar dates={dates} weeks={weeks} frequency="multiple" targetCount={targetCount} size="md" monthsPerColumn={mobileMonthsPerColumn} bedtime={user.bedtime} weekStartsOn={user.weekStartsOn} />
+              <ActivityCalendar dates={dates} weeks={weeks} frequency="multiple" targetCount={targetCount} size="md" monthsPerColumn={mobileMonthsPerColumn} bedtime={user.bedtime} weekStartsOn={user.weekStartsOn} timeZone={user.timeZone} />
             </div>
           </div>
           <p className="text-center text-sm text-stone-500 mt-2">

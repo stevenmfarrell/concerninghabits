@@ -84,7 +84,8 @@ export default async function CategoryLogPage(props: { params: Promise<{ id: str
               frequency="multiple" 
               targetCount={targetCount} 
               bedtime={user.bedtime} 
-              weekStartsOn={user.weekStartsOn} 
+              weekStartsOn={user.weekStartsOn}
+              timeZone={user.timeZone}
             />
           </div>
         </Link>

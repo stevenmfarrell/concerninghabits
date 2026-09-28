@@ -7,6 +7,7 @@ import Form from '@rjsf/core';
 import validator from '@rjsf/validator-ajv8';
 import { Loader2, Save, Wand2, SquarePen, Trash2, Mic, Camera } from 'lucide-react';
 import CategorySelect from './CategorySelect';
+import { orderCategoryTree } from '@/lib/categoryChoices';
 import NewCategoryInline from './NewCategoryInline';
 import toast from 'react-hot-toast';
 import ConfirmDialog from './ConfirmDialog';
@@ -62,8 +63,9 @@ export default function HabitEditor({
   useEffect(() => {
     getCategories().then(cats => {
       setCategories(cats);
-      if (cats.length > 0 && !categoryId) {
-        setCategoryId(cats[0].id);
+      if (cats.length > 0 && !cats.some(c => c.id === categoryId)) {
+        // Default to the first category as shown in the dropdown
+        setCategoryId(orderCategoryTree(cats)[0].category.id);
       }
     });
     isMqttConfigured().then(setMqttConfigured);
@@ -299,7 +301,7 @@ export default function HabitEditor({
                   <NewCategoryInline
                     onSave={async (name, icon) => {
                       const newCat = await createCategory(name, icon);
-                      setCategories([...categories, newCat].sort((a, b) => a.name.localeCompare(b.name)));
+                      setCategories([...categories, newCat]);
                       setCategoryId(newCat.id);
                       setShowNewCat(false);
                     }}

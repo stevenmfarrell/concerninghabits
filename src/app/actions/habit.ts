@@ -7,10 +7,20 @@ const google = createGoogleGenerativeAI({
   apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
 });
 import { z } from 'zod';
-import { getDefaultUser } from './db';
+import { getDefaultUser, getCategories } from './db';
+import { buildCategoryChoices } from '@/lib/categoryChoices';
 
 export async function generateHabitSchema(prompt: string, currentSchema?: any) {
   const user = await getDefaultUser();
+
+  // Let the AI choose from the user's own categories, then map its choice back to an id
+  const categoryIdsByLabel = buildCategoryChoices(await getCategories());
+  const categoryLabels = [...categoryIdsByLabel.keys()];
+  const categorySchema = categoryLabels.length > 0
+    ? z.enum(categoryLabels as [string, ...string[]]).describe(
+        "The user's category this habit best fits into. Subcategories are written 'Parent:Child' (e.g. 'Fitness:Cardio' is the Cardio subcategory of Fitness). Prefer the most specific subcategory that fits; use the parent category when no subcategory fits."
+      )
+    : z.null();
 
   try {
     const { object } = await generateObject({
@@ -28,7 +38,7 @@ export async function generateHabitSchema(prompt: string, currentSchema?: any) {
       prompt: `User instructions: ${prompt}`,
       schema: z.object({
         title: z.string().describe(`A short, concise name for the habit. Do NOT prefix with 'Track' or 'Log'. ${user.useEmojiTitle ? 'MUST start with a relevant emoji.' : 'NO emojis.'}`),
-        category: z.enum(['Mind', 'Body', 'Chores', 'Other']).describe("The category this habit best fits into"),
+        category: categorySchema.optional(),
         frequency: z.enum(['daily', 'weekly', 'monthly', 'multiple']).optional().describe("The suggested tracking cadence"),
         type: z.literal('object'),
         properties: z.record(z.string(), z.any()).describe(`The fields required. Keep it simple. Use empty {} for simple boolean tasks. CRITICAL: For time durations, set 'type': 'number' AND 'x-widget': 'duration'. For other numeric fields, include an 'x-unit' key specifying the unit of measurement (e.g., 'miles', 'lbs', 'oz', 'pages'). The user prefers the ${user.unitSystem} measurement system.`),
@@ -36,7 +46,14 @@ export async function generateHabitSchema(prompt: string, currentSchema?: any) {
       }),
     });
 
-    return { success: true, schema: object, category: object.category };
+    // category and frequency are suggestions for the editor, not part of the habit's form schema
+    const { category, frequency, ...schema } = object;
+    return {
+      success: true,
+      schema,
+      frequency,
+      categoryId: category ? categoryIdsByLabel.get(category) : undefined,
+    };
   } catch (error) {
     console.error("Error generating schema:", error);
     return { success: false, error: "Failed to generate schema." };

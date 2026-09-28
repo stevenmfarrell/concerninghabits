@@ -543,7 +543,8 @@ export default function LogClient({ habit, user }: { habit: any, user: any }) {
             frequency={habit.frequency} 
             targetCount={JSON.parse(habit.schema).targetCount || 3} 
             bedtime={user.bedtime} 
-            weekStartsOn={user.weekStartsOn} 
+            weekStartsOn={user.weekStartsOn}
+            timeZone={user.timeZone}
           />
         </div>
       </Link>

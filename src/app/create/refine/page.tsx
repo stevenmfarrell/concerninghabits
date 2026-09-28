@@ -54,8 +54,8 @@ export default function RefineHabit() {
           initialTitle={draft.schema?.title || ''}
           initialDescription={draft.schema?.description || ''}
           initialSchema={draft.schema}
-          initialFrequency="daily"
-          initialCategoryId=""
+          initialFrequency={draft.frequency || 'daily'}
+          initialCategoryId={draft.categoryId || ''}
           isCreateMode={true}
           onSave={handleSave}
           onChangeTitle={handleTitleChange}

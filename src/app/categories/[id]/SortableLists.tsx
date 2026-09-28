@@ -68,6 +68,7 @@ const SortableSubcategoryItem = ({ sub, user, isOverlay, isReordering, className
                     targetCount={subTargetCount} 
                     bedtime={user.bedtime} 
                     weekStartsOn={user.weekStartsOn}
+                    timeZone={user.timeZone}
                     emptyColor="bg-stone-200"
                     futureColor="bg-transparent border border-stone-200"
                   />
@@ -195,7 +196,8 @@ const SortableHabitItem = ({ habit, user, isOverlay, isReordering, className = '
                 frequency={habit.frequency} 
                 targetCount={habitTargetCount} 
                 bedtime={user.bedtime} 
-                weekStartsOn={user.weekStartsOn} 
+                weekStartsOn={user.weekStartsOn}
+                timeZone={user.timeZone}
               />
             </div>
           </div>

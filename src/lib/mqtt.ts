@@ -3,7 +3,7 @@ import mqtt from 'mqtt';
 const MQTT_URL = process.env.MQTT_URL;
 const MQTT_USERNAME = process.env.MQTT_USERNAME;
 const MQTT_PASSWORD = process.env.MQTT_PASSWORD;
-const MQTT_TOPIC_PREFIX = process.env.MQTT_TOPIC_PREFIX || 'habiton';
+const MQTT_TOPIC_PREFIX = process.env.MQTT_TOPIC_PREFIX || 'concerninghabits';
 
 // Global variable to maintain the connection in a serverless/Next.js dev environment
 const globalForMqtt = global as unknown as { mqttClient: mqtt.MqttClient | null };
@@ -55,9 +55,9 @@ export function publishHabitLog(user: any, habit: any, payload: any) {
 
   const userSlug = slugify(user.name);
   const habitSlug = slugify(habit.name);
-  // e.g. habiton/users/steven/habits/morning_run/log
+  // e.g. concerninghabits/users/steven/habits/morning_run/log
   const topic = `${MQTT_TOPIC_PREFIX}/users/${userSlug}/habits/${habitSlug}/log`;
-  
+
   const message = JSON.stringify({
     userId: user.id,
     userName: user.name,

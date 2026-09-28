@@ -66,8 +66,7 @@ export default function CreateHabit() {
               onClick={() => {
                 sessionStorage.setItem('draftHabit', JSON.stringify({
                   success: true,
-                  schema: { title: 'New Habit', type: 'object', properties: {} },
-                  category: 'Other'
+                  schema: { title: 'New Habit', type: 'object', properties: {} }
                 }));
                 router.push('/create/refine');
               }}

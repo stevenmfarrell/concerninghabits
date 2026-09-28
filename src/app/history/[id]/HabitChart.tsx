@@ -13,7 +13,8 @@ export default function HabitChart({
   habitId,
   defaultSelectedField,
   defaultChartTypes,
-  schemaObj
+  schemaObj,
+  timeZone
 }: { 
   logs: { id: string, createdAt: Date, payload: string }[], 
   numericFields: string[],
@@ -21,7 +22,8 @@ export default function HabitChart({
   habitId: string,
   defaultSelectedField: string,
   defaultChartTypes: Record<string, 'line' | 'bar'>,
-  schemaObj?: any
+  schemaObj?: any,
+  timeZone: string
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -62,7 +64,7 @@ export default function HabitChart({
         return {
           logId: log.id,
           date: new Date(log.createdAt).getTime(), // Sort by time
-          dateStr: new Date(log.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+          dateStr: new Date(log.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone }),
           value: typeof val === 'number' ? val : null
         };
       } catch (e) {
@@ -218,7 +220,7 @@ export default function HabitChart({
                   contentStyle={{ borderRadius: '12px', border: '1px solid #e7e5e4', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                   labelStyle={{ color: '#57534e', fontWeight: 600, marginBottom: '4px' }}
                   itemStyle={{ color: '#047857', fontWeight: 700 }}
-                  labelFormatter={(label: any) => new Date(label).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+                  labelFormatter={(label: any) => new Date(label).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone })}
                   formatter={(value: any) => [formatLogValue(value, schemaObj?.properties?.[selectedField]), selectedField.replace(/([A-Z])/g, ' $1').trim().replace(/^./, str => str.toUpperCase())]}
                 />
                 <Bar 
@@ -242,7 +244,7 @@ export default function HabitChart({
                   axisLine={false}
                   tickLine={false}
                   tick={{ fill: '#78716c', fontSize: 12 }}
-                  tickFormatter={(tick) => new Date(tick).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                  tickFormatter={(tick) => new Date(tick).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone })}
                   dy={10}
                 />
                 <YAxis 
@@ -257,7 +259,7 @@ export default function HabitChart({
                   contentStyle={{ borderRadius: '12px', border: '1px solid #e7e5e4', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                   labelStyle={{ color: '#57534e', fontWeight: 600, marginBottom: '4px' }}
                   itemStyle={{ color: '#047857', fontWeight: 700 }}
-                  labelFormatter={(label: any) => new Date(label).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+                  labelFormatter={(label: any) => new Date(label).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone })}
                   formatter={(value: any) => [formatLogValue(value, schemaObj?.properties?.[selectedField]), selectedField.replace(/([A-Z])/g, ' $1').trim().replace(/^./, str => str.toUpperCase())]}
                 />
                 <Line 

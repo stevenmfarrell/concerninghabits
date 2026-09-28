@@ -11,6 +11,7 @@ import HorizonToggle from './HorizonToggle';
 import HabitChart from './HabitChart';
 import { formatLogValue } from '../../../lib/format';
 import QuillIconWavy from '../../../components/QuillIconWavy';
+import { parseBedtimeOffsetMinutes, toCivilDate } from '../../../lib/timezone';
 
 export default async function HistoryPage(props: { params: Promise<{ id: string }>, searchParams: Promise<{ horizon?: string, page?: string, highlight?: string, t?: string }> }) {
   const params = await props.params;
@@ -40,21 +41,22 @@ export default async function HistoryPage(props: { params: Promise<{ id: string 
   const mobileMonthsPerColumn = weeks === 52 ? 7 : 4;
   const desktopMonthsPerColumn = weeks === 52 ? 5 : 4;
 
-  // Filter logs based on chosen horizon cutoff date
-  const now = new Date();
-  const cutoffDate = new Date(now);
+  // Filter logs based on chosen horizon cutoff date. Days are calendar days in the viewer's time zone,
+  // with the same bedtime rule as the calendar (see ActivityCalendar).
+  const bedtimeOffsetMinutes = parseBedtimeOffsetMinutes(user.bedtime);
+  const today = toCivilDate(new Date(), user.timeZone, bedtimeOffsetMinutes);
+  const cutoffDate = new Date(today);
   if (weeks >= 52) {
-    cutoffDate.setMonth(cutoffDate.getMonth() - 11);
-    cutoffDate.setDate(1);
+    cutoffDate.setUTCMonth(cutoffDate.getUTCMonth() - 11);
+    cutoffDate.setUTCDate(1);
   } else if (weeks > 7) {
-    cutoffDate.setDate(now.getDate() - weeks * 7 + 1);
-    cutoffDate.setDate(1);
+    cutoffDate.setUTCDate(today.getUTCDate() - weeks * 7 + 1);
+    cutoffDate.setUTCDate(1);
   } else {
-    cutoffDate.setDate(now.getDate() - weeks * 7 + 1);
+    cutoffDate.setUTCDate(today.getUTCDate() - weeks * 7 + 1);
   }
-  cutoffDate.setHours(0, 0, 0, 0);
 
-  const filteredLogs = logs.filter(l => new Date(l.createdAt) >= cutoffDate);
+  const filteredLogs = logs.filter(l => toCivilDate(l.createdAt, user.timeZone, bedtimeOffsetMinutes) >= cutoffDate);
   
   // Pagination
   const pageParam = searchParams?.page || '1';
@@ -129,6 +131,7 @@ export default async function HistoryPage(props: { params: Promise<{ id: string 
             desktopMonthsPerColumn={desktopMonthsPerColumn} 
             bedtime={user.bedtime} 
             weekStartsOn={user.weekStartsOn} 
+            timeZone={user.timeZone}
             pageSize={pageSize}
             habitId={habit.id}
           />
@@ -142,6 +145,7 @@ export default async function HistoryPage(props: { params: Promise<{ id: string 
             defaultSelectedField={savedChartField && numericFields.includes(savedChartField) ? savedChartField : numericFields[0]}
             defaultChartTypes={defaultChartTypes}
             schemaObj={schemaObj}
+            timeZone={user.timeZone}
           />
         )}
 
@@ -182,10 +186,10 @@ export default async function HistoryPage(props: { params: Promise<{ id: string 
                       <td className="p-4 text-stone-800 whitespace-nowrap align-top w-px">
                         <div className="inline-flex flex-col">
                           <span className="font-medium">
-                            {new Date(log.createdAt).toLocaleDateString(undefined, { dateStyle: 'medium' })}
+                            {new Date(log.createdAt).toLocaleDateString('en-US', { dateStyle: 'medium', timeZone: user.timeZone })}
                           </span>
                           <span className="text-sm text-stone-500 text-right">
-                            {new Date(log.createdAt).toLocaleTimeString(undefined, { timeStyle: 'short' })}
+                            {new Date(log.createdAt).toLocaleTimeString('en-US', { timeStyle: 'short', timeZone: user.timeZone })}
                           </span>
                         </div>
                       </td>

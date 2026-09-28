@@ -1,4 +1,4 @@
-# Habiton audit
+# Concerning Habits audit
 
 _2026-09-27, at commit `7f5e013`_
 
@@ -35,10 +35,10 @@ The core idea works well: describe a habit in plain English, the app builds the 
 8. **Logged data isn't checked on the server.** `logHabitEvent` stores whatever `payload` it receives. The form is only validated in the browser.
 
 ### Usability
-9. **Reordering doesn't show up on the home screen.** You've put real work into drag-to-reorder, but the dashboard (`src/app/page.tsx`) sorts categories alphabetically and habits by newest first. It also flattens subcategories into their own top-level groups.
-10. **Two "Other" sections can appear.** Uncategorized habits are labeled "Other", and "Other" is also a default category, so you can get two "Other" groups. Groups also use `name` as their React key, which collides for duplicate names.
-11. **The AI only knows the default categories.** Its category list is hard-coded to Mind, Body, Chores and Other. If a user renames or deletes those, or adds their own, suggestions won't match.
-12. **Time zones.** Server components work out dates in the server's time zone, which is UTC in Docker. That includes the date header, the `getHabits` date window, and the first server render of `ActivityCalendar`. Near midnight, days can land in the wrong bucket, and the server and browser renders may disagree.
+9. **Reordering doesn't show up on the home screen.--FIXED** You've put real work into drag-to-reorder, but the dashboard (`src/app/page.tsx`) sorts categories alphabetically and habits by newest first. It also flattens subcategories into their own top-level groups.
+10. **Two "Other" sections can appear.--FIXED** Uncategorized habits are labeled "Other", and "Other" is also a default category, so you can get two "Other" groups. Groups also use `name` as their React key, which collides for duplicate names.
+11. **The AI only knows the default categories.--FIXED** Its category list is hard-coded to Mind, Body, Chores and Other. If a user renames or deletes those, or adds their own, suggestions won't match.
+12. **Time zones.--FIXED** Server components work out dates in the server's time zone, which is UTC in Docker. That includes the date header, the `getHabits` date window, and the first server render of `ActivityCalendar`. Near midnight, days can land in the wrong bucket, and the server and browser renders may disagree.
 13. **Accessibility.** There is one `aria-label` in the whole codebase. Icon-only buttons (the mobile add button, menus, chevrons) have at most a `title` attribute.
 14. **Offline logging doesn't work.** The README calls it a PWA, but `SWUnregister` removes every service worker, so nothing works without a connection.
 

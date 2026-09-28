@@ -7,6 +7,8 @@ import { verifySession } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { UNCATEGORIZED_ID, UNCATEGORIZED_ICON } from '@/lib/constants';
 import { userPreferencesSchema } from '@/lib/preferences';
+import { TIMEZONE_COOKIE, isValidTimeZone } from '@/lib/timezone';
+import { cookies } from 'next/headers';
 
 export async function getDefaultUser(allowNeedsUpdate = false) {
   const session = await verifySession();
@@ -30,7 +32,14 @@ export async function getDefaultUser(allowNeedsUpdate = false) {
     redirect('/update-password');
   }
 
-  return user;
+  return { ...user, timeZone: await getRequestTimeZone() };
+}
+
+// The viewer's time zone, reported by the browser in a cookie (see TimeZoneSync). Until the
+// browser has reported it, fall back to the server's time zone.
+async function getRequestTimeZone() {
+  const timeZone = (await cookies()).get(TIMEZONE_COOKIE)?.value;
+  return isValidTimeZone(timeZone) ? timeZone : Intl.DateTimeFormat().resolvedOptions().timeZone;
 }
 
 async function getOwnedCategory(userId: string, categoryId: string) {

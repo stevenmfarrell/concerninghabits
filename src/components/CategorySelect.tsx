@@ -3,6 +3,7 @@
 import Select, { SelectOption } from './Select';
 import Icon from './Icon';
 import { Plus } from 'lucide-react';
+import { orderCategoryTree } from '@/lib/categoryChoices';
 
 interface CategorySelectProps {
   categories: any[];
@@ -13,10 +14,13 @@ interface CategorySelectProps {
 }
 
 export default function CategorySelect({ categories, value, onChange, onNew, disabled }: CategorySelectProps) {
-  const options: SelectOption[] = categories.map((c) => ({
-    id: c.id,
-    label: c.name,
-    icon: <Icon name={c.icon || 'List'} className="w-4 h-4" />
+  // Top-level categories in their saved order, each followed by its indented subcategories
+  const options: SelectOption[] = orderCategoryTree(categories).map(({ category, depth, parent }) => ({
+    id: category.id,
+    label: category.name,
+    selectedLabel: parent ? `${parent.name} › ${category.name}` : category.name,
+    depth,
+    icon: <Icon name={category.icon || 'List'} className="w-4 h-4" />
   }));
 
   const footer = (

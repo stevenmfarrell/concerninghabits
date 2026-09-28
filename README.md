@@ -85,7 +85,7 @@ services:
       - MQTT_URL=mqtt://homeassistant.local:1883
       # - MQTT_USERNAME=your-username
       # - MQTT_PASSWORD=your-password
-      # - MQTT_TOPIC_PREFIX=habiton
+      # - MQTT_TOPIC_PREFIX=concerninghabits
     volumes:
       - concerning-habits_data:/app/data
     restart: unless-stopped

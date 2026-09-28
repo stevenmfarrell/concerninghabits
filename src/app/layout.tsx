@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import SWUnregister from "../components/SWUnregister";
+import TimeZoneSync from "../components/TimeZoneSync";
 import { Toaster } from "react-hot-toast";
 import BottomNav from "../components/BottomNav";
 import "./globals.css";
@@ -58,6 +59,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         />
         <BottomNav />
         <SWUnregister />
+        <TimeZoneSync />
       </body>
     </html>
   );

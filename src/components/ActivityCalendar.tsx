@@ -1,7 +1,12 @@
 'use client';
 
+import { civilDayKey, parseBedtimeOffsetMinutes, toCivilDate } from '@/lib/timezone';
+
 interface ActivityCalendarProps {
   dates: Date[];
+  // The viewer's IANA time zone. Days are bucketed in this zone, so the server render and the
+  // browser render agree regardless of where each one runs.
+  timeZone: string;
   weeks?: number;
   frequency?: string;
   size?: 'sm' | 'md';
@@ -14,54 +19,49 @@ interface ActivityCalendarProps {
   onDateClick?: (date: Date) => void;
 }
 
-export default function ActivityCalendar({ dates, weeks = 5, frequency = 'daily', size = 'sm', monthsPerColumn = 4, bedtime = '00:00', weekStartsOn = 'sunday', targetCount = 3, emptyColor = 'bg-stone-100', futureColor = 'bg-transparent border border-stone-100', onDateClick }: ActivityCalendarProps) {
-  let bedtimeOffsetMinutes = 0;
-  if (bedtime && bedtime !== '00:00') {
-    const [h, m] = bedtime.split(':').map(Number);
-    bedtimeOffsetMinutes = (h || 0) * 60 + (m || 0);
-  }
+// All dates below are civil dates (UTC midnight for a day in `timeZone`), so only UTC methods are used.
+export default function ActivityCalendar({ dates, timeZone, weeks = 5, frequency = 'daily', size = 'sm', monthsPerColumn = 4, bedtime = '00:00', weekStartsOn = 'sunday', targetCount = 3, emptyColor = 'bg-stone-100', futureColor = 'bg-transparent border border-stone-100', onDateClick }: ActivityCalendarProps) {
+  const bedtimeOffsetMinutes = parseBedtimeOffsetMinutes(bedtime);
 
-  const today = new Date();
-  if (bedtimeOffsetMinutes > 0) {
-    today.setMinutes(today.getMinutes() - bedtimeOffsetMinutes);
-  }
-  today.setHours(0, 0, 0, 0);
+  const today = toCivilDate(new Date(), timeZone, bedtimeOffsetMinutes);
 
   const getStartOfWeek = (d: Date) => {
     const dt = new Date(d);
-    const day = dt.getDay();
+    const day = dt.getUTCDay();
     if (weekStartsOn === 'monday') {
-      dt.setDate(dt.getDate() - day + (day === 0 ? -6 : 1));
+      dt.setUTCDate(dt.getUTCDate() - day + (day === 0 ? -6 : 1));
     } else {
-      dt.setDate(dt.getDate() - day);
+      dt.setUTCDate(dt.getUTCDate() - day);
     }
     return dt;
   };
 
   const endDate = getStartOfWeek(today);
-  endDate.setDate(endDate.getDate() + 6);
+  endDate.setUTCDate(endDate.getUTCDate() + 6);
 
   // Determine start date
   const startDate = new Date(today);
   if (weeks >= 52) {
     // For a year view, go back 11 months and snap to the 1st to ensure exactly 12 months (3 columns of 4)
-    startDate.setMonth(startDate.getMonth() - 11);
-    startDate.setDate(1);
+    startDate.setUTCMonth(startDate.getUTCMonth() - 11);
+    startDate.setUTCDate(1);
   } else if (weeks > 7) {
     // Snap to 1st of the month
-    startDate.setDate(today.getDate() - weeks * 7 + 1);
-    startDate.setDate(1);
+    startDate.setUTCDate(today.getUTCDate() - weeks * 7 + 1);
+    startDate.setUTCDate(1);
   } else {
     // Start date is exactly (weeks - 1) weeks prior to the start of the current week
     const alignedStart = getStartOfWeek(today);
-    alignedStart.setDate(alignedStart.getDate() - (weeks - 1) * 7);
+    alignedStart.setUTCDate(alignedStart.getUTCDate() - (weeks - 1) * 7);
     startDate.setTime(alignedStart.getTime());
   }
 
   const allDays = [];
-  for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+  for (let d = new Date(startDate); d <= endDate; d.setUTCDate(d.getUTCDate() + 1)) {
     allDays.push(new Date(d));
   }
+
+  const monthKey = (d: Date) => `${d.getUTCFullYear()}-${d.getUTCMonth()}`;
 
   const columns: Date[][] = [];
   let currentColumn: Date[] = [];
@@ -69,7 +69,7 @@ export default function ActivityCalendar({ dates, weeks = 5, frequency = 'daily'
 
   for (let i = 0; i < allDays.length; i++) {
     const d = allDays[i];
-    const monthStr = `${d.getFullYear()}-${d.getMonth()}`;
+    const monthStr = monthKey(d);
     
     if (!currentMonths.has(monthStr)) {
       if (currentMonths.size === monthsPerColumn) {
@@ -83,26 +83,22 @@ export default function ActivityCalendar({ dates, weeks = 5, frequency = 'daily'
   }
   if (currentColumn.length > 0) columns.push(currentColumn);
 
-  const completedDays = new Set<string>();
+  // Logs per day, per week and per month. A log before bedtime counts toward the previous day.
+  const dayCounts = new Map<string, number>();
   const completedWeeks = new Set<string>();
   const completedMonths = new Set<string>();
   
   dates.forEach(d => {
-    const dt = new Date(d);
-    if (bedtimeOffsetMinutes > 0) {
-      dt.setMinutes(dt.getMinutes() - bedtimeOffsetMinutes);
-    }
-    completedDays.add(`${dt.getFullYear()}-${dt.getMonth()}-${dt.getDate()}`);
-    
-    const weekStart = getStartOfWeek(dt);
-    completedWeeks.add(`${weekStart.getFullYear()}-${weekStart.getMonth()}-${weekStart.getDate()}`);
-    
-    completedMonths.add(`${dt.getFullYear()}-${dt.getMonth()}`);
+    const dt = toCivilDate(d, timeZone, bedtimeOffsetMinutes);
+    const dayKey = civilDayKey(dt);
+    dayCounts.set(dayKey, (dayCounts.get(dayKey) ?? 0) + 1);
+    completedWeeks.add(civilDayKey(getStartOfWeek(dt)));
+    completedMonths.add(monthKey(dt));
   });
 
   const processedColumns = columns.map(col => {
     const firstDay = col[0];
-    const padStart = (firstDay.getDay() - (weekStartsOn === 'monday' ? 1 : 0) + 7) % 7;
+    const padStart = (firstDay.getUTCDay() - (weekStartsOn === 'monday' ? 1 : 0) + 7) % 7;
     const padded = Array(padStart).fill(null).concat(col);
     const padEnd = (7 - (padded.length % 7)) % 7;
     const fullCol = padded.concat(Array(padEnd).fill(null));
@@ -114,7 +110,7 @@ export default function ActivityCalendar({ dates, weeks = 5, frequency = 'daily'
       for (let d = 0; d < 7; d++) {
         const day = fullCol[w * 7 + d];
         if (!day) {
-          grid.push({ isNull: true, date: new Date(), count: 0, isFuture: false, isPeriodCompleted: false, isNewMonthLeft: false, isNewMonthRight: false, isNewMonthTop: false, isNewMonthBottom: false, w, d });
+          grid.push({ isNull: true, date: today, count: 0, isFuture: false, isPeriodCompleted: false, isNewMonthLeft: false, isNewMonthRight: false, isNewMonthTop: false, isNewMonthBottom: false, w, d });
           continue;
         }
         
@@ -123,24 +119,11 @@ export default function ActivityCalendar({ dates, weeks = 5, frequency = 'daily'
         let isPeriodCompleted = false;
         
         if (!isFuture) {
-          const dayKey = `${day.getFullYear()}-${day.getMonth()}-${day.getDate()}`;
-          const weekStart = getStartOfWeek(day);
-          const weekKey = `${weekStart.getFullYear()}-${weekStart.getMonth()}-${weekStart.getDate()}`;
-          const monthKey = `${day.getFullYear()}-${day.getMonth()}`;
+          const dayCount = dayCounts.get(civilDayKey(day)) ?? 0;
+          count = frequency === 'multiple' ? dayCount : Math.min(dayCount, 1);
 
-          if (frequency === 'multiple') {
-            count = dates.filter(dateObj => {
-              const logDate = new Date(dateObj);
-              return logDate.getDate() === day.getDate() &&
-                     logDate.getMonth() === day.getMonth() &&
-                     logDate.getFullYear() === day.getFullYear();
-            }).length;
-          } else {
-            if (completedDays.has(dayKey)) count = 1;
-          }
-
-          if (frequency === 'weekly' && completedWeeks.has(weekKey)) isPeriodCompleted = true;
-          if (frequency === 'monthly' && completedMonths.has(monthKey)) isPeriodCompleted = true;
+          if (frequency === 'weekly' && completedWeeks.has(civilDayKey(getStartOfWeek(day)))) isPeriodCompleted = true;
+          if (frequency === 'monthly' && completedMonths.has(monthKey(day))) isPeriodCompleted = true;
         }
         
         const prevDay = d > 0 ? fullCol[w * 7 + d - 1] : null;
@@ -148,17 +131,15 @@ export default function ActivityCalendar({ dates, weeks = 5, frequency = 'daily'
         const prevWeekDay = w > 0 ? fullCol[(w - 1) * 7 + d] : null;
         const nextWeekDay = w < colWeeks - 1 ? fullCol[(w + 1) * 7 + d] : null;
 
-        const isNewMonthLeft = d > 0 && (!prevDay || prevDay.getMonth() !== day.getMonth());
-        const isNewMonthRight = d < 6 && (!nextDay || nextDay.getMonth() !== day.getMonth());
+        const isNewMonthLeft = d > 0 && (!prevDay || prevDay.getUTCMonth() !== day.getUTCMonth());
+        const isNewMonthRight = d < 6 && (!nextDay || nextDay.getUTCMonth() !== day.getUTCMonth());
         
-        const isNewMonthTop = (w > 0 && (!prevWeekDay || prevWeekDay.getMonth() !== day.getMonth())) || (w === 0 && day.getDate() <= 7);
+        const isNewMonthTop = (w > 0 && (!prevWeekDay || prevWeekDay.getUTCMonth() !== day.getUTCMonth())) || (w === 0 && day.getUTCDate() <= 7);
         
-        const daysInMonth = new Date(day.getFullYear(), day.getMonth() + 1, 0).getDate();
-        const isNewMonthBottom = (w < colWeeks - 1 && (!nextWeekDay || nextWeekDay.getMonth() !== day.getMonth())) || (w === colWeeks - 1 && day.getDate() > daysInMonth - 7);
+        const daysInMonth = new Date(Date.UTC(day.getUTCFullYear(), day.getUTCMonth() + 1, 0)).getUTCDate();
+        const isNewMonthBottom = (w < colWeeks - 1 && (!nextWeekDay || nextWeekDay.getUTCMonth() !== day.getUTCMonth())) || (w === colWeeks - 1 && day.getUTCDate() > daysInMonth - 7);
 
-        const isToday = day.getDate() === today.getDate() && 
-                        day.getMonth() === today.getMonth() && 
-                        day.getFullYear() === today.getFullYear();
+        const isToday = civilDayKey(day) === civilDayKey(today);
         
         grid.push({ isNull: false, date: day, count, isFuture, isPeriodCompleted, isNewMonthLeft, isNewMonthRight, isNewMonthTop, isNewMonthBottom, w, d, isToday });
       }
@@ -196,12 +177,12 @@ export default function ActivityCalendar({ dates, weeks = 5, frequency = 'daily'
         let currentBlock: any = null;
         for (const cell of grid) {
           if (cell.isNull) continue;
-          if (!currentBlock || currentBlock.month !== cell.date.getMonth()) {
+          if (!currentBlock || currentBlock.month !== cell.date.getUTCMonth()) {
             if (currentBlock) monthBlocks.push(currentBlock);
-            const monthStr = cell.date.toLocaleString('default', { month: 'short' }).toUpperCase();
+            const monthStr = cell.date.toLocaleString('en-US', { month: 'short', timeZone: 'UTC' }).toUpperCase();
             currentBlock = {
-              month: cell.date.getMonth(),
-              year: cell.date.getFullYear(),
+              month: cell.date.getUTCMonth(),
+              year: cell.date.getUTCFullYear(),
               startW: cell.w,
               endW: cell.w,
               text: monthStr
@@ -265,7 +246,7 @@ export default function ActivityCalendar({ dates, weeks = 5, frequency = 'daily'
                   return (
                     <div
                       key={i}
-                      title={cell.isFuture ? undefined : `${cell.date.toLocaleDateString()}: ${cell.count} logs`}
+                      title={cell.isFuture ? undefined : `${cell.date.toLocaleDateString('en-US', { timeZone: 'UTC' })}: ${cell.count} logs`}
                       onClick={() => {
                         if (onDateClick && !cell.isFuture) onDateClick(cell.date);
                       }}

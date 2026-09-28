@@ -7,6 +7,8 @@ export interface SelectOption {
   id: string;
   label: string;
   icon?: ReactNode;
+  depth?: number;          // indent level in the open list
+  selectedLabel?: string;  // shown in the closed trigger instead of label, e.g. with the parent's name
 }
 
 export interface SelectProps {
@@ -53,7 +55,7 @@ export default function Select({
           {selectedOption ? (
             <>
               {selectedOption.icon && <div className="shrink-0">{selectedOption.icon}</div>}
-              <span className="truncate">{selectedOption.label}</span>
+              <span className="truncate">{selectedOption.selectedLabel ?? selectedOption.label}</span>
             </>
           ) : (
             <span className="text-stone-400 truncate">{placeholder}</span>
@@ -75,6 +77,7 @@ export default function Select({
               className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-stone-50 transition-colors ${
                 value === option.id ? 'bg-emerald-50 text-emerald-700 font-medium' : 'text-stone-700'
               }`}
+              style={option.depth ? { paddingLeft: `${0.75 + option.depth * 1.25}rem` } : undefined}
             >
               {option.icon && <div className={`shrink-0 ${value === option.id ? 'text-emerald-600' : 'text-stone-400'}`}>{option.icon}</div>}
               <span className="truncate">{option.label}</span>
