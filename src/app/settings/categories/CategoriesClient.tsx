@@ -9,6 +9,7 @@ import { Plus, Trash2, Edit2, Check, X, Loader2, ArrowLeft, GripVertical } from 
 import { Fragment } from 'react';
 import Link from 'next/link';
 import ConfirmDialog from '../../../components/ConfirmDialog';
+import { UNCATEGORIZED_ICON } from '@/lib/constants';
 import { DndContext, closestCenter, pointerWithin, rectIntersection, PointerSensor, TouchSensor, KeyboardSensor, useSensor, useSensors, MeasuringStrategy, DragOverlay, defaultDropAnimationSideEffects, CollisionDetection, useDroppable } from '@dnd-kit/core';
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -54,6 +55,8 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
   const [loading, setLoading] = useState('');
   const [activeId, setActiveId] = useState<string | null>(null);
   const [projectedParentId, setProjectedParentId] = useState<string | null>(null);
+  // Where a subcategory will land when dropped onto a top-level row to become top-level
+  const [promoteIndicator, setPromoteIndicator] = useState<{ targetId: string, position: 'before' | 'after' } | null>(null);
   
   // New Category State
   const [addingParentId, setAddingParentId] = useState<string | null>(null);
@@ -111,10 +114,30 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
   const handleDragCancel = () => {
     setActiveId(null);
     setProjectedParentId(null);
+    setPromoteIndicator(null);
+  };
+
+  // Top-level rows don't shift while a subcategory is dragged over them, so place it
+  // before or after the row based on which half of the row the dragged item is over.
+  const getDropPosition = (active: any, over: any): 'before' | 'after' => {
+    const dragged = active.rect.current.translated;
+    if (!dragged || !over?.rect) return 'before';
+    const draggedCenter = dragged.top + dragged.height / 2;
+    const overCenter = over.rect.top + over.rect.height / 2;
+    return draggedCenter > overCenter ? 'after' : 'before';
+  };
+
+  // A subcategory dropped onto a top-level row (without dragging right to nest) becomes top-level
+  const getPromotion = (active: any, over: any, delta: any) => {
+    const source = categories.find(c => c.id === active.id);
+    const target = over ? categories.find(c => c.id === over.id) : null;
+    if (!source?.parentId || !target || target.parentId || delta.x > 30) return null;
+    return { targetId: target.id as string, position: getDropPosition(active, over) };
   };
 
   const handleDragMove = (event: any) => {
     const { active, over, delta } = event;
+    setPromoteIndicator(getPromotion(active, over, delta));
     if (!over) {
       setProjectedParentId(null);
       return;
@@ -152,8 +175,11 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
 
   const handleDragEnd = async (event: any) => {
     setActiveId(null);
+    setProjectedParentId(null);
+    setPromoteIndicator(null);
     const { active, over, delta } = event;
     if (!over) return;
+    const promotion = getPromotion(active, over, delta);
     
     const sourceId = active.id;
     let targetId = over.id;
@@ -183,6 +209,8 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
     } else if (targetId !== sourceId && target) {
       if (source.parentId && target.parentId) {
         newParentId = target.parentId;
+      } else if (promotion) {
+        newParentId = null;
       }
     }
 
@@ -226,7 +254,7 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
         if (target.parentId === newParentId) {
           const tIdx = siblings.findIndex(c => c.id === targetId);
           if (tIdx !== -1) {
-            insertIndex = tIdx; 
+            insertIndex = promotion?.position === 'after' ? tIdx + 1 : tIdx;
           }
         } else if (newParentId === target.id) {
           insertIndex = 0;
@@ -359,6 +387,9 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
           )}
         </div>
         {childrenNode}
+        {promoteIndicator && promoteIndicator.targetId === cat.id && !dndProps?.isOverlay && (
+          <div className={`absolute left-2 right-2 h-0.5 bg-emerald-500 rounded-full z-50 pointer-events-none ${promoteIndicator.position === 'before' ? '-top-px' : '-bottom-px'}`} />
+        )}
       </li>
     );
   };
@@ -512,11 +543,11 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
             })() : null}
           </DragOverlay>
           
-          <li className="group relative">
+          <div className="group relative border-t border-stone-100">
             <div className="py-3 sm:py-4 pr-3 sm:pr-4 pl-3 sm:pl-4 flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-4 hover:bg-stone-50/50 transition-colors rounded-b-2xl">
               <div className="w-5 h-5 shrink-0 ml-0" />
-              <div className="w-10 h-10 rounded-full bg-stone-100 flex items-center justify-center shrink-0">
-                <Icon name="FolderGit2" className="w-5 h-5 text-stone-400" />
+              <div className="w-10 h-10 rounded-xl bg-stone-100 flex items-center justify-center shrink-0">
+                <Icon name={UNCATEGORIZED_ICON} className="w-5 h-5 text-stone-400" />
               </div>
               <div className="flex-1 min-w-[120px]">
                 <span className="font-medium text-stone-500 italic">Uncategorized</span>
@@ -525,7 +556,7 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
                 <span className="text-xs text-stone-400 font-medium px-2 py-1 bg-stone-100 rounded-md">Default system category</span>
               </div>
             </div>
-          </li>
+          </div>
           
         </DndContext>
 

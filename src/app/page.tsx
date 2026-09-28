@@ -4,7 +4,7 @@ import { Plus, ChevronRight, Star, Settings2 } from 'lucide-react';
 import Icon from '../components/Icon';
 import ActivityCalendar from '../components/ActivityCalendar';
 import { SortableHabitList } from './categories/[id]/SortableLists';
-import { UNCATEGORIZED_ID } from '@/lib/constants';
+import { UNCATEGORIZED_ID, UNCATEGORIZED_ICON } from '@/lib/constants';
 
 type CategoryRowProps = {
   href: string;
@@ -159,7 +159,7 @@ export default async function Dashboard() {
                   <CategoryRow
                     href={`/categories/${UNCATEGORIZED_ID}`}
                     name="Uncategorized"
-                    icon="Inbox"
+                    icon={UNCATEGORIZED_ICON}
                     dates={uncategorized.flatMap(h => h.logs.map(l => l.createdAt))}
                     habitCount={uncategorized.length}
                     bedtime={user.bedtime}

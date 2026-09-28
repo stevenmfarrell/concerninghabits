@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache';
 
 import { verifySession } from '@/lib/auth';
 import { redirect } from 'next/navigation';
-import { UNCATEGORIZED_ID } from '@/lib/constants';
+import { UNCATEGORIZED_ID, UNCATEGORIZED_ICON } from '@/lib/constants';
 
 export async function getDefaultUser(allowNeedsUpdate = false) {
   const session = await verifySession();
@@ -60,7 +60,7 @@ export async function getCategory(id: string) {
     return {
       id: UNCATEGORIZED_ID,
       name: 'Uncategorized',
-      icon: 'Inbox',
+      icon: UNCATEGORIZED_ICON,
       parentId: null,
       parent: null,
       children: [] as never[],
