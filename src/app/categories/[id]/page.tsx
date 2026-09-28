@@ -7,9 +7,12 @@ import BackButton from '../../history/[id]/BackButton';
 import { ChevronRight, } from 'lucide-react';
 import QuillIconWavy from '../../../components/QuillIconWavy';
 import CategoryMenu from './CategoryMenu';
+import { SortableSubcategoryList, SortableHabitList } from './SortableLists';
 
-export default async function CategoryLogPage(props: { params: Promise<{ id: string }> }) {
+export default async function CategoryLogPage(props: { params: Promise<{ id: string }>, searchParams: Promise<{ reorder?: string }> }) {
   const params = await props.params;
+  const searchParams = await props.searchParams;
+  const isReordering = searchParams.reorder === 'true';
   const user = await getDefaultUser();
   const category = await getCategory(params.id);
 
@@ -38,80 +41,29 @@ export default async function CategoryLogPage(props: { params: Promise<{ id: str
             <span className="truncate">{category.name}</span>
           </div>
         </h1>
-        <CategoryMenu />
+        {isReordering ? (
+          <div className="relative z-10 shrink-0">
+            <Link href={`/categories/${category.id}`} className="px-4 py-1.5 bg-stone-900 text-white font-semibold rounded-lg text-sm hover:bg-stone-800 transition-colors">
+              Done
+            </Link>
+          </div>
+        ) : (
+          <CategoryMenu categoryId={category.id} />
+        )}
       </div>
 
       <div className="p-4 sm:p-8 max-w-4xl mx-auto w-full space-y-6 sm:space-y-8">
         
         {/* Component Lists Front and Center */}
-        {isTopLevel && category.children && category.children.length > 0 && (
+        {category.habits && category.habits.length > 0 && (
           <div className="space-y-4">
-            <h2 className="text-xl font-bold text-stone-900 px-2">Subcategories</h2>
-            <div className="bg-white rounded-2xl shadow-sm border border-stone-100 overflow-hidden divide-y divide-stone-100 flex flex-col">
-              {category.children.map(sub => (
-                <Link 
-                  key={sub.id} 
-                  href={`/categories/${sub.id}`}
-                  className="p-4 sm:p-5 transition-colors hover:bg-stone-50 flex justify-between items-center group"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-stone-100 flex items-center justify-center text-stone-600 group-hover:bg-emerald-100 group-hover:text-emerald-600 transition-colors">
-                      <Icon name={sub.icon || 'Folder'} className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-stone-800 group-hover:text-emerald-600 transition-colors">{sub.name}</h3>
-                      <p className="text-sm text-stone-500">{sub.habits.length} habits</p>
-                    </div>
-                  </div>
-                  <ChevronRight className="w-5 h-5 text-stone-300 group-hover:text-emerald-600 transition-colors" />
-                </Link>
-              ))}
-            </div>
+            <SortableHabitList items={category.habits} user={user} isReordering={isReordering} dndContextId="direct-habits-dnd-context" />
           </div>
         )}
 
-        {category.habits && category.habits.length > 0 && (
+        {isTopLevel && category.children && category.children.length > 0 && (
           <div className="space-y-4">
-            <h2 className="text-xl font-bold text-stone-900 px-2">Habits in {category.name}</h2>
-            <div className="bg-white rounded-2xl shadow-sm border border-stone-100 overflow-hidden divide-y divide-stone-100 flex flex-col">
-              {category.habits.map(habit => {
-                let habitTargetCount = 3;
-                try {
-                  habitTargetCount = JSON.parse(habit.schema).targetCount || 3;
-                } catch (e) {}
-                  
-                return (
-                  <Link
-                    key={habit.id}
-                    href={`/log/${habit.id}`}
-                    className="flex items-stretch transition-colors hover:bg-stone-50 group/row"
-                  >
-                    <div className="flex-1 flex items-center py-4 px-4 sm:px-6 gap-3 sm:gap-6 min-w-0">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-base sm:text-lg font-semibold text-stone-800 group-hover/row:text-emerald-600 transition-colors truncate">
-                          {habit.name}
-                        </h3>
-                      </div>
-                      <div className="shrink-0 flex flex-col justify-center">
-                        <div className="opacity-80 group-hover/row:opacity-100 transition-opacity">
-                          <ActivityCalendar 
-                            dates={habit.logs.map((l: any) => l.createdAt)} 
-                            weeks={3} 
-                            frequency={habit.frequency} 
-                            targetCount={habitTargetCount} 
-                            bedtime={user.bedtime} 
-                            weekStartsOn={user.weekStartsOn} 
-                          />
-                        </div>
-                      </div>
-                      <div className="shrink-0 text-stone-300 group-hover/row:text-emerald-600 transition-colors">
-                        <QuillIconWavy className="w-6 h-6 sm:w-7 sm:h-7" strokeWidth={2.5} />
-                      </div>
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
+            <SortableSubcategoryList items={category.children} user={user} isReordering={isReordering} />
           </div>
         )}
 

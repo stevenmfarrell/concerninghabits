@@ -59,11 +59,13 @@ export async function getCategory(id: string) {
         orderBy: [{ order: 'asc' }, { name: 'asc' }],
         include: {
           habits: {
+            orderBy: [{ order: 'asc' }, { name: 'asc' }],
             include: { logs: { select: { createdAt: true, payload: true } } }
           }
         }
       },
       habits: {
+        orderBy: [{ order: 'asc' }, { name: 'asc' }],
         include: { logs: { select: { createdAt: true, payload: true } } }
       },
       parent: true
@@ -134,6 +136,7 @@ export async function saveHabit(name: string, description: string, schema: any, 
         frequency,
         publishToMqtt,
         userId: user.id,
+        order: 9999,
       }
     });
     
@@ -233,6 +236,11 @@ export async function updateHabit(id: string, name: string, description: string,
   if (!existing || existing.userId !== user.id) throw new Error("Unauthorized");
 
   try {
+    let newOrder = existing.order;
+    if (existing.categoryId !== (categoryId || null)) {
+      newOrder = 9999;
+    }
+
     const habit = await prisma.habit.update({
       where: { id },
       data: {
@@ -242,6 +250,7 @@ export async function updateHabit(id: string, name: string, description: string,
         categoryId: categoryId || null,
         frequency,
         publishToMqtt,
+        order: newOrder,
       }
     });
     
@@ -285,6 +294,31 @@ export async function reorderCategories(updates: { id: string, order: number }[]
     updates.map(update => 
       prisma.category.updateMany({
         where: { id: update.id, userId: user.id },
+        data: { order: update.order }
+      })
+    )
+  );
+  
+  revalidatePath('/');
+}
+
+export async function reorderHabits(updates: { id: string; order: number }[]) {
+  const user = await getDefaultUser();
+  
+  // Verify all habits belong to user before updating
+  const habits = await prisma.habit.findMany({
+    where: { id: { in: updates.map(u => u.id) }, userId: user.id }
+  });
+  
+  if (habits.length !== updates.length) {
+    throw new Error("Unauthorized or invalid habit IDs");
+  }
+
+  // Update in a transaction
+  await prisma.$transaction(
+    updates.map(update => 
+      prisma.habit.update({
+        where: { id: update.id },
         data: { order: update.order }
       })
     )

@@ -37,6 +37,7 @@ model Session {
 model Habit {
   publishToMqtt Boolean @default(false)
   id          String     @id @default(uuid())
+  order       Int?       @default(0)
   name        String
   description String?
   schema      String

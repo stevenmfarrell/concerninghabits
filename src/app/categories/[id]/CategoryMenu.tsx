@@ -5,7 +5,9 @@ import { MoreVertical, Link2, Settings } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
 
-export default function CategoryMenu() {
+import { ArrowUpDown } from 'lucide-react';
+
+export default function CategoryMenu({ categoryId }: { categoryId?: string }) {
   const [menuOpen, setMenuOpen] = useState(false);
 
   const handleCopyUrl = () => {
@@ -27,6 +29,16 @@ export default function CategoryMenu() {
         <>
           <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
           <div className="absolute right-0 mt-1 w-56 bg-white rounded-xl shadow-lg border border-stone-100 py-2 z-50">
+            {categoryId && (
+              <Link 
+                href={`/categories/${categoryId}?reorder=true`}
+                className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-stone-700 hover:bg-stone-50 hover:text-emerald-600 transition-colors"
+                onClick={() => setMenuOpen(false)}
+              >
+                <ArrowUpDown className="w-4 h-4" />
+                Reorder
+              </Link>
+            )}
             <Link 
               href={`/settings/categories`}
               className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-stone-700 hover:bg-stone-50 hover:text-emerald-600 transition-colors"
