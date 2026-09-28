@@ -10,23 +10,36 @@ import { Fragment } from 'react';
 import Link from 'next/link';
 import ConfirmDialog from '../../../components/ConfirmDialog';
 import { UNCATEGORIZED_ICON } from '@/lib/constants';
-import { DndContext, closestCenter, pointerWithin, rectIntersection, PointerSensor, TouchSensor, KeyboardSensor, useSensor, useSensors, MeasuringStrategy, DragOverlay, defaultDropAnimationSideEffects, CollisionDetection, useDroppable } from '@dnd-kit/core';
-import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
+import toast from 'react-hot-toast';
+import { DropResult, computeDrop, applyDrop, getDropPosition, sameDropResult } from './categoryDrop';
+import { DndContext, closestCenter, rectIntersection, PointerSensor, TouchSensor, KeyboardSensor, useSensor, useSensors, MeasuringStrategy, DragOverlay, defaultDropAnimationSideEffects, CollisionDetection, useDroppable } from '@dnd-kit/core';
+import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable, SortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
 
 
 
+// Pick the row at the pointer's height, ignoring horizontal position, so drifting sideways off the
+// list mid-drag doesn't change the target. Rows are nested (a parent's row contains its subcategory
+// rows), so the shortest matching row is the most specific one.
 const customCollisionDetection: CollisionDetection = (args) => {
-  // First, let's see if the pointer is within any droppable
-  const pointerIntersections = pointerWithin(args);
-  
-  if (pointerIntersections.length > 0) {
-    return pointerIntersections;
+  const { pointerCoordinates, droppableRects, droppableContainers } = args;
+
+  if (pointerCoordinates) {
+    const { y } = pointerCoordinates;
+    const rows = droppableContainers
+      .map(container => ({ container, rect: droppableRects.get(container.id) }))
+      .filter((row): row is { container: typeof row.container, rect: NonNullable<typeof row.rect> } => !!row.rect);
+
+    const hits = rows
+      .filter(({ rect }) => y >= rect.top && y < rect.bottom)
+      .sort((a, b) => a.rect.height - b.rect.height)
+      .map(({ container, rect }) => ({ id: container.id, data: { droppableContainer: container, value: rect.height } }));
+
+    if (hits.length > 0) return hits;
   }
-  
-  // If the pointer is completely outside (e.g. in a gap or off screen),
-  // fallback to closestCenter so it doesn't return null and reset the position!
+
+  // Above or below the whole list: fall back to the nearest row
   return closestCenter(args);
 };
 
@@ -41,22 +54,23 @@ const SubcategoryDropZone = ({ isProjected }: { isProjected: boolean }) => {
   );
 }
 
-const SortableItem = ({ cat, renderCategoryRow, childrenNode, disabled, activeId, activeHasChildren, projectedParentId }: { cat: any, renderCategoryRow: any, childrenNode?: React.ReactNode, disabled?: boolean, activeId?: string | null, activeHasChildren?: boolean, projectedParentId?: string | null }) => {
+const SortableItem = ({ cat, renderCategoryRow, childrenNode, disabled }: { cat: any, renderCategoryRow: any, childrenNode?: React.ReactNode, disabled?: boolean }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: cat.id, disabled });
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
   };
-  return renderCategoryRow(cat, { attributes, listeners, setNodeRef, style, isDragging, activeId, activeHasChildren, projectedParentId }, childrenNode);
+  return renderCategoryRow(cat, { attributes, listeners, setNodeRef, style, isDragging }, childrenNode);
 };
+
+// Rows only slide out of the way for a plain reorder; other moves are previewed with indicators
+const noDisplacement: SortingStrategy = () => null;
 
 export default function CategoriesClient({ initialCategories }: { initialCategories: any[] }) {
   const [categories, setCategories] = useState(initialCategories);
   const [loading, setLoading] = useState('');
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [projectedParentId, setProjectedParentId] = useState<string | null>(null);
-  // Where a subcategory will land when dropped onto a top-level row to become top-level
-  const [promoteIndicator, setPromoteIndicator] = useState<{ targetId: string, position: 'before' | 'after' } | null>(null);
+  const [dropPreview, setDropPreview] = useState<DropResult | null>(null);
   
   // New Category State
   const [addingParentId, setAddingParentId] = useState<string | null>(null);
@@ -113,192 +127,47 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
 
   const handleDragCancel = () => {
     setActiveId(null);
-    setProjectedParentId(null);
-    setPromoteIndicator(null);
+    setDropPreview(null);
   };
 
-  // Top-level rows don't shift while a subcategory is dragged over them, so place it
-  // before or after the row based on which half of the row the dragged item is over.
-  const getDropPosition = (active: any, over: any): 'before' | 'after' => {
-    const dragged = active.rect.current.translated;
-    if (!dragged || !over?.rect) return 'before';
-    const draggedCenter = dragged.top + dragged.height / 2;
-    const overCenter = over.rect.top + over.rect.height / 2;
-    return draggedCenter > overCenter ? 'after' : 'before';
-  };
-
-  // A subcategory dropped onto a top-level row (without dragging right to nest) becomes top-level
-  const getPromotion = (active: any, over: any, delta: any) => {
-    const source = categories.find(c => c.id === active.id);
-    const target = over ? categories.find(c => c.id === over.id) : null;
-    if (!source?.parentId || !target || target.parentId || delta.x > 30) return null;
-    return { targetId: target.id as string, position: getDropPosition(active, over) };
-  };
+  const computeDropForEvent = (event: any) =>
+    computeDrop(
+      categories,
+      event.active.id,
+      event.over?.id ?? null,
+      event.delta.x,
+      getDropPosition(event.active.rect.current.translated, event.over?.rect),
+    );
 
   const handleDragMove = (event: any) => {
-    const { active, over, delta } = event;
-    setPromoteIndicator(getPromotion(active, over, delta));
-    if (!over) {
-      setProjectedParentId(null);
-      return;
-    }
-    
-    let newParentId = null;
-    if (delta.x > 30) {
-      const sourceId = active.id;
-      const targetId = over.id;
-      const source = categories.find(c => c.id === sourceId);
-      const target = categories.find(c => c.id === targetId);
-      
-      if (source && !source.parentId) {
-        const sourceHasChildren = categories.some(c => c.parentId === sourceId);
-        if (!sourceHasChildren) {
-          if (targetId !== sourceId && target) {
-            newParentId = target.parentId || target.id;
-          } else {
-            const topLevels = categories.filter(c => !c.parentId).sort((a,b) => (a.order ?? 0) - (b.order ?? 0));
-            const idx = topLevels.findIndex(c => c.id === sourceId);
-            if (idx > 0) newParentId = topLevels[idx - 1].id;
-          }
-        }
-      }
-    } else if (delta.x < -30) {
-      // Outdent - no projected parent
-    } else if (active.id !== over.id) {
-       const target = categories.find(c => c.id === over.id);
-       if (target && target.parentId) {
-         newParentId = target.parentId;
-       }
-    }
-    setProjectedParentId(newParentId);
+    const next = computeDropForEvent(event);
+    setDropPreview(prev => sameDropResult(prev, next) ? prev : next);
   };
 
   const handleDragEnd = async (event: any) => {
+    const drop = computeDropForEvent(event);
     setActiveId(null);
-    setProjectedParentId(null);
-    setPromoteIndicator(null);
-    const { active, over, delta } = event;
-    if (!over) return;
-    const promotion = getPromotion(active, over, delta);
-    
-    const sourceId = active.id;
-    let targetId = over.id;
-    const source = categories.find(c => c.id === sourceId);
+    setDropPreview(null);
+    if (!drop) return;
+
+    const source = categories.find(c => c.id === event.active.id);
     if (!source) return;
 
-    let newParentId = source.parentId;
-    let target = categories.find(c => c.id === targetId);
-    
-    if (delta.x > 30) {
-      if (!source.parentId) {
-        const sourceHasChildren = categories.some(c => c.parentId === sourceId);
-        if (!sourceHasChildren) {
-          if (targetId !== sourceId && target) {
-            newParentId = target.parentId || target.id;
-          } else {
-            const topLevels = categories.filter(c => !c.parentId).sort((a,b) => (a.order ?? 0) - (b.order ?? 0));
-            const idx = topLevels.findIndex(c => c.id === sourceId);
-            if (idx > 0) newParentId = topLevels[idx - 1].id;
-          }
-        }
-      }
-    } else if (delta.x < -30) {
-      if (source.parentId) {
-        newParentId = null;
-      }
-    } else if (targetId !== sourceId && target) {
-      if (source.parentId && target.parentId) {
-        newParentId = target.parentId;
-      } else if (promotion) {
-        newParentId = null;
-      }
-    }
+    // Update state synchronously so the drop animation lands where the category actually ends up
+    const previous = categories;
+    const next = applyDrop(categories, source.id, drop);
+    setCategories(next);
 
-    if (newParentId === source.id) newParentId = null;
-    
-    if (newParentId !== null && !source.parentId) {
-      const sourceHasChildren = categories.some(c => c.parentId === sourceId);
-      if (sourceHasChildren) newParentId = null;
-    }
-    
-    let isLevelChanged = newParentId !== source.parentId;
-    
-    if (sourceId === targetId && !isLevelChanged) return;
-
-    if (newParentId !== source.parentId) {
-      setLoading(source.id);
-      await updateCategory(source.id, source.name, source.icon || 'List', newParentId);
-      setLoading('');
-    }
-
-    let siblings = categories
-      .filter(c => c.parentId === newParentId)
-      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-      
-    const updatedSource = { ...source, parentId: newParentId };
-
-    if (newParentId === source.parentId) {
-      // Intra-list move (same parent)
-      const oldIndex = siblings.findIndex(c => c.id === sourceId);
-      const newIndex = siblings.findIndex(c => c.id === targetId);
-      if (oldIndex !== -1 && newIndex !== -1) {
-        siblings.splice(oldIndex, 1);
-        siblings.splice(newIndex, 0, updatedSource);
+    try {
+      if ((source.parentId ?? null) !== drop.parentId) {
+        await updateCategory(source.id, source.name, source.icon || 'List', drop.parentId);
       }
-    } else {
-      // Cross-list move (indent/outdent)
-      siblings = siblings.filter(c => c.id !== sourceId);
-      let insertIndex = siblings.length;
-      
-      if (targetId !== sourceId && target) {
-        if (target.parentId === newParentId) {
-          const tIdx = siblings.findIndex(c => c.id === targetId);
-          if (tIdx !== -1) {
-            insertIndex = promotion?.position === 'after' ? tIdx + 1 : tIdx;
-          }
-        } else if (newParentId === target.id) {
-          insertIndex = 0;
-        }
-      }
-      siblings.splice(insertIndex, 0, updatedSource);
+      await reorderCategories(next.map(c => ({ id: c.id, order: c.order })));
+    } catch (err) {
+      console.error('Failed to save category order', err);
+      setCategories(previous);
+      toast.error('Failed to save category order');
     }
-    
-    let orderCounter = 0;
-    const updates: {id: string, order: number}[] = [];
-    
-    const topLevel = categories
-      .filter(c => c.id !== sourceId && !c.parentId)
-      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-      
-    if (!newParentId) {
-      topLevel.length = 0;
-      topLevel.push(...siblings);
-    }
-    
-    topLevel.forEach(p => {
-      updates.push({ id: p.id, order: orderCounter++ });
-      const children = categories
-        .filter(c => c.id !== sourceId && c.parentId === p.id)
-        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-        
-      if (newParentId === p.id) {
-        children.length = 0;
-        children.push(...siblings);
-      }
-      
-      children.forEach(c => {
-        updates.push({ id: c.id, order: orderCounter++ });
-      });
-    });
-    
-    const updateMap = new Map(updates.map(u => [u.id, u.order]));
-    const newCategories = categories.map(c => c.id === sourceId ? updatedSource : c).map(c => ({ 
-      ...c, 
-      order: updateMap.get(c.id) ?? c.order ?? 0 
-    }));
-    
-    setCategories(newCategories);
-    reorderCategories(updates);
   };
 
   const startEdit = (cat: any) => {
@@ -307,6 +176,14 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
     setEditIcon(cat.icon || 'List');
     setEditParentId(cat.parentId || '');
   };
+
+  // "Drag right to nest" targets: top-level rows other than the dragged category and its current parent
+  const showNestZone = (cat: any) => {
+    const activeCat = activeId ? categories.find(c => c.id === activeId) : null;
+    if (!activeCat || cat.parentId || cat.id === activeCat.id || cat.id === activeCat.parentId) return false;
+    return !categories.some(c => c.parentId === activeCat.id);
+  };
+  const sortingStrategy = dropPreview && dropPreview.mode !== 'reorder' ? noDisplacement : verticalListSortingStrategy;
 
   const renderCategoryRow = (cat: any, dndProps?: any, childrenNode?: React.ReactNode) => {
     return (
@@ -382,13 +259,13 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
             </div>
           </>
         )}
-          {dndProps?.activeId && dndProps.activeId !== cat.id && !cat.parentId && !dndProps.activeHasChildren && !dndProps.isOverlay && (
-            <SubcategoryDropZone isProjected={dndProps.projectedParentId === cat.id} />
+          {showNestZone(cat) && !dndProps?.isOverlay && (
+            <SubcategoryDropZone isProjected={dropPreview?.mode === 'nest' && dropPreview.parentId === cat.id} />
           )}
         </div>
         {childrenNode}
-        {promoteIndicator && promoteIndicator.targetId === cat.id && !dndProps?.isOverlay && (
-          <div className={`absolute left-2 right-2 h-0.5 bg-emerald-500 rounded-full z-50 pointer-events-none ${promoteIndicator.position === 'before' ? '-top-px' : '-bottom-px'}`} />
+        {dropPreview && dropPreview.mode !== 'reorder' && dropPreview.anchorId === cat.id && !dndProps?.isOverlay && (
+          <div className={`absolute left-2 right-2 h-0.5 bg-emerald-500 rounded-full z-50 pointer-events-none ${dropPreview.position === 'after' ? '-bottom-px' : '-top-px'}`} />
         )}
       </li>
     );
@@ -423,7 +300,7 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
           measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
         >
           <ul className="divide-y divide-stone-100">
-            <SortableContext items={categories.filter(c => !c.parentId).sort((a,b) => (a.order??0) - (b.order??0)).map(c => c.id)} strategy={verticalListSortingStrategy}>
+            <SortableContext items={categories.filter(c => !c.parentId).sort((a,b) => (a.order??0) - (b.order??0)).map(c => c.id)} strategy={sortingStrategy}>
               {addingParentId === '' && (
                 <li className="p-3 sm:p-4 bg-stone-50 flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-4 border-b border-stone-100">
                   <div className="shrink-0">
@@ -463,22 +340,18 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
                   const children = categories.filter(c => c.parentId === parent.id).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
                   const activeCat = activeId ? categories.find(c => c.id === activeId) : null;
                   const isDraggingTopLevel = activeCat ? !activeCat.parentId : false;
-                  const activeHasChildren = activeId ? categories.some(c => c.parentId === activeId) : false;
                   
                   return (
                     <Fragment key={parent.id}>
                       <SortableItem 
                         cat={parent} 
                         renderCategoryRow={renderCategoryRow}
-                        activeId={activeId}
-                        activeHasChildren={activeHasChildren}
-                        projectedParentId={projectedParentId} 
                         childrenNode={
                           (children.length > 0 || addingParentId === parent.id) ? (
                             <ul className="ml-6 sm:ml-8 border-l-2 border-stone-200">
-                              <SortableContext items={children.map(c => c.id)} strategy={verticalListSortingStrategy}>
+                              <SortableContext items={children.map(c => c.id)} strategy={sortingStrategy}>
                                 {children.map(child => (
-                                  <SortableItem key={child.id} cat={child} renderCategoryRow={renderCategoryRow} disabled={isDraggingTopLevel} activeId={activeId} activeHasChildren={activeHasChildren} projectedParentId={projectedParentId} />
+                                  <SortableItem key={child.id} cat={child} renderCategoryRow={renderCategoryRow} disabled={isDraggingTopLevel} />
                                 ))}
                               </SortableContext>
                               {addingParentId === parent.id && (
