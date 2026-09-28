@@ -10,9 +10,9 @@ import { z } from 'zod';
 import { getDefaultUser } from './db';
 
 export async function generateHabitSchema(prompt: string, currentSchema?: any) {
+  const user = await getDefaultUser();
+
   try {
-    const user = await getDefaultUser();
-    
     const { object } = await generateObject({
       model: google('gemini-flash-lite-latest'),
       maxRetries: 0,
@@ -46,6 +46,8 @@ export async function generateHabitSchema(prompt: string, currentSchema?: any) {
 import { generateText } from 'ai';
 
 export async function parseVoiceLog(schemaStr: string, transcript: string) {
+  await getDefaultUser();
+
   try {
     const { object } = await generateObject({
       model: google('gemini-flash-lite-latest'),
@@ -67,6 +69,8 @@ If the transcript implies a value that matches a field, include it. Otherwise om
 }
 
 export async function parseImageLog(schemaStr: string, base64Image: string) {
+  await getDefaultUser();
+
   try {
     const base64Data = base64Image.split(',')[1];
     

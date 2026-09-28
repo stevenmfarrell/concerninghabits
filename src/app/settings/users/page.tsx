@@ -15,7 +15,8 @@ export default async function UsersSettingsPage() {
   }
 
   const users = await prisma.user.findMany({
-    orderBy: { createdAt: 'asc' }
+    orderBy: { createdAt: 'asc' },
+    omit: { passwordHash: true }
   });
 
   return (

@@ -6,6 +6,7 @@ import { revalidatePath } from 'next/cache';
 import { verifySession } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { UNCATEGORIZED_ID, UNCATEGORIZED_ICON } from '@/lib/constants';
+import { userPreferencesSchema } from '@/lib/preferences';
 
 export async function getDefaultUser(allowNeedsUpdate = false) {
   const session = await verifySession();
@@ -14,9 +15,11 @@ export async function getDefaultUser(allowNeedsUpdate = false) {
     redirect('/login');
   }
 
+  // The user record is passed to client components, so never include the password hash
   const user = await prisma.user.findUnique({
     where: { id: session.userId },
-    include: { categories: true }
+    include: { categories: true },
+    omit: { passwordHash: true }
   });
 
   if (!user) {
@@ -302,9 +305,11 @@ export async function updateHabit(id: string, name: string, description: string,
 
 export async function updateUserPreferences(prefs: { bedtime?: string, weekStartsOn?: string, useEmojiTitle?: boolean, unitSystem?: string, emojiModifier?: string | null }) {
   const user = await getDefaultUser();
+  // Server action arguments come straight from the client; only allow known preference fields
+  const data = userPreferencesSchema.parse(prefs);
   await prisma.user.update({
     where: { id: user.id },
-    data: prefs
+    data
   });
   revalidatePath('/settings');
   revalidatePath('/');
