@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, PlusCircle, Settings, FolderTree } from 'lucide-react';
+import { Home, Settings } from 'lucide-react';
 
 export default function BottomNav() {
   const pathname = usePathname();
@@ -13,8 +13,7 @@ export default function BottomNav() {
   }
 
   const navItems = [
-    { name: 'Dashboard', href: '/', icon: Home },
-    { name: 'Categories', href: '/categories', icon: FolderTree, matchPrefix: '/categories' },
+    { name: 'Dashboard', href: '/', icon: Home, matchPrefix: '/categories' },
     { name: 'Settings', href: '/settings', icon: Settings, matchPrefix: '/settings' },
   ];
 
@@ -27,9 +26,7 @@ export default function BottomNav() {
         <div className="flex justify-around items-center h-16 px-2 sm:px-4 max-w-md mx-auto">
           {navItems.map((item) => {
             const Icon = item.icon;
-            const isActive = item.matchPrefix 
-              ? pathname.startsWith(item.matchPrefix) 
-              : pathname === item.href;
+            const isActive = pathname === item.href || (!!item.matchPrefix && pathname.startsWith(item.matchPrefix));
 
             return (
               <Link

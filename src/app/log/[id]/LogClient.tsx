@@ -3,10 +3,10 @@
 import { useState, useRef, useEffect } from 'react';
 import Form from '@rjsf/core';
 import validator from '@rjsf/validator-ajv8';
-import { logHabitEvent, deleteHabitLog } from '../../actions/db';
+import { logHabitEvent, deleteHabitLog, toggleFavorite } from '../../actions/db';
 import { parseVoiceLog, parseImageLog } from '../../actions/habit';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Check, Loader2, Undo2, Link2, Mic, Camera, MoreVertical, Edit2, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Check, Loader2, Undo2, Link2, Mic, Camera, MoreVertical, Edit2, ChevronRight, Star } from 'lucide-react';
 import ActivityCalendar from '../../../components/ActivityCalendar';
 import QuillIconWavy from '../../../components/QuillIconWavy';
 import Link from 'next/link';
@@ -25,6 +25,18 @@ export default function LogClient({ habit, user }: { habit: any, user: any }) {
   const [showBackdate, setShowBackdate] = useState(false);
   const [aiSuccessLog, setAiSuccessLog] = useState<{ logId: string, data: any } | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [isFavorite, setIsFavorite] = useState<boolean>(!!habit.isFavorite);
+
+  const handleToggleFavorite = async () => {
+    const next = !isFavorite;
+    setIsFavorite(next);
+    try {
+      setIsFavorite(await toggleFavorite(habit.id));
+    } catch (err: any) {
+      setIsFavorite(!next);
+      toast.error(`Failed to update favorite: ${err.message || 'Unknown error'}`);
+    }
+  };
 
   const schema = JSON.parse(habit.schema);
   
@@ -346,11 +358,20 @@ export default function LogClient({ habit, user }: { habit: any, user: any }) {
           <ArrowLeft className="w-6 h-6" strokeWidth={2.5} />
         </Link>
         
-        <h1 className="absolute inset-0 flex items-center justify-center text-xl sm:text-2xl font-bold text-stone-900 pointer-events-none px-14">
+        <h1 className="absolute inset-0 flex items-center justify-center text-xl sm:text-2xl font-bold text-stone-900 pointer-events-none px-24">
           <span className="truncate">{habit.name}</span>
         </h1>
         
-        <div className="relative z-10">
+        <div className="relative z-10 flex items-center gap-1">
+          <button
+            onClick={handleToggleFavorite}
+            className={`p-2 rounded-full transition-colors shrink-0 hover:bg-stone-100 ${isFavorite ? 'text-amber-500' : 'text-stone-500 hover:text-stone-700'}`}
+            title={isFavorite ? 'Remove from Favorites' : 'Add to Favorites'}
+            aria-label={isFavorite ? 'Remove from Favorites' : 'Add to Favorites'}
+            aria-pressed={isFavorite}
+          >
+            <Star className={`w-6 h-6 ${isFavorite ? 'fill-amber-400' : ''}`} />
+          </button>
           <button
             onClick={() => setMenuOpen(!menuOpen)}
             className="p-2 -mr-2 text-stone-500 hover:text-stone-700 hover:bg-stone-100 rounded-full transition-colors shrink-0"

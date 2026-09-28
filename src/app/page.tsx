@@ -1,13 +1,84 @@
-import { getHabits, getDefaultUser } from './actions/db';
+import { getCategoriesWithHierarchy, getDefaultUser, getFavoriteHabits, getUncategorizedHabits } from './actions/db';
 import Link from 'next/link';
-import { Plus, ListTodo, ChevronRight } from 'lucide-react';
+import { Plus, ChevronRight, Star, Settings2 } from 'lucide-react';
 import Icon from '../components/Icon';
 import ActivityCalendar from '../components/ActivityCalendar';
-import QuillIconWavy from '../components/QuillIconWavy';
+import { SortableHabitList } from './categories/[id]/SortableLists';
+import { UNCATEGORIZED_ID } from '@/lib/constants';
+
+type CategoryRowProps = {
+  href: string;
+  name: string;
+  icon: string;
+  dates: Date[];
+  habitCount: number;
+  bedtime: string;
+  weekStartsOn: string;
+};
+
+function CategoryRow({ href, name, icon, dates, habitCount, bedtime, weekStartsOn }: CategoryRowProps) {
+  return (
+    <Link
+      href={href}
+      className="flex items-stretch transition-colors hover:bg-stone-50 group/row"
+    >
+      <div className="flex-1 flex items-center py-4 px-4 sm:px-6 gap-3 sm:gap-6 min-w-0">
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          <div className="w-10 h-10 rounded-full bg-stone-100 flex items-center justify-center text-stone-600 group-hover/row:bg-emerald-100 group-hover/row:text-emerald-600 transition-colors shrink-0">
+            <Icon name={icon} className="w-5 h-5" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="text-lg font-semibold text-stone-800 group-hover/row:text-emerald-600 transition-colors truncate">
+              {name}
+            </h3>
+            <p className="text-sm text-stone-500">
+              {habitCount} {habitCount === 1 ? 'habit' : 'habits'}
+            </p>
+          </div>
+        </div>
+
+        <div className="shrink-0 flex flex-col justify-center">
+          <div className="opacity-80 group-hover/row:opacity-100 transition-opacity">
+            <ActivityCalendar
+              dates={dates}
+              weeks={3}
+              frequency="multiple"
+              targetCount={habitCount > 0 ? habitCount : 1}
+              bedtime={bedtime}
+              weekStartsOn={weekStartsOn}
+            />
+          </div>
+        </div>
+        <div className="shrink-0 text-stone-300 group-hover/row:text-emerald-600 transition-colors">
+          <ChevronRight className="w-5 h-5" />
+        </div>
+      </div>
+    </Link>
+  );
+}
 
 export default async function Dashboard() {
   const user = await getDefaultUser();
-  const habits = await getHabits();
+  const [categories, favorites, uncategorized] = await Promise.all([
+    getCategoriesWithHierarchy(),
+    getFavoriteHabits(),
+    getUncategorizedHabits(),
+  ]);
+
+  const categoryRows = categories
+    .map(cat => {
+      const habits = [...cat.habits, ...cat.children.flatMap(c => c.habits)];
+      return {
+        id: cat.id,
+        name: cat.name,
+        icon: cat.icon || 'Folder',
+        habitCount: habits.length,
+        dates: habits.flatMap(h => h.logs.map(l => l.createdAt)),
+      };
+    })
+    .filter(cat => cat.habitCount > 0);
+
+  const totalHabits = categoryRows.reduce((acc, c) => acc + c.habitCount, 0) + uncategorized.length;
 
   return (
     <main className="flex-1 p-4 sm:p-8 bg-stone-50 font-sans">
@@ -22,7 +93,7 @@ export default async function Dashboard() {
               My Habits
             </h1>
           </div>
-          {habits.length > 0 && (
+          {totalHabits > 0 && (
             <Link
               href="/create"
               className="inline-flex items-center justify-center p-2 sm:px-4 sm:py-2.5 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 transition-colors shadow-sm"
@@ -34,7 +105,7 @@ export default async function Dashboard() {
           )}
         </div>
 
-        {habits.length === 0 ? (
+        {totalHabits === 0 ? (
           <div className="py-24 px-8 sm:px-12 text-center flex flex-col items-center justify-center">
             <img src="/hobbit-hole.svg" alt="Hobbit Hole" className="w-80 max-w-full h-auto opacity-10 mb-8" />
             <h2 className="text-2xl font-semibold text-stone-700 mb-2">No habits here yet</h2>
@@ -48,66 +119,55 @@ export default async function Dashboard() {
             </Link>
           </div>
         ) : (
-          <div className="space-y-12">
-            {Object.values(
-              habits.reduce((acc, habit) => {
-                const catId = habit.category?.id || 'uncategorized';
-                if (!acc[catId]) {
-                  acc[catId] = {
-                    name: habit.category?.name || 'Other',
-                    icon: habit.category?.icon || 'List',
-                    habits: []
-                  };
-                }
-                acc[catId].habits.push(habit);
-                return acc;
-              }, {} as Record<string, { name: string, icon: string, habits: typeof habits }>)
-            )
-              .sort((a, b) => {
-                if (a.name === 'Other') return 1;
-                if (b.name === 'Other') return -1;
-                return a.name.localeCompare(b.name);
-              })
-              .map((group) => (
-                <div key={group.name} className="space-y-4">
-                  <div className="flex items-center gap-2 border-b border-stone-200 pb-2">
-                    <Icon name={group.icon} className="w-6 h-6 text-stone-500" />
-                    <h2 className="text-2xl font-semibold text-stone-800">{group.name}</h2>
-                  </div>
-                  <div className="bg-white rounded-2xl shadow-sm border border-stone-100 overflow-hidden divide-y divide-stone-100 flex flex-col">
-                    {group.habits.map((habit) => {
-                      let targetCount = 3;
-                      try {
-                        targetCount = JSON.parse(habit.schema).targetCount || 3;
-                      } catch (e) { }
-
-                      return (
-                        <Link
-                          key={habit.id}
-                          href={`/log/${habit.id}`}
-                          className="flex items-stretch transition-colors hover:bg-stone-50 group/row"
-                        >
-                          <div className="flex-1 flex items-center py-4 px-4 sm:px-6 gap-3 sm:gap-6 min-w-0">
-                            <div className="flex-1 min-w-0">
-                              <h3 className="text-base sm:text-lg font-semibold text-stone-800 group-hover/row:text-emerald-600 transition-colors truncate">
-                                {habit.name}
-                              </h3>
-                            </div>
-                            <div className="shrink-0 flex flex-col justify-center">
-                              <div className="opacity-80 group-hover/row:opacity-100 transition-opacity">
-                                <ActivityCalendar dates={habit.logs.map((l: any) => l.createdAt)} weeks={3} frequency={habit.frequency} targetCount={targetCount} bedtime={user.bedtime} weekStartsOn={user.weekStartsOn} />
-                              </div>
-                            </div>
-                            <div className="shrink-0 text-stone-300 group-hover/row:text-emerald-600 transition-colors">
-                              <QuillIconWavy className="w-6 h-6 sm:w-7 sm:h-7" strokeWidth={2.5} />
-                            </div>
-                          </div>
-                        </Link>
-                      );
-                    })}
-                  </div>
+          <div className="space-y-10">
+            {favorites.length > 0 && (
+              <section className="space-y-4">
+                <div className="flex items-center gap-2 border-b border-stone-200 pb-2">
+                  <Star className="w-6 h-6 text-stone-500" />
+                  <h2 className="text-2xl font-semibold text-stone-800">Favorites</h2>
                 </div>
-              ))}
+                <SortableHabitList items={favorites} user={user} dndContextId="favorites-dnd-context" />
+              </section>
+            )}
+
+            <section className="space-y-4">
+              <div className="flex items-center justify-between border-b border-stone-200 pb-2">
+                <h2 className="text-2xl font-semibold text-stone-800">Categories</h2>
+                <Link
+                  href="/settings/categories"
+                  className="p-2 -mr-2 text-stone-400 hover:text-emerald-600 hover:bg-stone-100 rounded-full transition-colors"
+                  title="Manage Categories"
+                  aria-label="Manage Categories"
+                >
+                  <Settings2 className="w-5 h-5" />
+                </Link>
+              </div>
+              <div className="bg-white rounded-2xl shadow-sm border border-stone-100 overflow-hidden divide-y divide-stone-100 flex flex-col">
+                {categoryRows.map(cat => (
+                  <CategoryRow
+                    key={cat.id}
+                    href={`/categories/${cat.id}`}
+                    name={cat.name}
+                    icon={cat.icon}
+                    dates={cat.dates}
+                    habitCount={cat.habitCount}
+                    bedtime={user.bedtime}
+                    weekStartsOn={user.weekStartsOn}
+                  />
+                ))}
+                {uncategorized.length > 0 && (
+                  <CategoryRow
+                    href={`/categories/${UNCATEGORIZED_ID}`}
+                    name="Uncategorized"
+                    icon="Inbox"
+                    dates={uncategorized.flatMap(h => h.logs.map(l => l.createdAt))}
+                    habitCount={uncategorized.length}
+                    bedtime={user.bedtime}
+                    weekStartsOn={user.weekStartsOn}
+                  />
+                )}
+              </div>
+            </section>
           </div>
         )}
       </div>

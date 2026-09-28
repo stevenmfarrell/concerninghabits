@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 
 import { verifySession } from '@/lib/auth';
 import { redirect } from 'next/navigation';
+import { UNCATEGORIZED_ID } from '@/lib/constants';
 
 export async function getDefaultUser(allowNeedsUpdate = false) {
   const session = await verifySession();
@@ -52,6 +53,21 @@ export async function getCategoriesWithHierarchy() {
 
 export async function getCategory(id: string) {
   const user = await getDefaultUser();
+
+  // Habits without a category get a synthetic category so they can use the same pages
+  if (id === UNCATEGORIZED_ID) {
+    const habits = await getUncategorizedHabits();
+    return {
+      id: UNCATEGORIZED_ID,
+      name: 'Uncategorized',
+      icon: 'Inbox',
+      parentId: null,
+      parent: null,
+      children: [] as { habits: typeof habits }[],
+      habits,
+    };
+  }
+
   const category = await prisma.category.findUnique({
     where: { id },
     include: {
@@ -147,28 +163,49 @@ export async function saveHabit(name: string, description: string, schema: any, 
   }
 }
 
-export async function getHabits() {
-  const user = await getDefaultUser();
+function getRecentLogsCutoff() {
   const pastDate = new Date();
   pastDate.setDate(pastDate.getDate() - 40); // Go back enough for 5 weeks
   pastDate.setDate(1); // Snap to the 1st of that month to ensure we capture early-month logs for monthly habits
   pastDate.setDate(pastDate.getDate() - pastDate.getDay()); // Snap to the Sunday before the 1st to capture logs for partial weeks
-  
+  return pastDate;
+}
+
+export async function getFavoriteHabits() {
+  const user = await getDefaultUser();
   return prisma.habit.findMany({
-    where: { userId: user.id },
-    orderBy: { createdAt: 'desc' },
-    include: { 
-      category: true,
+    where: { userId: user.id, isFavorite: true },
+    orderBy: [{ order: 'asc' }, { name: 'asc' }],
+    include: {
       logs: {
-        where: {
-          createdAt: { gte: pastDate }
-        },
-        select: {
-          createdAt: true
-        }
+        where: { createdAt: { gte: getRecentLogsCutoff() } },
+        select: { createdAt: true }
       }
     }
   });
+}
+
+export async function getUncategorizedHabits() {
+  const user = await getDefaultUser();
+  return prisma.habit.findMany({
+    where: { userId: user.id, categoryId: null },
+    orderBy: [{ order: 'asc' }, { name: 'asc' }],
+    include: { logs: { select: { createdAt: true, payload: true } } }
+  });
+}
+
+export async function toggleFavorite(habitId: string) {
+  const user = await getDefaultUser();
+  const habit = await prisma.habit.findUnique({ where: { id: habitId } });
+  if (!habit || habit.userId !== user.id) throw new Error("Unauthorized");
+
+  const updated = await prisma.habit.update({
+    where: { id: habitId },
+    data: { isFavorite: !habit.isFavorite }
+  });
+  revalidatePath('/');
+  revalidatePath(`/log/${habitId}`);
+  return updated.isFavorite;
 }
 
 export async function getHabit(id: string) {
