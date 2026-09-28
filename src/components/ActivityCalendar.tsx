@@ -6,6 +6,7 @@ interface ActivityCalendarProps {
   frequency?: string;
   size?: 'sm' | 'md';
   monthsPerColumn?: number;
+  emptyColor?: string;
   bedtime?: string;
   weekStartsOn?: string;
   targetCount?: number;
@@ -165,7 +166,7 @@ export default function ActivityCalendar({ dates, weeks = 5, frequency = 'daily'
   });
 
   const getBackgroundColor = (count: number, isFuture: boolean, isPeriodCompleted: boolean) => {
-    if (isFuture) return 'bg-transparent border border-stone-100';
+    if (isFuture) return futureColor;
     if (count > 0) {
       if (frequency === 'multiple') {
         const ratio = count / targetCount;
@@ -177,7 +178,7 @@ export default function ActivityCalendar({ dates, weeks = 5, frequency = 'daily'
       return 'bg-emerald-500';
     }
     if (isPeriodCompleted) return 'bg-emerald-200';
-    return 'bg-stone-100';
+    return emptyColor;
   };
 
   const CELL_SIZE = size === 'sm' ? 8 : 14;

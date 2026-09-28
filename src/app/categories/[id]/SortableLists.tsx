@@ -23,38 +23,58 @@ const SortableSubcategoryItem = ({ sub, user, isOverlay, isReordering, ...props 
     transition: transition || undefined,
   };
 
+  const subLogs = sub.habits?.flatMap((h: any) => h.logs?.map((l: any) => l.createdAt) || []) || [];
+  const subTargetCount = sub.habits?.length > 0 ? sub.habits.length : 1;
+
   const content = (
-    <div className={`flex flex-col transition-colors relative ${isDragging ? 'opacity-30 bg-stone-100' : 'bg-white hover:bg-stone-50/30'} ${isOverlay ? 'shadow-2xl scale-[1.02] z-50 rounded-xl' : ''}`}>
+    <div className={`flex flex-col relative w-full ${isOverlay ? 'shadow-2xl scale-[1.02] z-50 rounded-2xl' : ''}`}>
       {/* Header */}
-      <div className="p-4 sm:p-5 flex justify-between items-center group/header border-b border-stone-100">
-        <div className="flex items-center gap-3 w-full">
+      <div className={`py-4 px-4 sm:px-6 flex justify-between items-center group/header transition-colors ${isOpen && sub.habits?.length > 0 ? 'border-b border-stone-100' : ''} bg-stone-50/80 hover:bg-stone-100/80`}>
+        <div className="flex items-center gap-2 sm:gap-4 w-full">
           {isReordering && (
             <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing text-stone-300 hover:text-stone-500 touch-none shrink-0 p-1 -ml-2">
               <GripVertical className="w-5 h-5" />
             </div>
           )}
           
-          <button onClick={() => setIsOpen(!isOpen)} className="flex-1 flex items-center justify-between min-w-0 text-left">
-            <div className="flex items-center gap-3">
+          <button onClick={() => setIsOpen(!isOpen)} className="flex-1 flex flex-wrap sm:flex-nowrap items-center justify-between min-w-0 text-left gap-3 sm:gap-6">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
               <div className="w-8 h-8 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600 shrink-0">
                 <Icon name={sub.icon || 'Folder'} className="w-4 h-4" />
               </div>
-              <div>
-                <h3 className="font-semibold text-stone-800">{sub.name}</h3>
+              <div className="min-w-0 flex flex-col">
+                <div className="flex items-center gap-2">
+                  <h3 className="font-semibold text-stone-800 truncate">{sub.name}</h3>
+                  <Link 
+                    href={`/categories/${sub.id}`} 
+                    onClick={(e) => e.stopPropagation()}
+                    className="p-1.5 text-stone-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors shrink-0"
+                    title="Open Subcategory Page"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </Link>
+                </div>
+                <p className="text-xs text-stone-500 truncate mt-0.5">{sub.habits?.length || 0} habits</p>
               </div>
             </div>
             
-            <div className="flex items-center gap-3 shrink-0">
-              <Link 
-                href={`/categories/${sub.id}`} 
-                onClick={(e) => e.stopPropagation()}
-                className="p-2 text-stone-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
-                title="Open Subcategory Page"
-              >
-                <ExternalLink className="w-4 h-4" />
-              </Link>
-              <div className="p-1 text-stone-400 hover:text-stone-600 transition-colors">
-                {isOpen ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
+            <div className="flex items-center gap-3 sm:gap-6 shrink-0">
+              {sub.habits?.length > 0 && (
+                <div className="shrink-0 flex flex-col justify-center opacity-70 pointer-events-none">
+                  <ActivityCalendar 
+                    dates={subLogs} 
+                    weeks={3} 
+                    frequency="multiple" 
+                    targetCount={subTargetCount} 
+                    bedtime={user.bedtime} 
+                    weekStartsOn={user.weekStartsOn}
+                    emptyColor="bg-stone-200"
+                    futureColor="bg-transparent border border-stone-200"
+                  />
+                </div>
+              )}
+              <div className="shrink-0 text-stone-300 hover:text-stone-600 transition-colors w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center">
+                {isOpen ? <ChevronDown className="w-5 h-5 sm:w-6 sm:h-6" /> : <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />}
               </div>
             </div>
           </button>
@@ -63,15 +83,13 @@ const SortableSubcategoryItem = ({ sub, user, isOverlay, isReordering, ...props 
       
       {/* Habits */}
       {isOpen && !isOverlay && sub.habits && sub.habits.length > 0 && (
-        <div className="p-2 sm:p-4 bg-stone-50/50">
-          <SortableHabitList items={sub.habits} user={user} isReordering={isReordering} dndContextId={`habits-dnd-${sub.id}`} />
-        </div>
+        <SortableHabitList items={sub.habits} user={user} isReordering={isReordering} dndContextId={`habits-dnd-${sub.id}`} isNested={true} />
       )}
     </div>
   );
 
-  if (isOverlay) return content;
-  return <div ref={setNodeRef} style={style} className="relative bg-white overflow-hidden">{content}</div>;
+  if (isOverlay) return <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">{content}</div>;
+  return <div ref={setNodeRef} style={style} className={`bg-white rounded-2xl shadow-sm border border-stone-200 overflow-hidden ${isDragging ? 'opacity-40' : ''}`}>{content}</div>;
 };
 
 export function SortableSubcategoryList({ items: initialItems, user, isReordering }: { items: any[], user: any, isReordering?: boolean }) {
@@ -103,7 +121,7 @@ export function SortableSubcategoryList({ items: initialItems, user, isReorderin
   const activeItem = items.find(i => i.id === activeId);
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-stone-100 overflow-hidden divide-y divide-stone-100 flex flex-col">
+    <div className="flex flex-col gap-6">
       <DndContext id="subcategories-dnd-context" sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={handleDragCancel}>
         <SortableContext items={items.map(i => i.id)} strategy={verticalListSortingStrategy}>
           {items.map(sub => <SortableSubcategoryItem key={sub.id} sub={sub} user={user} isReordering={isReordering} />)}
@@ -167,7 +185,7 @@ const SortableHabitItem = ({ habit, user, isOverlay, isReordering }: any) => {
   return <div ref={setNodeRef} style={style} className="relative bg-white">{content}</div>;
 };
 
-export function SortableHabitList({ items: initialItems, user, isReordering, dndContextId = "habits-dnd-context" }: { items: any[], user: any, isReordering?: boolean, dndContextId?: string }) {
+export function SortableHabitList({ items: initialItems, user, isReordering, dndContextId = "habits-dnd-context", isNested = false }: { items: any[], user: any, isReordering?: boolean, dndContextId?: string, isNested?: boolean }) {
   const [items, setItems] = useState(initialItems);
   const [activeId, setActiveId] = useState<string | null>(null);
   
@@ -196,7 +214,7 @@ export function SortableHabitList({ items: initialItems, user, isReordering, dnd
   const activeItem = items.find(i => i.id === activeId);
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-stone-100 overflow-hidden divide-y divide-stone-100 flex flex-col">
+    <div className={isNested ? "divide-y divide-stone-100 flex flex-col w-full" : "bg-white rounded-2xl shadow-sm border border-stone-100 overflow-hidden divide-y divide-stone-100 flex flex-col"}>
       <DndContext id={dndContextId} sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={handleDragCancel}>
         <SortableContext items={items.map(i => i.id)} strategy={verticalListSortingStrategy}>
           {items.map(habit => <SortableHabitItem key={habit.id} habit={habit} user={user} isReordering={isReordering} />)}
