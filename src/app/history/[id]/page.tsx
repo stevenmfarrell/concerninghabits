@@ -2,12 +2,13 @@ import { getHabit, getHabitLogs, deleteHabitLog, getDefaultUser } from '../../ac
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import PageHeader from '@/components/PageHeader';
-import { IconLinkButton } from '@/components/ui/IconButton';
+import { LinkButton } from '@/components/ui/Button';
 import { cookies } from 'next/headers';
 import DeleteButton from './DeleteButton';
 import InteractiveCalendar from './InteractiveCalendar';
 import HorizonToggle from './HorizonToggle';
 import HabitChart from './HabitChart';
+import ExportCsvButton from './ExportCsvButton';
 import { formatLogValue } from '../../../lib/format';
 import QuillIconWavy from '../../../components/QuillIconWavy';
 import { parseBedtimeOffsetMinutes, toCivilDate } from '../../../lib/timezone';
@@ -90,14 +91,18 @@ export default async function HistoryPage(props: { params: Promise<{ id: string 
     <main className="flex-1 bg-stone-50 font-sans flex flex-col h-full">
       <PageHeader
         title={<span className="truncate">{habit.name} History</span>}
-        actions={
-          <IconLinkButton href={`/log/${habit.id}`} variant="accent" edge="right" title="Log Entry">
-            <QuillIconWavy className="w-6 h-6" strokeWidth={2.5} />
-          </IconLinkButton>
-        }
       />
 
       <div className="p-4 sm:p-8 max-w-4xl mx-auto w-full space-y-6 sm:space-y-8">
+
+        {/* Log Entry Toolbar */}
+        <div className="flex items-center justify-between gap-2">
+          <LinkButton href={`/log/${habit.id}`} size="sm">
+            <QuillIconWavy className="w-4 h-4" strokeWidth={2.5} />
+            Log Entry
+          </LinkButton>
+          {logs.length > 0 && <HorizonToggle habitId={habit.id} currentWeeks={weeks} />}
+        </div>
 
         {logs.length === 0 ? (
           <div className="py-24 px-8 sm:px-12 text-center flex flex-col items-center justify-center">
@@ -107,11 +112,6 @@ export default async function HistoryPage(props: { params: Promise<{ id: string 
           </div>
         ) : (
           <>
-            {/* Time Horizon Toolbar */}
-            <div className="flex justify-end mb-2">
-              <HorizonToggle habitId={habit.id} currentWeeks={weeks} />
-            </div>
-
             {/* Activity Graphic */}
             <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-stone-100 flex flex-col items-start overflow-x-auto">
               <h2 className="text-lg font-semibold text-stone-800 mb-4">Activity Overview</h2>
@@ -144,6 +144,10 @@ export default async function HistoryPage(props: { params: Promise<{ id: string 
 
         {/* Log Entries Table */}
         <div id="logs-table" className="bg-white rounded-2xl shadow-sm border border-stone-100 overflow-hidden scroll-mt-24">
+          <div className="flex items-center justify-between p-4 border-b border-stone-100">
+            <h2 className="text-lg font-semibold text-stone-800">Log Entries</h2>
+            <ExportCsvButton habitId={habit.id} />
+          </div>
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-stone-50 border-b border-stone-100">

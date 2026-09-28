@@ -6,3 +6,5 @@ export const MIN_PASSWORD_LENGTH = 8;
 export const DEFAULT_TARGET_COUNT = 3;
 // The longest activity-heatmap horizon offered (HorizonToggle's "1Y"), in weeks.
 export const MAX_HISTORY_WEEKS = 52;
+// Upper bound on rows accepted by a single CSV log import, to keep one request's batch insert bounded.
+export const MAX_CSV_IMPORT_ROWS = 5000;

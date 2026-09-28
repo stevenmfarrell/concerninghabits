@@ -5,11 +5,14 @@ import { revalidatePath } from 'next/cache';
 
 import { verifySession } from '@/lib/auth';
 import { redirect } from 'next/navigation';
-import { MAX_HISTORY_WEEKS, UNCATEGORIZED_ID, UNCATEGORIZED_ICON } from '@/lib/constants';
+import { MAX_CSV_IMPORT_ROWS, MAX_HISTORY_WEEKS, UNCATEGORIZED_ID, UNCATEGORIZED_ICON } from '@/lib/constants';
 import { userPreferencesSchema } from '@/lib/preferences';
 import { TIMEZONE_COOKIE, isValidTimeZone } from '@/lib/timezone';
+import { encodeCsv, parseCsv } from '@/lib/csv';
 import { cookies } from 'next/headers';
 import type { HabitSchema } from '@/lib/types';
+
+type SchemaProperty = { type?: string; title?: string };
 
 export async function getDefaultUser(allowNeedsUpdate = false) {
   const session = await verifySession();
@@ -308,6 +311,123 @@ export async function getHabitLogs(habitId: string) {
     where: { habitId, userId: user.id },
     orderBy: { createdAt: 'desc' }
   });
+}
+
+async function getOwnedHabit(userId: string, habitId: string) {
+  const habit = await prisma.habit.findUnique({ where: { id: habitId } });
+  if (!habit || habit.userId !== userId) throw new Error("Unauthorized");
+  return habit;
+}
+
+function getHabitSchemaProperties(habit: { schema: string }): Record<string, SchemaProperty> {
+  try {
+    const schemaObj: HabitSchema = JSON.parse(habit.schema || '{}');
+    return (schemaObj.properties || {}) as Record<string, SchemaProperty>;
+  } catch {
+    return {};
+  }
+}
+
+export async function exportHabitLogsCsv(habitId: string) {
+  const user = await getDefaultUser();
+  const habit = await getOwnedHabit(user.id, habitId);
+  const properties = getHabitSchemaProperties(habit);
+  const fieldKeys = Object.keys(properties);
+
+  const logs = await prisma.habitLog.findMany({
+    where: { habitId, userId: user.id },
+    orderBy: { createdAt: 'asc' }
+  });
+
+  const header = ['Date', ...fieldKeys.map(key => properties[key].title || key)];
+  const rows = logs.map(log => {
+    const payload = JSON.parse(log.payload) as Record<string, unknown>;
+    return [
+      log.createdAt.toISOString(),
+      ...fieldKeys.map(key => {
+        const val = payload[key];
+        return val === undefined || val === null ? '' : String(val);
+      })
+    ];
+  });
+
+  const safeName = habit.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'habit';
+  return { filename: `${safeName}-log.csv`, csv: encodeCsv([header, ...rows]) };
+}
+
+export async function importHabitLogsCsv(habitId: string, csvText: string) {
+  const user = await getDefaultUser();
+  const habit = await getOwnedHabit(user.id, habitId);
+  const properties = getHabitSchemaProperties(habit);
+
+  const rows = parseCsv(csvText);
+  if (rows.length === 0) {
+    return { imported: 0, skipped: 0, errors: ['The CSV file is empty.'] };
+  }
+
+  const [header, ...dataRows] = rows;
+  if (dataRows.length > MAX_CSV_IMPORT_ROWS) {
+    throw new Error(`CSV has too many rows (max ${MAX_CSV_IMPORT_ROWS}).`);
+  }
+
+  // Match each non-date column to a schema field by header title or key, case-insensitively.
+  const columnKeys: (string | null)[] = header.slice(1).map(col => {
+    const normalized = col.trim().toLowerCase();
+    return Object.keys(properties).find(key =>
+      key.toLowerCase() === normalized || (properties[key].title || '').toLowerCase() === normalized
+    ) || null;
+  });
+
+  const errors: string[] = [];
+  const toCreate: { habitId: string; userId: string; payload: string; createdAt?: Date }[] = [];
+
+  dataRows.forEach((row, i) => {
+    const rowNum = i + 2; // +1 for 0-index, +1 for the header row
+    const dateStr = row[0]?.trim();
+    let createdAt: Date | undefined;
+    if (dateStr) {
+      const parsed = new Date(dateStr);
+      if (isNaN(parsed.getTime())) {
+        errors.push(`Row ${rowNum}: could not parse date "${dateStr}".`);
+        return;
+      }
+      createdAt = parsed;
+    }
+
+    const payload: Record<string, unknown> = {};
+    columnKeys.forEach((key, colIdx) => {
+      if (!key) return;
+      const raw = row[colIdx + 1]?.trim();
+      if (!raw) return;
+
+      const propType = properties[key].type;
+      if (propType === 'number' || propType === 'integer') {
+        const num = Number(raw);
+        if (!isNaN(num)) payload[key] = num;
+      } else if (propType === 'boolean') {
+        payload[key] = raw.toLowerCase() === 'true' || raw === '1';
+      } else {
+        payload[key] = raw;
+      }
+    });
+
+    toCreate.push({
+      habitId,
+      userId: user.id,
+      payload: JSON.stringify(payload),
+      ...(createdAt ? { createdAt } : {})
+    });
+  });
+
+  if (toCreate.length > 0) {
+    await prisma.habitLog.createMany({ data: toCreate });
+  }
+
+  revalidatePath(`/log/${habitId}`);
+  revalidatePath(`/history/${habitId}`);
+  revalidatePath('/');
+
+  return { imported: toCreate.length, skipped: dataRows.length - toCreate.length, errors };
 }
 
 export async function updateHabit(id: string, name: string, description: string, schema: HabitSchema, categoryId?: string, frequency: string = 'daily', publishToMqtt: boolean = false) {

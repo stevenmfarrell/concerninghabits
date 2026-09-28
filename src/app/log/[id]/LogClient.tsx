@@ -3,10 +3,10 @@
 import { useState, useRef, useEffect } from 'react';
 import Form from '@rjsf/core';
 import validator from '@rjsf/validator-ajv8';
-import { logHabitEvent, deleteHabitLog, toggleFavorite } from '../../actions/db';
+import { logHabitEvent, deleteHabitLog, toggleFavorite, importHabitLogsCsv } from '../../actions/db';
 import { parseVoiceLog, parseImageLog } from '../../actions/habit';
 import { useRouter } from 'next/navigation';
-import { Check, Loader2, Undo2, Link2, Mic, Camera, MoreVertical, Edit2, ChevronRight, Star } from 'lucide-react';
+import { Check, Loader2, Undo2, Link2, Mic, Camera, MoreVertical, Edit2, ChevronRight, Star, Upload } from 'lucide-react';
 import ActivityCalendar from '../../../components/ActivityCalendar';
 import QuillIconWavy from '../../../components/QuillIconWavy';
 import Link from 'next/link';
@@ -301,6 +301,39 @@ export default function LogClient({ habit, user }: { habit: HabitWithLogs, user:
     }
   };
 
+  const importInputRef = useRef<HTMLInputElement>(null);
+  const [importing, setImporting] = useState(false);
+
+  const handleImportCsv = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    event.target.value = '';
+
+    setImporting(true);
+    const loadingToast = toast.loading('Importing CSV...');
+    try {
+      const text = await file.text();
+      const { imported, skipped, errors } = await importHabitLogsCsv(habit.id, text);
+
+      if (imported === 0 && errors.length > 0) {
+        toast.error(errors[0], { id: loadingToast });
+      } else {
+        const summary = skipped > 0
+          ? `Imported ${imported} ${imported === 1 ? 'entry' : 'entries'}, skipped ${skipped}.`
+          : `Imported ${imported} ${imported === 1 ? 'entry' : 'entries'}.`;
+        toast.success(summary, { id: loadingToast });
+        if (errors.length > 0) {
+          errors.slice(0, 3).forEach(err => toast.error(err));
+        }
+      }
+      router.push(`/history/${habit.id}`);
+    } catch (err) {
+      toast.error(`Failed to import CSV: ${err instanceof Error ? err.message : 'Unknown error'}`, { id: loadingToast });
+    } finally {
+      setImporting(false);
+    }
+  };
+
   const handleCopyUrl = () => {
     if (typeof window === 'undefined') return;
     const url = new URL(window.location.href);
@@ -419,9 +452,27 @@ export default function LogClient({ habit, user }: { habit: HabitWithLogs, user:
                     <Link2 className="w-4 h-4" />
                     Copy URL
                   </button>
+                  <button
+                    onClick={() => {
+                      setMenuOpen(false);
+                      importInputRef.current?.click();
+                    }}
+                    disabled={importing}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-stone-700 hover:bg-stone-50 hover:text-emerald-600 transition-colors text-left disabled:opacity-50"
+                  >
+                    {importing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                    Import CSV
+                  </button>
                 </div>
               </>
             )}
+            <input
+              type="file"
+              accept=".csv,text/csv"
+              ref={importInputRef}
+              className="hidden"
+              onChange={handleImportCsv}
+            />
           </>
         }
       />
