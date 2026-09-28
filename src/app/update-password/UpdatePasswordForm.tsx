@@ -1,4 +1,5 @@
 'use client';
+import { MIN_PASSWORD_LENGTH } from '@/lib/constants';
 
 import { useActionState } from 'react';
 import { updatePassword } from '@/app/actions/auth';
@@ -54,7 +55,7 @@ export default function UpdatePasswordForm({ needsUpdate }: { needsUpdate: boole
             name="newPassword"
             type="password"
             required
-            minLength={6}
+            minLength={MIN_PASSWORD_LENGTH}
             className="appearance-none block w-full px-4 py-3 border border-stone-200 rounded-xl placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm bg-stone-50"
             placeholder="••••••••"
           />
@@ -68,7 +69,7 @@ export default function UpdatePasswordForm({ needsUpdate }: { needsUpdate: boole
             name="confirmPassword"
             type="password"
             required
-            minLength={6}
+            minLength={MIN_PASSWORD_LENGTH}
             className="appearance-none block w-full px-4 py-3 border border-stone-200 rounded-xl placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm bg-stone-50"
             placeholder="••••••••"
           />

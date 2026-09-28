@@ -4,40 +4,50 @@ import { prisma } from '@/lib/prisma';
 import { createSession, deleteSession } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import bcrypt from 'bcryptjs';
+import { headers } from 'next/headers';
+import { MIN_PASSWORD_LENGTH } from '@/lib/constants';
 
-async function checkRateLimit(identifier: string) {
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+// Failed logins allowed per client (IP + email). Keyed per client so a stranger can't lock you out.
+const MAX_FAILURES_PER_CLIENT = 5;
+// Failed logins allowed per email across all clients. The client IP comes from x-forwarded-for,
+// which callers can spoof, so this cap is what actually limits password guessing.
+const MAX_FAILURES_PER_EMAIL = 20;
+
+async function getClientIp() {
+  const headerStore = await headers();
+  // A reverse proxy appends the address it saw, so the last entry is the most trustworthy
+  const forwardedFor = headerStore.get('x-forwarded-for')?.split(',').map(ip => ip.trim()).filter(Boolean);
+  return forwardedFor?.at(-1) ?? headerStore.get('x-real-ip') ?? 'unknown';
+}
+
+async function getFailureCount(identifier: string) {
+  const limit = await prisma.rateLimit.findUnique({ where: { identifier } });
+  if (!limit || limit.resetTime < new Date()) return 0;
+  return limit.count;
+}
+
+async function recordFailure(identifier: string) {
   const now = new Date();
-  
-  const limit = await prisma.rateLimit.findUnique({
-    where: { identifier }
-  });
-  
-  if (limit) {
-    if (now > limit.resetTime) {
-      await prisma.rateLimit.update({
-        where: { identifier },
-        data: { count: 1, resetTime: new Date(now.getTime() + 15 * 60 * 1000) }
-      });
-      return true;
-    }
-    if (limit.count >= 5) {
-      return false;
-    }
-    await prisma.rateLimit.update({
+  const limit = await prisma.rateLimit.findUnique({ where: { identifier } });
+  if (limit && limit.resetTime >= now) {
+    await prisma.rateLimit.update({ where: { identifier }, data: { count: { increment: 1 } } });
+  } else {
+    const resetTime = new Date(now.getTime() + LOGIN_WINDOW_MS);
+    await prisma.rateLimit.upsert({
       where: { identifier },
-      data: { count: limit.count + 1 }
+      create: { identifier, count: 1, resetTime },
+      update: { count: 1, resetTime },
     });
-    return true;
   }
-  
-  await prisma.rateLimit.create({
-    data: { 
-      identifier, 
-      count: 1, 
-      resetTime: new Date(now.getTime() + 15 * 60 * 1000) 
-    }
-  });
-  return true;
+}
+
+// Compared against when the email has no account, so response time doesn't reveal which emails exist
+let dummyPasswordHash: string | undefined;
+const getDummyPasswordHash = () => (dummyPasswordHash ??= bcrypt.hashSync('not-a-real-password', 10));
+
+function checkPasswordLength(password: string) {
+  return password.length < MIN_PASSWORD_LENGTH ? `Password must be at least ${MIN_PASSWORD_LENGTH} characters` : null;
 }
 
 export async function login(formData: FormData) {
@@ -48,7 +58,12 @@ export async function login(formData: FormData) {
     return { error: 'Email and password are required' };
   }
   
-  if (!(await checkRateLimit(email))) {
+  const normalizedEmail = email.trim().toLowerCase();
+  const clientKey = `login:${await getClientIp()}:${normalizedEmail}`;
+  const accountKey = `login:${normalizedEmail}`;
+
+  const [clientFailures, accountFailures] = await Promise.all([getFailureCount(clientKey), getFailureCount(accountKey)]);
+  if (clientFailures >= MAX_FAILURES_PER_CLIENT || accountFailures >= MAX_FAILURES_PER_EMAIL) {
     return { error: 'Too many login attempts. Please try again later.' };
   }
 
@@ -56,15 +71,16 @@ export async function login(formData: FormData) {
     where: { email },
   });
 
-  if (!user) {
+  const isValidPassword = await bcrypt.compare(password, user?.passwordHash ?? getDummyPasswordHash());
+
+  if (!user || !isValidPassword) {
+    await Promise.all([recordFailure(clientKey), recordFailure(accountKey)]);
     return { error: 'Invalid email or password' };
   }
 
-  const isValidPassword = await bcrypt.compare(password, user.passwordHash);
-
-  if (!isValidPassword) {
-    return { error: 'Invalid email or password' };
-  }
+  // Only failures count, so a successful login clears this client's count. The per-email count is
+  // left to expire so a correct login can't reset the budget of someone guessing from elsewhere.
+  await prisma.rateLimit.deleteMany({ where: { identifier: clientKey } });
 
   await createSession(user.id);
   redirect('/');
@@ -78,6 +94,9 @@ export async function setupInitialAdmin(formData: FormData) {
   if (!name || !email || !password) {
     return { error: 'All fields are required' };
   }
+
+  const passwordError = checkPasswordLength(password);
+  if (passwordError) return { error: passwordError };
 
   // Ensure this is ONLY allowed if 0 users exist
   const userCount = await prisma.user.count();
@@ -120,6 +139,9 @@ export async function provisionUser(formData: FormData) {
   if (!name || !email || !password) {
     return { error: 'All fields are required' };
   }
+
+  const passwordError = checkPasswordLength(password);
+  if (passwordError) return { error: passwordError };
 
   const { verifySession } = await import('@/lib/auth');
   const session = await verifySession();
@@ -229,6 +251,9 @@ export async function updatePassword(formData: FormData) {
     return { error: 'New passwords do not match' };
   }
 
+  const passwordError = checkPasswordLength(newPassword);
+  if (passwordError) return { error: passwordError };
+
   const user = await prisma.user.findUnique({
     where: { id: session.userId }
   });
@@ -245,13 +270,17 @@ export async function updatePassword(formData: FormData) {
 
   const newPasswordHash = await bcrypt.hash(newPassword, 10);
 
-  await prisma.user.update({
-    where: { id: user.id },
-    data: { 
-      passwordHash: newPasswordHash,
-      passwordNeedsUpdate: false
-    }
-  });
+  // Changing the password signs out every other device
+  await prisma.$transaction([
+    prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordHash: newPasswordHash,
+        passwordNeedsUpdate: false
+      }
+    }),
+    prisma.session.deleteMany({ where: { userId: user.id, id: { not: session.sessionId } } }),
+  ]);
 
   return { success: true };
 }

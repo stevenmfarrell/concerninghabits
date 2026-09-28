@@ -12,7 +12,7 @@ export async function getDefaultUser(allowNeedsUpdate = false) {
   const session = await verifySession();
   
   if (!session?.userId) {
-    redirect('/login');
+    redirect('/api/logout');
   }
 
   // The user record is passed to client components, so never include the password hash
@@ -31,6 +31,23 @@ export async function getDefaultUser(allowNeedsUpdate = false) {
   }
 
   return user;
+}
+
+async function getOwnedCategory(userId: string, categoryId: string) {
+  const category = await prisma.category.findUnique({ where: { id: categoryId } });
+  if (!category || category.userId !== userId) throw new Error("Unauthorized");
+  return category;
+}
+
+// Categories nest one level deep: a parent must be a top-level category, and a category
+// that has subcategories can't itself be nested. This also rules out parent cycles.
+async function assertValidParent(userId: string, parentId: string, categoryId?: string) {
+  if (parentId === categoryId) throw new Error("A category can't be its own parent");
+  const parent = await getOwnedCategory(userId, parentId);
+  if (parent.parentId) throw new Error("Subcategories can't have subcategories");
+  if (categoryId && await prisma.category.count({ where: { parentId: categoryId } }) > 0) {
+    throw new Error("A category with subcategories can't be nested");
+  }
 }
 
 export async function getCategoriesWithHierarchy() {
@@ -105,6 +122,7 @@ export async function getCategories() {
 
 export async function createCategory(name: string, icon?: string, parentId?: string) {
   const user = await getDefaultUser();
+  if (parentId) await assertValidParent(user.id, parentId);
   const category = await prisma.category.create({
     data: { name, icon, userId: user.id, parentId: parentId || null }
   });
@@ -116,6 +134,7 @@ export async function updateCategory(id: string, name: string, icon: string, par
   const user = await getDefaultUser();
   const existing = await prisma.category.findUnique({ where: { id } });
   if (!existing || existing.userId !== user.id) throw new Error("Unauthorized");
+  if (parentId) await assertValidParent(user.id, parentId, id);
 
   const category = await prisma.category.update({
     where: { id },
@@ -144,6 +163,7 @@ export async function deleteCategory(id: string) {
 
 export async function saveHabit(name: string, description: string, schema: any, categoryId?: string, frequency: string = 'daily', publishToMqtt: boolean = false) {
   const user = await getDefaultUser();
+  if (categoryId) await getOwnedCategory(user.id, categoryId);
   
   try {
     const habit = await prisma.habit.create({
@@ -274,6 +294,7 @@ export async function updateHabit(id: string, name: string, description: string,
   const user = await getDefaultUser();
   const existing = await prisma.habit.findUnique({ where: { id } });
   if (!existing || existing.userId !== user.id) throw new Error("Unauthorized");
+  if (categoryId) await getOwnedCategory(user.id, categoryId);
 
   try {
     let newOrder = existing.order;
