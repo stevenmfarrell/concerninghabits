@@ -40,7 +40,7 @@ RUN adduser --system --uid 1001 nextjs
 COPY --from=builder /app/public ./public
 
 # Set the correct permission for prerender cache
-RUN npm install -g prisma
+RUN npm install -g prisma@6.19.3
 RUN mkdir .next
 RUN chown nextjs:nodejs .next
 
@@ -55,9 +55,10 @@ COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
 
-# Make script to run prisma db push before starting app
+# Make script to apply committed migrations before starting app
 RUN echo '#!/bin/sh' > /app/start.sh && \
-    echo 'npx prisma db push --accept-data-loss' >> /app/start.sh && \
+    echo 'set -e' >> /app/start.sh && \
+    echo 'prisma migrate deploy' >> /app/start.sh && \
     echo 'node server.js' >> /app/start.sh && \
     chmod +x /app/start.sh
 

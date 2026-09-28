@@ -23,9 +23,9 @@ Concerning Habits is an AI-powered, highly customizable habit tracking progressi
    ```
 
 3. **Initialize the Database:**
-   Push the Prisma schema to the local SQLite database to create the necessary tables:
+   Apply the committed Prisma migrations to create the necessary tables:
    ```bash
-   npx prisma db push
+   npx prisma migrate deploy
    ```
 
 4. **Run the Development Server:**
@@ -102,5 +102,10 @@ volumes:
    ```bash
    docker compose up -d
    ```
-4. Access the app at `http://localhost:3000`. 
-5. The container will automatically push the SQLite database schema on startup and persist your data in the `concerning-habits_data` volume.
+4. Access the app at `http://localhost:3000`.
+5. The container applies committed migrations (`prisma migrate deploy`) on startup and persists your data in the `concerning-habits_data` volume. Unlike pushing the schema directly, a migration can't silently drop a column's data.
+
+**Upgrading from a version that used `prisma db push`:** your existing database already has the current tables, but no migration history, so `migrate deploy` will refuse to run against it. Baseline it once before pulling the new image:
+```bash
+docker compose run --rm concerning-habits npx prisma migrate resolve --applied 20260928000839_init
+```

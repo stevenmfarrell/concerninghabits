@@ -2,6 +2,7 @@
 
 import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
+import rjsfValidator from '@rjsf/validator-ajv8';
 
 import { verifySession } from '@/lib/auth';
 import { redirect } from 'next/navigation';
@@ -268,12 +269,26 @@ export async function logHabitEvent(habitId: string, payload: Record<string, unk
   const user = await getDefaultUser();
   const habit = await prisma.habit.findUnique({ where: { id: habitId } });
   if (!habit || habit.userId !== user.id) throw new Error("Unauthorized");
-  
+
+  const schema: HabitSchema = { type: 'object', ...parseHabitSchema(habit) };
+  const properties = (schema.properties || {}) as Record<string, SchemaProperty>;
+
+  // Drop any keys the habit's own schema doesn't define, then validate the rest against it,
+  // same as the client-side rjsf Form would. The browser only enforces this in the UI.
+  const sanitizedPayload = Object.fromEntries(
+    Object.entries(payload).filter(([key]) => key in properties)
+  );
+
+  const { errors } = rjsfValidator.validateFormData(sanitizedPayload, schema);
+  if (errors.length > 0) {
+    throw new Error(`Invalid log data: ${errors.map(e => e.stack).join('; ')}`);
+  }
+
   const log = await prisma.habitLog.create({
     data: {
       habitId,
       userId: user.id,
-      payload: JSON.stringify(payload),
+      payload: JSON.stringify(sanitizedPayload),
       ...(createdAt ? { createdAt } : {})
     }
   });
@@ -281,7 +296,7 @@ export async function logHabitEvent(habitId: string, payload: Record<string, unk
   try {
     if (habit.publishToMqtt) {
       const { publishHabitLog } = await import('@/lib/mqtt');
-      publishHabitLog(user, habit, payload);
+      publishHabitLog(user, habit, sanitizedPayload);
     }
   } catch (e) {
     console.error('Failed to trigger MQTT publish', e);
@@ -319,13 +334,16 @@ async function getOwnedHabit(userId: string, habitId: string) {
   return habit;
 }
 
-function getHabitSchemaProperties(habit: { schema: string }): Record<string, SchemaProperty> {
+function parseHabitSchema(habit: { schema: string }): HabitSchema {
   try {
-    const schemaObj: HabitSchema = JSON.parse(habit.schema || '{}');
-    return (schemaObj.properties || {}) as Record<string, SchemaProperty>;
+    return JSON.parse(habit.schema || '{}');
   } catch {
     return {};
   }
+}
+
+function getHabitSchemaProperties(habit: { schema: string }): Record<string, SchemaProperty> {
+  return (parseHabitSchema(habit).properties || {}) as Record<string, SchemaProperty>;
 }
 
 export async function exportHabitLogsCsv(habitId: string) {
