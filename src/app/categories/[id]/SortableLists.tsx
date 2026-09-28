@@ -14,7 +14,7 @@ import { reorderHabits } from '../../actions/db';
 
 import { ChevronDown, ExternalLink } from 'lucide-react';
 
-const SortableSubcategoryItem = ({ sub, user, isOverlay, isReordering, ...props }: any) => {
+const SortableSubcategoryItem = ({ sub, user, isOverlay, isReordering, className = '' }: any) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: sub.id });
   const [isOpen, setIsOpen] = useState(true);
   
@@ -89,13 +89,19 @@ const SortableSubcategoryItem = ({ sub, user, isOverlay, isReordering, ...props 
   );
 
   if (isOverlay) return <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">{content}</div>;
-  return <div ref={setNodeRef} style={style} className={`bg-white rounded-2xl shadow-sm border border-stone-200 overflow-hidden ${isDragging ? 'opacity-40' : ''}`}>{content}</div>;
+  return <div ref={setNodeRef} style={style} className={`bg-white rounded-2xl shadow-sm border border-stone-200 overflow-hidden ${isDragging ? 'opacity-40' : ''} ${className}`}>{content}</div>;
 };
 
-export function SortableSubcategoryList({ items: initialItems, user, isReordering }: { items: any[], user: any, isReordering?: boolean }) {
+type CategoryItem =
+  | { type: 'habit', id: string, data: any }
+  | { type: 'subcategory', id: string, data: any };
+
+// A category's direct habits and subcategories, sorted together so either can be placed above the other.
+// Consecutive habits render as one joined card; each subcategory is its own card.
+export function SortableCategoryItemList({ items: initialItems, user, isReordering }: { items: CategoryItem[], user: any, isReordering?: boolean }) {
   const [items, setItems] = useState(initialItems);
   const [activeId, setActiveId] = useState<string | null>(null);
-  
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 100, tolerance: 5 } })
@@ -103,38 +109,58 @@ export function SortableSubcategoryList({ items: initialItems, user, isReorderin
 
   const handleDragStart = (event: any) => setActiveId(event.active.id);
   const handleDragCancel = () => setActiveId(null);
-  
+
   const handleDragEnd = async (event: any) => {
     setActiveId(null);
     const { active, over } = event;
-    if (active.id !== over?.id) {
+    if (over && active.id !== over.id) {
       const oldIndex = items.findIndex(i => i.id === active.id);
       const newIndex = items.findIndex(i => i.id === over.id);
       const newItems = arrayMove(items, oldIndex, newIndex);
       setItems(newItems);
-      
-      const updates = newItems.map((item, index) => ({ id: item.id, order: index, parentId: item.parentId }));
-      await reorderCategories(updates);
+
+      // Habits and subcategories share one order sequence within this category
+      const withOrder = newItems.map((item, index) => ({ item, order: index }));
+      const habitUpdates = withOrder.filter(x => x.item.type === 'habit').map(x => ({ id: x.item.id, order: x.order }));
+      const categoryUpdates = withOrder.filter(x => x.item.type === 'subcategory').map(x => ({ id: x.item.id, order: x.order }));
+      await Promise.all([
+        habitUpdates.length > 0 ? reorderHabits(habitUpdates) : null,
+        categoryUpdates.length > 0 ? reorderCategories(categoryUpdates) : null,
+      ]);
     }
   };
 
   const activeItem = items.find(i => i.id === activeId);
 
+  const getHabitClassName = (index: number) => {
+    const prevIsHabit = items[index - 1]?.type === 'habit';
+    const nextIsHabit = items[index + 1]?.type === 'habit';
+    return [
+      'border-x border-stone-100 shadow-sm',
+      prevIsHabit ? 'border-t' : `border-t rounded-t-2xl overflow-hidden ${index > 0 ? 'mt-6' : ''}`,
+      nextIsHabit ? '' : 'border-b rounded-b-2xl overflow-hidden',
+    ].join(' ');
+  };
+
   return (
-    <div className="flex flex-col gap-6">
-      <DndContext id="subcategories-dnd-context" sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={handleDragCancel}>
+    <div className="flex flex-col">
+      <DndContext id="category-items-dnd-context" sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={handleDragCancel}>
         <SortableContext items={items.map(i => i.id)} strategy={verticalListSortingStrategy}>
-          {items.map(sub => <SortableSubcategoryItem key={sub.id} sub={sub} user={user} isReordering={isReordering} />)}
+          {items.map((item, index) => item.type === 'habit'
+            ? <SortableHabitItem key={item.id} habit={item.data} user={user} isReordering={isReordering} className={getHabitClassName(index)} />
+            : <SortableSubcategoryItem key={item.id} sub={item.data} user={user} isReordering={isReordering} className={index > 0 ? 'mt-6' : ''} />
+          )}
         </SortableContext>
         <DragOverlay>
-          {activeItem ? <SortableSubcategoryItem sub={activeItem} user={user} isOverlay isReordering={isReordering} /> : null}
+          {activeItem?.type === 'habit' && <SortableHabitItem habit={activeItem.data} user={user} isOverlay isReordering={isReordering} />}
+          {activeItem?.type === 'subcategory' && <SortableSubcategoryItem sub={activeItem.data} user={user} isOverlay isReordering={isReordering} />}
         </DragOverlay>
       </DndContext>
     </div>
   );
 }
 
-const SortableHabitItem = ({ habit, user, isOverlay, isReordering }: any) => {
+const SortableHabitItem = ({ habit, user, isOverlay, isReordering, className = '' }: any) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: habit.id });
   
   const style = {
@@ -182,7 +208,7 @@ const SortableHabitItem = ({ habit, user, isOverlay, isReordering }: any) => {
   );
 
   if (isOverlay) return content;
-  return <div ref={setNodeRef} style={style} className="relative bg-white">{content}</div>;
+  return <div ref={setNodeRef} style={style} className={`relative bg-white ${className}`}>{content}</div>;
 };
 
 export function SortableHabitList({ items: initialItems, user, isReordering, dndContextId = "habits-dnd-context", isNested = false }: { items: any[], user: any, isReordering?: boolean, dndContextId?: string, isNested?: boolean }) {

@@ -63,7 +63,7 @@ export async function getCategory(id: string) {
       icon: 'Inbox',
       parentId: null,
       parent: null,
-      children: [] as { habits: typeof habits }[],
+      children: [] as never[],
       habits,
     };
   }

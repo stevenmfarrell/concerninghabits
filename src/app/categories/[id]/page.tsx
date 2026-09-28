@@ -7,7 +7,7 @@ import BackButton from '../../history/[id]/BackButton';
 import { ChevronRight, } from 'lucide-react';
 import QuillIconWavy from '../../../components/QuillIconWavy';
 import CategoryMenu from './CategoryMenu';
-import { SortableSubcategoryList, SortableHabitList } from './SortableLists';
+import { SortableCategoryItemList } from './SortableLists';
 
 export default async function CategoryLogPage(props: { params: Promise<{ id: string }>, searchParams: Promise<{ reorder?: string }> }) {
   const params = await props.params;
@@ -28,6 +28,12 @@ export default async function CategoryLogPage(props: { params: Promise<{ id: str
   const targetCount = habitCount > 0 ? habitCount : 1;
 
   const isTopLevel = category.parentId === null;
+
+  // Direct habits and subcategories share one order sequence. On ties, habits come first.
+  const items = [
+    ...category.habits.map(h => ({ type: 'habit' as const, id: h.id, order: h.order ?? 0, data: h })),
+    ...(isTopLevel ? category.children : []).map(c => ({ type: 'subcategory' as const, id: c.id, order: c.order, data: c })),
+  ].sort((a, b) => a.order - b.order);
 
   return (
     <main className="flex-1 bg-stone-50 font-sans flex flex-col h-full">
@@ -55,16 +61,8 @@ export default async function CategoryLogPage(props: { params: Promise<{ id: str
       <div className="p-4 sm:p-8 max-w-4xl mx-auto w-full space-y-6 sm:space-y-8">
         
         {/* Component Lists Front and Center */}
-        {category.habits && category.habits.length > 0 && (
-          <div className="space-y-4">
-            <SortableHabitList items={category.habits} user={user} isReordering={isReordering} dndContextId="direct-habits-dnd-context" />
-          </div>
-        )}
-
-        {isTopLevel && category.children && category.children.length > 0 && (
-          <div className="space-y-4">
-            <SortableSubcategoryList items={category.children} user={user} isReordering={isReordering} />
-          </div>
+        {items.length > 0 && (
+          <SortableCategoryItemList items={items} user={user} isReordering={isReordering} />
         )}
 
         {/* Recent History Card */}
