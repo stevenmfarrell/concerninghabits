@@ -7,13 +7,14 @@ interface ActivityCalendarProps {
   size?: 'sm' | 'md';
   monthsPerColumn?: number;
   emptyColor?: string;
+  futureColor?: string;
   bedtime?: string;
   weekStartsOn?: string;
   targetCount?: number;
   onDateClick?: (date: Date) => void;
 }
 
-export default function ActivityCalendar({ dates, weeks = 5, frequency = 'daily', size = 'sm', monthsPerColumn = 4, bedtime = '00:00', weekStartsOn = 'sunday', targetCount = 3, onDateClick }: ActivityCalendarProps) {
+export default function ActivityCalendar({ dates, weeks = 5, frequency = 'daily', size = 'sm', monthsPerColumn = 4, bedtime = '00:00', weekStartsOn = 'sunday', targetCount = 3, emptyColor = 'bg-stone-100', futureColor = 'bg-transparent border border-stone-100', onDateClick }: ActivityCalendarProps) {
   let bedtimeOffsetMinutes = 0;
   if (bedtime && bedtime !== '00:00') {
     const [h, m] = bedtime.split(':').map(Number);

@@ -60,7 +60,7 @@ const SortableSubcategoryItem = ({ sub, user, isOverlay, isReordering, ...props 
             
             <div className="flex items-center gap-3 sm:gap-6 shrink-0">
               {sub.habits?.length > 0 && (
-                <div className="shrink-0 flex flex-col justify-center opacity-70 pointer-events-none">
+                <div className="shrink-0 flex flex-col justify-center pointer-events-none">
                   <ActivityCalendar 
                     dates={subLogs} 
                     weeks={3} 
