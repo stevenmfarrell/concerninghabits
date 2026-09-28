@@ -5,10 +5,11 @@ import { revalidatePath } from 'next/cache';
 
 import { verifySession } from '@/lib/auth';
 import { redirect } from 'next/navigation';
-import { UNCATEGORIZED_ID, UNCATEGORIZED_ICON } from '@/lib/constants';
+import { MAX_HISTORY_WEEKS, UNCATEGORIZED_ID, UNCATEGORIZED_ICON } from '@/lib/constants';
 import { userPreferencesSchema } from '@/lib/preferences';
 import { TIMEZONE_COOKIE, isValidTimeZone } from '@/lib/timezone';
 import { cookies } from 'next/headers';
+import type { HabitSchema } from '@/lib/types';
 
 export async function getDefaultUser(allowNeedsUpdate = false) {
   const session = await verifySession();
@@ -61,6 +62,9 @@ async function assertValidParent(userId: string, parentId: string, categoryId?: 
 
 export async function getCategoriesWithHierarchy() {
   const user = await getDefaultUser();
+  // Only the dashboard's 3-week calendars read this, but the cutoff is generous so it stays
+  // correct if a caller ever asks for a longer view.
+  const logsCutoff = getRecentLogsCutoff(5);
   return prisma.category.findMany({
     where: { userId: user.id, parentId: null },
     orderBy: [{ order: 'asc' }, { name: 'asc' }],
@@ -69,23 +73,25 @@ export async function getCategoriesWithHierarchy() {
         orderBy: [{ order: 'asc' }, { name: 'asc' }],
         include: {
           habits: {
-            include: { logs: { select: { createdAt: true } } }
+            include: { logs: { where: { createdAt: { gte: logsCutoff } }, select: { createdAt: true } } }
           }
         }
       },
       habits: {
-        include: { logs: { select: { createdAt: true } } }
+        include: { logs: { where: { createdAt: { gte: logsCutoff } }, select: { createdAt: true } } }
       }
     }
   });
 }
 
-export async function getCategory(id: string) {
+// `weeks` bounds how far back logs are fetched for the activity heatmap; pass the widest horizon
+// a caller might display (the history page's horizon toggle tops out at MAX_HISTORY_WEEKS).
+export async function getCategory(id: string, weeks: number = MAX_HISTORY_WEEKS) {
   const user = await getDefaultUser();
 
   // Habits without a category get a synthetic category so they can use the same pages
   if (id === UNCATEGORIZED_ID) {
-    const habits = await getUncategorizedHabits();
+    const habits = await getUncategorizedHabits(weeks);
     return {
       id: UNCATEGORIZED_ID,
       name: 'Uncategorized',
@@ -97,6 +103,7 @@ export async function getCategory(id: string) {
     };
   }
 
+  const logsCutoff = getRecentLogsCutoff(weeks);
   const category = await prisma.category.findUnique({
     where: { id },
     include: {
@@ -105,13 +112,13 @@ export async function getCategory(id: string) {
         include: {
           habits: {
             orderBy: [{ order: 'asc' }, { name: 'asc' }],
-            include: { logs: { select: { createdAt: true, payload: true } } }
+            include: { logs: { where: { createdAt: { gte: logsCutoff } }, select: { createdAt: true } } }
           }
         }
       },
       habits: {
         orderBy: [{ order: 'asc' }, { name: 'asc' }],
-        include: { logs: { select: { createdAt: true, payload: true } } }
+        include: { logs: { where: { createdAt: { gte: logsCutoff } }, select: { createdAt: true } } }
       },
       parent: true
     }
@@ -170,10 +177,10 @@ export async function deleteCategory(id: string) {
   revalidatePath('/');
 }
 
-export async function saveHabit(name: string, description: string, schema: any, categoryId?: string, frequency: string = 'daily', publishToMqtt: boolean = false) {
+export async function saveHabit(name: string, description: string, schema: HabitSchema, categoryId?: string, frequency: string = 'daily', publishToMqtt: boolean = false) {
   const user = await getDefaultUser();
   if (categoryId) await getOwnedCategory(user.id, categoryId);
-  
+
   try {
     const habit = await prisma.habit.create({
       data: {
@@ -187,17 +194,19 @@ export async function saveHabit(name: string, description: string, schema: any, 
         order: 9999,
       }
     });
-    
+
     revalidatePath('/');
     return habit;
-  } catch (error: any) {
-    throw new Error("Prisma Create Error: " + error.message);
+  } catch (error) {
+    throw new Error("Prisma Create Error: " + (error instanceof Error ? error.message : String(error)));
   }
 }
 
-function getRecentLogsCutoff() {
+// A cutoff a few days earlier than `weeks` back, snapped to the start of a week and month, so a
+// heatmap of exactly `weeks` weeks (and monthly habits near the start of that window) render correctly.
+function getRecentLogsCutoff(weeks: number) {
   const pastDate = new Date();
-  pastDate.setDate(pastDate.getDate() - 40); // Go back enough for 5 weeks
+  pastDate.setDate(pastDate.getDate() - (weeks * 7 + 12));
   pastDate.setDate(1); // Snap to the 1st of that month to ensure we capture early-month logs for monthly habits
   pastDate.setDate(pastDate.getDate() - pastDate.getDay()); // Snap to the Sunday before the 1st to capture logs for partial weeks
   return pastDate;
@@ -210,19 +219,21 @@ export async function getFavoriteHabits() {
     orderBy: [{ order: 'asc' }, { name: 'asc' }],
     include: {
       logs: {
-        where: { createdAt: { gte: getRecentLogsCutoff() } },
+        where: { createdAt: { gte: getRecentLogsCutoff(5) } },
         select: { createdAt: true }
       }
     }
   });
 }
 
-export async function getUncategorizedHabits() {
+// `weeks` bounds how far back logs are fetched; see getCategory, which shares this cutoff with the
+// "Uncategorized" synthetic category's history view.
+export async function getUncategorizedHabits(weeks: number = MAX_HISTORY_WEEKS) {
   const user = await getDefaultUser();
   return prisma.habit.findMany({
     where: { userId: user.id, categoryId: null },
     orderBy: [{ order: 'asc' }, { name: 'asc' }],
-    include: { logs: { select: { createdAt: true, payload: true } } }
+    include: { logs: { where: { createdAt: { gte: getRecentLogsCutoff(weeks) } }, select: { createdAt: true } } }
   });
 }
 
@@ -250,7 +261,7 @@ export async function getHabit(id: string) {
   return habit;
 }
 
-export async function logHabitEvent(habitId: string, payload: any, createdAt?: Date) {
+export async function logHabitEvent(habitId: string, payload: Record<string, unknown>, createdAt?: Date) {
   const user = await getDefaultUser();
   const habit = await prisma.habit.findUnique({ where: { id: habitId } });
   if (!habit || habit.userId !== user.id) throw new Error("Unauthorized");
@@ -299,7 +310,7 @@ export async function getHabitLogs(habitId: string) {
   });
 }
 
-export async function updateHabit(id: string, name: string, description: string, schema: any, categoryId?: string, frequency: string = 'daily', publishToMqtt: boolean = false) {
+export async function updateHabit(id: string, name: string, description: string, schema: HabitSchema, categoryId?: string, frequency: string = 'daily', publishToMqtt: boolean = false) {
   const user = await getDefaultUser();
   const existing = await prisma.habit.findUnique({ where: { id } });
   if (!existing || existing.userId !== user.id) throw new Error("Unauthorized");
@@ -328,8 +339,8 @@ export async function updateHabit(id: string, name: string, description: string,
     revalidatePath(`/log/${id}`);
     revalidatePath(`/history/${id}`);
     return habit;
-  } catch (error: any) {
-    throw new Error("Prisma Update Error: " + error.message);
+  } catch (error) {
+    throw new Error("Prisma Update Error: " + (error instanceof Error ? error.message : String(error)));
   }
 }
 

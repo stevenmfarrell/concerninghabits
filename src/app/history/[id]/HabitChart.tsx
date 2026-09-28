@@ -2,12 +2,13 @@
 
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { BarChart2, LineChart as LineChartIcon, ArrowDownToLine, Minimize2 } from 'lucide-react';
+import { BarChart2, LineChart as LineChartIcon } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { formatLogValue, formatDuration } from '../../../lib/format';
+import type { HabitSchema } from '@/lib/types';
 
-export default function HabitChart({ 
-  logs, 
+export default function HabitChart({
+  logs,
   numericFields,
   pageSize,
   habitId,
@@ -15,18 +16,19 @@ export default function HabitChart({
   defaultChartTypes,
   schemaObj,
   timeZone
-}: { 
-  logs: { id: string, createdAt: Date, payload: string }[], 
+}: {
+  logs: { id: string, createdAt: Date, payload: string }[],
   numericFields: string[],
   pageSize: number,
   habitId: string,
   defaultSelectedField: string,
   defaultChartTypes: Record<string, 'line' | 'bar'>,
-  schemaObj?: any,
+  schemaObj?: HabitSchema,
   timeZone: string
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const schemaProperties = schemaObj?.properties as Record<string, { 'x-widget'?: string; 'x-unit'?: string }> | undefined;
   const [selectedField, setSelectedField] = useState<string>(defaultSelectedField);
   const [chartTypes, setChartTypes] = useState<Record<string, 'line' | 'bar'>>(defaultChartTypes);
   const [isOpen, setIsOpen] = useState(false);
@@ -46,14 +48,7 @@ export default function HabitChart({
     return () => document.removeEventListener('touchstart', handleTouchOutside);
   }, []);
 
-  const yDomain: any = chartTypes[selectedField] === 'bar' ? [0, 'auto'] : ['auto', 'auto'];
-
-  const handleFieldChange = (field: string) => {
-    setSelectedField(field);
-    setIsOpen(false);
-    // Save to cookie for 10 years
-    document.cookie = `chartField_${habitId}=${field}; path=/; max-age=315360000`;
-  };
+  const yDomain: [number | string, number | string] = chartTypes[selectedField] === 'bar' ? [0, 'auto'] : ['auto', 'auto'];
 
   const data = useMemo(() => {
     // Parse payloads and extract the selected field
@@ -67,7 +62,7 @@ export default function HabitChart({
           dateStr: new Date(log.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone }),
           value: typeof val === 'number' ? val : null
         };
-      } catch (e) {
+      } catch {
         return { logId: log.id, date: new Date(log.createdAt).getTime(), dateStr: '', value: null };
       }
     });
@@ -76,30 +71,32 @@ export default function HabitChart({
     return points
       .filter(p => p.value !== null)
       .sort((a, b) => a.date - b.date);
-  }, [logs, selectedField]);
+  }, [logs, selectedField, timeZone]);
 
   if (numericFields.length === 0) return null;
 
   const hasData = data.length > 0;
-  
-  const isDuration = schemaObj?.properties?.[selectedField]?.['x-widget'] === 'duration';
-  
-  const yAxisTickFormatter = (tick: any) => {
-    if (isDuration) return formatDuration(tick);
-    return tick;
+
+  const isDuration = schemaProperties?.[selectedField]?.['x-widget'] === 'duration';
+
+  const yAxisTickFormatter = (tick: unknown) => {
+    if (isDuration) return formatDuration(Number(tick));
+    return String(tick);
   };
 
-  const handleChartClick = (e: any) => {
+  const handleChartClick = (e: unknown) => {
     // This catches clicks anywhere on the chart's vertical slice
-    if (e && e.activePayload && e.activePayload.length > 0) {
-      triggerHighlight(e.activePayload[0].payload.logId);
+    const state = e as { activePayload?: { payload: { logId: string } }[] } | undefined;
+    if (state?.activePayload && state.activePayload.length > 0) {
+      triggerHighlight(state.activePayload[0].payload.logId);
     }
   };
 
-  const handleDotClick = (e: any) => {
+  const handleDotClick = (e: unknown) => {
     // This catches direct clicks on the active dot
-    if (e && e.payload && e.payload.logId) {
-      triggerHighlight(e.payload.logId);
+    const state = e as { payload?: { logId: string } } | undefined;
+    if (state?.payload?.logId) {
+      triggerHighlight(state.payload.logId);
     }
   };
 
@@ -127,7 +124,7 @@ export default function HabitChart({
 
   const getFieldLabel = (field: string) => {
     let label = field.replace(/([A-Z])/g, ' $1').trim().replace(/^./, str => str.toUpperCase());
-    const fieldUnit = schemaObj?.properties?.[field]?.['x-unit'];
+    const fieldUnit = schemaProperties?.[field]?.['x-unit'];
     if (fieldUnit) {
       label += ` (${fieldUnit})`;
     }
@@ -156,7 +153,12 @@ export default function HabitChart({
                     {numericFields.map(field => (
                       <button
                         key={field}
-                        onClick={() => handleFieldChange(field)}
+                        onClick={() => {
+                          setSelectedField(field);
+                          setIsOpen(false);
+                          // Save to cookie for 10 years
+                          document.cookie = `chartField_${habitId}=${field}; path=/; max-age=315360000`;
+                        }}
                         className={`w-full text-left px-4 py-2 text-sm transition-colors ${
                           selectedField === field ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-stone-700 hover:bg-stone-50'
                         }`}
@@ -220,8 +222,8 @@ export default function HabitChart({
                   contentStyle={{ borderRadius: '12px', border: '1px solid #e7e5e4', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                   labelStyle={{ color: '#57534e', fontWeight: 600, marginBottom: '4px' }}
                   itemStyle={{ color: '#047857', fontWeight: 700 }}
-                  labelFormatter={(label: any) => new Date(label).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone })}
-                  formatter={(value: any) => [formatLogValue(value, schemaObj?.properties?.[selectedField]), selectedField.replace(/([A-Z])/g, ' $1').trim().replace(/^./, str => str.toUpperCase())]}
+                  labelFormatter={(label: unknown) => new Date(label as string | number).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone })}
+                  formatter={(value: unknown) => [formatLogValue(value, schemaProperties?.[selectedField]), selectedField.replace(/([A-Z])/g, ' $1').trim().replace(/^./, str => str.toUpperCase())]}
                 />
                 <Bar 
                   dataKey="value" 
@@ -259,8 +261,8 @@ export default function HabitChart({
                   contentStyle={{ borderRadius: '12px', border: '1px solid #e7e5e4', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                   labelStyle={{ color: '#57534e', fontWeight: 600, marginBottom: '4px' }}
                   itemStyle={{ color: '#047857', fontWeight: 700 }}
-                  labelFormatter={(label: any) => new Date(label).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone })}
-                  formatter={(value: any) => [formatLogValue(value, schemaObj?.properties?.[selectedField]), selectedField.replace(/([A-Z])/g, ' $1').trim().replace(/^./, str => str.toUpperCase())]}
+                  labelFormatter={(label: unknown) => new Date(label as string | number).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone })}
+                  formatter={(value: unknown) => [formatLogValue(value, schemaProperties?.[selectedField]), selectedField.replace(/([A-Z])/g, ' $1').trim().replace(/^./, str => str.toUpperCase())]}
                 />
                 <Line 
                   type="monotone" 

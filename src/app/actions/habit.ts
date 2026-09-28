@@ -9,8 +9,9 @@ const google = createGoogleGenerativeAI({
 import { z } from 'zod';
 import { getDefaultUser, getCategories } from './db';
 import { buildCategoryChoices } from '@/lib/categoryChoices';
+import type { HabitSchema } from '@/lib/types';
 
-export async function generateHabitSchema(prompt: string, currentSchema?: any) {
+export async function generateHabitSchema(prompt: string, currentSchema?: HabitSchema) {
   const user = await getDefaultUser();
 
   // Let the AI choose from the user's own categories, then map its choice back to an id
@@ -59,8 +60,6 @@ export async function generateHabitSchema(prompt: string, currentSchema?: any) {
     return { success: false, error: "Failed to generate schema." };
   }
 }
-
-import { generateText } from 'ai';
 
 export async function parseVoiceLog(schemaStr: string, transcript: string) {
   await getDefaultUser();

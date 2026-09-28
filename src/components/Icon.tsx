@@ -1,7 +1,9 @@
 import * as Icons from 'lucide-react';
-import { LucideProps } from 'lucide-react';
+import { LucideIcon, LucideProps } from 'lucide-react';
+
+const iconsByName = Icons as unknown as Record<string, LucideIcon>;
 
 export default function Icon({ name, ...props }: { name: string } & LucideProps) {
-  const LucideIcon = (Icons as any)[name] || Icons.List;
-  return <LucideIcon {...props} />;
+  const Component = iconsByName[name] || Icons.List;
+  return <Component {...props} />;
 }

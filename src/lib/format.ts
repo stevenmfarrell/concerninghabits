@@ -15,7 +15,7 @@ export function formatDuration(totalMinutes: number): string {
   }
 }
 
-export function formatLogValue(val: any, propSchema?: any): string {
+export function formatLogValue(val: unknown, propSchema?: { 'x-widget'?: string; 'x-unit'?: string }): string {
   if (val === undefined || val === null) return '';
   if (propSchema?.['x-widget'] === 'duration' && typeof val === 'number') {
     return formatDuration(val);

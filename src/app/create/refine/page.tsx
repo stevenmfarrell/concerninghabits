@@ -6,29 +6,38 @@ import HabitEditor from '../../../components/HabitEditor';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Loader2 } from 'lucide-react';
+import type { HabitSchema } from '@/lib/types';
+
+interface HabitDraft {
+  schema: HabitSchema;
+  frequency?: string;
+  categoryId?: string;
+}
+
+// Read lazily since sessionStorage isn't available on the server.
+function readDraft(): HabitDraft | null {
+  if (typeof window === 'undefined') return null;
+  const draftData = sessionStorage.getItem('draftHabit');
+  return draftData ? JSON.parse(draftData) : null;
+}
 
 export default function RefineHabit() {
   const router = useRouter();
-  
-  const [draft, setDraft] = useState<any>(null);
+
+  const [draft] = useState<HabitDraft | null>(readDraft);
 
   useEffect(() => {
-    const draftData = sessionStorage.getItem('draftHabit');
-    if (!draftData) {
-      router.replace('/create');
-      return;
-    }
-    setDraft(JSON.parse(draftData));
-  }, [router]);
+    if (!draft) router.replace('/create');
+  }, [draft, router]);
 
-  const handleSave = async (title: string, description: string, schema: any, categoryId: string, frequency: string, publishToMqtt: boolean) => {
+  const handleSave = async (title: string, description: string, schema: HabitSchema, categoryId: string, frequency: string, publishToMqtt: boolean) => {
     await saveHabit(title, description, schema, categoryId, frequency, publishToMqtt);
     sessionStorage.removeItem('draftHabit');
     router.push('/');
   };
 
   const handleTitleChange = (title: string) => {
-    const currentDraft = JSON.parse(sessionStorage.getItem('draftHabit') || '{}');
+    const currentDraft: Partial<HabitDraft> = JSON.parse(sessionStorage.getItem('draftHabit') || '{}');
     if (currentDraft.schema) currentDraft.schema.title = title;
     sessionStorage.setItem('draftHabit', JSON.stringify(currentDraft));
   };
@@ -46,7 +55,7 @@ export default function RefineHabit() {
           </Link>
           <div className="space-y-2">
             <h1 className="text-3xl font-bold text-stone-900">Almost there...</h1>
-            <p className="text-stone-600">Here is the draft we created. Make any updates and save when you're ready.</p>
+            <p className="text-stone-600">Here is the draft we created. Make any updates and save when you&apos;re ready.</p>
           </div>
         </div>
 

@@ -4,9 +4,10 @@ import Select, { SelectOption } from './Select';
 import Icon from './Icon';
 import { Plus } from 'lucide-react';
 import { orderCategoryTree } from '@/lib/categoryChoices';
+import type { CategoryOption } from '@/lib/types';
 
 interface CategorySelectProps {
-  categories: any[];
+  categories: CategoryOption[];
   value: string;
   onChange: (id: string) => void;
   onNew: () => void;

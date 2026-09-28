@@ -65,7 +65,7 @@ export async function verifySession() {
     }
 
     return { userId: session.userId, sessionId: session.id };
-  } catch (error) {
+  } catch {
     return null;
   }
 }
@@ -79,7 +79,7 @@ export async function deleteSession() {
       await prisma.session.delete({
         where: { id: sessionCookie.value }
       });
-    } catch (e) {
+    } catch {
       // Ignore if session already doesn't exist
     }
   }

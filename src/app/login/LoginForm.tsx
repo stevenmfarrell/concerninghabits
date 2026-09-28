@@ -2,12 +2,11 @@
 
 import { useActionState } from 'react';
 import { login } from '@/app/actions/auth';
-import Link from 'next/link';
 import { Loader2 } from 'lucide-react';
 
 export default function LoginForm() {
   const [state, action, isPending] = useActionState(
-    async (prevState: any, formData: FormData) => {
+    async (_prevState: Awaited<ReturnType<typeof login>> | null, formData: FormData) => {
       return await login(formData);
     },
     null

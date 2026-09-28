@@ -4,17 +4,16 @@ import { useState } from 'react';
 import { createCategory, updateCategory, deleteCategory, reorderCategories } from '../../actions/db';
 import Icon from '../../../components/Icon';
 import IconPicker from '../../../components/IconPicker';
-import NewCategoryInline from '../../../components/NewCategoryInline';
-import { Plus, Trash2, Edit2, Check, X, Loader2, ArrowLeft, GripVertical } from 'lucide-react';
+import { Plus, Trash2, Edit2, Check, X, Loader2, GripVertical } from 'lucide-react';
 import { Fragment } from 'react';
-import Link from 'next/link';
 import ConfirmDialog from '../../../components/ConfirmDialog';
 import { UNCATEGORIZED_ICON } from '@/lib/constants';
 import toast from 'react-hot-toast';
 import { DropResult, computeDrop, applyDrop, getDropPosition, sameDropResult } from './categoryDrop';
-import { DndContext, closestCenter, rectIntersection, PointerSensor, TouchSensor, KeyboardSensor, useSensor, useSensors, MeasuringStrategy, DragOverlay, defaultDropAnimationSideEffects, CollisionDetection, useDroppable } from '@dnd-kit/core';
-import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable, SortingStrategy } from '@dnd-kit/sortable';
+import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors, MeasuringStrategy, DragOverlay, defaultDropAnimationSideEffects, CollisionDetection, DragStartEvent, DragMoveEvent, DragEndEvent, DraggableAttributes, DraggableSyntheticListeners } from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy, useSortable, SortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import type { CategoryOption } from '@/lib/types';
 
 
 
@@ -46,7 +45,7 @@ const customCollisionDetection: CollisionDetection = (args) => {
 
 const SubcategoryDropZone = ({ isProjected }: { isProjected: boolean }) => {
   return (
-    <div 
+    <div
       className={`absolute right-4 top-1/2 -translate-y-1/2 h-10 px-4 rounded-lg border-2 flex items-center justify-center transition-colors z-50 shadow-sm ${isProjected ? 'border-emerald-500 bg-emerald-50 text-emerald-700 font-bold scale-110' : 'border-dashed border-stone-200 bg-white/80 text-stone-400 font-medium'}`}
     >
       <span className="text-xs whitespace-nowrap pointer-events-none">{isProjected ? 'Release to Nest' : 'Drag Right to Nest'}</span>
@@ -54,7 +53,18 @@ const SubcategoryDropZone = ({ isProjected }: { isProjected: boolean }) => {
   );
 }
 
-const SortableItem = ({ cat, renderCategoryRow, childrenNode, disabled }: { cat: any, renderCategoryRow: any, childrenNode?: React.ReactNode, disabled?: boolean }) => {
+interface DndRowProps {
+  attributes?: DraggableAttributes;
+  listeners?: DraggableSyntheticListeners;
+  setNodeRef?: (node: HTMLElement | null) => void;
+  style?: React.CSSProperties;
+  isDragging?: boolean;
+  isOverlay?: boolean;
+}
+
+type RenderCategoryRow = (cat: CategoryOption, dndProps?: DndRowProps, childrenNode?: React.ReactNode) => React.ReactElement;
+
+const SortableItem = ({ cat, renderCategoryRow, childrenNode, disabled }: { cat: CategoryOption, renderCategoryRow: RenderCategoryRow, childrenNode?: React.ReactNode, disabled?: boolean }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: cat.id, disabled });
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -66,7 +76,7 @@ const SortableItem = ({ cat, renderCategoryRow, childrenNode, disabled }: { cat:
 // Rows only slide out of the way for a plain reorder; other moves are previewed with indicators
 const noDisplacement: SortingStrategy = () => null;
 
-export default function CategoriesClient({ initialCategories }: { initialCategories: any[] }) {
+export default function CategoriesClient({ initialCategories }: { initialCategories: CategoryOption[] }) {
   const [categories, setCategories] = useState(initialCategories);
   const [loading, setLoading] = useState('');
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -121,8 +131,8 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
     setDeleteConfirmId(null);
   };
 
-  const handleDragStart = (event: any) => {
-    setActiveId(event.active.id);
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(String(event.active.id));
   };
 
   const handleDragCancel = () => {
@@ -130,21 +140,21 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
     setDropPreview(null);
   };
 
-  const computeDropForEvent = (event: any) =>
+  const computeDropForEvent = (event: DragMoveEvent | DragEndEvent) =>
     computeDrop(
       categories,
-      event.active.id,
-      event.over?.id ?? null,
+      String(event.active.id),
+      event.over ? String(event.over.id) : null,
       event.delta.x,
       getDropPosition(event.active.rect.current.translated, event.over?.rect),
     );
 
-  const handleDragMove = (event: any) => {
+  const handleDragMove = (event: DragMoveEvent) => {
     const next = computeDropForEvent(event);
     setDropPreview(prev => sameDropResult(prev, next) ? prev : next);
   };
 
-  const handleDragEnd = async (event: any) => {
+  const handleDragEnd = async (event: DragEndEvent) => {
     const drop = computeDropForEvent(event);
     setActiveId(null);
     setDropPreview(null);
@@ -170,7 +180,7 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
     }
   };
 
-  const startEdit = (cat: any) => {
+  const startEdit = (cat: CategoryOption) => {
     setEditingId(cat.id);
     setEditName(cat.name);
     setEditIcon(cat.icon || 'List');
@@ -178,14 +188,14 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
   };
 
   // "Drag right to nest" targets: top-level rows other than the dragged category and its current parent
-  const showNestZone = (cat: any) => {
+  const showNestZone = (cat: CategoryOption) => {
     const activeCat = activeId ? categories.find(c => c.id === activeId) : null;
     if (!activeCat || cat.parentId || cat.id === activeCat.id || cat.id === activeCat.parentId) return false;
     return !categories.some(c => c.parentId === activeCat.id);
   };
   const sortingStrategy = dropPreview && dropPreview.mode !== 'reorder' ? noDisplacement : verticalListSortingStrategy;
 
-  const renderCategoryRow = (cat: any, dndProps?: any, childrenNode?: React.ReactNode) => {
+  const renderCategoryRow: RenderCategoryRow = (cat, dndProps, childrenNode) => {
     return (
       <li 
         ref={dndProps?.setNodeRef}

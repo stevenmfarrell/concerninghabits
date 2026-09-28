@@ -22,8 +22,8 @@ export default function PreferencesForm({ initialBedtime, initialWeekStartsOn, i
       await updateUserPreferences({ bedtime, weekStartsOn, useEmojiTitle, unitSystem, emojiModifier });
       router.refresh();
       toast.success("Settings saved!");
-    } catch (err: any) {
-      toast.error("Error saving settings: " + err.message);
+    } catch (err) {
+      toast.error("Error saving settings: " + (err instanceof Error ? err.message : 'Unknown error'));
     } finally {
       setSaving(false);
     }
@@ -105,7 +105,7 @@ export default function PreferencesForm({ initialBedtime, initialWeekStartsOn, i
         <div className="ml-7">
           <label className="block text-sm font-semibold text-stone-700 mb-1">Emoji Style Modifiers</label>
           <p className="text-sm text-stone-500 mb-3">
-            Instruct the AI to use specific emoji styles, such as skin tone or gender (e.g., "medium-light skin tone, female").
+            Instruct the AI to use specific emoji styles, such as skin tone or gender (e.g., &quot;medium-light skin tone, female&quot;).
           </p>
           <input 
             type="text" 

@@ -3,26 +3,25 @@
 import { updateHabit, deleteHabit } from '../../actions/db';
 import HabitEditor from '../../../components/HabitEditor';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { ArrowLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
+import type { HabitDetail, HabitSchema } from '@/lib/types';
 
-export default function EditClient({ habit }: { habit: any }) {
+export default function EditClient({ habit }: { habit: HabitDetail }) {
   const router = useRouter();
 
-  const handleSave = async (title: string, description: string, schema: any, categoryId: string, frequency: string, publishToMqtt: boolean) => {
+  const handleSave = async (title: string, description: string, schema: HabitSchema, categoryId: string, frequency: string, publishToMqtt: boolean) => {
     const saveToast = toast.loading("Saving changes...");
     await updateHabit(habit.id, title, description, schema, categoryId, frequency, publishToMqtt);
     toast.success("Changes saved!", { id: saveToast });
-    window.location.href = '/';
+    router.push('/');
   };
 
   const handleDelete = async () => {
     try {
       await deleteHabit(habit.id);
       router.push('/');
-    } catch (e: any) {
-      toast.error("Failed to delete habit: " + e.message);
+    } catch (e) {
+      toast.error("Failed to delete habit: " + (e instanceof Error ? e.message : 'Unknown error'));
       throw e; // prevent unloading loading state if it failed
     }
   };
@@ -32,7 +31,7 @@ export default function EditClient({ habit }: { habit: any }) {
       <div>
         <div className="space-y-2">
           <h1 className="text-3xl font-bold text-stone-900">Edit Habit</h1>
-          <p className="text-stone-600">Update your habit's form, category, or cadence.</p>
+          <p className="text-stone-600">Update your habit&apos;s form, category, or cadence.</p>
         </div>
       </div>
 

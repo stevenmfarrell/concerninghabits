@@ -9,7 +9,7 @@ export default function ProvisionUserForm() {
   const [isOpen, setIsOpen] = useState(false);
   
   const [state, action, isPending] = useActionState(
-    async (prevState: any, formData: FormData) => {
+    async (_prevState: { error: string | null, success: boolean } | null, formData: FormData) => {
       const result = await provisionUser(formData);
       if (result?.error) {
         return { error: result.error, success: false };

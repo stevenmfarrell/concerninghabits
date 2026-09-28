@@ -14,8 +14,23 @@ import toast from 'react-hot-toast';
 import DurationWidget from '../../../components/widgets/DurationWidget';
 import UnitWidget from '../../../components/widgets/UnitWidget';
 import { formatLogValue } from '../../../lib/format';
+import { DEFAULT_TARGET_COUNT } from '@/lib/constants';
+import type { HabitSchema, HabitWithLogs, SessionUser } from '@/lib/types';
+import type { UiSchema } from '@rjsf/utils';
 
-export default function LogClient({ habit, user }: { habit: any, user: any }) {
+// The Web Speech API isn't in TS's DOM lib; this covers the small surface LogClient uses.
+interface SpeechRecognitionLike {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  start(): void;
+  stop(): void;
+  onresult: ((event: { results: { [i: number]: { [j: number]: { transcript: string } } } }) => void) | null;
+  onerror: ((event: { error: string }) => void) | null;
+  onend: (() => void) | null;
+}
+
+export default function LogClient({ habit, user }: { habit: HabitWithLogs, user: SessionUser }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
@@ -23,7 +38,7 @@ export default function LogClient({ habit, user }: { habit: any, user: any }) {
 
   const [logDate, setLogDate] = useState('');
   const [showBackdate, setShowBackdate] = useState(false);
-  const [aiSuccessLog, setAiSuccessLog] = useState<{ logId: string, data: any } | null>(null);
+  const [aiSuccessLog, setAiSuccessLog] = useState<{ logId: string, data: Record<string, unknown> } | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [isFavorite, setIsFavorite] = useState<boolean>(!!habit.isFavorite);
 
@@ -32,19 +47,20 @@ export default function LogClient({ habit, user }: { habit: any, user: any }) {
     setIsFavorite(next);
     try {
       setIsFavorite(await toggleFavorite(habit.id));
-    } catch (err: any) {
+    } catch (err) {
       setIsFavorite(!next);
-      toast.error(`Failed to update favorite: ${err.message || 'Unknown error'}`);
+      toast.error(`Failed to update favorite: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }
   };
 
-  const schema = JSON.parse(habit.schema);
-  
+  const schema: HabitSchema = JSON.parse(habit.schema);
+  const schemaProperties = schema.properties as Record<string, { type?: string; title?: string; 'x-widget'?: string; 'x-unit'?: string }> | undefined;
+
   // Build uiSchema for custom widgets
-  const uiSchema: any = {};
-  if (schema.properties) {
-    Object.keys(schema.properties).forEach(key => {
-      const prop = schema.properties[key];
+  const uiSchema: UiSchema = {};
+  if (schemaProperties) {
+    Object.keys(schemaProperties).forEach(key => {
+      const prop = schemaProperties[key];
       if (prop['x-widget'] === 'duration') {
         uiSchema[key] = { 'ui:widget': 'duration' };
       } else if (prop['x-unit']) {
@@ -53,20 +69,44 @@ export default function LogClient({ habit, user }: { habit: any, user: any }) {
     });
   }
 
-  const [formData, setFormData] = useState<any>({});
-  
-  const recognitionRef = useRef<any>(null);
-  const splashTimeoutRef = useRef<any>(null);
-  
+  // Prefill from URL search params (e.g. a shortcut or automation), read lazily since they aren't
+  // available on the server.
+  const [formData, setFormData] = useState<Record<string, unknown>>(() => {
+    if (typeof window === 'undefined') return {};
+    const params = new URLSearchParams(window.location.search);
+    const initialData: Record<string, unknown> = {};
+    params.forEach((val, key) => {
+      const propSchema = schemaProperties?.[key];
+      if (propSchema) {
+        if (propSchema.type === 'number' || propSchema.type === 'integer') {
+          initialData[key] = Number(val);
+        } else if (propSchema.type === 'boolean') {
+          initialData[key] = val === 'true';
+        } else {
+          initialData[key] = val;
+        }
+      }
+    });
+    return initialData;
+  });
+
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  const splashTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const [timeLeft, setTimeLeft] = useState(100);
 
+  // Reset to 100 whenever the splash is shown or dismissed, so the fill-then-fade animation below
+  // replays correctly the next time it appears (adjusting state during render, not in an effect).
+  const [prevAiSuccessLog, setPrevAiSuccessLog] = useState(aiSuccessLog);
+  if (aiSuccessLog !== prevAiSuccessLog) {
+    setPrevAiSuccessLog(aiSuccessLog);
+    setTimeLeft(100);
+  }
+
   useEffect(() => {
-    if (aiSuccessLog) {
-      const timer = setTimeout(() => setTimeLeft(0), 50);
-      return () => clearTimeout(timer);
-    } else {
-      setTimeLeft(100);
-    }
+    if (!aiSuccessLog) return;
+    const timer = setTimeout(() => setTimeLeft(0), 50);
+    return () => clearTimeout(timer);
   }, [aiSuccessLog]);
 
   useEffect(() => {
@@ -75,7 +115,7 @@ export default function LogClient({ habit, user }: { habit: any, user: any }) {
     };
   }, []);
 
-  const handleAiExtractionSuccess = async (extractedData: any, loadingToastId: string) => {
+  const handleAiExtractionSuccess = async (extractedData: Record<string, unknown>, loadingToastId: string) => {
     if (Object.keys(extractedData).length === 0) {
       toast.error('Could not find any relevant data.', { id: loadingToastId });
       return;
@@ -97,7 +137,7 @@ export default function LogClient({ habit, user }: { habit: any, user: any }) {
         splashTimeoutRef.current = setTimeout(() => {
           router.push(`/history/${habit.id}`);
         }, 6000);
-      } catch (err) {
+      } catch {
         toast.error('AI filled the form, but auto-submit failed.');
       }
     } else {
@@ -126,8 +166,8 @@ export default function LogClient({ habit, user }: { habit: any, user: any }) {
                 await deleteHabitLog(log.id, habit.id);
                 toast.success("Entry undone");
                 router.refresh(); // Refresh to remove the undone item
-              } catch (err: any) {
-                toast.error(`Failed to undo: ${err.message}`);
+              } catch (err) {
+                toast.error(`Failed to undo: ${err instanceof Error ? err.message : 'Unknown error'}`);
               }
             }}
             className="px-3 py-1 text-sm font-semibold text-stone-900 bg-white hover:bg-stone-200 rounded-lg transition-colors ml-2 shadow-sm"
@@ -138,67 +178,55 @@ export default function LogClient({ habit, user }: { habit: any, user: any }) {
       ), { duration: 6000 });
 
       router.push(`/history/${habit.id}`);
-    } catch (err: any) {
-      toast.error(`Failed to log entry: ${err.message || 'Unknown error'}`);
+    } catch (err) {
+      toast.error(`Failed to log entry: ${err instanceof Error ? err.message : 'Unknown error'}`);
     } finally {
       setLoading(false);
     }
   };
 
-  // Initialize formData from URL search params on mount
+  // Kept current so the speech-recognition effect below doesn't need to recreate the
+  // recognition object (and lose its listening state) every time this callback changes.
+  const handleAiExtractionSuccessRef = useRef(handleAiExtractionSuccess);
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      const initialData: any = {};
-      params.forEach((val, key) => {
-        const propSchema = schema.properties?.[key];
-        if (propSchema) {
-          if (propSchema.type === 'number' || propSchema.type === 'integer') {
-            initialData[key] = Number(val);
-          } else if (propSchema.type === 'boolean') {
-            initialData[key] = val === 'true';
-          } else {
-            initialData[key] = val;
-          }
-        }
-      });
-      if (Object.keys(initialData).length > 0) {
-        setFormData(initialData);
-      }
-    }
-  }, []);
+    handleAiExtractionSuccessRef.current = handleAiExtractionSuccess;
+  });
 
   useEffect(() => {
     // Initialize speech recognition
     if (typeof window !== 'undefined') {
-      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      const globalWindow = window as unknown as {
+        SpeechRecognition?: new () => SpeechRecognitionLike;
+        webkitSpeechRecognition?: new () => SpeechRecognitionLike;
+      };
+      const SpeechRecognition = globalWindow.SpeechRecognition || globalWindow.webkitSpeechRecognition;
       if (SpeechRecognition) {
         const recognition = new SpeechRecognition();
         recognition.continuous = false;
         recognition.interimResults = false;
         recognition.lang = 'en-US';
 
-        recognition.onresult = async (event: any) => {
+        recognition.onresult = async (event) => {
           const transcript = event.results[0][0].transcript;
           setIsListening(false);
           setAiLoading(true);
           const loadingToast = toast.loading('AI is processing your voice...');
-          
+
           try {
             const result = await parseVoiceLog(habit.schema, transcript);
             if (result.success && result.data) {
-              await handleAiExtractionSuccess(result.data, loadingToast);
+              await handleAiExtractionSuccessRef.current(result.data, loadingToast);
             } else {
               toast.error(result.error || 'AI could not understand', { id: loadingToast });
             }
-          } catch (e) {
+          } catch {
             toast.error('Failed to connect to AI', { id: loadingToast });
           } finally {
             setAiLoading(false);
           }
         };
 
-        recognition.onerror = (event: any) => {
+        recognition.onerror = (event) => {
           console.error("Speech recognition error", event.error);
           setIsListening(false);
           if (event.error !== 'aborted') {
@@ -265,7 +293,7 @@ export default function LogClient({ habit, user }: { habit: any, user: any }) {
         setAiLoading(false);
       };
       reader.readAsDataURL(file);
-    } catch (e) {
+    } catch {
       toast.error('Failed to process image', { id: loadingToast });
       setAiLoading(false);
     }
@@ -298,11 +326,11 @@ export default function LogClient({ habit, user }: { habit: any, user: any }) {
           
           <div className="w-full bg-stone-50 rounded-xl p-4 text-left border border-stone-200 mb-8 max-h-64 overflow-y-auto">
             {Object.entries(aiSuccessLog.data).map(([key, val]) => {
-              const label = schema.properties?.[key]?.title || key;
+              const label = schemaProperties?.[key]?.title || key;
               return (
                 <div key={key} className="flex justify-between items-center py-2 border-b border-stone-100 last:border-0">
                   <span className="text-sm font-medium text-stone-500">{label}</span>
-                  <span className="text-sm font-semibold text-stone-900">{formatLogValue(val, schema.properties?.[key])}</span>
+                  <span className="text-sm font-semibold text-stone-900">{formatLogValue(val, schemaProperties?.[key])}</span>
                 </div>
               );
             })}
@@ -316,8 +344,8 @@ export default function LogClient({ habit, user }: { habit: any, user: any }) {
                   await deleteHabitLog(aiSuccessLog.logId, habit.id);
                   setAiSuccessLog(null);
                   toast.success("Entry undone. You can now edit.");
-                } catch (e: any) {
-                  toast.error(`Failed to undo: ${e.message}`);
+                } catch (e) {
+                  toast.error(`Failed to undo: ${e instanceof Error ? e.message : 'Unknown error'}`);
                 }
               }}
               className="flex-1 py-3 px-4 bg-white border-2 border-stone-200 text-stone-700 rounded-xl font-medium hover:bg-stone-50 transition-colors flex items-center justify-center gap-2"
@@ -412,7 +440,7 @@ export default function LogClient({ habit, user }: { habit: any, user: any }) {
       <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-stone-100">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-semibold text-stone-800">New Entry</h2>
-          {Object.keys(schema.properties || {}).length > 0 && (schema.enableVoice !== false || schema.enablePhoto !== false) && (
+          {Object.keys(schemaProperties || {}).length > 0 && (schema.enableVoice !== false || schema.enablePhoto !== false) && (
             <div className="flex items-center gap-2">
               <input 
                 type="file" 
@@ -538,10 +566,10 @@ export default function LogClient({ habit, user }: { habit: any, user: any }) {
         </div>
         <div className="opacity-80 group-hover:opacity-100 transition-opacity flex justify-center w-full overflow-hidden py-2">
           <ActivityCalendar 
-            dates={habit.logs.map((l: any) => l.createdAt)} size="md" 
-            weeks={5} 
-            frequency={habit.frequency} 
-            targetCount={JSON.parse(habit.schema).targetCount || 3} 
+            dates={habit.logs.map(l => l.createdAt)} size="md"
+            weeks={5}
+            frequency={habit.frequency}
+            targetCount={schema.targetCount || DEFAULT_TARGET_COUNT}
             bedtime={user.bedtime} 
             weekStartsOn={user.weekStartsOn}
             timeZone={user.timeZone}

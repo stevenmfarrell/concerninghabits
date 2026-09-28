@@ -2,16 +2,16 @@ import { getHabit, getHabitLogs, deleteHabitLog, getDefaultUser } from '../../ac
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import BackButton from './BackButton';
-import { Trash2, Settings2, ArrowLeft } from 'lucide-react';
 import { cookies } from 'next/headers';
 import DeleteButton from './DeleteButton';
 import InteractiveCalendar from './InteractiveCalendar';
-import Icon from '../../../components/Icon';
 import HorizonToggle from './HorizonToggle';
 import HabitChart from './HabitChart';
 import { formatLogValue } from '../../../lib/format';
 import QuillIconWavy from '../../../components/QuillIconWavy';
 import { parseBedtimeOffsetMinutes, toCivilDate } from '../../../lib/timezone';
+import { DEFAULT_TARGET_COUNT } from '@/lib/constants';
+import type { HabitSchema } from '@/lib/types';
 
 export default async function HistoryPage(props: { params: Promise<{ id: string }>, searchParams: Promise<{ horizon?: string, page?: string, highlight?: string, t?: string }> }) {
   const params = await props.params;
@@ -69,10 +69,10 @@ export default async function HistoryPage(props: { params: Promise<{ id: string 
   let numericFields: string[] = [];
   const defaultChartTypes: Record<string, 'line' | 'bar'> = {};
   
-  let schemaObj: any = {};
+  let schemaObj: HabitSchema = { type: 'object', properties: {} };
   try {
     schemaObj = JSON.parse(habit.schema || '{}');
-    const properties = schemaObj.properties || {};
+    const properties = (schemaObj.properties || {}) as Record<string, { type?: string }>;
     numericFields = Object.keys(properties).filter(
       key => properties[key].type === 'number' || properties[key].type === 'integer'
     );
@@ -80,9 +80,10 @@ export default async function HistoryPage(props: { params: Promise<{ id: string 
       const savedType = cookieStore.get(`chartType_${habit.id}_${field}`)?.value;
       defaultChartTypes[field] = (savedType === 'bar') ? 'bar' : 'line';
     });
-  } catch (e) {
+  } catch {
     // Ignore JSON parse errors
   }
+  const schemaProperties = schemaObj.properties as Record<string, { 'x-widget'?: string; 'x-unit'?: string }> | undefined;
 
   return (
     <main className="flex-1 bg-stone-50 font-sans flex flex-col h-full">
@@ -126,7 +127,7 @@ export default async function HistoryPage(props: { params: Promise<{ id: string 
             logs={filteredLogs.map(l => ({ id: l.id, createdAt: l.createdAt }))} 
             weeks={weeks} 
             frequency={habit.frequency} 
-            targetCount={schemaObj?.targetCount || 3}
+            targetCount={schemaObj?.targetCount || DEFAULT_TARGET_COUNT}
             mobileMonthsPerColumn={mobileMonthsPerColumn} 
             desktopMonthsPerColumn={desktopMonthsPerColumn} 
             bedtime={user.bedtime} 
@@ -201,7 +202,7 @@ export default async function HistoryPage(props: { params: Promise<{ id: string 
                                 <span className="font-medium text-stone-700 capitalize">
                                   {key.replace(/([A-Z])/g, ' $1').trim()}:
                                 </span>{' '}
-                                {formatLogValue(value, schemaObj?.properties?.[key])}
+                                {formatLogValue(value, schemaProperties?.[key])}
                               </div>
                             ))}
                           </div>

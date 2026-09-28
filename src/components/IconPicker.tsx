@@ -2,6 +2,9 @@
 
 import { useState, useRef, useEffect, useMemo } from 'react';
 import * as LucideIcons from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
+
+const iconsByName = LucideIcons as unknown as Record<string, LucideIcon>;
 
 const allIconNames = Object.keys(LucideIcons).filter(
   name => /^[A-Z]/.test(name) && !name.endsWith('Icon') && name !== 'LucideIcon'
@@ -36,7 +39,7 @@ export default function IconPicker({ value, onChange, disabled }: IconPickerProp
     return allIconNames.filter(name => name.toLowerCase().includes(term)).slice(0, 150);
   }, [search]);
 
-  const CurrentIcon = (LucideIcons as any)[value] || LucideIcons.List;
+  const CurrentIcon = iconsByName[value] || LucideIcons.List;
 
   return (
     <div className="relative shrink-0" ref={containerRef}>
@@ -64,7 +67,7 @@ export default function IconPicker({ value, onChange, disabled }: IconPickerProp
           />
           <div className="grid grid-cols-6 gap-1 max-h-48 overflow-y-auto p-1 custom-scrollbar">
             {filteredIcons.map((name) => {
-              const IconComp = (LucideIcons as any)[name];
+              const IconComp = iconsByName[name];
               if (!IconComp) return null;
               return (
                 <button

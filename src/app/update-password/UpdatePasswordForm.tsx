@@ -12,7 +12,7 @@ export default function UpdatePasswordForm({ needsUpdate }: { needsUpdate: boole
   const router = useRouter();
 
   const [state, action, isPending] = useActionState(
-    async (prevState: any, formData: FormData) => {
+    async (_prevState: { error: string | null, success: boolean } | null, formData: FormData) => {
       const result = await updatePassword(formData);
       if (result?.error) {
         return { error: result.error, success: false };

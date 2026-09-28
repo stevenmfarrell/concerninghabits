@@ -6,6 +6,7 @@ import { redirect } from 'next/navigation';
 import bcrypt from 'bcryptjs';
 import { headers } from 'next/headers';
 import { MIN_PASSWORD_LENGTH } from '@/lib/constants';
+import { seedDefaultCategories } from '@/lib/defaultCategories';
 
 const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 // Failed logins allowed per client (IP + email). Keyed per client so a stranger can't lock you out.
@@ -115,17 +116,7 @@ export async function setupInitialAdmin(formData: FormData) {
     },
   });
 
-  const defaults = [
-    { name: 'Mind', icon: 'Brain' },
-    { name: 'Body', icon: 'PersonStanding' },
-    { name: 'Chores', icon: 'Broom' },
-    { name: 'Other', icon: 'CheckSquare' }
-  ];
-  for (const cat of defaults) {
-    await prisma.category.create({
-      data: { ...cat, userId: user.id }
-    });
-  }
+  await seedDefaultCategories(user.id);
 
   await createSession(user.id);
   redirect('/');
@@ -178,17 +169,7 @@ export async function provisionUser(formData: FormData) {
     },
   });
 
-  const defaults = [
-    { name: 'Mind', icon: 'Brain' },
-    { name: 'Body', icon: 'PersonStanding' },
-    { name: 'Chores', icon: 'Broom' },
-    { name: 'Other', icon: 'CheckSquare' }
-  ];
-  for (const cat of defaults) {
-    await prisma.category.create({
-      data: { ...cat, userId: user.id }
-    });
-  }
+  await seedDefaultCategories(user.id);
 
   const { revalidatePath } = await import('next/cache');
   revalidatePath('/settings/users');

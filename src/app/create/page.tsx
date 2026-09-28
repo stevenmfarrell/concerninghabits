@@ -2,9 +2,8 @@
 
 import { useState } from 'react';
 import { generateHabitSchema } from '../actions/habit';
-import { Loader2, Sparkles, ArrowLeft } from 'lucide-react';
+import { Loader2, Sparkles } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import toast from 'react-hot-toast';
 
 export default function CreateHabit() {

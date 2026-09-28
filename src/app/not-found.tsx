@@ -13,7 +13,7 @@ export default function NotFound() {
         <h2 className="text-xl font-semibold text-stone-800">Page Not Found</h2>
         
         <p className="text-stone-600">
-          The habit or page you are looking for doesn't exist, or it might have been deleted.
+          The habit or page you are looking for doesn&apos;t exist, or it might have been deleted.
         </p>
 
         <div className="pt-8">

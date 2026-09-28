@@ -8,7 +8,7 @@ import { Loader2 } from 'lucide-react';
 
 export default function SetupForm() {
   const [state, action, isPending] = useActionState(
-    async (prevState: any, formData: FormData) => {
+    async (_prevState: Awaited<ReturnType<typeof setupInitialAdmin>> | null, formData: FormData) => {
       return await setupInitialAdmin(formData);
     },
     null

@@ -49,7 +49,7 @@ function slugify(text: string) {
     .replace(/^_+|_+$/g, '');
 }
 
-export function publishHabitLog(user: any, habit: any, payload: any) {
+export function publishHabitLog(user: { id: string; name: string }, habit: { id: string; name: string }, payload: unknown) {
   const mqttClient = getMqttClient();
   if (!mqttClient) return;
 

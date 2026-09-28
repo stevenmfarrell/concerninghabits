@@ -5,7 +5,6 @@ import Icon from '../../../components/Icon';
 import ActivityCalendar from '../../../components/ActivityCalendar';
 import BackButton from '../../history/[id]/BackButton';
 import { ChevronRight, } from 'lucide-react';
-import QuillIconWavy from '../../../components/QuillIconWavy';
 import CategoryMenu from './CategoryMenu';
 import { SortableCategoryItemList } from './SortableLists';
 
@@ -14,7 +13,8 @@ export default async function CategoryLogPage(props: { params: Promise<{ id: str
   const searchParams = await props.searchParams;
   const isReordering = searchParams.reorder === 'true';
   const user = await getDefaultUser();
-  const category = await getCategory(params.id);
+  // Only the 5-week "Recent History" card is shown on this page
+  const category = await getCategory(params.id, 5);
 
   if (!category) return notFound();
 

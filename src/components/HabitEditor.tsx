@@ -14,16 +14,19 @@ import ConfirmDialog from './ConfirmDialog';
 import DurationWidget from './widgets/DurationWidget';
 import UnitWidget from './widgets/UnitWidget';
 import Select from './Select';
+import { DEFAULT_TARGET_COUNT } from '@/lib/constants';
+import type { CategoryOption, HabitSchema } from '@/lib/types';
+import type { UiSchema } from '@rjsf/utils';
 
 interface HabitEditorProps {
   initialTitle: string;
   initialDescription: string;
-  initialSchema: any;
+  initialSchema: HabitSchema;
   initialFrequency: string;
   initialCategoryId: string;
   initialPublishToMqtt?: boolean;
   isCreateMode?: boolean;
-  onSave: (title: string, description: string, schema: any, categoryId: string, frequency: string, publishToMqtt: boolean) => Promise<void>;
+  onSave: (title: string, description: string, schema: HabitSchema, categoryId: string, frequency: string, publishToMqtt: boolean) => Promise<void>;
   onDelete?: () => Promise<void>;
   onChangeTitle?: (title: string) => void;
 }
@@ -40,11 +43,11 @@ export default function HabitEditor({
   onDelete,
   onChangeTitle
 }: HabitEditorProps) {
-  const [schema, setSchema] = useState<any>(initialSchema);
+  const [schema, setSchema] = useState<HabitSchema>(initialSchema);
   const [title, setTitle] = useState(initialTitle);
   const [description, setDescription] = useState(initialDescription);
   const [frequency, setFrequency] = useState<string>(initialFrequency);
-  const [targetCount, setTargetCount] = useState<number>(initialSchema.targetCount || 3);
+  const [targetCount, setTargetCount] = useState<number>(initialSchema.targetCount || DEFAULT_TARGET_COUNT);
   const [categoryId, setCategoryId] = useState<string>(initialCategoryId);
   const [publishToMqtt, setPublishToMqtt] = useState(initialPublishToMqtt || false);
   const [deleting, setDeleting] = useState(false);
@@ -56,17 +59,17 @@ export default function HabitEditor({
   const [tweakPrompt, setTweakPrompt] = useState('');
   const [isTweaking, setIsTweaking] = useState(false);
 
-  const [categories, setCategories] = useState<any[]>([]);
+  const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [showNewCat, setShowNewCat] = useState(false);
   const [mqttConfigured, setMqttConfigured] = useState(false);
 
   useEffect(() => {
     getCategories().then(cats => {
       setCategories(cats);
-      if (cats.length > 0 && !cats.some(c => c.id === categoryId)) {
+      setCategoryId(current =>
         // Default to the first category as shown in the dropdown
-        setCategoryId(orderCategoryTree(cats)[0].category.id);
-      }
+        cats.length > 0 && !cats.some(c => c.id === current) ? orderCategoryTree(cats)[0].category.id : current
+      );
     });
     isMqttConfigured().then(setMqttConfigured);
   }, []);
@@ -78,7 +81,7 @@ export default function HabitEditor({
     setIsTweaking(true);
     const result = await generateHabitSchema(tweakPrompt, schema);
     if (result.success) {
-      setSchema((prev: any) => ({
+      setSchema((prev) => ({
         ...prev,
         properties: result.schema?.properties,
         required: result.schema?.required,
@@ -102,8 +105,8 @@ export default function HabitEditor({
     const finalSchema = { ...schema, title, enableVoice, enablePhoto, targetCount: frequency === 'multiple' ? targetCount : undefined };
     try {
       await onSave(title, description, finalSchema, categoryId, frequency, publishToMqtt);
-    } catch (e: any) {
-      toast.error(e.message || 'Failed to save habit');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to save habit');
       setSaving(false);
     }
   };
@@ -169,10 +172,11 @@ export default function HabitEditor({
             </div>
             <div className="mb-8">
               {(() => {
-                const uiSchema: any = {};
-                if (schema?.properties) {
-                  Object.keys(schema.properties).forEach(key => {
-                    const prop = schema.properties[key];
+                const uiSchema: UiSchema = {};
+                const properties = schema?.properties as Record<string, { 'x-widget'?: string; 'x-unit'?: string }> | undefined;
+                if (properties) {
+                  Object.keys(properties).forEach(key => {
+                    const prop = properties[key];
                     if (prop['x-widget'] === 'duration') {
                       uiSchema[key] = { 'ui:widget': 'duration' };
                     } else if (prop['x-unit']) {

@@ -1,6 +1,7 @@
 'use client';
 
 import { civilDayKey, parseBedtimeOffsetMinutes, toCivilDate } from '@/lib/timezone';
+import { DEFAULT_TARGET_COUNT } from '@/lib/constants';
 
 interface ActivityCalendarProps {
   dates: Date[];
@@ -20,7 +21,7 @@ interface ActivityCalendarProps {
 }
 
 // All dates below are civil dates (UTC midnight for a day in `timeZone`), so only UTC methods are used.
-export default function ActivityCalendar({ dates, timeZone, weeks = 5, frequency = 'daily', size = 'sm', monthsPerColumn = 4, bedtime = '00:00', weekStartsOn = 'sunday', targetCount = 3, emptyColor = 'bg-stone-100', futureColor = 'bg-transparent border border-stone-100', onDateClick }: ActivityCalendarProps) {
+export default function ActivityCalendar({ dates, timeZone, weeks = 5, frequency = 'daily', size = 'sm', monthsPerColumn = 4, bedtime = '00:00', weekStartsOn = 'sunday', targetCount = DEFAULT_TARGET_COUNT, emptyColor = 'bg-stone-100', futureColor = 'bg-transparent border border-stone-100', onDateClick }: ActivityCalendarProps) {
   const bedtimeOffsetMinutes = parseBedtimeOffsetMinutes(bedtime);
 
   const today = toCivilDate(new Date(), timeZone, bedtimeOffsetMinutes);
@@ -173,8 +174,9 @@ export default function ActivityCalendar({ dates, timeZone, weeks = 5, frequency
   return (
     <div className="flex justify-start gap-6">
       {processedColumns.map((grid, colIndex) => {
-        const monthBlocks = [];
-        let currentBlock: any = null;
+        type MonthBlock = { month: number; year: number; startW: number; endW: number; text: string };
+        const monthBlocks: MonthBlock[] = [];
+        let currentBlock: MonthBlock | null = null;
         for (const cell of grid) {
           if (cell.isNull) continue;
           if (!currentBlock || currentBlock.month !== cell.date.getUTCMonth()) {

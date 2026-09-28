@@ -2,8 +2,8 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { DndContext, closestCenter, KeyboardSensor, PointerSensor, TouchSensor, useSensor, useSensors, DragOverlay } from '@dnd-kit/core';
-import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
+import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors, DragOverlay, DragStartEvent, DragEndEvent } from '@dnd-kit/core';
+import { arrayMove, SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical, ChevronRight } from 'lucide-react';
 import Icon from '../../../components/Icon';
@@ -11,10 +11,19 @@ import ActivityCalendar from '../../../components/ActivityCalendar';
 import QuillIconWavy from '../../../components/QuillIconWavy';
 import { reorderCategories } from '../../actions/db';
 import { reorderHabits } from '../../actions/db';
+import { DEFAULT_TARGET_COUNT } from '@/lib/constants';
+import type { HabitListItem, SessionUser, SubcategoryListItem } from '@/lib/types';
 
 import { ChevronDown, ExternalLink } from 'lucide-react';
 
-const SortableSubcategoryItem = ({ sub, user, isOverlay, isReordering, className = '' }: any) => {
+interface SortableRowProps {
+  user: SessionUser;
+  isOverlay?: boolean;
+  isReordering?: boolean;
+  className?: string;
+}
+
+const SortableSubcategoryItem = ({ sub, user, isOverlay, isReordering, className = '' }: SortableRowProps & { sub: SubcategoryListItem }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: sub.id });
   const [isOpen, setIsOpen] = useState(true);
   
@@ -23,20 +32,21 @@ const SortableSubcategoryItem = ({ sub, user, isOverlay, isReordering, className
     transition: transition || undefined,
   };
 
-  const subLogs = sub.habits?.flatMap((h: any) => h.logs?.map((l: any) => l.createdAt) || []) || [];
-  const subTargetCount = sub.habits?.length > 0 ? sub.habits.length : 1;
+  const subHabits = sub.habits ?? [];
+  const subLogs = subHabits.flatMap(h => h.logs?.map(l => l.createdAt) || []);
+  const subTargetCount = subHabits.length > 0 ? subHabits.length : 1;
 
   const content = (
     <div className={`flex flex-col relative w-full ${isOverlay ? 'shadow-2xl scale-[1.02] z-50 rounded-2xl' : ''}`}>
       {/* Header */}
-      <div className={`py-4 px-4 sm:px-6 flex justify-between items-center group/header transition-colors ${isOpen && sub.habits?.length > 0 ? 'border-b border-stone-100' : ''} bg-stone-50/80 hover:bg-stone-100/80`}>
+      <div className={`py-4 px-4 sm:px-6 flex justify-between items-center group/header transition-colors ${isOpen && subHabits.length > 0 ? 'border-b border-stone-100' : ''} bg-stone-50/80 hover:bg-stone-100/80`}>
         <div className="flex items-center gap-2 sm:gap-4 w-full">
           {isReordering && (
             <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing text-stone-300 hover:text-stone-500 touch-none shrink-0 p-1 -ml-2">
               <GripVertical className="w-5 h-5" />
             </div>
           )}
-          
+
           <button onClick={() => setIsOpen(!isOpen)} className="flex-1 flex flex-wrap sm:flex-nowrap items-center justify-between min-w-0 text-left gap-3 sm:gap-6">
             <div className="flex items-center gap-3 min-w-0 flex-1">
               <div className="w-8 h-8 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600 shrink-0">
@@ -45,8 +55,8 @@ const SortableSubcategoryItem = ({ sub, user, isOverlay, isReordering, className
               <div className="min-w-0 flex flex-col">
                 <div className="flex items-center gap-2">
                   <h3 className="font-semibold text-stone-800 truncate">{sub.name}</h3>
-                  <Link 
-                    href={`/categories/${sub.id}`} 
+                  <Link
+                    href={`/categories/${sub.id}`}
                     onClick={(e) => e.stopPropagation()}
                     className="p-1.5 text-stone-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors shrink-0"
                     title="Open Subcategory Page"
@@ -54,12 +64,12 @@ const SortableSubcategoryItem = ({ sub, user, isOverlay, isReordering, className
                     <ExternalLink className="w-3.5 h-3.5" />
                   </Link>
                 </div>
-                <p className="text-xs text-stone-500 truncate mt-0.5">{sub.habits?.length || 0} habits</p>
+                <p className="text-xs text-stone-500 truncate mt-0.5">{subHabits.length} habits</p>
               </div>
             </div>
-            
+
             <div className="flex items-center gap-3 sm:gap-6 shrink-0">
-              {sub.habits?.length > 0 && (
+              {subHabits.length > 0 && (
                 <div className="shrink-0 flex flex-col justify-center pointer-events-none">
                   <ActivityCalendar 
                     dates={subLogs} 
@@ -83,8 +93,8 @@ const SortableSubcategoryItem = ({ sub, user, isOverlay, isReordering, className
       </div>
       
       {/* Habits */}
-      {isOpen && !isOverlay && sub.habits && sub.habits.length > 0 && (
-        <SortableHabitList items={sub.habits} user={user} isReordering={isReordering} dndContextId={`habits-dnd-${sub.id}`} isNested={true} />
+      {isOpen && !isOverlay && subHabits.length > 0 && (
+        <SortableHabitList items={subHabits} user={user} isReordering={isReordering} dndContextId={`habits-dnd-${sub.id}`} isNested={true} />
       )}
     </div>
   );
@@ -94,12 +104,12 @@ const SortableSubcategoryItem = ({ sub, user, isOverlay, isReordering, className
 };
 
 type CategoryItem =
-  | { type: 'habit', id: string, data: any }
-  | { type: 'subcategory', id: string, data: any };
+  | { type: 'habit', id: string, data: HabitListItem }
+  | { type: 'subcategory', id: string, data: SubcategoryListItem };
 
 // A category's direct habits and subcategories, sorted together so either can be placed above the other.
 // Consecutive habits render as one joined card; each subcategory is its own card.
-export function SortableCategoryItemList({ items: initialItems, user, isReordering }: { items: CategoryItem[], user: any, isReordering?: boolean }) {
+export function SortableCategoryItemList({ items: initialItems, user, isReordering }: { items: CategoryItem[], user: SessionUser, isReordering?: boolean }) {
   const [items, setItems] = useState(initialItems);
   const [activeId, setActiveId] = useState<string | null>(null);
 
@@ -108,10 +118,10 @@ export function SortableCategoryItemList({ items: initialItems, user, isReorderi
     useSensor(TouchSensor, { activationConstraint: { delay: 100, tolerance: 5 } })
   );
 
-  const handleDragStart = (event: any) => setActiveId(event.active.id);
+  const handleDragStart = (event: DragStartEvent) => setActiveId(String(event.active.id));
   const handleDragCancel = () => setActiveId(null);
 
-  const handleDragEnd = async (event: any) => {
+  const handleDragEnd = async (event: DragEndEvent) => {
     setActiveId(null);
     const { active, over } = event;
     if (over && active.id !== over.id) {
@@ -161,18 +171,20 @@ export function SortableCategoryItemList({ items: initialItems, user, isReorderi
   );
 }
 
-const SortableHabitItem = ({ habit, user, isOverlay, isReordering, className = '' }: any) => {
+const SortableHabitItem = ({ habit, user, isOverlay, isReordering, className = '' }: SortableRowProps & { habit: HabitListItem }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: habit.id });
-  
+
   const style = {
     transform: CSS.Transform.toString(transform),
     transition: transition || undefined,
   };
 
-  let habitTargetCount = 3;
+  let habitTargetCount = DEFAULT_TARGET_COUNT;
   try {
-    habitTargetCount = JSON.parse(habit.schema).targetCount || 3;
-  } catch (e) {}
+    habitTargetCount = JSON.parse(habit.schema).targetCount || DEFAULT_TARGET_COUNT;
+  } catch {
+    // Malformed schema JSON: fall back to the default target count
+  }
 
   const content = (
     <div className={`flex items-stretch transition-colors group/row relative ${isDragging ? 'opacity-30 bg-stone-100' : 'bg-white hover:bg-stone-50'} ${isOverlay ? 'shadow-2xl scale-[1.02] z-50 rounded-xl' : ''}`}>
@@ -190,9 +202,9 @@ const SortableHabitItem = ({ habit, user, isOverlay, isReordering, className = '
           </div>
           <div className="shrink-0 flex flex-col justify-center">
             <div className="opacity-80 group-hover/row:opacity-100 transition-opacity pointer-events-none">
-              <ActivityCalendar 
-                dates={habit.logs?.map((l: any) => l.createdAt) || []} 
-                weeks={3} 
+              <ActivityCalendar
+                dates={habit.logs?.map(l => l.createdAt) || []}
+                weeks={3}
                 frequency={habit.frequency} 
                 targetCount={habitTargetCount} 
                 bedtime={user.bedtime} 
@@ -213,22 +225,22 @@ const SortableHabitItem = ({ habit, user, isOverlay, isReordering, className = '
   return <div ref={setNodeRef} style={style} className={`relative bg-white ${className}`}>{content}</div>;
 };
 
-export function SortableHabitList({ items: initialItems, user, isReordering, dndContextId = "habits-dnd-context", isNested = false }: { items: any[], user: any, isReordering?: boolean, dndContextId?: string, isNested?: boolean }) {
+export function SortableHabitList({ items: initialItems, user, isReordering, dndContextId = "habits-dnd-context", isNested = false }: { items: HabitListItem[], user: SessionUser, isReordering?: boolean, dndContextId?: string, isNested?: boolean }) {
   const [items, setItems] = useState(initialItems);
   const [activeId, setActiveId] = useState<string | null>(null);
-  
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 100, tolerance: 5 } })
   );
 
-  const handleDragStart = (event: any) => setActiveId(event.active.id);
+  const handleDragStart = (event: DragStartEvent) => setActiveId(String(event.active.id));
   const handleDragCancel = () => setActiveId(null);
-  
-  const handleDragEnd = async (event: any) => {
+
+  const handleDragEnd = async (event: DragEndEvent) => {
     setActiveId(null);
     const { active, over } = event;
-    if (active.id !== over?.id) {
+    if (over && active.id !== over.id) {
       const oldIndex = items.findIndex(i => i.id === active.id);
       const newIndex = items.findIndex(i => i.id === over.id);
       const newItems = arrayMove(items, oldIndex, newIndex);

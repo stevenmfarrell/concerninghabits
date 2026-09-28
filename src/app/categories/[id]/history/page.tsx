@@ -1,10 +1,8 @@
 import { getCategory, getDefaultUser } from '../../../actions/db';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import Icon from '../../../../components/Icon';
 import ActivityCalendar from '../../../../components/ActivityCalendar';
 import BackButton from '../../../history/[id]/BackButton';
-import { ChevronRight, FolderTree } from 'lucide-react';
 import QuillIconWavy from '../../../../components/QuillIconWavy';
 import { cookies } from 'next/headers';
 import HorizonToggle from '../../../history/[id]/HorizonToggle';
@@ -13,14 +11,15 @@ export default async function CategoryOverview(props: { params: Promise<{ id: st
   const params = await props.params;
   const searchParams = await props.searchParams;
   const user = await getDefaultUser();
-  const category = await getCategory(params.id);
-  
+
   const cookieStore = await cookies();
   const savedHorizon = cookieStore.get(`horizon_${params.id}`)?.value;
   const horizon = searchParams?.horizon || savedHorizon || '26';
   const weeks = parseInt(horizon, 10);
-  
-  // Use 7 and 5 to guarantee exactly 2 columns (mobile) and 3 columns (desktop) 
+
+  const category = await getCategory(params.id, weeks);
+
+  // Use 7 and 5 to guarantee exactly 2 columns (mobile) and 3 columns (desktop)
   // even when the 52-week window bleeds into a 13th calendar month.
   const mobileMonthsPerColumn = weeks === 52 ? 7 : 4;
   const desktopMonthsPerColumn = weeks === 52 ? 5 : 4;
@@ -35,8 +34,6 @@ export default async function CategoryOverview(props: { params: Promise<{ id: st
   const dates = allLogs.map(l => l.createdAt);
   const habitCount = category.habits.length + (category.children ? category.children.reduce((acc, c) => acc + c.habits.length, 0) : 0);
   const targetCount = habitCount > 0 ? habitCount : 1;
-
-  const isTopLevel = category.parentId === null;
 
   return (
     <main className="flex-1 bg-stone-50 font-sans flex flex-col h-full">
