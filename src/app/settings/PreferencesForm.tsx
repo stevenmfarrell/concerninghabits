@@ -5,6 +5,7 @@ import { Loader2, Save } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import Select from '@/components/Select';
+import { Button } from '@/components/ui/Button';
 
 export default function PreferencesForm({ initialBedtime, initialWeekStartsOn, initialUseEmojiTitle, initialUnitSystem, initialEmojiModifier }: { initialBedtime: string, initialWeekStartsOn: string, initialUseEmojiTitle: boolean, initialUnitSystem: string, initialEmojiModifier: string | null }) {
   const [bedtime, setBedtime] = useState(initialBedtime || '01:00');
@@ -117,14 +118,10 @@ export default function PreferencesForm({ initialBedtime, initialWeekStartsOn, i
         </div>
       )}
 
-      <button 
-        type="submit" 
-        disabled={saving || !hasChanges}
-        className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 transition-colors disabled:opacity-50"
-      >
+      <Button type="submit" disabled={saving || !hasChanges}>
         {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
         Save
-      </button>
+      </Button>
     </form>
   );
 }

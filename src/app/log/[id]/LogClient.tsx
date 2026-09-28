@@ -6,10 +6,12 @@ import validator from '@rjsf/validator-ajv8';
 import { logHabitEvent, deleteHabitLog, toggleFavorite } from '../../actions/db';
 import { parseVoiceLog, parseImageLog } from '../../actions/habit';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Check, Loader2, Undo2, Link2, Mic, Camera, MoreVertical, Edit2, ChevronRight, Star } from 'lucide-react';
+import { Check, Loader2, Undo2, Link2, Mic, Camera, MoreVertical, Edit2, ChevronRight, Star } from 'lucide-react';
 import ActivityCalendar from '../../../components/ActivityCalendar';
 import QuillIconWavy from '../../../components/QuillIconWavy';
 import Link from 'next/link';
+import PageHeader from '@/components/PageHeader';
+import { IconButton } from '@/components/ui/IconButton';
 import toast from 'react-hot-toast';
 import DurationWidget from '../../../components/widgets/DurationWidget';
 import UnitWidget from '../../../components/widgets/UnitWidget';
@@ -377,62 +379,52 @@ export default function LogClient({ habit, user }: { habit: HabitWithLogs, user:
 
   return (
     <div className="flex flex-col h-full">
-      <div className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-stone-200 px-4 py-3 sm:px-8 sm:py-4 flex items-center justify-between shadow-sm mb-6 sm:mb-8">
-        <Link 
-          href="/"
-          className="p-2 -ml-2 text-stone-500 hover:text-stone-800 hover:bg-stone-100 rounded-full transition-colors shrink-0 z-10"
-          title="Back to Dashboard"
-        >
-          <ArrowLeft className="w-6 h-6" strokeWidth={2.5} />
-        </Link>
-        
-        <h1 className="absolute inset-0 flex items-center justify-center text-xl sm:text-2xl font-bold text-stone-900 pointer-events-none px-24">
-          <span className="truncate">{habit.name}</span>
-        </h1>
-        
-        <div className="relative z-10 flex items-center gap-1">
-          <button
-            onClick={handleToggleFavorite}
-            className={`p-2 rounded-full transition-colors shrink-0 hover:bg-stone-100 ${isFavorite ? 'text-amber-500' : 'text-stone-500 hover:text-stone-700'}`}
-            title={isFavorite ? 'Remove from Favorites' : 'Add to Favorites'}
-            aria-label={isFavorite ? 'Remove from Favorites' : 'Add to Favorites'}
-            aria-pressed={isFavorite}
-          >
-            <Star className={`w-6 h-6 ${isFavorite ? 'fill-amber-400' : ''}`} />
-          </button>
-          <button
-            onClick={() => setMenuOpen(!menuOpen)}
-            className="p-2 -mr-2 text-stone-500 hover:text-stone-700 hover:bg-stone-100 rounded-full transition-colors shrink-0"
-          >
-            <MoreVertical className="w-6 h-6" />
-          </button>
-          
-          {menuOpen && (
-            <>
-              <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
-              <div className="absolute right-0 mt-1 w-56 bg-white rounded-xl shadow-lg border border-stone-100 py-2 z-50">
-                <Link 
-                  href={`/edit/${habit.id}`}
-                  className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-stone-700 hover:bg-stone-50 hover:text-emerald-600 transition-colors"
-                >
-                  <Edit2 className="w-4 h-4" />
-                  Edit Habit
-                </Link>
-                <button
-                  onClick={() => {
-                    handleCopyUrl();
-                    setMenuOpen(false);
-                  }}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-stone-700 hover:bg-stone-50 hover:text-emerald-600 transition-colors text-left"
-                >
-                  <Link2 className="w-4 h-4" />
-                  Copy URL
-                </button>
-              </div>
-            </>
-          )}
-        </div>
-      </div>
+      <PageHeader
+        backHref="/"
+        title={<span className="truncate">{habit.name}</span>}
+        titleInsetClassName="px-24"
+        actions={
+          <>
+            <button
+              onClick={handleToggleFavorite}
+              className={`p-2 rounded-full transition-colors shrink-0 hover:bg-stone-100 ${isFavorite ? 'text-amber-500' : 'text-stone-500 hover:text-stone-700'}`}
+              title={isFavorite ? 'Remove from Favorites' : 'Add to Favorites'}
+              aria-label={isFavorite ? 'Remove from Favorites' : 'Add to Favorites'}
+              aria-pressed={isFavorite}
+            >
+              <Star className={`w-6 h-6 ${isFavorite ? 'fill-amber-400' : ''}`} />
+            </button>
+            <IconButton onClick={() => setMenuOpen(!menuOpen)} edge="right" title="More options">
+              <MoreVertical className="w-6 h-6" />
+            </IconButton>
+
+            {menuOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
+                <div className="absolute right-0 top-full mt-1 w-56 bg-white rounded-xl shadow-lg border border-stone-100 py-2 z-50">
+                  <Link
+                    href={`/edit/${habit.id}`}
+                    className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-stone-700 hover:bg-stone-50 hover:text-emerald-600 transition-colors"
+                  >
+                    <Edit2 className="w-4 h-4" />
+                    Edit Habit
+                  </Link>
+                  <button
+                    onClick={() => {
+                      handleCopyUrl();
+                      setMenuOpen(false);
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-stone-700 hover:bg-stone-50 hover:text-emerald-600 transition-colors text-left"
+                  >
+                    <Link2 className="w-4 h-4" />
+                    Copy URL
+                  </button>
+                </div>
+              </>
+            )}
+          </>
+        }
+      />
 
       <div className="p-4 sm:p-8 max-w-xl mx-auto w-full space-y-6 sm:space-y-8">
         {habit.description && <p className="text-stone-600 text-center">{habit.description}</p>}

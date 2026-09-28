@@ -1,3 +1,5 @@
+Before writing or editing anything under `src/app/` or `src/components/`, read [UI_STANDARDS.md](./UI_STANDARDS.md) and follow it — it covers the shared button, icon-button, and page-header components, and a dropdown-positioning rule that's caused a real bug before.
+
 <!-- BEGIN:nextjs-agent-rules -->
 
 # This is NOT the Next.js you know

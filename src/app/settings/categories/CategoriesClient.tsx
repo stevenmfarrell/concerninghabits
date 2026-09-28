@@ -7,6 +7,7 @@ import IconPicker from '../../../components/IconPicker';
 import { Plus, Trash2, Edit2, Check, X, Loader2, GripVertical } from 'lucide-react';
 import { Fragment } from 'react';
 import ConfirmDialog from '../../../components/ConfirmDialog';
+import { Button } from '../../../components/ui/Button';
 import { UNCATEGORIZED_ICON } from '@/lib/constants';
 import toast from 'react-hot-toast';
 import { DropResult, computeDrop, applyDrop, getDropPosition, sameDropResult } from './categoryDrop';
@@ -287,13 +288,12 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
     <div className="space-y-4">
       <div>
         <div className="flex justify-end">
-          <button 
+          <Button
             onClick={() => { setAddingParentId(''); setNewName(''); setNewIcon('List'); }}
             disabled={addingParentId !== null}
-            className="px-4 py-2 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 transition-colors flex items-center gap-2 disabled:opacity-50"
           >
             <Plus className="w-4 h-4" /> New Category
-          </button>
+          </Button>
         </div>
       </div>
 

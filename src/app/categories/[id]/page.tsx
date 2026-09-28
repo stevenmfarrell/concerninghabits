@@ -3,7 +3,8 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import Icon from '../../../components/Icon';
 import ActivityCalendar from '../../../components/ActivityCalendar';
-import BackButton from '../../history/[id]/BackButton';
+import PageHeader from '@/components/PageHeader';
+import { LinkButton } from '@/components/ui/Button';
 import { ChevronRight, } from 'lucide-react';
 import CategoryMenu from './CategoryMenu';
 import { SortableCategoryItemList } from './SortableLists';
@@ -37,26 +38,23 @@ export default async function CategoryLogPage(props: { params: Promise<{ id: str
 
   return (
     <main className="flex-1 bg-stone-50 font-sans flex flex-col h-full">
-      <div className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-stone-200 px-4 py-3 sm:px-8 sm:py-4 flex items-center justify-between shadow-sm">
-        <div className="relative z-10">
-          <BackButton />
-        </div>
-        <h1 className="absolute inset-0 flex items-center justify-center text-xl sm:text-2xl font-bold text-stone-900 pointer-events-none px-14">
-          <div className="flex items-center gap-2">
+      <PageHeader
+        title={
+          <>
             <Icon name={category.icon || 'Folder'} className="w-5 h-5 sm:w-6 sm:h-6 text-stone-500 shrink-0" />
             <span className="truncate">{category.name}</span>
-          </div>
-        </h1>
-        {isReordering ? (
-          <div className="relative z-10 shrink-0">
-            <Link href={`/categories/${category.id}`} className="px-4 py-1.5 bg-stone-900 text-white font-semibold rounded-lg text-sm hover:bg-stone-800 transition-colors">
+          </>
+        }
+        actions={
+          isReordering ? (
+            <LinkButton href={`/categories/${category.id}`} variant="secondary" size="sm">
               Done
-            </Link>
-          </div>
-        ) : (
-          <CategoryMenu categoryId={category.id} />
-        )}
-      </div>
+            </LinkButton>
+          ) : (
+            <CategoryMenu categoryId={category.id} />
+          )
+        }
+      />
 
       <div className="p-4 sm:p-8 max-w-4xl mx-auto w-full space-y-6 sm:space-y-8">
         

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { MoreVertical, Link2, Settings } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
+import { IconButton } from '@/components/ui/IconButton';
 
 import { ArrowUpDown } from 'lucide-react';
 
@@ -18,17 +19,19 @@ export default function CategoryMenu({ categoryId }: { categoryId?: string }) {
 
   return (
     <div className="relative z-10 shrink-0">
-      <button 
+      <IconButton
         onClick={() => setMenuOpen(!menuOpen)}
-        className="p-2 -mr-2 text-stone-500 hover:text-stone-700 hover:bg-stone-100 rounded-full transition-colors relative z-20"
+        edge="right"
+        className="relative z-20"
+        title="More options"
       >
         <MoreVertical className="w-6 h-6" />
-      </button>
+      </IconButton>
       
       {menuOpen && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
-          <div className="absolute right-0 mt-1 w-56 bg-white rounded-xl shadow-lg border border-stone-100 py-2 z-50">
+          <div className="absolute right-0 top-full mt-1 w-56 bg-white rounded-xl shadow-lg border border-stone-100 py-2 z-50">
             {categoryId && (
               <Link 
                 href={`/categories/${categoryId}?reorder=true`}

@@ -2,6 +2,7 @@ import { getDefaultUser } from '../actions/db';
 import Link from 'next/link';
 import { ChevronRight, FolderTree, Users, Sliders, LogOut, KeyRound } from 'lucide-react';
 import Icon from '../../components/Icon';
+import { Button, LinkButton } from '../../components/ui/Button';
 
 export default async function SettingsPage() {
   const user = await getDefaultUser();
@@ -31,23 +32,17 @@ export default async function SettingsPage() {
           </div>
           
           <div className="flex flex-col w-full sm:w-auto gap-2">
-            <Link 
-              href="/update-password"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2 bg-stone-50 hover:bg-stone-100 text-stone-700 text-sm font-semibold rounded-xl border border-stone-200 transition-colors"
-            >
+            <LinkButton href="/update-password" variant="outline" className="w-full sm:w-auto">
               <KeyRound className="w-4 h-4" /> Change Password
-            </Link>
+            </LinkButton>
             <form action={async () => {
               'use server';
               const { logout } = await import('../actions/auth');
               await logout();
             }}>
-              <button 
-                type="submit"
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2 text-stone-500 hover:text-stone-800 hover:bg-stone-50 text-sm font-medium rounded-xl transition-colors"
-              >
+              <Button type="submit" variant="ghost" className="w-full sm:w-auto">
                 <LogOut className="w-4 h-4" /> Log Out
-              </button>
+              </Button>
             </form>
           </div>
         </div>

@@ -149,7 +149,7 @@ export default function HabitChart({
               {isOpen && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)}></div>
-                  <div className="absolute right-0 mt-2 w-48 bg-white border border-stone-100 rounded-xl shadow-lg z-50 overflow-hidden py-1">
+                  <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-stone-100 rounded-xl shadow-lg z-50 overflow-hidden py-1">
                     {numericFields.map(field => (
                       <button
                         key={field}

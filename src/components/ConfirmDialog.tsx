@@ -1,4 +1,5 @@
 import { AlertTriangle, Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/Button';
 
 interface ConfirmDialogProps {
   isOpen: boolean;
@@ -42,23 +43,23 @@ export default function ConfirmDialog({
           </div>
         </div>
         <div className="p-4 sm:px-8 sm:py-6 bg-stone-50 border-t border-stone-100 flex flex-col-reverse sm:flex-row justify-end gap-3">
-          <button
+          <Button
+            variant="ghost"
             onClick={onCancel}
             disabled={isProcessing}
-            className="px-5 py-2.5 text-stone-600 font-medium hover:bg-stone-200 rounded-xl transition-colors disabled:opacity-50 w-full sm:w-auto"
+            className="w-full sm:w-auto"
           >
             {cancelText}
-          </button>
-          <button
+          </Button>
+          <Button
+            variant={isDestructive ? 'danger' : 'primary'}
             onClick={onConfirm}
             disabled={isProcessing}
-            className={`px-5 py-2.5 text-white font-medium rounded-xl transition-colors flex items-center justify-center gap-2 w-full sm:w-auto ${
-              isDestructive ? 'bg-red-600 hover:bg-red-700' : 'bg-emerald-600 hover:bg-emerald-700'
-            } disabled:opacity-50`}
+            className="w-full sm:w-auto"
           >
             {isProcessing && <Loader2 className="w-4 h-4 animate-spin" />}
             {confirmText}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

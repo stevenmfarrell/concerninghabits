@@ -4,8 +4,8 @@ import { useState, useEffect } from 'react';
 import { saveHabit } from '../../actions/db';
 import HabitEditor from '../../../components/HabitEditor';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
+import BackLink from '@/components/BackLink';
 import type { HabitSchema } from '@/lib/types';
 
 interface HabitDraft {
@@ -50,9 +50,7 @@ export default function RefineHabit() {
     <main className="flex-1 p-4 sm:p-8 bg-stone-50 font-sans">
       <div className="max-w-3xl mx-auto space-y-6 sm:space-y-8">
         <div>
-          <Link href="/create" className="inline-flex items-center gap-2 text-stone-500 hover:text-stone-800 mb-4 transition-colors">
-            <ArrowLeft className="w-4 h-4" /> Back to Goal
-          </Link>
+          <BackLink href="/create">Back to Goal</BackLink>
           <div className="space-y-2">
             <h1 className="text-3xl font-bold text-stone-900">Almost there...</h1>
             <p className="text-stone-600">Here is the draft we created. Make any updates and save when you&apos;re ready.</p>

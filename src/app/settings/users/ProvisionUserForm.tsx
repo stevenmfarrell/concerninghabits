@@ -4,6 +4,7 @@ import { MIN_PASSWORD_LENGTH } from '@/lib/constants';
 import { useActionState, useState, useEffect } from 'react';
 import { provisionUser } from '@/app/actions/auth';
 import { Loader2, Plus, UserPlus } from 'lucide-react';
+import { Button } from '@/components/ui/Button';
 
 export default function ProvisionUserForm() {
   const [isOpen, setIsOpen] = useState(false);
@@ -29,12 +30,9 @@ export default function ProvisionUserForm() {
 
   return (
     <>
-      <button 
-        onClick={() => setIsOpen(true)}
-        className="px-4 py-2 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 transition-colors flex items-center gap-2"
-      >
+      <Button onClick={() => setIsOpen(true)}>
         <Plus className="w-4 h-4" /> Provision User
-      </button>
+      </Button>
 
       {isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/40 backdrop-blur-sm animate-in fade-in duration-200">
@@ -102,23 +100,24 @@ export default function ProvisionUserForm() {
             </div>
             
             <div className="p-4 sm:px-8 sm:py-6 bg-stone-50 border-t border-stone-100 flex flex-col-reverse sm:flex-row justify-end gap-3">
-              <button
+              <Button
                 type="button"
+                variant="ghost"
                 onClick={() => setIsOpen(false)}
                 disabled={isPending}
-                className="px-5 py-2.5 text-stone-600 font-medium hover:bg-stone-200 rounded-xl transition-colors disabled:opacity-50 w-full sm:w-auto"
+                className="w-full sm:w-auto"
               >
                 Cancel
-              </button>
-              <button
+              </Button>
+              <Button
                 type="submit"
                 form="provision-form"
                 disabled={isPending}
-                className="px-5 py-2.5 text-white font-medium rounded-xl transition-colors flex items-center justify-center gap-2 w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50"
+                className="w-full sm:w-auto"
               >
                 {isPending && <Loader2 className="w-4 h-4 animate-spin" />}
                 Create Account
-              </button>
+              </Button>
             </div>
           </div>
         </div>

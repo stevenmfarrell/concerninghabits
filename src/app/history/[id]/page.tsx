@@ -1,7 +1,8 @@
 import { getHabit, getHabitLogs, deleteHabitLog, getDefaultUser } from '../../actions/db';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import BackButton from './BackButton';
+import PageHeader from '@/components/PageHeader';
+import { IconLinkButton } from '@/components/ui/IconButton';
 import { cookies } from 'next/headers';
 import DeleteButton from './DeleteButton';
 import InteractiveCalendar from './InteractiveCalendar';
@@ -87,23 +88,14 @@ export default async function HistoryPage(props: { params: Promise<{ id: string 
 
   return (
     <main className="flex-1 bg-stone-50 font-sans flex flex-col h-full">
-      <div className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-stone-200 px-4 py-3 sm:px-8 sm:py-4 flex items-center justify-between shadow-sm">
-        <div className="relative z-10">
-          <BackButton />
-        </div>
-        
-        <h1 className="absolute inset-0 flex items-center justify-center text-xl sm:text-2xl font-bold text-stone-900 pointer-events-none px-14">
-          <span className="truncate">{habit.name} History</span>
-        </h1>
-        
-        <Link 
-          href={`/log/${habit.id}`}
-          className="p-2 -mr-2 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-full transition-colors shrink-0 relative z-10"
-          title="Log Entry"
-        >
-          <QuillIconWavy className="w-6 h-6" strokeWidth={2.5} />
-        </Link>
-      </div>
+      <PageHeader
+        title={<span className="truncate">{habit.name} History</span>}
+        actions={
+          <IconLinkButton href={`/log/${habit.id}`} variant="accent" edge="right" title="Log Entry">
+            <QuillIconWavy className="w-6 h-6" strokeWidth={2.5} />
+          </IconLinkButton>
+        }
+      />
 
       <div className="p-4 sm:p-8 max-w-4xl mx-auto w-full space-y-6 sm:space-y-8">
 

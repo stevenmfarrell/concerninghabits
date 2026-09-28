@@ -14,6 +14,7 @@ import ConfirmDialog from './ConfirmDialog';
 import DurationWidget from './widgets/DurationWidget';
 import UnitWidget from './widgets/UnitWidget';
 import Select from './Select';
+import { Button } from './ui/Button';
 import { DEFAULT_TARGET_COUNT } from '@/lib/constants';
 import type { CategoryOption, HabitSchema } from '@/lib/types';
 import type { UiSchema } from '@rjsf/utils';
@@ -193,9 +194,9 @@ export default function HabitEditor({
                     onSubmit={() => toast.success('Form valid! (Test mode - nothing was saved)')}
                     className="rjsf rjsf-preview"
                   >
-                    <button type="submit" className="mt-4 px-6 py-3 bg-stone-900 text-white rounded-xl font-medium hover:bg-stone-800 transition-colors w-full">
+                    <Button type="submit" variant="secondary" size="lg" className="mt-4 w-full">
                       Test Submit
-                    </button>
+                    </Button>
                   </Form>
                 );
               })()}
@@ -223,14 +224,16 @@ export default function HabitEditor({
                 data-1p-ignore
                 enterKeyHint="send"
               />
-              <button
+              <Button
                 type="submit"
+                variant="secondary"
+                size="sm"
                 disabled={isTweaking || saving || !tweakPrompt.trim()}
-                className="self-end px-4 py-2 bg-stone-800 text-white rounded-lg text-sm font-medium hover:bg-stone-900 transition-colors flex items-center justify-center gap-2 disabled:opacity-70"
+                className="self-end"
               >
                 {isTweaking ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
                 Apply AI Tweak
-              </button>
+              </Button>
             </form>
 
             {Object.keys(schema?.properties || {}).length > 0 && (
@@ -361,24 +364,28 @@ export default function HabitEditor({
 
       <div className={`flex flex-col-reverse md:flex-row ${onDelete ? 'justify-between' : 'justify-end'} items-center gap-4 pt-4`}>
         {onDelete && (
-          <button
+          <Button
             type="button"
+            variant="danger-ghost"
+            size="xl"
             onClick={() => setShowConfirmDelete(true)}
             disabled={deleting || saving}
-            className="px-6 py-4 text-red-600 hover:bg-red-50 rounded-xl font-medium transition-colors flex items-center justify-center gap-2 w-full md:w-auto"
+            className="w-full md:w-auto"
           >
             {deleting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Trash2 className="w-5 h-5" />}
             Delete Habit
-          </button>
+          </Button>
         )}
-        <button
+        <Button
+          variant="primary"
+          size="xl"
           onClick={handleSaveAction}
           disabled={saving || showNewCat || isTweaking || deleting}
-          className="px-8 py-4 bg-emerald-600 text-white rounded-xl font-medium text-lg hover:bg-emerald-700 transition-colors flex items-center justify-center gap-3 disabled:opacity-70 shadow-sm w-full md:w-auto"
+          className="w-full md:w-auto"
         >
           {saving ? <Loader2 className="w-6 h-6 animate-spin" /> : <Save className="w-6 h-6" />}
           {isCreateMode ? 'Looks Good, Create Habit' : 'Save Changes'}
-        </button>
+        </Button>
       </div>
 
       <ConfirmDialog

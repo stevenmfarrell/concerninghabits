@@ -43,12 +43,12 @@ The core idea works well: describe a habit in plain English, the app builds the 
 14. **Offline logging doesn't work.** The README calls it a PWA, but `SWUnregister` removes every service worker, so nothing works without a connection.
 
 ### Code quality
-15. **Loads more data than it needs.** `getCategory` and `getCategoriesWithHierarchy` load every log ever recorded, including full payloads, just to draw a 5-week calendar. This will slow down as history grows.
-16. **Weak typing and lint debt.** There are 67 uses of `any`, mostly on `habit`, `user` and `payload`, which hides mistakes like #2. ESLint reported 14 errors in `ActivityCalendar.tsx` and `SortableLists.tsx` alone; the rest of `src` wasn't counted.
+15. **Loads more data than it needs.--FIXED** `getCategory` and `getCategoriesWithHierarchy` load every log ever recorded, including full payloads, just to draw a 5-week calendar. This will slow down as history grows.
+16. **Weak typing and lint debt.--FIXED** There are 67 uses of `any`, mostly on `habit`, `user` and `payload`, which hides mistakes like #2. ESLint reported 14 errors in `ActivityCalendar.tsx` and `SortableLists.tsx` alone; the rest of `src` wasn't counted.
 17. **Duplicated code.** Default-category seeding is copied between `setupInitialAdmin` and `provisionUser`. The default target count of `3` is hard-coded in several places.
-18. **Outdated Next.js convention.** Next 16 deprecates `middleware.ts` in favor of `proxy.ts`. The middleware also skips every path containing a `.`, which is a broad exemption.
-19. **No tests.** The first things worth testing are the day-bucketing logic (bedtime, week start, time zones) and the checks that users can only touch their own data.
-20. **Repo clutter.** One-off Python patch scripts (`add_chevrons.py`, `align_calendar.py`, …) and `prisma/schema.prisma.bak` are committed. The package is named `concerning-habits`, which doesn't match `habiton`. Editing through these scripts is also fragile: `fix_calendar_color.py` quietly did nothing when its search text didn't match, which is why the calendar fix was left half-done.
+18. **Outdated Next.js convention.--FIXED** Next 16 deprecates `middleware.ts` in favor of `proxy.ts`. The middleware also skips every path containing a `.`, which is a broad exemption.
+19. **No tests.--FIXED** The first things worth testing are the day-bucketing logic (bedtime, week start, time zones) and the checks that users can only touch their own data.
+20. **Repo clutter.--FIXED** One-off Python patch scripts (`add_chevrons.py`, `align_calendar.py`, …) and `prisma/schema.prisma.bak` are committed. The package is named `concerning-habits`, which doesn't match `habiton`. Editing through these scripts is also fragile: `fix_calendar_color.py` quietly did nothing when its search text didn't match, which is why the calendar fix was left half-done.
 
 ## Suggested order
 1. Fix #1–3 (about an hour).
