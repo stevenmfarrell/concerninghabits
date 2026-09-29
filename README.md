@@ -90,6 +90,18 @@ services:
       - concerning-habits_data:/app/data
     restart: unless-stopped
 
+    # Hardening: the image already runs as an unprivileged user (uid 1001) that can only write to
+    # /app/data. These additionally drop every Linux capability, block privilege escalation, and
+    # make the rest of the filesystem read-only (Next.js only needs a writable /tmp and cache).
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /app/.next/cache:uid=1001,gid=1001
+
 volumes:
   concerning-habits_data:
 ```
