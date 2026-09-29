@@ -1,7 +1,9 @@
 import { deleteSession } from '@/lib/auth';
-import { NextResponse } from 'next/server';
 
-export async function GET(request: Request) {
+export async function GET() {
   await deleteSession();
-  return NextResponse.redirect(new URL('/login', request.url));
+  // A relative Location, resolved by the browser against the address it actually used. Building an
+  // absolute URL from `request.url` would use the server's own bind address instead (e.g.
+  // http://0.0.0.0:3000 in the standalone Docker server), which breaks behind a reverse proxy.
+  return new Response(null, { status: 307, headers: { Location: '/login' } });
 }

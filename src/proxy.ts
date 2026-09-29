@@ -20,8 +20,11 @@ export default async function proxy(req: NextRequest) {
 }
 
 export const config = {
-  // Everything except API routes, Next internals, and requests for a static file (an extension at
-  // the end of the path) - a narrower exemption than checking whether the path contains a dot
-  // anywhere, which could accidentally skip auth on a route with a literal "." in a segment.
-  matcher: ['/((?!api|_next/static|_next/image|.*\\.\\w+$).*)'],
+  // Everything except API routes, Next internals, requests for a static file (an extension at
+  // the end of the path), and the generated app icons (src/app/icon*.tsx, apple-icon.tsx). The
+  // static-file check is narrower than checking whether the path contains a dot anywhere, which
+  // could accidentally skip auth on a route with a literal "." in a segment. The icons have no
+  // extension but must stay public: browsers fetch the PWA manifest's icons without cookies, and
+  // an icon that redirects to /login makes the app uninstallable.
+  matcher: ['/((?!api|_next/static|_next/image|(?:apple-)?icon\\d*$|.*\\.\\w+$).*)'],
 };
