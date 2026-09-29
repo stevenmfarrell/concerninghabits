@@ -4,7 +4,7 @@ Concerning Habits is an AI-powered, highly customizable habit tracking progressi
 
 ## Prerequisites
 
-- Node.js (v18+)
+- Node.js (v20.9+)
 - npm
 - A Google Gemini API key (for AI multimodal and schema features)
 

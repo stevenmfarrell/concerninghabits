@@ -2,6 +2,7 @@
 
 import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
+import { cache } from 'react';
 import rjsfValidator from '@rjsf/validator-ajv8';
 
 import { verifySession } from '@/lib/auth';
@@ -16,6 +17,12 @@ import type { HabitSchema } from '@/lib/types';
 type SchemaProperty = { type?: string; title?: string };
 
 export async function getDefaultUser(allowNeedsUpdate = false) {
+  return getRequestUser(allowNeedsUpdate);
+}
+
+// Memoized per request, since every action a page calls starts with getDefaultUser. Kept separate
+// because a 'use server' file may only export async functions, not the function cache() returns.
+const getRequestUser = cache(async (allowNeedsUpdate: boolean) => {
   const session = await verifySession();
   
   if (!session?.userId) {
@@ -38,7 +45,7 @@ export async function getDefaultUser(allowNeedsUpdate = false) {
   }
 
   return { ...user, timeZone: await getRequestTimeZone() };
-}
+});
 
 // The viewer's time zone, reported by the browser in a cookie (see TimeZoneSync). Until the
 // browser has reported it, fall back to the server's time zone.

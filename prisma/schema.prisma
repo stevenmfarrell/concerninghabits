@@ -32,6 +32,8 @@ model Session {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   expiresAt DateTime
   createdAt DateTime @default(now())
+
+  @@index([userId])
 }
 
 model Habit {
@@ -49,6 +51,9 @@ model Habit {
   user        User       @relation(fields: [userId], references: [id])
   logs        HabitLog[]
   createdAt   DateTime   @default(now())
+
+  @@index([userId, categoryId])
+  @@index([categoryId])
 }
 
 model Category {
@@ -63,6 +68,9 @@ model Category {
   parent    Category?  @relation("Subcategories", fields: [parentId], references: [id])
   children  Category[] @relation("Subcategories")
   createdAt DateTime @default(now())
+
+  @@index([userId, parentId])
+  @@index([parentId])
 }
 
 model HabitLog {
@@ -73,6 +81,10 @@ model HabitLog {
   user      User     @relation(fields: [userId], references: [id])
   payload   String
   createdAt DateTime @default(now())
+
+  // History, calendars, and heatmaps all read a habit's logs by date range
+  @@index([habitId, createdAt])
+  @@index([userId])
 }
 
 model RateLimit {

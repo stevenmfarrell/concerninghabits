@@ -1,4 +1,5 @@
-FROM node:18-alpine AS base
+# Next 16 requires Node >= 20.9
+FROM node:22-alpine AS base
 
 # Install dependencies only when needed
 FROM base AS deps

@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { cookies } from 'next/headers';
 import { prisma } from './prisma';
 
@@ -28,7 +29,9 @@ export async function createSession(userId: string) {
   });
 }
 
-export async function verifySession() {
+// Memoized per request: a page render calls this once per server action it uses, and each call
+// would otherwise repeat the session lookup (and the sliding-expiry write).
+export const verifySession = cache(async () => {
   const cookieStore = await cookies();
   const sessionCookie = cookieStore.get('session');
   
@@ -68,7 +71,7 @@ export async function verifySession() {
   } catch {
     return null;
   }
-}
+});
 
 export async function deleteSession() {
   const cookieStore = await cookies();
