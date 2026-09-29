@@ -6,16 +6,18 @@ import { formatLogValue } from '@/lib/format';
 
 type SchemaProperties = Record<string, { title?: string; type?: string; 'x-widget'?: string; 'x-unit'?: string }> | undefined;
 
-// Mounted only while an AI-filled log is showing (LogClient swaps this in for the whole page), so
+// Mounted only while an auto-submitted log (AI-filled, or from a submit URL) is showing (LogClient swaps this in for the whole page), so
 // its countdown state starts fresh every time without needing to detect and reset on re-show.
 export default function AiSuccessSplash({
   data,
   schemaProperties,
+  subtitle,
   onUndo,
   onContinue,
 }: {
   data: Record<string, unknown>;
   schemaProperties: SchemaProperties;
+  subtitle: string;
   onUndo: () => void;
   onContinue: () => void;
 }) {
@@ -39,7 +41,7 @@ export default function AiSuccessSplash({
           <Check className="w-10 h-10" />
         </div>
         <h1 className="text-3xl font-bold text-stone-900 mb-2">Logged Successfully</h1>
-        <p className="text-stone-500 mb-8">AI automatically submitted your entry</p>
+        <p className="text-stone-500 mb-8">{subtitle}</p>
 
         <div className="w-full bg-stone-50 rounded-xl p-4 text-left border border-stone-200 mb-8 max-h-64 overflow-y-auto">
           {Object.entries(data).map(([key, val]) => {

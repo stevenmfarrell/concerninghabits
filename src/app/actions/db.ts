@@ -14,7 +14,8 @@ import { userPreferencesSchema } from '@/lib/preferences';
 import { TIMEZONE_COOKIE, isValidTimeZone } from '@/lib/timezone';
 import { encodeCsv, parseCsv } from '@/lib/csv';
 import { assignUserColors } from '@/lib/userColors';
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
+import { RETURN_TO_HEADER, withReturnTo } from '@/lib/returnTo';
 import type { HabitSchema } from '@/lib/types';
 
 type SchemaProperty = { type?: string; title?: string };
@@ -33,7 +34,7 @@ const getRequestUser = cache(async (allowNeedsUpdate: boolean) => {
   const session = await verifySession();
   
   if (!session?.userId) {
-    redirect('/api/logout');
+    redirect(withReturnTo('/api/logout', (await headers()).get(RETURN_TO_HEADER)));
   }
 
   // The user record is passed to client components, so never include the password hash

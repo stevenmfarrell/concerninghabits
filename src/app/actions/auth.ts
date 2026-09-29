@@ -7,6 +7,7 @@ import bcrypt from 'bcryptjs';
 import { headers } from 'next/headers';
 import { MIN_PASSWORD_LENGTH } from '@/lib/constants';
 import { seedDefaultCategories } from '@/lib/defaultCategories';
+import { RETURN_TO_PARAM, safeReturnTo } from '@/lib/returnTo';
 
 const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 // Failed logins allowed per client (IP + email). Keyed per client so a stranger can't lock you out.
@@ -84,7 +85,7 @@ export async function login(formData: FormData) {
   await prisma.rateLimit.deleteMany({ where: { identifier: clientKey } });
 
   await createSession(user.id);
-  redirect('/');
+  redirect(safeReturnTo(formData.get(RETURN_TO_PARAM) as string | null) ?? '/');
 }
 
 export async function setupInitialAdmin(formData: FormData) {

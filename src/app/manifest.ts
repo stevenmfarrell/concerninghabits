@@ -7,6 +7,7 @@ export default function manifest(): MetadataRoute.Manifest {
     description: 'Track your habits daily.',
     start_url: '/',
     display: 'standalone',
+    orientation: 'portrait',
     background_color: '#fafaf9', // stone-50
     theme_color: '#059669', // emerald-500
     icons: [

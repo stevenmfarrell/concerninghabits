@@ -3,8 +3,9 @@
 import { useActionState } from 'react';
 import { login } from '@/app/actions/auth';
 import { Loader2 } from 'lucide-react';
+import { RETURN_TO_PARAM } from '@/lib/returnTo';
 
-export default function LoginForm() {
+export default function LoginForm({ returnTo }: { returnTo: string | null }) {
   const [state, action, isPending] = useActionState(
     async (_prevState: Awaited<ReturnType<typeof login>> | null, formData: FormData) => {
       return await login(formData);
@@ -23,6 +24,7 @@ export default function LoginForm() {
         </div>
 
         <form action={action} className="space-y-6">
+          {returnTo && <input type="hidden" name={RETURN_TO_PARAM} value={returnTo} />}
           <div>
             <label className="block text-sm font-medium text-stone-700 mb-1">Email</label>
             <input 

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { RETURN_TO_HEADER, RETURN_TO_PARAM, safeReturnTo, withReturnTo } from '@/lib/returnTo';
 
 const publicRoutes = ['/login', '/setup'];
 
@@ -7,16 +8,20 @@ export default async function proxy(req: NextRequest) {
   const isPublicRoute = publicRoutes.includes(path);
 
   const sessionCookie = req.cookies.get('session');
+  const requestedPath = path + req.nextUrl.search;
 
   if (!sessionCookie && !isPublicRoute) {
-    return NextResponse.redirect(new URL('/login', req.nextUrl));
+    return NextResponse.redirect(new URL(withReturnTo('/login', requestedPath), req.nextUrl));
   }
 
   if (sessionCookie && isPublicRoute) {
-    return NextResponse.redirect(new URL('/', req.nextUrl));
+    const returnTo = safeReturnTo(req.nextUrl.searchParams.get(RETURN_TO_PARAM));
+    return NextResponse.redirect(new URL(returnTo ?? '/', req.nextUrl));
   }
 
-  return NextResponse.next();
+  const headers = new Headers(req.headers);
+  headers.set(RETURN_TO_HEADER, requestedPath);
+  return NextResponse.next({ request: { headers } });
 }
 
 export const config = {

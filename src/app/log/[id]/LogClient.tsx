@@ -1,11 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Form from '@rjsf/core';
 import validator from '@rjsf/validator-ajv8';
 import { logHabitEvent, deleteHabitLog, toggleFavorite } from '../../actions/db';
-import { useRouter } from 'next/navigation';
-import { Loader2, Link2, Mic, Camera, MoreVertical, Edit2, ChevronRight, Star, Upload, Users, FolderInput } from 'lucide-react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { Loader2, Link2, Mic, Camera, MoreVertical, Edit2, ChevronRight, Star, Upload, Users, FolderInput, Zap } from 'lucide-react';
 import ActivityCalendar from '../../../components/ActivityCalendar';
 import QuillIconWavy from '../../../components/QuillIconWavy';
 import Link from 'next/link';
@@ -35,6 +35,8 @@ function parseHabitSchema(rawSchema: string): HabitSchema {
 
 export default function LogClient({ habit, user, people }: { habit: HabitWithLogs, user: SessionUser, people: Record<string, Person> }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
 
@@ -43,7 +45,7 @@ export default function LogClient({ habit, user, people }: { habit: HabitWithLog
 
   const [logDate, setLogDate] = useState('');
   const [showBackdate, setShowBackdate] = useState(false);
-  const [aiSuccessLog, setAiSuccessLog] = useState<{ logId: string, data: Record<string, unknown> } | null>(null);
+  const [autoSubmittedLog, setAutoSubmittedLog] = useState<{ logId: string, data: Record<string, unknown>, subtitle: string } | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [isFavorite, setIsFavorite] = useState<boolean>(!!habit.isFavorite);
 
@@ -74,13 +76,12 @@ export default function LogClient({ habit, user, people }: { habit: HabitWithLog
     });
   }
 
-  // Prefill from URL search params (e.g. a shortcut or automation), read lazily since they aren't
-  // available on the server.
+  // Prefill from URL search params (e.g. a shortcut or automation). Read through useSearchParams
+  // rather than window.location, which still holds the previous page's URL when this renders during
+  // a client-side navigation (e.g. the redirect back here after logging in).
   const [formData, setFormData] = useState<Record<string, unknown>>(() => {
-    if (typeof window === 'undefined') return {};
-    const params = new URLSearchParams(window.location.search);
     const initialData: Record<string, unknown> = {};
-    params.forEach((val, key) => {
+    searchParams.forEach((val, key) => {
       const propSchema = schemaProperties?.[key];
       if (propSchema) {
         if (propSchema.type === 'number' || propSchema.type === 'integer') {
@@ -95,6 +96,37 @@ export default function LogClient({ habit, user, people }: { habit: HabitWithLog
     return initialData;
   });
 
+  const hasRequiredFields = (data: Record<string, unknown>) =>
+    (schema.required || []).every((field: string) =>
+      data[field] !== undefined && data[field] !== null && data[field] !== ''
+    );
+
+  // A "submit URL" (the prefill URL plus `submit=1`) logs the entry as soon as the page opens and
+  // shows the same undo splash as voice/photo logging. The ref guards against Strict Mode running
+  // the effect twice, and `submit` is stripped from the address bar first so a refresh or
+  // back-navigation doesn't log a second entry.
+  const autoSubmitStarted = useRef(false);
+  useEffect(() => {
+    if (autoSubmitStarted.current || searchParams.get('submit') !== '1') return;
+    autoSubmitStarted.current = true;
+
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete('submit');
+    // Deferred a tick: on a full page load this effect runs before the app router's own mount effects,
+    // which would otherwise write the original URL (still with `submit`) back over this one.
+    setTimeout(() => window.history.replaceState(null, '', params.size ? `${pathname}?${params}` : pathname));
+
+    if (!hasRequiredFields(formData)) {
+      toast.error('Submit URL is missing required fields. Please complete the form.');
+      return;
+    }
+    logHabitEvent(habit.id, formData, undefined)
+      .then(log => setAutoSubmittedLog({ logId: log.id, data: formData, subtitle: 'Your entry was submitted from a link' }))
+      .catch(err => toast.error(`Failed to log entry: ${err instanceof Error ? err.message : 'Unknown error'}`));
+    // Only ever runs on the initial mount, with the formData prefilled from the URL.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleAiExtractionSuccess = async (extractedData: Record<string, unknown>, loadingToastId: string) => {
     if (Object.keys(extractedData).length === 0) {
       toast.error('Could not find any relevant data.', { id: loadingToastId });
@@ -104,16 +136,11 @@ export default function LogClient({ habit, user, people }: { habit: HabitWithLog
     const newFormData = { ...formData, ...extractedData };
     setFormData(newFormData);
 
-    const requiredFields = schema.required || [];
-    const isFilled = requiredFields.every((field: string) =>
-      newFormData[field] !== undefined && newFormData[field] !== null && newFormData[field] !== ''
-    );
-
-    if (isFilled) {
+    if (hasRequiredFields(newFormData)) {
       toast.dismiss(loadingToastId);
       try {
         const log = await logHabitEvent(habit.id, newFormData, undefined);
-        setAiSuccessLog({ logId: log.id, data: newFormData });
+        setAutoSubmittedLog({ logId: log.id, data: newFormData, subtitle: 'AI automatically submitted your entry' });
       } catch {
         toast.error('AI filled the form, but auto-submit failed.');
       }
@@ -167,7 +194,7 @@ export default function LogClient({ habit, user, people }: { habit: HabitWithLog
     }
   };
 
-  const handleCopyUrl = () => {
+  const handleCopyUrl = (submit: boolean) => {
     if (typeof window === 'undefined') return;
     const url = new URL(window.location.href);
     url.search = '';
@@ -178,19 +205,22 @@ export default function LogClient({ habit, user, people }: { habit: HabitWithLog
       }
     });
 
+    if (submit) url.searchParams.set('submit', '1');
+
     navigator.clipboard.writeText(url.toString());
-    toast.success('Automation URL copied to clipboard!');
+    toast.success(submit ? 'Submit URL copied to clipboard!' : 'Automation URL copied to clipboard!');
   };
 
-  if (aiSuccessLog) {
+  if (autoSubmittedLog) {
     return (
       <AiSuccessSplash
-        data={aiSuccessLog.data}
+        data={autoSubmittedLog.data}
         schemaProperties={schemaProperties}
+        subtitle={autoSubmittedLog.subtitle}
         onUndo={async () => {
           try {
-            await deleteHabitLog(aiSuccessLog.logId, habit.id);
-            setAiSuccessLog(null);
+            await deleteHabitLog(autoSubmittedLog.logId, habit.id);
+            setAutoSubmittedLog(null);
             toast.success("Entry undone. You can now edit.");
           } catch (e) {
             toast.error(`Failed to undo: ${e instanceof Error ? e.message : 'Unknown error'}`);
@@ -248,13 +278,23 @@ export default function LogClient({ habit, user, people }: { habit: HabitWithLog
                   )}
                   <button
                     onClick={() => {
-                      handleCopyUrl();
+                      handleCopyUrl(false);
                       setMenuOpen(false);
                     }}
                     className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-stone-700 hover:bg-stone-50 hover:text-emerald-600 transition-colors text-left"
                   >
                     <Link2 className="w-4 h-4" />
                     Copy URL
+                  </button>
+                  <button
+                    onClick={() => {
+                      handleCopyUrl(true);
+                      setMenuOpen(false);
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-stone-700 hover:bg-stone-50 hover:text-emerald-600 transition-colors text-left"
+                  >
+                    <Zap className="w-4 h-4" />
+                    Copy Submit URL
                   </button>
                   <button
                     onClick={() => {
