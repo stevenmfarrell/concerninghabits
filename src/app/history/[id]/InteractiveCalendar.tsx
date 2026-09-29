@@ -3,9 +3,12 @@
 import ActivityCalendar from '../../../components/ActivityCalendar';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { parseBedtimeOffsetMinutes, toCivilDate } from '@/lib/timezone';
+import type { Person } from '@/lib/userColors';
 
 export default function InteractiveCalendar(props: {
-  logs: { id: string; createdAt: Date }[];
+  logs: { id: string; createdAt: Date; userId: string }[];
+  // Set for a shared habit, to color each day by who logged it
+  people?: Record<string, Person>;
   weeks: number;
   frequency: string;
   targetCount: number;
@@ -52,13 +55,16 @@ export default function InteractiveCalendar(props: {
     }, 150); // slight delay to allow Next.js to render the new page
   };
 
+  const dates = props.logs.map(l => l.createdAt);
+  const loggedBy = props.people ? props.logs.map(l => l.userId) : undefined;
+
   return (
     <>
       <div className={`hidden sm:flex w-full ${props.weeks === 5 ? 'justify-center' : 'justify-center sm:justify-start'}`}>
-        <ActivityCalendar dates={props.logs.map(l => l.createdAt)} weeks={props.weeks} frequency={props.frequency} targetCount={props.targetCount} size="md" monthsPerColumn={props.desktopMonthsPerColumn} bedtime={props.bedtime} weekStartsOn={props.weekStartsOn} timeZone={props.timeZone} onDateClick={handleDateClick} />
+        <ActivityCalendar dates={dates} loggedBy={loggedBy} people={props.people} weeks={props.weeks} frequency={props.frequency} targetCount={props.targetCount} size="md" monthsPerColumn={props.desktopMonthsPerColumn} bedtime={props.bedtime} weekStartsOn={props.weekStartsOn} timeZone={props.timeZone} onDateClick={handleDateClick} />
       </div>
       <div className={`flex sm:hidden w-full ${props.weeks === 5 ? 'justify-center' : 'justify-start'}`}>
-        <ActivityCalendar dates={props.logs.map(l => l.createdAt)} weeks={props.weeks} frequency={props.frequency} targetCount={props.targetCount} size="md" monthsPerColumn={props.mobileMonthsPerColumn} bedtime={props.bedtime} weekStartsOn={props.weekStartsOn} timeZone={props.timeZone} onDateClick={handleDateClick} />
+        <ActivityCalendar dates={dates} loggedBy={loggedBy} people={props.people} weeks={props.weeks} frequency={props.frequency} targetCount={props.targetCount} size="md" monthsPerColumn={props.mobileMonthsPerColumn} bedtime={props.bedtime} weekStartsOn={props.weekStartsOn} timeZone={props.timeZone} onDateClick={handleDateClick} />
       </div>
     </>
   );

@@ -200,8 +200,10 @@ export async function deleteUser(userIdToDelete: string) {
     return { error: 'You cannot delete yourself' };
   }
 
+  // Removes the user's own entries (including on habits others shared with them), and their habits
+  // along with everyone's entries on those. Memberships go with the user and habits (cascade).
   await prisma.$transaction([
-    prisma.habitLog.deleteMany({ where: { userId: userIdToDelete } }),
+    prisma.habitLog.deleteMany({ where: { OR: [{ userId: userIdToDelete }, { habit: { userId: userIdToDelete } }] } }),
     prisma.habit.deleteMany({ where: { userId: userIdToDelete } }),
     prisma.category.deleteMany({ where: { userId: userIdToDelete } }),
     prisma.user.delete({ where: { id: userIdToDelete } })

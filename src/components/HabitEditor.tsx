@@ -30,6 +30,8 @@ interface HabitEditorProps {
   onSave: (title: string, description: string, schema: HabitSchema, categoryId: string, frequency: string, publishToMqtt: boolean) => Promise<void>;
   onDelete?: () => Promise<void>;
   onChangeTitle?: (title: string) => void;
+  // Added to the delete confirmation, e.g. to warn that a shared habit is deleted for everyone
+  deleteWarning?: string;
 }
 
 export default function HabitEditor({
@@ -42,7 +44,8 @@ export default function HabitEditor({
   isCreateMode,
   onSave,
   onDelete,
-  onChangeTitle
+  onChangeTitle,
+  deleteWarning
 }: HabitEditorProps) {
   const [schema, setSchema] = useState<HabitSchema>(initialSchema);
   const [title, setTitle] = useState(initialTitle);
@@ -391,7 +394,7 @@ export default function HabitEditor({
       <ConfirmDialog
         isOpen={showConfirmDelete}
         title="Delete Habit"
-        message={`Are you sure you want to delete "${title}"? This will permanently delete all of its history and logs.`}
+        message={`Are you sure you want to delete "${title}"? This will permanently delete all of its history and logs.${deleteWarning ? ` ${deleteWarning}` : ''}`}
         confirmText="Delete Habit"
         isProcessing={deleting}
         onConfirm={handleDeleteAction}

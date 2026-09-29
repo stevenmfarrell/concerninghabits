@@ -1,4 +1,4 @@
-import { getCategory, getDefaultUser } from '../../actions/db';
+import { getCategory, getDefaultUser, getPeople } from '../../actions/db';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import Icon from '../../../components/Icon';
@@ -15,7 +15,7 @@ export default async function CategoryLogPage(props: { params: Promise<{ id: str
   const isReordering = searchParams.reorder === 'true';
   const user = await getDefaultUser();
   // Only the 5-week "Recent History" card is shown on this page
-  const category = await getCategory(params.id, 5);
+  const [category, people] = await Promise.all([getCategory(params.id, 5), getPeople()]);
 
   if (!category) return notFound();
 
@@ -60,7 +60,7 @@ export default async function CategoryLogPage(props: { params: Promise<{ id: str
         
         {/* Component Lists Front and Center */}
         {items.length > 0 && (
-          <SortableCategoryItemList items={items} user={user} isReordering={isReordering} />
+          <SortableCategoryItemList items={items} user={user} people={people} isReordering={isReordering} />
         )}
 
         {/* Recent History Card */}

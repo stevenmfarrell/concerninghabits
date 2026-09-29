@@ -13,18 +13,21 @@ import { reorderCategories } from '../../actions/db';
 import { reorderHabits } from '../../actions/db';
 import { DEFAULT_TARGET_COUNT } from '@/lib/constants';
 import type { HabitListItem, SessionUser, SubcategoryListItem } from '@/lib/types';
+import { isSharedHabit, type Person } from '@/lib/userColors';
 import { useReorderableList } from './useReorderableList';
 
-import { ChevronDown, ExternalLink } from 'lucide-react';
+import { ChevronDown, ExternalLink, Users } from 'lucide-react';
 
 interface SortableRowProps {
   user: SessionUser;
+  // Everyone's colors as this user sees them, for coloring shared habits' calendars by person
+  people: Record<string, Person>;
   isOverlay?: boolean;
   isReordering?: boolean;
   className?: string;
 }
 
-const SortableSubcategoryItem = ({ sub, user, isOverlay, isReordering, className = '' }: SortableRowProps & { sub: SubcategoryListItem }) => {
+const SortableSubcategoryItem = ({ sub, user, people, isOverlay, isReordering, className = '' }: SortableRowProps & { sub: SubcategoryListItem }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: sub.id });
   const [isOpen, setIsOpen] = useState(true);
   
@@ -95,7 +98,7 @@ const SortableSubcategoryItem = ({ sub, user, isOverlay, isReordering, className
       
       {/* Habits */}
       {isOpen && !isOverlay && subHabits.length > 0 && (
-        <SortableHabitList items={subHabits} user={user} isReordering={isReordering} dndContextId={`habits-dnd-${sub.id}`} isNested={true} />
+        <SortableHabitList items={subHabits} user={user} people={people} isReordering={isReordering} dndContextId={`habits-dnd-${sub.id}`} isNested={true} />
       )}
     </div>
   );
@@ -110,7 +113,7 @@ type CategoryItem =
 
 // A category's direct habits and subcategories, sorted together so either can be placed above the other.
 // Consecutive habits render as one joined card; each subcategory is its own card.
-export function SortableCategoryItemList({ items: initialItems, user, isReordering }: { items: CategoryItem[], user: SessionUser, isReordering?: boolean }) {
+export function SortableCategoryItemList({ items: initialItems, user, people, isReordering }: { items: CategoryItem[], user: SessionUser, people: Record<string, Person>, isReordering?: boolean }) {
   const { items, activeId, sensors, handleDragStart, handleDragCancel, handleDragEnd } = useReorderableList(initialItems, async (newItems) => {
     // Habits and subcategories share one order sequence within this category
     const withOrder = newItems.map((item, index) => ({ item, order: index }));
@@ -139,20 +142,20 @@ export function SortableCategoryItemList({ items: initialItems, user, isReorderi
       <DndContext id="category-items-dnd-context" sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={handleDragCancel}>
         <SortableContext items={items.map(i => i.id)} strategy={verticalListSortingStrategy}>
           {items.map((item, index) => item.type === 'habit'
-            ? <SortableHabitItem key={item.id} habit={item.data} user={user} isReordering={isReordering} className={getHabitClassName(index)} />
-            : <SortableSubcategoryItem key={item.id} sub={item.data} user={user} isReordering={isReordering} className={index > 0 ? 'mt-6' : ''} />
+            ? <SortableHabitItem key={item.id} habit={item.data} user={user} people={people} isReordering={isReordering} className={getHabitClassName(index)} />
+            : <SortableSubcategoryItem key={item.id} sub={item.data} user={user} people={people} isReordering={isReordering} className={index > 0 ? 'mt-6' : ''} />
           )}
         </SortableContext>
         <DragOverlay>
-          {activeItem?.type === 'habit' && <SortableHabitItem habit={activeItem.data} user={user} isOverlay isReordering={isReordering} />}
-          {activeItem?.type === 'subcategory' && <SortableSubcategoryItem sub={activeItem.data} user={user} isOverlay isReordering={isReordering} />}
+          {activeItem?.type === 'habit' && <SortableHabitItem habit={activeItem.data} user={user} people={people} isOverlay isReordering={isReordering} />}
+          {activeItem?.type === 'subcategory' && <SortableSubcategoryItem sub={activeItem.data} user={user} people={people} isOverlay isReordering={isReordering} />}
         </DragOverlay>
       </DndContext>
     </div>
   );
 }
 
-const SortableHabitItem = ({ habit, user, isOverlay, isReordering, className = '' }: SortableRowProps & { habit: HabitListItem }) => {
+const SortableHabitItem = ({ habit, user, people, isOverlay, isReordering, className = '' }: SortableRowProps & { habit: HabitListItem }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: habit.id });
 
   const style = {
@@ -167,6 +170,9 @@ const SortableHabitItem = ({ habit, user, isOverlay, isReordering, className = '
     // Malformed schema JSON: fall back to the default target count
   }
 
+  const logs = habit.logs ?? [];
+  const isShared = isSharedHabit(habit.userId, habit.memberCount ?? 1, logs);
+
   const content = (
     <div className={`flex items-stretch transition-colors group/row relative ${isDragging ? 'opacity-30 bg-stone-100' : 'bg-white hover:bg-stone-50'} ${isOverlay ? 'shadow-2xl scale-[1.02] z-50 rounded-xl' : ''}`}>
       <div className="flex-1 flex items-center py-4 px-4 sm:px-6 gap-2 sm:gap-4 min-w-0">
@@ -176,15 +182,20 @@ const SortableHabitItem = ({ habit, user, isOverlay, isReordering, className = '
           </div>
         )}
         <Link href={`/log/${habit.id}`} className="flex-1 flex flex-wrap sm:flex-nowrap items-center gap-3 sm:gap-6 min-w-0 w-full justify-between">
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 flex items-center gap-2">
             <h3 className="text-base sm:text-lg font-semibold text-stone-800 group-hover/row:text-emerald-600 transition-colors truncate">
               {habit.name}
             </h3>
+            {(habit.memberCount ?? 1) > 1 && (
+              <Users className="w-4 h-4 text-stone-400 shrink-0" aria-label="Shared" />
+            )}
           </div>
           <div className="shrink-0 flex flex-col justify-center">
             <div className="opacity-80 group-hover/row:opacity-100 transition-opacity pointer-events-none">
               <ActivityCalendar
-                dates={habit.logs?.map(l => l.createdAt) || []}
+                dates={logs.map(l => l.createdAt)}
+                loggedBy={isShared ? logs.map(l => l.userId) : undefined}
+                people={isShared ? people : undefined}
                 weeks={3}
                 frequency={habit.frequency} 
                 targetCount={habitTargetCount} 
@@ -206,7 +217,7 @@ const SortableHabitItem = ({ habit, user, isOverlay, isReordering, className = '
   return <div ref={setNodeRef} style={style} className={`relative bg-white ${className}`}>{content}</div>;
 };
 
-export function SortableHabitList({ items: initialItems, user, isReordering, dndContextId = "habits-dnd-context", isNested = false }: { items: HabitListItem[], user: SessionUser, isReordering?: boolean, dndContextId?: string, isNested?: boolean }) {
+export function SortableHabitList({ items: initialItems, user, people, isReordering, dndContextId = "habits-dnd-context", isNested = false }: { items: HabitListItem[], user: SessionUser, people: Record<string, Person>, isReordering?: boolean, dndContextId?: string, isNested?: boolean }) {
   const { items, activeId, sensors, handleDragStart, handleDragCancel, handleDragEnd } = useReorderableList(initialItems, async (newItems) => {
     const updates = newItems.map((item, index) => ({ id: item.id, order: index }));
     await reorderHabits(updates);
@@ -218,10 +229,10 @@ export function SortableHabitList({ items: initialItems, user, isReordering, dnd
     <div className={isNested ? "divide-y divide-stone-100 flex flex-col w-full" : "bg-white rounded-2xl shadow-sm border border-stone-100 overflow-hidden divide-y divide-stone-100 flex flex-col"}>
       <DndContext id={dndContextId} sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={handleDragCancel}>
         <SortableContext items={items.map(i => i.id)} strategy={verticalListSortingStrategy}>
-          {items.map(habit => <SortableHabitItem key={habit.id} habit={habit} user={user} isReordering={isReordering} />)}
+          {items.map(habit => <SortableHabitItem key={habit.id} habit={habit} user={user} people={people} isReordering={isReordering} />)}
         </SortableContext>
         <DragOverlay>
-          {activeItem ? <SortableHabitItem habit={activeItem} user={user} isOverlay isReordering={isReordering} /> : null}
+          {activeItem ? <SortableHabitItem habit={activeItem} user={user} people={people} isOverlay isReordering={isReordering} /> : null}
         </DragOverlay>
       </DndContext>
     </div>

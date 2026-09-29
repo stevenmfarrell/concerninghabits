@@ -2,6 +2,7 @@
 
 import { civilDayKey, parseBedtimeOffsetMinutes, toCivilDate } from '@/lib/timezone';
 import { DEFAULT_TARGET_COUNT } from '@/lib/constants';
+import type { Person } from '@/lib/userColors';
 
 // `frequency` is stored as a plain string (see Habit.frequency in schema.prisma), so these can't
 // be a real enum without touching every caller — but centralizing the literals here means a typo
@@ -28,12 +29,26 @@ interface ActivityCalendarProps {
   weekStartsOn?: string;
   targetCount?: number;
   onDateClick?: (date: Date) => void;
+  // For a shared habit: color each day by who logged it instead of the single emerald scale.
+  // `loggedBy[i]` is the id of the user who logged `dates[i]`; `people` has each user's color.
+  loggedBy?: string[];
+  people?: Record<string, Person>;
+}
+
+// A cell's fill for the people who logged that day: their color, or equal diagonal bands of each
+// person's color when several did.
+function personFill(ids: string[], people: Record<string, Person>) {
+  const colors = ids.map(id => people[id]?.color ?? '#a8a29e'); // stone-400 for a since-deleted user
+  if (colors.length === 1) return colors[0];
+  const band = 100 / colors.length;
+  return `linear-gradient(135deg, ${colors.map((c, i) => `${c} ${i * band}% ${(i + 1) * band}%`).join(', ')})`;
 }
 
 // All dates below are civil dates (UTC midnight for a day in `timeZone`), so only UTC methods are used.
-export default function ActivityCalendar({ dates, timeZone, weeks = 5, frequency = FREQUENCY.DAILY, size = 'sm', monthsPerColumn = 4, bedtime = '00:00', weekStartsOn = 'sunday', targetCount = DEFAULT_TARGET_COUNT, emptyColor = 'bg-stone-100', futureColor = 'bg-transparent border border-stone-100', onDateClick }: ActivityCalendarProps) {
+export default function ActivityCalendar({ dates, timeZone, weeks = 5, frequency = FREQUENCY.DAILY, size = 'sm', monthsPerColumn = 4, bedtime = '00:00', weekStartsOn = 'sunday', targetCount = DEFAULT_TARGET_COUNT, emptyColor = 'bg-stone-100', futureColor = 'bg-transparent border border-stone-100', onDateClick, loggedBy, people }: ActivityCalendarProps) {
   const bedtimeOffsetMinutes = parseBedtimeOffsetMinutes(bedtime);
   const startsMonday = weekStartsOn === 'monday';
+  const colorByPerson = !!(loggedBy && people);
 
   const today = toCivilDate(new Date(), timeZone, bedtimeOffsetMinutes);
 
@@ -99,14 +114,34 @@ export default function ActivityCalendar({ dates, timeZone, weeks = 5, frequency
   const dayCounts = new Map<string, number>();
   const completedWeeks = new Set<string>();
   const completedMonths = new Set<string>();
-  
-  dates.forEach(d => {
+  // Who logged in each day, week, and month (only tracked when coloring by person). Keys match the
+  // ones above.
+  const loggersByPeriod = new Map<string, Set<string>>();
+  const addLogger = (key: string, userId: string) => {
+    const loggers = loggersByPeriod.get(key) ?? new Set<string>();
+    loggers.add(userId);
+    loggersByPeriod.set(key, loggers);
+  };
+
+  dates.forEach((d, i) => {
     const dt = toCivilDate(d, timeZone, bedtimeOffsetMinutes);
     const dayKey = civilDayKey(dt);
+    const weekKey = civilDayKey(getStartOfWeek(dt));
     dayCounts.set(dayKey, (dayCounts.get(dayKey) ?? 0) + 1);
-    completedWeeks.add(civilDayKey(getStartOfWeek(dt)));
+    completedWeeks.add(weekKey);
     completedMonths.add(monthKey(dt));
+    if (colorByPerson) {
+      addLogger(`day:${dayKey}`, loggedBy![i]);
+      addLogger(`week:${weekKey}`, loggedBy![i]);
+      addLogger(`month:${monthKey(dt)}`, loggedBy![i]);
+    }
   });
+
+  // Loggers in account order (the order of `people`), so a day's color bands are always arranged
+  // the same way.
+  const personOrder = Object.keys(people ?? {});
+  const sortLoggers = (loggers: Set<string> | undefined) =>
+    [...(loggers ?? [])].sort((a, b) => personOrder.indexOf(a) - personOrder.indexOf(b));
 
   const processedColumns = columns.map(col => {
     const firstDay = col[0];
@@ -125,7 +160,7 @@ export default function ActivityCalendar({ dates, timeZone, weeks = 5, frequency
       for (let d = 0; d < 7; d++) {
         const day = cellAt(w, d);
         if (!day) {
-          grid.push({ isNull: true, date: today, count: 0, isFuture: false, isPeriodCompleted: false, isNewMonthLeft: false, isNewMonthRight: false, isNewMonthTop: false, isNewMonthBottom: false, w, d });
+          grid.push({ isNull: true, date: today, count: 0, isFuture: false, isPeriodCompleted: false, loggers: [] as string[], isNewMonthLeft: false, isNewMonthRight: false, isNewMonthTop: false, isNewMonthBottom: false, w, d });
           continue;
         }
         
@@ -140,6 +175,15 @@ export default function ActivityCalendar({ dates, timeZone, weeks = 5, frequency
           if (frequency === FREQUENCY.WEEKLY && completedWeeks.has(civilDayKey(getStartOfWeek(day)))) isPeriodCompleted = true;
           if (frequency === FREQUENCY.MONTHLY && completedMonths.has(monthKey(day))) isPeriodCompleted = true;
         }
+
+        // Who to color this cell for: whoever logged that day, or for a day with no entries in a
+        // completed week/month, whoever completed that period.
+        let loggers: string[] = [];
+        if (colorByPerson && !isFuture) {
+          if (count > 0) loggers = sortLoggers(loggersByPeriod.get(`day:${civilDayKey(day)}`));
+          else if (isPeriodCompleted && frequency === FREQUENCY.WEEKLY) loggers = sortLoggers(loggersByPeriod.get(`week:${civilDayKey(getStartOfWeek(day))}`));
+          else if (isPeriodCompleted && frequency === FREQUENCY.MONTHLY) loggers = sortLoggers(loggersByPeriod.get(`month:${monthKey(day)}`));
+        }
         
         const isNewMonthLeft = d > 0 && isDifferentMonth(cellAt(w, d - 1), day);
         const isNewMonthRight = d < 6 && isDifferentMonth(cellAt(w, d + 1), day);
@@ -151,7 +195,7 @@ export default function ActivityCalendar({ dates, timeZone, weeks = 5, frequency
 
         const isToday = civilDayKey(day) === civilDayKey(today);
         
-        grid.push({ isNull: false, date: day, count, isFuture, isPeriodCompleted, isNewMonthLeft, isNewMonthRight, isNewMonthTop, isNewMonthBottom, w, d, isToday });
+        grid.push({ isNull: false, date: day, count, isFuture, isPeriodCompleted, loggers, isNewMonthLeft, isNewMonthRight, isNewMonthTop, isNewMonthBottom, w, d, isToday });
       }
     }
     return grid;
@@ -171,6 +215,19 @@ export default function ActivityCalendar({ dates, timeZone, weeks = 5, frequency
     }
     if (isPeriodCompleted) return 'bg-emerald-200';
     return emptyColor;
+  };
+
+  // The person-colored equivalent of getBackgroundColor's emerald shades: full color for a logged
+  // day (lighter while a multiple-times-a-day habit is short of its target), faint for a day in a
+  // completed week or month.
+  const getPersonStyle = (loggers: string[], count: number): React.CSSProperties | undefined => {
+    if (loggers.length === 0 || !people) return undefined;
+    let opacity = 0.35;
+    if (count > 0) {
+      const ratio = frequency === FREQUENCY.MULTIPLE ? count / targetCount : 1;
+      opacity = ratio >= 1 ? 1 : ratio >= 0.66 ? 0.85 : ratio >= 0.33 ? 0.7 : 0.55;
+    }
+    return { background: personFill(loggers, people), opacity };
   };
 
   const CELL_SIZE = size === 'sm' ? 8 : 14;
@@ -254,14 +311,17 @@ export default function ActivityCalendar({ dates, timeZone, weeks = 5, frequency
                   if (cell.isNull) {
                     return <div key={i} className={cellClass} />;
                   }
+                  const personStyle = getPersonStyle(cell.loggers, cell.count);
+                  const loggerNames = cell.loggers.map(id => people?.[id]?.name ?? 'Former member').join(', ');
                   return (
                     <div
                       key={i}
-                      title={cell.isFuture ? undefined : `${cell.date.toLocaleDateString('en-US', { timeZone: 'UTC' })}: ${cell.count} logs`}
+                      title={cell.isFuture ? undefined : `${cell.date.toLocaleDateString('en-US', { timeZone: 'UTC' })}: ${cell.count} logs${loggerNames ? ` (${loggerNames})` : ''}`}
                       onClick={() => {
                         if (onDateClick && !cell.isFuture) onDateClick(cell.date);
                       }}
-                      className={`${cellClass} transition-colors relative z-10 flex items-center justify-center ${getBackgroundColor(cell.count, cell.isFuture, cell.isPeriodCompleted)} ${onDateClick && !cell.isFuture ? 'cursor-pointer hover:opacity-80' : ''}`}
+                      style={personStyle}
+                      className={`${cellClass} transition-colors relative z-10 flex items-center justify-center ${personStyle ? '' : getBackgroundColor(cell.count, cell.isFuture, cell.isPeriodCompleted)} ${onDateClick && !cell.isFuture ? 'cursor-pointer hover:opacity-80' : ''}`}
                     >
                       {cell.isToday && (
                         <div className={`rounded-full ${cell.count > 0 ? 'bg-white' : 'bg-stone-500'} ${size === 'sm' ? 'w-[4px] h-[4px]' : 'w-[6px] h-[6px]'}`} />

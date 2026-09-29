@@ -5,7 +5,7 @@ import Form from '@rjsf/core';
 import validator from '@rjsf/validator-ajv8';
 import { logHabitEvent, deleteHabitLog, toggleFavorite } from '../../actions/db';
 import { useRouter } from 'next/navigation';
-import { Loader2, Link2, Mic, Camera, MoreVertical, Edit2, ChevronRight, Star, Upload } from 'lucide-react';
+import { Loader2, Link2, Mic, Camera, MoreVertical, Edit2, ChevronRight, Star, Upload, Users, FolderInput } from 'lucide-react';
 import ActivityCalendar from '../../../components/ActivityCalendar';
 import QuillIconWavy from '../../../components/QuillIconWavy';
 import Link from 'next/link';
@@ -17,7 +17,10 @@ import UnitWidget from '../../../components/widgets/UnitWidget';
 import { DEFAULT_TARGET_COUNT } from '@/lib/constants';
 import type { HabitSchema, HabitWithLogs, SessionUser } from '@/lib/types';
 import type { UiSchema } from '@rjsf/utils';
+import { isSharedHabit, type Person } from '@/lib/userColors';
+import PersonLabel from '@/components/PersonLabel';
 import AiSuccessSplash from './AiSuccessSplash';
+import ShareDialog from './ShareDialog';
 import { useVoiceLogging } from './useVoiceLogging';
 import { useImageLogging } from './useImageLogging';
 import { useCsvImport } from './useCsvImport';
@@ -30,9 +33,13 @@ function parseHabitSchema(rawSchema: string): HabitSchema {
   }
 }
 
-export default function LogClient({ habit, user }: { habit: HabitWithLogs, user: SessionUser }) {
+export default function LogClient({ habit, user, people }: { habit: HabitWithLogs, user: SessionUser, people: Record<string, Person> }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+
+  const isShared = isSharedHabit(habit.userId, habit.memberIds.length, habit.logs);
+  const sharedWith = habit.memberIds.filter(id => id !== habit.userId);
 
   const [logDate, setLogDate] = useState('');
   const [showBackdate, setShowBackdate] = useState(false);
@@ -219,13 +226,26 @@ export default function LogClient({ habit, user }: { habit: HabitWithLogs, user:
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
                 <div className="absolute right-0 top-full mt-1 w-56 bg-white rounded-xl shadow-lg border border-stone-100 py-2 z-50">
+                  {/* Someone a habit is shared with can't edit it, only file it or remove it from their lists */}
                   <Link
                     href={`/edit/${habit.id}`}
                     className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-stone-700 hover:bg-stone-50 hover:text-emerald-600 transition-colors"
                   >
-                    <Edit2 className="w-4 h-4" />
-                    Edit Habit
+                    {habit.isOwner ? <Edit2 className="w-4 h-4" /> : <FolderInput className="w-4 h-4" />}
+                    {habit.isOwner ? 'Edit Habit' : 'Move or Remove'}
                   </Link>
+                  {habit.isOwner && (
+                    <button
+                      onClick={() => {
+                        setMenuOpen(false);
+                        setShareOpen(true);
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-stone-700 hover:bg-stone-50 hover:text-emerald-600 transition-colors text-left"
+                    >
+                      <Users className="w-4 h-4" />
+                      Share
+                    </button>
+                  )}
                   <button
                     onClick={() => {
                       handleCopyUrl();
@@ -261,8 +281,35 @@ export default function LogClient({ habit, user }: { habit: HabitWithLogs, user:
         }
       />
 
+      {shareOpen && (
+        <ShareDialog
+          habitId={habit.id}
+          habitName={habit.name}
+          candidates={Object.values(people).filter(p => p.id !== user.id)}
+          sharedWithIds={sharedWith}
+          onClose={() => setShareOpen(false)}
+          onSaved={() => {
+            setShareOpen(false);
+            router.refresh();
+          }}
+        />
+      )}
+
       <div className="p-4 sm:p-8 max-w-xl mx-auto w-full space-y-6 sm:space-y-8">
         {habit.description && <p className="text-stone-600 text-center">{habit.description}</p>}
+
+        {habit.isOwner && sharedWith.length > 0 && (
+          <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5 -mt-2 text-xs text-stone-500">
+            <span>Shared with</span>
+            {sharedWith.map(id => <PersonLabel key={id} person={people[id]} />)}
+          </div>
+        )}
+        {!habit.isOwner && (
+          <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5 -mt-2 text-xs text-stone-500">
+            <span>Shared by</span>
+            <PersonLabel person={people[habit.userId]} />
+          </div>
+        )}
 
       <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-stone-100">
         <div className="flex items-center justify-between mb-6">
@@ -392,6 +439,8 @@ export default function LogClient({ habit, user }: { habit: HabitWithLogs, user:
         <div className="opacity-80 group-hover:opacity-100 transition-opacity flex justify-center w-full overflow-hidden py-2">
           <ActivityCalendar
             dates={habit.logs.map(l => l.createdAt)} size="md"
+            loggedBy={isShared ? habit.logs.map(l => l.userId) : undefined}
+            people={isShared ? people : undefined}
             weeks={5}
             frequency={habit.frequency}
             targetCount={schema.targetCount || DEFAULT_TARGET_COUNT}

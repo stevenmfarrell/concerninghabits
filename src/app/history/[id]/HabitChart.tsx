@@ -2,10 +2,19 @@
 
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import type { Person } from '@/lib/userColors';
 import { BarChart2, LineChart as LineChartIcon } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { formatLogValue, formatDuration } from '../../../lib/format';
 import type { HabitSchema } from '@/lib/types';
+
+const CHART_COLOR = '#059669'; // emerald-600
+
+// The tooltip's label for a value: the field name, plus who logged it on a shared habit
+function tooltipLabel(fieldLabel: string, item: unknown) {
+  const personName = (item as { payload?: { personName?: string } } | undefined)?.payload?.personName;
+  return personName ? `${fieldLabel} · ${personName}` : fieldLabel;
+}
 
 export default function HabitChart({
   logs,
@@ -15,9 +24,12 @@ export default function HabitChart({
   defaultSelectedField,
   defaultChartTypes,
   schemaObj,
-  timeZone
+  timeZone,
+  people
 }: {
-  logs: { id: string, createdAt: Date, payload: string }[],
+  logs: { id: string, createdAt: Date, payload: string, userId: string }[],
+  // Set for a shared habit, to color each point by who logged it
+  people?: Record<string, Person>,
   numericFields: string[],
   pageSize: number,
   habitId: string,
@@ -53,6 +65,10 @@ export default function HabitChart({
   const data = useMemo(() => {
     // Parse payloads and extract the selected field
     const points = logs.map(log => {
+      const person = people?.[log.userId];
+      // Who logged the point, when the chart is colored by person. Bars take `fill` straight from
+      // their data point; line dots read it in the custom dot below.
+      const loggedBy = people ? { fill: person?.color ?? '#a8a29e', personName: person?.name ?? 'Former member' } : { fill: CHART_COLOR, personName: undefined };
       try {
         const payload = JSON.parse(log.payload);
         const val = payload[selectedField];
@@ -60,10 +76,11 @@ export default function HabitChart({
           logId: log.id,
           date: new Date(log.createdAt).getTime(), // Sort by time
           dateStr: new Date(log.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone }),
-          value: typeof val === 'number' ? val : null
+          value: typeof val === 'number' ? val : null,
+          ...loggedBy
         };
       } catch {
-        return { logId: log.id, date: new Date(log.createdAt).getTime(), dateStr: '', value: null };
+        return { logId: log.id, date: new Date(log.createdAt).getTime(), dateStr: '', value: null, ...loggedBy };
       }
     });
 
@@ -71,7 +88,7 @@ export default function HabitChart({
     return points
       .filter(p => p.value !== null)
       .sort((a, b) => a.date - b.date);
-  }, [logs, selectedField, timeZone]);
+  }, [logs, selectedField, timeZone, people]);
 
   if (numericFields.length === 0) return null;
 
@@ -223,12 +240,12 @@ export default function HabitChart({
                   labelStyle={{ color: '#57534e', fontWeight: 600, marginBottom: '4px' }}
                   itemStyle={{ color: '#047857', fontWeight: 700 }}
                   labelFormatter={(label: unknown) => new Date(label as string | number).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone })}
-                  formatter={(value: unknown) => [formatLogValue(value, schemaProperties?.[selectedField]), selectedField.replace(/([A-Z])/g, ' $1').trim().replace(/^./, str => str.toUpperCase())]}
+                  formatter={(value: unknown, _name: unknown, item: unknown) => [formatLogValue(value, schemaProperties?.[selectedField]), tooltipLabel(selectedField.replace(/([A-Z])/g, ' $1').trim().replace(/^./, str => str.toUpperCase()), item)]}
                 />
-                <Bar 
-                  dataKey="value" 
+                <Bar
+                  dataKey="value"
                   name="Value"
-                  fill="#059669"
+                  fill={CHART_COLOR}
                   radius={[4, 4, 0, 0]}
                   maxBarSize={60}
                   onClick={handleDotClick}
@@ -262,16 +279,25 @@ export default function HabitChart({
                   labelStyle={{ color: '#57534e', fontWeight: 600, marginBottom: '4px' }}
                   itemStyle={{ color: '#047857', fontWeight: 700 }}
                   labelFormatter={(label: unknown) => new Date(label as string | number).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone })}
-                  formatter={(value: unknown) => [formatLogValue(value, schemaProperties?.[selectedField]), selectedField.replace(/([A-Z])/g, ' $1').trim().replace(/^./, str => str.toUpperCase())]}
+                  formatter={(value: unknown, _name: unknown, item: unknown) => [formatLogValue(value, schemaProperties?.[selectedField]), tooltipLabel(selectedField.replace(/([A-Z])/g, ' $1').trim().replace(/^./, str => str.toUpperCase()), item)]}
                 />
-                <Line 
-                  type="monotone" 
-                  dataKey="value" 
+                {/* On a shared habit the line goes neutral so each point's person color stands out */}
+                <Line
+                  type="monotone"
+                  dataKey="value"
                   name="Value"
-                  stroke="#059669" 
+                  stroke={people ? '#d6d3d1' : CHART_COLOR}
                   strokeWidth={3}
-                  dot={{ r: 4, fill: '#059669', strokeWidth: 0, onClick: handleDotClick }}
-                  activeDot={{ r: 6, fill: '#047857', stroke: '#fff', strokeWidth: 2, onClick: handleDotClick }}
+                  dot={people
+                    ? ({ cx, cy, index, payload }) => (
+                        <circle key={index} cx={cx} cy={cy} r={4} fill={payload.fill} onClick={() => triggerHighlight(payload.logId)} />
+                      )
+                    : { r: 4, fill: CHART_COLOR, strokeWidth: 0, onClick: handleDotClick }}
+                  activeDot={people
+                    ? ({ cx, cy, payload }) => (
+                        <circle cx={cx} cy={cy} r={6} fill={payload.fill} stroke="#fff" strokeWidth={2} onClick={() => triggerHighlight(payload.logId)} />
+                      )
+                    : { r: 6, fill: '#047857', stroke: '#fff', strokeWidth: 2, onClick: handleDotClick }}
                 />
               </LineChart>
             )}

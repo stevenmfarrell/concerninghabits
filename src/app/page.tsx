@@ -1,4 +1,4 @@
-import { getCategoriesWithHierarchy, getDefaultUser, getFavoriteHabits, getUncategorizedHabits } from './actions/db';
+import { getCategoriesWithHierarchy, getDefaultUser, getFavoriteHabits, getPeople, getUncategorizedHabits } from './actions/db';
 import Link from 'next/link';
 import { Plus, ChevronRight, Star, Settings2 } from 'lucide-react';
 import Icon from '../components/Icon';
@@ -62,10 +62,11 @@ function CategoryRow({ href, name, icon, dates, habitCount, bedtime, weekStartsO
 
 export default async function Dashboard() {
   const user = await getDefaultUser();
-  const [categories, favorites, uncategorized] = await Promise.all([
+  const [categories, favorites, uncategorized, people] = await Promise.all([
     getCategoriesWithHierarchy(),
     getFavoriteHabits(),
     getUncategorizedHabits(),
+    getPeople(),
   ]);
 
   const categoryRows = categories
@@ -132,7 +133,7 @@ export default async function Dashboard() {
                   <Star className="w-6 h-6 text-stone-500" />
                   <h2 className="text-2xl font-semibold text-stone-800">Favorites</h2>
                 </div>
-                <SortableHabitList items={favorites} user={user} dndContextId="favorites-dnd-context" />
+                <SortableHabitList items={favorites} user={user} people={people} dndContextId="favorites-dnd-context" />
               </section>
             )}
 

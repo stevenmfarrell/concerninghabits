@@ -1,4 +1,6 @@
-import { getHabit, getHabitLogs, deleteHabitLog, getDefaultUser } from '../../actions/db';
+import { getHabit, getHabitLogs, deleteHabitLog, getDefaultUser, getPeople } from '../../actions/db';
+import PersonLabel from '@/components/PersonLabel';
+import { isSharedHabit } from '@/lib/userColors';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import PageHeader from '@/components/PageHeader';
@@ -28,7 +30,11 @@ export default async function HistoryPage(props: { params: Promise<{ id: string 
   }
 
   const logs = await getHabitLogs(id);
-  
+
+  // A habit that's shared (or was: a removed member's entries stay) is color coded by who logged
+  // each entry. `people` is only set in that case, which is what switches the coloring on.
+  const people = isSharedHabit(habit.userId, habit.memberIds.length, logs) ? await getPeople() : undefined;
+
   const cookieStore = await cookies();
   const savedHorizon = cookieStore.get(`horizon_${id}`)?.value;
   const savedChartField = cookieStore.get(`chartField_${id}`)?.value;
@@ -59,7 +65,11 @@ export default async function HistoryPage(props: { params: Promise<{ id: string 
   }
 
   const filteredLogs = logs.filter(l => toCivilDate(l.createdAt, user.timeZone, bedtimeOffsetMinutes) >= cutoffDate);
-  
+
+  // The legend lists current members plus anyone else who logged in this period, in account order
+  const legendIds = new Set([...habit.memberIds, ...filteredLogs.map(l => l.userId)]);
+  const legend = people ? Object.values(people).filter(p => legendIds.has(p.id)) : [];
+
   // Pagination
   const pageParam = searchParams?.page || '1';
   const page = parseInt(pageParam, 10) || 1;
@@ -115,8 +125,9 @@ export default async function HistoryPage(props: { params: Promise<{ id: string 
             {/* Activity Graphic */}
             <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-stone-100 flex flex-col items-start overflow-x-auto">
               <h2 className="text-lg font-semibold text-stone-800 mb-4">Activity Overview</h2>
-          <InteractiveCalendar 
-            logs={filteredLogs.map(l => ({ id: l.id, createdAt: l.createdAt }))} 
+          <InteractiveCalendar
+            logs={filteredLogs.map(l => ({ id: l.id, createdAt: l.createdAt, userId: l.userId }))}
+            people={people}
             weeks={weeks} 
             frequency={habit.frequency} 
             targetCount={schemaObj?.targetCount || DEFAULT_TARGET_COUNT}
@@ -128,10 +139,16 @@ export default async function HistoryPage(props: { params: Promise<{ id: string 
             pageSize={pageSize}
             habitId={habit.id}
           />
+          {legend.length > 0 && (
+            <div className="flex flex-wrap gap-x-4 gap-y-2 mt-4">
+              {legend.map(person => <PersonLabel key={person.id} person={person} />)}
+            </div>
+          )}
         </div>
         {numericFields.length > 0 && (
           <HabitChart 
-            logs={filteredLogs.map(l => ({ id: l.id, createdAt: l.createdAt, payload: l.payload }))}
+            logs={filteredLogs.map(l => ({ id: l.id, createdAt: l.createdAt, payload: l.payload, userId: l.userId }))}
+            people={people}
             numericFields={numericFields}
             pageSize={pageSize}
             habitId={habit.id}
@@ -188,6 +205,7 @@ export default async function HistoryPage(props: { params: Promise<{ id: string 
                           <span className="text-sm text-stone-500 text-right">
                             {new Date(log.createdAt).toLocaleTimeString('en-US', { timeStyle: 'short', timeZone: user.timeZone })}
                           </span>
+                          {people && <PersonLabel person={people[log.userId]} className="mt-1.5 justify-end" />}
                         </div>
                       </td>
                       <td className="p-4 text-stone-600">
@@ -207,7 +225,7 @@ export default async function HistoryPage(props: { params: Promise<{ id: string 
                         )}
                       </td>
                       <td className="p-4 align-top text-right">
-                        <DeleteButton action={deleteAction} />
+                        {log.canDelete && <DeleteButton action={deleteAction} />}
                       </td>
                     </tr>
                   );

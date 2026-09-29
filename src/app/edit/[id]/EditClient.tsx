@@ -44,6 +44,7 @@ export default function EditClient({ habit }: { habit: HabitDetail }) {
         initialPublishToMqtt={habit.publishToMqtt}
         onSave={handleSave}
         onDelete={handleDelete}
+        deleteWarning={habit.memberIds.length > 1 ? "It's shared, so it will also be deleted for everyone it's shared with, along with their entries." : undefined}
       />
     </div>
   );

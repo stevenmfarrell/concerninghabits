@@ -3,6 +3,8 @@
 import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { cache } from 'react';
+import { z } from 'zod';
+import type { Prisma } from '@prisma/client';
 import rjsfValidator from '@rjsf/validator-ajv8';
 
 import { verifySession } from '@/lib/auth';
@@ -11,10 +13,15 @@ import { MAX_CSV_IMPORT_ROWS, MAX_HISTORY_WEEKS, UNCATEGORIZED_ID, UNCATEGORIZED
 import { userPreferencesSchema } from '@/lib/preferences';
 import { TIMEZONE_COOKIE, isValidTimeZone } from '@/lib/timezone';
 import { encodeCsv, parseCsv } from '@/lib/csv';
+import { assignUserColors } from '@/lib/userColors';
 import { cookies } from 'next/headers';
 import type { HabitSchema } from '@/lib/types';
 
 type SchemaProperty = { type?: string; title?: string };
+
+// Habits placed in a list without a chosen position (new, newly shared, or moved to another
+// category) go to the end of it.
+const END_OF_LIST_ORDER = 9999;
 
 export async function getDefaultUser(allowNeedsUpdate = false) {
   return getRequestUser(allowNeedsUpdate);
@@ -73,28 +80,50 @@ async function assertValidParent(userId: string, parentId: string, categoryId?: 
   }
 }
 
+// A user's habits in one list (a category, favorites, uncategorized), in that user's saved order,
+// each with the recent log times its mini calendar shows. Logs are everyone's, not just the
+// viewer's: a shared habit's history is the whole household's.
+const habitListRows = (logsCutoff: Date) => ({
+  orderBy: [{ order: 'asc' }, { habit: { name: 'asc' } }],
+  include: {
+    habit: {
+      include: {
+        logs: { where: { createdAt: { gte: logsCutoff } }, select: { createdAt: true, userId: true } },
+        _count: { select: { members: true } },
+      }
+    }
+  }
+}) satisfies Prisma.HabitMemberFindManyArgs;
+
+type HabitListMembership = Prisma.HabitMemberGetPayload<ReturnType<typeof habitListRows>>;
+
+// Flatten a membership onto its habit, so list rows read the viewer's own order and favorite flag
+// the same way whether the habit is theirs or shared with them.
+function toHabitListItem({ habit, order, isFavorite, categoryId }: HabitListMembership) {
+  return { ...habit, order, isFavorite, categoryId, memberCount: habit._count.members };
+}
+
+function withHabits<C extends { habitMembers: HabitListMembership[] }>({ habitMembers, ...category }: C) {
+  return { ...category, habits: habitMembers.map(toHabitListItem) };
+}
+
 export async function getCategoriesWithHierarchy() {
   const user = await getDefaultUser();
   // Only the dashboard's 3-week calendars read this, but the cutoff is generous so it stays
   // correct if a caller ever asks for a longer view.
   const logsCutoff = getRecentLogsCutoff(5);
-  return prisma.category.findMany({
+  const categories = await prisma.category.findMany({
     where: { userId: user.id, parentId: null },
     orderBy: [{ order: 'asc' }, { name: 'asc' }],
     include: {
       children: {
         orderBy: [{ order: 'asc' }, { name: 'asc' }],
-        include: {
-          habits: {
-            include: { logs: { where: { createdAt: { gte: logsCutoff } }, select: { createdAt: true } } }
-          }
-        }
+        include: { habitMembers: habitListRows(logsCutoff) }
       },
-      habits: {
-        include: { logs: { where: { createdAt: { gte: logsCutoff } }, select: { createdAt: true } } }
-      }
+      habitMembers: habitListRows(logsCutoff)
     }
   });
+  return categories.map(category => ({ ...withHabits(category), children: category.children.map(withHabits) }));
 }
 
 // `weeks` bounds how far back logs are fetched for the activity heatmap; pass the widest horizon
@@ -122,22 +151,14 @@ export async function getCategory(id: string, weeks: number = MAX_HISTORY_WEEKS)
     include: {
       children: {
         orderBy: [{ order: 'asc' }, { name: 'asc' }],
-        include: {
-          habits: {
-            orderBy: [{ order: 'asc' }, { name: 'asc' }],
-            include: { logs: { where: { createdAt: { gte: logsCutoff } }, select: { createdAt: true } } }
-          }
-        }
+        include: { habitMembers: habitListRows(logsCutoff) }
       },
-      habits: {
-        orderBy: [{ order: 'asc' }, { name: 'asc' }],
-        include: { logs: { where: { createdAt: { gte: logsCutoff } }, select: { createdAt: true } } }
-      },
+      habitMembers: habitListRows(logsCutoff),
       parent: true
     }
   });
   if (!category || category.userId !== user.id) return null;
-  return category;
+  return { ...withHabits(category), children: category.children.map(withHabits) };
 }
 
 export async function getCategories() {
@@ -178,8 +199,8 @@ export async function deleteCategory(id: string) {
   const existing = await prisma.category.findUnique({ where: { id } });
   if (!existing || existing.userId !== user.id) throw new Error("Unauthorized");
 
-  // First nullify any habits using this category
-  await prisma.habit.updateMany({
+  // First move any habits filed here to Uncategorized
+  await prisma.habitMember.updateMany({
     where: { categoryId: id, userId: user.id },
     data: { categoryId: null }
   });
@@ -200,11 +221,10 @@ export async function saveHabit(name: string, description: string, schema: Habit
         name,
         description,
         schema: JSON.stringify(schema),
-        categoryId: categoryId || null,
         frequency,
         publishToMqtt,
         userId: user.id,
-        order: 9999,
+        members: { create: { userId: user.id, categoryId: categoryId || null, order: END_OF_LIST_ORDER } },
       }
     });
 
@@ -227,57 +247,60 @@ function getRecentLogsCutoff(weeks: number) {
 
 export async function getFavoriteHabits() {
   const user = await getDefaultUser();
-  return prisma.habit.findMany({
+  const memberships = await prisma.habitMember.findMany({
     where: { userId: user.id, isFavorite: true },
-    orderBy: [{ order: 'asc' }, { name: 'asc' }],
-    include: {
-      logs: {
-        where: { createdAt: { gte: getRecentLogsCutoff(5) } },
-        select: { createdAt: true }
-      }
-    }
+    ...habitListRows(getRecentLogsCutoff(5)),
   });
+  return memberships.map(toHabitListItem);
 }
 
 // `weeks` bounds how far back logs are fetched; see getCategory, which shares this cutoff with the
 // "Uncategorized" synthetic category's history view.
 export async function getUncategorizedHabits(weeks: number = MAX_HISTORY_WEEKS) {
   const user = await getDefaultUser();
-  return prisma.habit.findMany({
+  // Includes habits newly shared with this user, until they file them into a category
+  const memberships = await prisma.habitMember.findMany({
     where: { userId: user.id, categoryId: null },
-    orderBy: [{ order: 'asc' }, { name: 'asc' }],
-    include: { logs: { where: { createdAt: { gte: getRecentLogsCutoff(weeks) } }, select: { createdAt: true } } }
+    ...habitListRows(getRecentLogsCutoff(weeks)),
   });
+  return memberships.map(toHabitListItem);
 }
 
 export async function toggleFavorite(habitId: string) {
   const user = await getDefaultUser();
-  const habit = await prisma.habit.findUnique({ where: { id: habitId } });
-  if (!habit || habit.userId !== user.id) throw new Error("Unauthorized");
+  const membership = await getMembership(user.id, habitId);
 
-  const updated = await prisma.habit.update({
-    where: { id: habitId },
-    data: { isFavorite: !habit.isFavorite }
+  const updated = await prisma.habitMember.update({
+    where: { habitId_userId: { habitId, userId: user.id } },
+    data: { isFavorite: !membership.isFavorite }
   });
   revalidatePath('/');
   revalidatePath(`/log/${habitId}`);
   return updated.isFavorite;
 }
 
+// A habit the current user can see (their own or one shared with them), with their own placement
+// of it and who has it. Null if they have no access.
 export async function getHabit(id: string) {
   const user = await getDefaultUser();
-  const habit = await prisma.habit.findUnique({
-    where: { id },
-    include: { category: true }
+  const membership = await prisma.habitMember.findUnique({
+    where: { habitId_userId: { habitId: id, userId: user.id } },
+    include: { habit: { include: { members: { select: { userId: true }, orderBy: { createdAt: 'asc' } } } } }
   });
-  if (!habit || habit.userId !== user.id) return null;
-  return habit;
+  if (!membership) return null;
+  const { habit: { members, ...habit }, categoryId, isFavorite } = membership;
+  return {
+    ...habit,
+    categoryId,
+    isFavorite,
+    isOwner: habit.userId === user.id,
+    memberIds: members.map(m => m.userId),
+  };
 }
 
 export async function logHabitEvent(habitId: string, payload: Record<string, unknown>, createdAt?: Date) {
   const user = await getDefaultUser();
-  const habit = await prisma.habit.findUnique({ where: { id: habitId } });
-  if (!habit || habit.userId !== user.id) throw new Error("Unauthorized");
+  const { habit } = await getMembership(user.id, habitId);
 
   const schema: HabitSchema = { type: 'object', ...parseHabitSchema(habit) };
   const properties = (schema.properties || {}) as Record<string, SchemaProperty>;
@@ -317,10 +340,15 @@ export async function logHabitEvent(habitId: string, payload: Record<string, unk
   return log;
 }
 
+// Anyone can delete an entry they logged; a habit's owner can also delete anyone's entry on it
+function canDeleteLog(userId: string, log: { userId: string }, habit: { userId: string }) {
+  return log.userId === userId || habit.userId === userId;
+}
+
 export async function deleteHabitLog(logId: string, habitId: string) {
   const user = await getDefaultUser();
-  const log = await prisma.habitLog.findUnique({ where: { id: logId } });
-  if (!log || log.userId !== user.id) throw new Error("Unauthorized");
+  const log = await prisma.habitLog.findUnique({ where: { id: logId }, include: { habit: { select: { userId: true } } } });
+  if (!log || log.habitId !== habitId || !canDeleteLog(user.id, log, log.habit)) throw new Error("Unauthorized");
 
   await prisma.habitLog.delete({
     where: { id: logId }
@@ -329,14 +357,30 @@ export async function deleteHabitLog(logId: string, habitId: string) {
   revalidatePath('/');
 }
 
+// Every entry on a habit the user can see, whoever logged it, newest first. `canDelete` says
+// whether the current user may delete that entry.
 export async function getHabitLogs(habitId: string) {
   const user = await getDefaultUser();
-  return prisma.habitLog.findMany({
-    where: { habitId, userId: user.id },
+  const { habit } = await getMembership(user.id, habitId);
+  const logs = await prisma.habitLog.findMany({
+    where: { habitId },
     orderBy: { createdAt: 'desc' }
   });
+  return logs.map(log => ({ ...log, canDelete: canDeleteLog(user.id, log, habit) }));
 }
 
+// The user's membership in a habit (their own, or one shared with them), with the habit.
+// Membership is what grants access: viewing, logging, and filing the habit in a category.
+async function getMembership(userId: string, habitId: string) {
+  const membership = await prisma.habitMember.findUnique({
+    where: { habitId_userId: { habitId, userId } },
+    include: { habit: true }
+  });
+  if (!membership) throw new Error("Unauthorized");
+  return membership;
+}
+
+// A habit the user owns. Only the owner can change its form, share it, or delete it.
 async function getOwnedHabit(userId: string, habitId: string) {
   const habit = await prisma.habit.findUnique({ where: { id: habitId } });
   if (!habit || habit.userId !== userId) throw new Error("Unauthorized");
@@ -357,16 +401,21 @@ function getHabitSchemaProperties(habit: { schema: string }): Record<string, Sch
 
 export async function exportHabitLogsCsv(habitId: string) {
   const user = await getDefaultUser();
-  const habit = await getOwnedHabit(user.id, habitId);
+  const { habit } = await getMembership(user.id, habitId);
   const properties = getHabitSchemaProperties(habit);
   const fieldKeys = Object.keys(properties);
 
   const logs = await prisma.habitLog.findMany({
-    where: { habitId, userId: user.id },
-    orderBy: { createdAt: 'asc' }
+    where: { habitId },
+    orderBy: { createdAt: 'asc' },
+    include: { user: { select: { name: true } } }
   });
 
-  const header = ['Date', ...fieldKeys.map(key => properties[key].title || key)];
+  // Name who logged each entry once more than one person has. Import ignores this column, since
+  // it matches no form field.
+  const includeLoggedBy = new Set(logs.map(log => log.userId)).size > 1;
+
+  const header = ['Date', ...fieldKeys.map(key => properties[key].title || key), ...(includeLoggedBy ? ['Logged By'] : [])];
   const rows = logs.map(log => {
     const payload = JSON.parse(log.payload) as Record<string, unknown>;
     return [
@@ -374,7 +423,8 @@ export async function exportHabitLogsCsv(habitId: string) {
       ...fieldKeys.map(key => {
         const val = payload[key];
         return val === undefined || val === null ? '' : String(val);
-      })
+      }),
+      ...(includeLoggedBy ? [log.user.name] : [])
     ];
   });
 
@@ -384,7 +434,7 @@ export async function exportHabitLogsCsv(habitId: string) {
 
 export async function importHabitLogsCsv(habitId: string, csvText: string) {
   const user = await getDefaultUser();
-  const habit = await getOwnedHabit(user.id, habitId);
+  const { habit } = await getMembership(user.id, habitId);
   const properties = getHabitSchemaProperties(habit);
 
   const rows = parseCsv(csvText);
@@ -457,31 +507,25 @@ export async function importHabitLogsCsv(habitId: string, csvText: string) {
   return { imported: toCreate.length, skipped: dataRows.length - toCreate.length, errors };
 }
 
+// Changes the habit's definition (owner only) and which of the owner's categories it's filed in
 export async function updateHabit(id: string, name: string, description: string, schema: HabitSchema, categoryId?: string, frequency: string = 'daily', publishToMqtt: boolean = false) {
   const user = await getDefaultUser();
-  const existing = await prisma.habit.findUnique({ where: { id } });
-  if (!existing || existing.userId !== user.id) throw new Error("Unauthorized");
+  await getOwnedHabit(user.id, id);
   if (categoryId) await getOwnedCategory(user.id, categoryId);
 
   try {
-    let newOrder = existing.order;
-    if (existing.categoryId !== (categoryId || null)) {
-      newOrder = 9999;
-    }
-
     const habit = await prisma.habit.update({
       where: { id },
       data: {
         name,
         description,
         schema: JSON.stringify(schema),
-        categoryId: categoryId || null,
         frequency,
         publishToMqtt,
-        order: newOrder,
       }
     });
-    
+    await fileHabit(user.id, id, categoryId || null);
+
     revalidatePath('/');
     revalidatePath(`/log/${id}`);
     revalidatePath(`/history/${id}`);
@@ -503,12 +547,77 @@ export async function updateUserPreferences(prefs: { bedtime?: string, weekStart
   revalidatePath('/');
 }
 
+// Deletes the habit for everyone it's shared with, including every member's entries (owner only)
 export async function deleteHabit(habitId: string) {
   const user = await getDefaultUser();
+  await getOwnedHabit(user.id, habitId);
+  // Memberships are removed along with the habit (onDelete: Cascade)
   await prisma.$transaction([
-    prisma.habitLog.deleteMany({ where: { habitId, userId: user.id } }),
-    prisma.habit.delete({ where: { id: habitId, userId: user.id } })
+    prisma.habitLog.deleteMany({ where: { habitId } }),
+    prisma.habit.delete({ where: { id: habitId } })
   ]);
+  revalidatePath('/');
+}
+
+// Files a habit into one of the user's categories (or Uncategorized when null), moving it to the
+// end of that list if it's changing lists.
+async function fileHabit(userId: string, habitId: string, categoryId: string | null) {
+  const membership = await getMembership(userId, habitId);
+  if (membership.categoryId === categoryId) return;
+  await prisma.habitMember.update({
+    where: { habitId_userId: { habitId, userId } },
+    data: { categoryId, order: END_OF_LIST_ORDER }
+  });
+}
+
+// Lets any member, not just the owner, file a habit into their own category tree
+export async function setHabitCategory(habitId: string, categoryId: string | null) {
+  const user = await getDefaultUser();
+  if (categoryId) await getOwnedCategory(user.id, categoryId);
+  await fileHabit(user.id, habitId, categoryId);
+  revalidatePath('/');
+  revalidatePath(`/log/${habitId}`);
+}
+
+// Everyone on this instance with their display color as the current user sees it (green for
+// themselves), in account creation order. An instance is one household, so users can see each
+// other's names to share habits and read shared history.
+export async function getPeople() {
+  const user = await getDefaultUser();
+  const users = await prisma.user.findMany({ orderBy: { createdAt: 'asc' }, select: { id: true, name: true } });
+  return assignUserColors(users, user.id);
+}
+
+// Sets exactly which other users a habit is shared with (owner only). Newly added users find it in
+// their Uncategorized list. Removed users lose access, but the entries they logged stay.
+export async function setHabitSharing(habitId: string, userIds: string[]) {
+  const user = await getDefaultUser();
+  const habit = await getOwnedHabit(user.id, habitId);
+  const sharedWith = [...new Set(z.array(z.string()).parse(userIds))].filter(id => id !== habit.userId);
+  if (await prisma.user.count({ where: { id: { in: sharedWith } } }) !== sharedWith.length) {
+    throw new Error("Unknown user");
+  }
+
+  const existing = await prisma.habitMember.findMany({ where: { habitId }, select: { userId: true } });
+  const existingIds = new Set(existing.map(m => m.userId));
+  await prisma.$transaction([
+    prisma.habitMember.deleteMany({ where: { habitId, userId: { notIn: [habit.userId, ...sharedWith] } } }),
+    prisma.habitMember.createMany({
+      data: sharedWith.filter(id => !existingIds.has(id)).map(userId => ({ habitId, userId, order: END_OF_LIST_ORDER }))
+    }),
+  ]);
+
+  revalidatePath('/');
+  revalidatePath(`/log/${habitId}`);
+  revalidatePath(`/history/${habitId}`);
+}
+
+// Removes a habit someone shared with you from your own lists. The entries you logged stay on it.
+export async function leaveHabit(habitId: string) {
+  const user = await getDefaultUser();
+  const { habit } = await getMembership(user.id, habitId);
+  if (habit.userId === user.id) throw new Error("You own this habit. Delete it instead.");
+  await prisma.habitMember.delete({ where: { habitId_userId: { habitId, userId: user.id } } });
   revalidatePath('/');
 }
 
@@ -535,20 +644,21 @@ export async function reorderCategories(updates: { id: string, order: number }[]
 export async function reorderHabits(updates: { id: string; order: number }[]) {
   const user = await getDefaultUser();
   
-  // Verify all habits belong to user before updating
-  const habits = await prisma.habit.findMany({
-    where: { id: { in: updates.map(u => u.id) }, userId: user.id }
+  // Order is per user, so this reorders the user's own memberships. Verify they have one for each
+  // habit before updating.
+  const memberships = await prisma.habitMember.findMany({
+    where: { habitId: { in: updates.map(u => u.id) }, userId: user.id }
   });
-  
-  if (habits.length !== updates.length) {
+
+  if (memberships.length !== updates.length) {
     throw new Error("Unauthorized or invalid habit IDs");
   }
 
   // Update in a transaction
   await prisma.$transaction(
-    updates.map(update => 
-      prisma.habit.update({
-        where: { id: update.id },
+    updates.map(update =>
+      prisma.habitMember.update({
+        where: { habitId_userId: { habitId: update.id, userId: user.id } },
         data: { order: update.order }
       })
     )

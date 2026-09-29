@@ -8,22 +8,23 @@ datasource db {
 }
 
 model User {
-  id           String     @id @default(uuid())
-  name         String
-  email        String     @unique
-  passwordHash String
-  isAdmin      Boolean    @default(false)
-  habitLogs    HabitLog[]
-  habits       Habit[]
-  categories   Category[]
-  bedtime      String     @default("01:00")
-  weekStartsOn String     @default("sunday")
-  useEmojiTitle Boolean   @default(true)
-  emojiModifier String?
-  passwordNeedsUpdate Boolean @default(false)
-  unitSystem   String     @default("imperial")
-  createdAt    DateTime   @default(now())
-  sessions     Session[]
+  id                  String        @id @default(uuid())
+  name                String
+  email               String        @unique
+  passwordHash        String
+  isAdmin             Boolean       @default(false)
+  habitLogs           HabitLog[]
+  habits              Habit[]
+  habitMemberships    HabitMember[]
+  categories          Category[]
+  bedtime             String        @default("01:00")
+  weekStartsOn        String        @default("sunday")
+  useEmojiTitle       Boolean       @default(true)
+  emojiModifier       String?
+  passwordNeedsUpdate Boolean       @default(false)
+  unitSystem          String        @default("imperial")
+  createdAt           DateTime      @default(now())
+  sessions            Session[]
 }
 
 model Session {
@@ -37,37 +38,53 @@ model Session {
 }
 
 model Habit {
-  publishToMqtt Boolean @default(false)
-  isFavorite  Boolean    @default(false)
-  id          String     @id @default(uuid())
-  order       Int?       @default(0)
-  name        String
-  description String?
-  schema      String
-  categoryId  String?
-  category    Category?  @relation(fields: [categoryId], references: [id])
-  frequency   String     @default("daily")
-  userId      String
-  user        User       @relation(fields: [userId], references: [id])
-  logs        HabitLog[]
-  createdAt   DateTime   @default(now())
+  publishToMqtt Boolean       @default(false)
+  id            String        @id @default(uuid())
+  name          String
+  description   String?
+  schema        String
+  frequency     String        @default("daily")
+  // The habit's owner: the only user who can edit, share, or delete it
+  userId        String
+  user          User          @relation(fields: [userId], references: [id])
+  members       HabitMember[]
+  logs          HabitLog[]
+  createdAt     DateTime      @default(now())
 
+  @@index([userId])
+}
+
+// A user's access to a habit (the owner's own, or one shared with them), and where it sits in
+// that user's own category tree. Placement is per user, since each person files a shared habit
+// into their own categories.
+model HabitMember {
+  habitId    String
+  habit      Habit     @relation(fields: [habitId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  order      Int       @default(0)
+  isFavorite Boolean   @default(false)
+  createdAt  DateTime  @default(now())
+
+  @@id([habitId, userId])
   @@index([userId, categoryId])
   @@index([categoryId])
 }
 
 model Category {
-  id        String   @id @default(uuid())
-  name      String
-  icon      String?
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  habits    Habit[]
-  parentId  String?
-  order     Int      @default(0)
-  parent    Category?  @relation("Subcategories", fields: [parentId], references: [id])
-  children  Category[] @relation("Subcategories")
-  createdAt DateTime @default(now())
+  id           String        @id @default(uuid())
+  name         String
+  icon         String?
+  userId       String
+  user         User          @relation(fields: [userId], references: [id])
+  habitMembers HabitMember[]
+  parentId     String?
+  order        Int           @default(0)
+  parent       Category?     @relation("Subcategories", fields: [parentId], references: [id])
+  children     Category[]    @relation("Subcategories")
+  createdAt    DateTime      @default(now())
 
   @@index([userId, parentId])
   @@index([parentId])
