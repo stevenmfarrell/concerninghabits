@@ -3,6 +3,16 @@
 import { civilDayKey, parseBedtimeOffsetMinutes, toCivilDate } from '@/lib/timezone';
 import { DEFAULT_TARGET_COUNT } from '@/lib/constants';
 
+// `frequency` is stored as a plain string (see Habit.frequency in schema.prisma), so these can't
+// be a real enum without touching every caller — but centralizing the literals here means a typo
+// only has one place to hide, instead of recurring at each comparison below.
+const FREQUENCY = { DAILY: 'daily', WEEKLY: 'weekly', MONTHLY: 'monthly', MULTIPLE: 'multiple' } as const;
+
+// Whether `neighbor` (a possibly-absent, possibly-padding cell) falls in a different month than
+// `day`. Shared by all four month-divider checks below so they can't drift from one another.
+const isDifferentMonth = (neighbor: Date | null, day: Date) =>
+  !neighbor || neighbor.getUTCMonth() !== day.getUTCMonth();
+
 interface ActivityCalendarProps {
   dates: Date[];
   // The viewer's IANA time zone. Days are bucketed in this zone, so the server render and the
@@ -21,15 +31,16 @@ interface ActivityCalendarProps {
 }
 
 // All dates below are civil dates (UTC midnight for a day in `timeZone`), so only UTC methods are used.
-export default function ActivityCalendar({ dates, timeZone, weeks = 5, frequency = 'daily', size = 'sm', monthsPerColumn = 4, bedtime = '00:00', weekStartsOn = 'sunday', targetCount = DEFAULT_TARGET_COUNT, emptyColor = 'bg-stone-100', futureColor = 'bg-transparent border border-stone-100', onDateClick }: ActivityCalendarProps) {
+export default function ActivityCalendar({ dates, timeZone, weeks = 5, frequency = FREQUENCY.DAILY, size = 'sm', monthsPerColumn = 4, bedtime = '00:00', weekStartsOn = 'sunday', targetCount = DEFAULT_TARGET_COUNT, emptyColor = 'bg-stone-100', futureColor = 'bg-transparent border border-stone-100', onDateClick }: ActivityCalendarProps) {
   const bedtimeOffsetMinutes = parseBedtimeOffsetMinutes(bedtime);
+  const startsMonday = weekStartsOn === 'monday';
 
   const today = toCivilDate(new Date(), timeZone, bedtimeOffsetMinutes);
 
   const getStartOfWeek = (d: Date) => {
     const dt = new Date(d);
     const day = dt.getUTCDay();
-    if (weekStartsOn === 'monday') {
+    if (startsMonday) {
       dt.setUTCDate(dt.getUTCDate() - day + (day === 0 ? -6 : 1));
     } else {
       dt.setUTCDate(dt.getUTCDate() - day);
@@ -99,17 +110,20 @@ export default function ActivityCalendar({ dates, timeZone, weeks = 5, frequency
 
   const processedColumns = columns.map(col => {
     const firstDay = col[0];
-    const padStart = (firstDay.getUTCDay() - (weekStartsOn === 'monday' ? 1 : 0) + 7) % 7;
+    const padStart = (firstDay.getUTCDay() - (startsMonday ? 1 : 0) + 7) % 7;
     const padded = Array(padStart).fill(null).concat(col);
     const padEnd = (7 - (padded.length % 7)) % 7;
     const fullCol = padded.concat(Array(padEnd).fill(null));
     
     const grid = [];
     const colWeeks = fullCol.length / 7;
-    
+    // Single place that turns a (week, day-of-week) grid position into an index into `fullCol`,
+    // so the four month-divider checks below don't each repeat their own `w * 7 + d` arithmetic.
+    const cellAt = (w: number, d: number) => fullCol[w * 7 + d];
+
     for (let w = 0; w < colWeeks; w++) {
       for (let d = 0; d < 7; d++) {
-        const day = fullCol[w * 7 + d];
+        const day = cellAt(w, d);
         if (!day) {
           grid.push({ isNull: true, date: today, count: 0, isFuture: false, isPeriodCompleted: false, isNewMonthLeft: false, isNewMonthRight: false, isNewMonthTop: false, isNewMonthBottom: false, w, d });
           continue;
@@ -121,24 +135,19 @@ export default function ActivityCalendar({ dates, timeZone, weeks = 5, frequency
         
         if (!isFuture) {
           const dayCount = dayCounts.get(civilDayKey(day)) ?? 0;
-          count = frequency === 'multiple' ? dayCount : Math.min(dayCount, 1);
+          count = frequency === FREQUENCY.MULTIPLE ? dayCount : Math.min(dayCount, 1);
 
-          if (frequency === 'weekly' && completedWeeks.has(civilDayKey(getStartOfWeek(day)))) isPeriodCompleted = true;
-          if (frequency === 'monthly' && completedMonths.has(monthKey(day))) isPeriodCompleted = true;
+          if (frequency === FREQUENCY.WEEKLY && completedWeeks.has(civilDayKey(getStartOfWeek(day)))) isPeriodCompleted = true;
+          if (frequency === FREQUENCY.MONTHLY && completedMonths.has(monthKey(day))) isPeriodCompleted = true;
         }
         
-        const prevDay = d > 0 ? fullCol[w * 7 + d - 1] : null;
-        const nextDay = d < 6 ? fullCol[w * 7 + d + 1] : null;
-        const prevWeekDay = w > 0 ? fullCol[(w - 1) * 7 + d] : null;
-        const nextWeekDay = w < colWeeks - 1 ? fullCol[(w + 1) * 7 + d] : null;
+        const isNewMonthLeft = d > 0 && isDifferentMonth(cellAt(w, d - 1), day);
+        const isNewMonthRight = d < 6 && isDifferentMonth(cellAt(w, d + 1), day);
 
-        const isNewMonthLeft = d > 0 && (!prevDay || prevDay.getUTCMonth() !== day.getUTCMonth());
-        const isNewMonthRight = d < 6 && (!nextDay || nextDay.getUTCMonth() !== day.getUTCMonth());
-        
-        const isNewMonthTop = (w > 0 && (!prevWeekDay || prevWeekDay.getUTCMonth() !== day.getUTCMonth())) || (w === 0 && day.getUTCDate() <= 7);
-        
+        const isNewMonthTop = (w > 0 && isDifferentMonth(cellAt(w - 1, d), day)) || (w === 0 && day.getUTCDate() <= 7);
+
         const daysInMonth = new Date(Date.UTC(day.getUTCFullYear(), day.getUTCMonth() + 1, 0)).getUTCDate();
-        const isNewMonthBottom = (w < colWeeks - 1 && (!nextWeekDay || nextWeekDay.getUTCMonth() !== day.getUTCMonth())) || (w === colWeeks - 1 && day.getUTCDate() > daysInMonth - 7);
+        const isNewMonthBottom = (w < colWeeks - 1 && isDifferentMonth(cellAt(w + 1, d), day)) || (w === colWeeks - 1 && day.getUTCDate() > daysInMonth - 7);
 
         const isToday = civilDayKey(day) === civilDayKey(today);
         
@@ -151,7 +160,7 @@ export default function ActivityCalendar({ dates, timeZone, weeks = 5, frequency
   const getBackgroundColor = (count: number, isFuture: boolean, isPeriodCompleted: boolean) => {
     if (isFuture) return futureColor;
     if (count > 0) {
-      if (frequency === 'multiple') {
+      if (frequency === FREQUENCY.MULTIPLE) {
         const ratio = count / targetCount;
         return ratio >= 1 ? 'bg-emerald-600' :
                ratio >= 0.66 ? 'bg-emerald-500' :

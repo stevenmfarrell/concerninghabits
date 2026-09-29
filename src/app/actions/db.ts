@@ -55,6 +55,8 @@ async function getOwnedCategory(userId: string, categoryId: string) {
 
 // Categories nest one level deep: a parent must be a top-level category, and a category
 // that has subcategories can't itself be nested. This also rules out parent cycles.
+// This is the authority on that rule — computeDrop/applyDrop in categoryDrop.ts encode the same
+// constraint client-side (for the live drag preview) and must stay consistent with it.
 async function assertValidParent(userId: string, parentId: string, categoryId?: string) {
   if (parentId === categoryId) throw new Error("A category can't be its own parent");
   const parent = await getOwnedCategory(userId, parentId);

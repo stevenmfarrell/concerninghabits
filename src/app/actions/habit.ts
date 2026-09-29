@@ -70,10 +70,11 @@ export async function parseVoiceLog(schemaStr: string, transcript: string) {
       schema: z.record(z.string(), z.any()),
       system: `You are an AI assistant that extracts structured data from a user's voice transcript to fill out a habit tracking form.
 You are given the JSON schema for the form.
-You must map the transcript to the schema's 'properties'. 
+You must map the transcript to the schema's 'properties'.
 Return ONLY a flat JSON object where the keys exactly match the property keys from the schema, and the values are the extracted data.
 DO NOT nest your response inside a 'properties' key.
-If the transcript implies a value that matches a field, include it. Otherwise omit it.`,
+If the transcript implies a value that matches a field, include it. Otherwise omit it.
+CRITICAL: A property with "x-widget": "duration" must be returned as TOTAL MINUTES, as a decimal number — e.g. "90 seconds" is 1.5, "2 hours 30 minutes" is 150, "25 minutes 30 seconds" is 25.5. Never return seconds or an "HH:MM:SS" string for these fields.`,
       prompt: `Form Schema:\n${schemaStr}\n\nVoice Transcript:\n"${transcript}"`,
     });
 
@@ -98,7 +99,8 @@ You are given the JSON schema for the form.
 Analyze the image (e.g. a treadmill screen, a handwritten log, a meal) and map the relevant information to the schema's 'properties'.
 Return ONLY a flat JSON object where the keys exactly match the property keys from the schema, and the values are the extracted data.
 DO NOT nest your response inside a 'properties' key.
-If the image implies a value that matches a field, include it. Otherwise omit it.`,
+If the image implies a value that matches a field, include it. Otherwise omit it.
+CRITICAL: A property with "x-widget": "duration" must be returned as TOTAL MINUTES, as a decimal number — e.g. "90 seconds" is 1.5, "2 hours 30 minutes" is 150, "25 minutes 30 seconds" is 25.5. Never return seconds or an "HH:MM:SS" string for these fields.`,
       messages: [
         {
           role: 'user',

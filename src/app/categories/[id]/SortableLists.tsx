@@ -2,8 +2,8 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors, DragOverlay, DragStartEvent, DragEndEvent } from '@dnd-kit/core';
-import { arrayMove, SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
+import { DndContext, closestCenter, DragOverlay } from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical, ChevronRight } from 'lucide-react';
 import Icon from '../../../components/Icon';
@@ -13,6 +13,7 @@ import { reorderCategories } from '../../actions/db';
 import { reorderHabits } from '../../actions/db';
 import { DEFAULT_TARGET_COUNT } from '@/lib/constants';
 import type { HabitListItem, SessionUser, SubcategoryListItem } from '@/lib/types';
+import { useReorderableList } from './useReorderableList';
 
 import { ChevronDown, ExternalLink } from 'lucide-react';
 
@@ -110,36 +111,16 @@ type CategoryItem =
 // A category's direct habits and subcategories, sorted together so either can be placed above the other.
 // Consecutive habits render as one joined card; each subcategory is its own card.
 export function SortableCategoryItemList({ items: initialItems, user, isReordering }: { items: CategoryItem[], user: SessionUser, isReordering?: boolean }) {
-  const [items, setItems] = useState(initialItems);
-  const [activeId, setActiveId] = useState<string | null>(null);
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 100, tolerance: 5 } })
-  );
-
-  const handleDragStart = (event: DragStartEvent) => setActiveId(String(event.active.id));
-  const handleDragCancel = () => setActiveId(null);
-
-  const handleDragEnd = async (event: DragEndEvent) => {
-    setActiveId(null);
-    const { active, over } = event;
-    if (over && active.id !== over.id) {
-      const oldIndex = items.findIndex(i => i.id === active.id);
-      const newIndex = items.findIndex(i => i.id === over.id);
-      const newItems = arrayMove(items, oldIndex, newIndex);
-      setItems(newItems);
-
-      // Habits and subcategories share one order sequence within this category
-      const withOrder = newItems.map((item, index) => ({ item, order: index }));
-      const habitUpdates = withOrder.filter(x => x.item.type === 'habit').map(x => ({ id: x.item.id, order: x.order }));
-      const categoryUpdates = withOrder.filter(x => x.item.type === 'subcategory').map(x => ({ id: x.item.id, order: x.order }));
-      await Promise.all([
-        habitUpdates.length > 0 ? reorderHabits(habitUpdates) : null,
-        categoryUpdates.length > 0 ? reorderCategories(categoryUpdates) : null,
-      ]);
-    }
-  };
+  const { items, activeId, sensors, handleDragStart, handleDragCancel, handleDragEnd } = useReorderableList(initialItems, async (newItems) => {
+    // Habits and subcategories share one order sequence within this category
+    const withOrder = newItems.map((item, index) => ({ item, order: index }));
+    const habitUpdates = withOrder.filter(x => x.item.type === 'habit').map(x => ({ id: x.item.id, order: x.order }));
+    const categoryUpdates = withOrder.filter(x => x.item.type === 'subcategory').map(x => ({ id: x.item.id, order: x.order }));
+    await Promise.all([
+      habitUpdates.length > 0 ? reorderHabits(habitUpdates) : null,
+      categoryUpdates.length > 0 ? reorderCategories(categoryUpdates) : null,
+    ]);
+  });
 
   const activeItem = items.find(i => i.id === activeId);
 
@@ -226,30 +207,10 @@ const SortableHabitItem = ({ habit, user, isOverlay, isReordering, className = '
 };
 
 export function SortableHabitList({ items: initialItems, user, isReordering, dndContextId = "habits-dnd-context", isNested = false }: { items: HabitListItem[], user: SessionUser, isReordering?: boolean, dndContextId?: string, isNested?: boolean }) {
-  const [items, setItems] = useState(initialItems);
-  const [activeId, setActiveId] = useState<string | null>(null);
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 100, tolerance: 5 } })
-  );
-
-  const handleDragStart = (event: DragStartEvent) => setActiveId(String(event.active.id));
-  const handleDragCancel = () => setActiveId(null);
-
-  const handleDragEnd = async (event: DragEndEvent) => {
-    setActiveId(null);
-    const { active, over } = event;
-    if (over && active.id !== over.id) {
-      const oldIndex = items.findIndex(i => i.id === active.id);
-      const newIndex = items.findIndex(i => i.id === over.id);
-      const newItems = arrayMove(items, oldIndex, newIndex);
-      setItems(newItems);
-      
-      const updates = newItems.map((item, index) => ({ id: item.id, order: index }));
-      await reorderHabits(updates);
-    }
-  };
+  const { items, activeId, sensors, handleDragStart, handleDragCancel, handleDragEnd } = useReorderableList(initialItems, async (newItems) => {
+    const updates = newItems.map((item, index) => ({ id: item.id, order: index }));
+    await reorderHabits(updates);
+  });
 
   const activeItem = items.find(i => i.id === activeId);
 

@@ -1,12 +1,11 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import Form from '@rjsf/core';
 import validator from '@rjsf/validator-ajv8';
-import { logHabitEvent, deleteHabitLog, toggleFavorite, importHabitLogsCsv } from '../../actions/db';
-import { parseVoiceLog, parseImageLog } from '../../actions/habit';
+import { logHabitEvent, deleteHabitLog, toggleFavorite } from '../../actions/db';
 import { useRouter } from 'next/navigation';
-import { Check, Loader2, Undo2, Link2, Mic, Camera, MoreVertical, Edit2, ChevronRight, Star, Upload } from 'lucide-react';
+import { Loader2, Link2, Mic, Camera, MoreVertical, Edit2, ChevronRight, Star, Upload } from 'lucide-react';
 import ActivityCalendar from '../../../components/ActivityCalendar';
 import QuillIconWavy from '../../../components/QuillIconWavy';
 import Link from 'next/link';
@@ -15,28 +14,25 @@ import { IconButton } from '@/components/ui/IconButton';
 import toast from 'react-hot-toast';
 import DurationWidget from '../../../components/widgets/DurationWidget';
 import UnitWidget from '../../../components/widgets/UnitWidget';
-import { formatLogValue } from '../../../lib/format';
 import { DEFAULT_TARGET_COUNT } from '@/lib/constants';
 import type { HabitSchema, HabitWithLogs, SessionUser } from '@/lib/types';
 import type { UiSchema } from '@rjsf/utils';
+import AiSuccessSplash from './AiSuccessSplash';
+import { useVoiceLogging } from './useVoiceLogging';
+import { useImageLogging } from './useImageLogging';
+import { useCsvImport } from './useCsvImport';
 
-// The Web Speech API isn't in TS's DOM lib; this covers the small surface LogClient uses.
-interface SpeechRecognitionLike {
-  continuous: boolean;
-  interimResults: boolean;
-  lang: string;
-  start(): void;
-  stop(): void;
-  onresult: ((event: { results: { [i: number]: { [j: number]: { transcript: string } } } }) => void) | null;
-  onerror: ((event: { error: string }) => void) | null;
-  onend: (() => void) | null;
+function parseHabitSchema(rawSchema: string): HabitSchema {
+  try {
+    return JSON.parse(rawSchema);
+  } catch {
+    return {};
+  }
 }
 
 export default function LogClient({ habit, user }: { habit: HabitWithLogs, user: SessionUser }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [isListening, setIsListening] = useState(false);
-  const [aiLoading, setAiLoading] = useState(false);
 
   const [logDate, setLogDate] = useState('');
   const [showBackdate, setShowBackdate] = useState(false);
@@ -55,7 +51,7 @@ export default function LogClient({ habit, user }: { habit: HabitWithLogs, user:
     }
   };
 
-  const schema: HabitSchema = JSON.parse(habit.schema);
+  const schema = parseHabitSchema(habit.schema);
   const schemaProperties = schema.properties as Record<string, { type?: string; title?: string; 'x-widget'?: string; 'x-unit'?: string }> | undefined;
 
   // Build uiSchema for custom widgets
@@ -92,31 +88,6 @@ export default function LogClient({ habit, user }: { habit: HabitWithLogs, user:
     return initialData;
   });
 
-  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
-  const splashTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const [timeLeft, setTimeLeft] = useState(100);
-
-  // Reset to 100 whenever the splash is shown or dismissed, so the fill-then-fade animation below
-  // replays correctly the next time it appears (adjusting state during render, not in an effect).
-  const [prevAiSuccessLog, setPrevAiSuccessLog] = useState(aiSuccessLog);
-  if (aiSuccessLog !== prevAiSuccessLog) {
-    setPrevAiSuccessLog(aiSuccessLog);
-    setTimeLeft(100);
-  }
-
-  useEffect(() => {
-    if (!aiSuccessLog) return;
-    const timer = setTimeout(() => setTimeLeft(0), 50);
-    return () => clearTimeout(timer);
-  }, [aiSuccessLog]);
-
-  useEffect(() => {
-    return () => {
-      if (splashTimeoutRef.current) clearTimeout(splashTimeoutRef.current);
-    };
-  }, []);
-
   const handleAiExtractionSuccess = async (extractedData: Record<string, unknown>, loadingToastId: string) => {
     if (Object.keys(extractedData).length === 0) {
       toast.error('Could not find any relevant data.', { id: loadingToastId });
@@ -127,7 +98,7 @@ export default function LogClient({ habit, user }: { habit: HabitWithLogs, user:
     setFormData(newFormData);
 
     const requiredFields = schema.required || [];
-    const isFilled = requiredFields.every((field: string) => 
+    const isFilled = requiredFields.every((field: string) =>
       newFormData[field] !== undefined && newFormData[field] !== null && newFormData[field] !== ''
     );
 
@@ -136,9 +107,6 @@ export default function LogClient({ habit, user }: { habit: HabitWithLogs, user:
       try {
         const log = await logHabitEvent(habit.id, newFormData, undefined);
         setAiSuccessLog({ logId: log.id, data: newFormData });
-        splashTimeoutRef.current = setTimeout(() => {
-          router.push(`/history/${habit.id}`);
-        }, 6000);
       } catch {
         toast.error('AI filled the form, but auto-submit failed.');
       }
@@ -146,6 +114,11 @@ export default function LogClient({ habit, user }: { habit: HabitWithLogs, user:
       toast.success('Form partially filled by AI. Please complete missing fields.', { id: loadingToastId });
     }
   };
+
+  const { isListening, isProcessing: voiceProcessing, toggleListen } = useVoiceLogging(habit.schema, handleAiExtractionSuccess);
+  const { fileInputRef, isProcessing: imageProcessing, handleImageUpload } = useImageLogging(habit.schema, handleAiExtractionSuccess);
+  const { importInputRef, importing, handleImportCsv } = useCsvImport(habit.id, () => router.push(`/history/${habit.id}`));
+  const aiLoading = voiceProcessing || imageProcessing;
 
   const handleManualSubmit = async () => {
     try {
@@ -187,153 +160,6 @@ export default function LogClient({ habit, user }: { habit: HabitWithLogs, user:
     }
   };
 
-  // Kept current so the speech-recognition effect below doesn't need to recreate the
-  // recognition object (and lose its listening state) every time this callback changes.
-  const handleAiExtractionSuccessRef = useRef(handleAiExtractionSuccess);
-  useEffect(() => {
-    handleAiExtractionSuccessRef.current = handleAiExtractionSuccess;
-  });
-
-  useEffect(() => {
-    // Initialize speech recognition
-    if (typeof window !== 'undefined') {
-      const globalWindow = window as unknown as {
-        SpeechRecognition?: new () => SpeechRecognitionLike;
-        webkitSpeechRecognition?: new () => SpeechRecognitionLike;
-      };
-      const SpeechRecognition = globalWindow.SpeechRecognition || globalWindow.webkitSpeechRecognition;
-      if (SpeechRecognition) {
-        const recognition = new SpeechRecognition();
-        recognition.continuous = false;
-        recognition.interimResults = false;
-        recognition.lang = 'en-US';
-
-        recognition.onresult = async (event) => {
-          const transcript = event.results[0][0].transcript;
-          setIsListening(false);
-          setAiLoading(true);
-          const loadingToast = toast.loading('AI is processing your voice...');
-
-          try {
-            const result = await parseVoiceLog(habit.schema, transcript);
-            if (result.success && result.data) {
-              await handleAiExtractionSuccessRef.current(result.data, loadingToast);
-            } else {
-              toast.error(result.error || 'AI could not understand', { id: loadingToast });
-            }
-          } catch {
-            toast.error('Failed to connect to AI', { id: loadingToast });
-          } finally {
-            setAiLoading(false);
-          }
-        };
-
-        recognition.onerror = (event) => {
-          console.error("Speech recognition error", event.error);
-          setIsListening(false);
-          if (event.error !== 'aborted') {
-            toast.error(`Microphone error: ${event.error}`);
-          }
-        };
-
-        recognition.onend = () => {
-          setIsListening(false);
-        };
-
-        recognitionRef.current = recognition;
-      }
-    }
-  }, [habit.schema]);
-
-  const toggleListen = () => {
-    if (!recognitionRef.current) {
-      toast.error("Voice recognition is not supported in this browser.");
-      return;
-    }
-
-    if (isListening) {
-      recognitionRef.current.stop();
-      setIsListening(false);
-    } else {
-      try {
-        recognitionRef.current.start();
-        setIsListening(true);
-        toast('Listening...', { icon: '🎙️' });
-      } catch (e) {
-        console.error(e);
-      }
-    }
-  };
-
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    // Reset input so the same file can be selected again if needed
-    event.target.value = '';
-
-    const loadingToast = toast.loading('AI is analyzing your photo...');
-    setAiLoading(true);
-
-    try {
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const base64String = reader.result as string;
-        const result = await parseImageLog(habit.schema, base64String);
-        
-        if (result.success && result.data) {
-          await handleAiExtractionSuccess(result.data, loadingToast);
-        } else {
-          toast.error(result.error || 'AI could not analyze the image', { id: loadingToast });
-        }
-        setAiLoading(false);
-      };
-      reader.onerror = () => {
-        toast.error('Failed to read image file', { id: loadingToast });
-        setAiLoading(false);
-      };
-      reader.readAsDataURL(file);
-    } catch {
-      toast.error('Failed to process image', { id: loadingToast });
-      setAiLoading(false);
-    }
-  };
-
-  const importInputRef = useRef<HTMLInputElement>(null);
-  const [importing, setImporting] = useState(false);
-
-  const handleImportCsv = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    event.target.value = '';
-
-    setImporting(true);
-    const loadingToast = toast.loading('Importing CSV...');
-    try {
-      const text = await file.text();
-      const { imported, skipped, errors } = await importHabitLogsCsv(habit.id, text);
-
-      if (imported === 0 && errors.length > 0) {
-        toast.error(errors[0], { id: loadingToast });
-      } else {
-        const summary = skipped > 0
-          ? `Imported ${imported} ${imported === 1 ? 'entry' : 'entries'}, skipped ${skipped}.`
-          : `Imported ${imported} ${imported === 1 ? 'entry' : 'entries'}.`;
-        toast.success(summary, { id: loadingToast });
-        if (errors.length > 0) {
-          errors.slice(0, 3).forEach(err => toast.error(err));
-        }
-      }
-      router.push(`/history/${habit.id}`);
-    } catch (err) {
-      toast.error(`Failed to import CSV: ${err instanceof Error ? err.message : 'Unknown error'}`, { id: loadingToast });
-    } finally {
-      setImporting(false);
-    }
-  };
-
   const handleCopyUrl = () => {
     if (typeof window === 'undefined') return;
     const url = new URL(window.location.href);
@@ -351,62 +177,20 @@ export default function LogClient({ habit, user }: { habit: HabitWithLogs, user:
 
   if (aiSuccessLog) {
     return (
-      <div className="max-w-xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-        <div className="flex flex-col items-center justify-center py-12 px-6 text-center bg-white rounded-2xl shadow-sm border border-emerald-100">
-          <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-6 ring-8 ring-emerald-50">
-            <Check className="w-10 h-10" />
-          </div>
-          <h1 className="text-3xl font-bold text-stone-900 mb-2">Logged Successfully</h1>
-          <p className="text-stone-500 mb-8">AI automatically submitted your entry</p>
-          
-          <div className="w-full bg-stone-50 rounded-xl p-4 text-left border border-stone-200 mb-8 max-h-64 overflow-y-auto">
-            {Object.entries(aiSuccessLog.data).map(([key, val]) => {
-              const label = schemaProperties?.[key]?.title || key;
-              return (
-                <div key={key} className="flex justify-between items-center py-2 border-b border-stone-100 last:border-0">
-                  <span className="text-sm font-medium text-stone-500">{label}</span>
-                  <span className="text-sm font-semibold text-stone-900">{formatLogValue(val, schemaProperties?.[key])}</span>
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="flex flex-col sm:flex-row gap-3 w-full">
-            <button
-              onClick={async () => {
-                if (splashTimeoutRef.current) clearTimeout(splashTimeoutRef.current);
-                try {
-                  await deleteHabitLog(aiSuccessLog.logId, habit.id);
-                  setAiSuccessLog(null);
-                  toast.success("Entry undone. You can now edit.");
-                } catch (e) {
-                  toast.error(`Failed to undo: ${e instanceof Error ? e.message : 'Unknown error'}`);
-                }
-              }}
-              className="flex-1 py-3 px-4 bg-white border-2 border-stone-200 text-stone-700 rounded-xl font-medium hover:bg-stone-50 transition-colors flex items-center justify-center gap-2"
-            >
-              <Undo2 className="w-4 h-4" />
-              Undo & Edit
-            </button>
-            <button
-              onClick={() => {
-                if (splashTimeoutRef.current) clearTimeout(splashTimeoutRef.current);
-                router.push(`/history/${habit.id}`);
-              }}
-              className="flex-1 py-3 px-4 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 transition-colors"
-            >
-              Continue
-            </button>
-          </div>
-          
-          <div className="w-full h-1.5 bg-stone-100 rounded-full overflow-hidden mt-6">
-            <div 
-              className="h-full bg-emerald-500 ease-linear transition-all" 
-              style={{ width: `${timeLeft}%`, transitionDuration: '6000ms' }}
-            />
-          </div>
-        </div>
-      </div>
+      <AiSuccessSplash
+        data={aiSuccessLog.data}
+        schemaProperties={schemaProperties}
+        onUndo={async () => {
+          try {
+            await deleteHabitLog(aiSuccessLog.logId, habit.id);
+            setAiSuccessLog(null);
+            toast.success("Entry undone. You can now edit.");
+          } catch (e) {
+            toast.error(`Failed to undo: ${e instanceof Error ? e.message : 'Unknown error'}`);
+          }
+        }}
+        onContinue={() => router.push(`/history/${habit.id}`)}
+      />
     );
   }
 
@@ -485,13 +269,13 @@ export default function LogClient({ habit, user }: { habit: HabitWithLogs, user:
           <h2 className="text-lg font-semibold text-stone-800">New Entry</h2>
           {Object.keys(schemaProperties || {}).length > 0 && (schema.enableVoice !== false || schema.enablePhoto !== false) && (
             <div className="flex items-center gap-2">
-              <input 
-                type="file" 
-                accept="image/*" 
-                capture="environment" 
-                ref={fileInputRef} 
-                className="hidden" 
-                onChange={handleImageUpload} 
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                ref={fileInputRef}
+                className="hidden"
+                onChange={handleImageUpload}
               />
               {schema.enablePhoto !== false && (
                 <button
@@ -516,8 +300,6 @@ export default function LogClient({ habit, user }: { habit: HabitWithLogs, user:
                 >
                   {aiLoading ? (
                      <Loader2 className="w-6 h-6 animate-spin" />
-                  ) : isListening ? (
-                     <Mic className="w-6 h-6" strokeWidth={2.5} />
                   ) : (
                      <Mic className="w-6 h-6" strokeWidth={2.5} />
                   )}
@@ -597,7 +379,7 @@ export default function LogClient({ habit, user }: { habit: HabitWithLogs, user:
         </div>
       </div>
 
-      <Link 
+      <Link
         href={`/history/${habit.id}`}
         className="block bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-stone-100 hover:border-emerald-200 hover:shadow-md transition-all group"
       >
@@ -608,12 +390,12 @@ export default function LogClient({ habit, user }: { habit: HabitWithLogs, user:
           </div>
         </div>
         <div className="opacity-80 group-hover:opacity-100 transition-opacity flex justify-center w-full overflow-hidden py-2">
-          <ActivityCalendar 
+          <ActivityCalendar
             dates={habit.logs.map(l => l.createdAt)} size="md"
             weeks={5}
             frequency={habit.frequency}
             targetCount={schema.targetCount || DEFAULT_TARGET_COUNT}
-            bedtime={user.bedtime} 
+            bedtime={user.bedtime}
             weekStartsOn={user.weekStartsOn}
             timeZone={user.timeZone}
           />
