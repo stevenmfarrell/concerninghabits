@@ -7,7 +7,12 @@ const nextConfig: NextConfig = {
   serverExternalPackages: [],
   output: "standalone",
   experimental: {
-    // Next 14/15 security blocks cross-origin dev asset requests
+    // Reuse a visited page for 30s on client-side navigation (the default is to refetch every
+    // time), so going back and forth between pages is instant. Server actions' revalidatePath
+    // calls still clear it, so your own changes show up right away.
+    staleTimes: {
+      dynamic: 30,
+    },
   }
 };
 

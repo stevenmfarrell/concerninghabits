@@ -236,14 +236,20 @@ export async function saveHabit(name: string, description: string, schema: Habit
   }
 }
 
-// A cutoff a few days earlier than `weeks` back, snapped to the start of a week and month, so a
-// heatmap of exactly `weeks` weeks (and monthly habits near the start of that window) render correctly.
+// The earliest log time a calendar of `weeks` weeks (see ActivityCalendar) can need. A calendar
+// never starts more than `weeks` weeks back, but a weekly or monthly habit's first cell is filled if
+// the habit was done anytime in that week or month, even before the calendar starts. So snap to the
+// 1st of the month, then keep a generous buffer: another whole month and week, which also covers
+// week starts, the viewer's time zone vs. the server's, and bedtime (logs before bedtime count
+// toward the previous day).
 function getRecentLogsCutoff(weeks: number) {
-  const pastDate = new Date();
-  pastDate.setDate(pastDate.getDate() - (weeks * 7 + 12));
-  pastDate.setDate(1); // Snap to the 1st of that month to ensure we capture early-month logs for monthly habits
-  pastDate.setDate(pastDate.getDate() - pastDate.getDay()); // Snap to the Sunday before the 1st to capture logs for partial weeks
-  return pastDate;
+  const cutoff = new Date();
+  cutoff.setUTCHours(0, 0, 0, 0);
+  cutoff.setUTCDate(cutoff.getUTCDate() - weeks * 7);
+  cutoff.setUTCDate(1);
+  cutoff.setUTCMonth(cutoff.getUTCMonth() - 1);
+  cutoff.setUTCDate(cutoff.getUTCDate() - 7);
+  return cutoff;
 }
 
 export async function getFavoriteHabits() {
@@ -360,14 +366,28 @@ export async function deleteHabitLog(logId: string, habitId: string) {
 
 // Every entry on a habit the user can see, whoever logged it, newest first. `canDelete` says
 // whether the current user may delete that entry.
-export async function getHabitLogs(habitId: string) {
+// A habit's logs, newest first, going back far enough for a calendar of `weeks` weeks (see
+// getRecentLogsCutoff). Pass the widest horizon the caller might display.
+export async function getHabitLogs(habitId: string, weeks: number = MAX_HISTORY_WEEKS) {
   const user = await getDefaultUser();
   const { habit } = await getMembership(user.id, habitId);
   const logs = await prisma.habitLog.findMany({
-    where: { habitId },
+    where: { habitId, createdAt: { gte: getRecentLogsCutoff(weeks) } },
     orderBy: { createdAt: 'desc' }
   });
   return logs.map(log => ({ ...log, canDelete: canDeleteLog(user.id, log, habit) }));
+}
+
+// What the history page needs to know about a habit's logs beyond getHabitLogs' window: whether it
+// has any at all, and whether anyone besides the owner has ever logged it (see isSharedHabit).
+export async function getHabitLogPresence(habitId: string) {
+  const user = await getDefaultUser();
+  const { habit } = await getMembership(user.id, habitId);
+  const [anyLog, otherPersonLog] = await Promise.all([
+    prisma.habitLog.findFirst({ where: { habitId }, select: { id: true } }),
+    prisma.habitLog.findFirst({ where: { habitId, userId: { not: habit.userId } }, select: { id: true } }),
+  ]);
+  return { hasLogs: !!anyLog, hasLogsFromOthers: !!otherPersonLog };
 }
 
 // The user's membership in a habit (their own, or one shared with them), with the habit.

@@ -1,4 +1,4 @@
-import { getHabit, getHabitLogs, deleteHabitLog, getDefaultUser, getPeople } from '../../actions/db';
+import { getHabit, getHabitLogs, getHabitLogPresence, deleteHabitLog, getDefaultUser, getPeople } from '../../actions/db';
 import PersonLabel from '@/components/PersonLabel';
 import { isSharedHabit } from '@/lib/userColors';
 import { notFound } from 'next/navigation';
@@ -22,18 +22,24 @@ export default async function HistoryPage(props: { params: Promise<{ id: string 
   const searchParams = await props.searchParams;
   const { id } = params;
   
-  const user = await getDefaultUser();
-  const habit = await getHabit(id);
-  
-  if (!habit) {
+  const [user, habit, logs, presence, allPeople] = await Promise.all([
+    getDefaultUser(),
+    getHabit(id),
+    // These reject if the viewer can't see the habit, in which case getHabit returns null and the
+    // page 404s below.
+    getHabitLogs(id).catch(() => null),
+    getHabitLogPresence(id).catch(() => null),
+    getPeople(),
+  ]);
+
+  if (!habit || !logs || !presence) {
     notFound();
   }
 
-  const logs = await getHabitLogs(id);
-
   // A habit that's shared (or was: a removed member's entries stay) is color coded by who logged
-  // each entry. `people` is only set in that case, which is what switches the coloring on.
-  const people = isSharedHabit(habit.userId, habit.memberIds.length, logs) ? await getPeople() : undefined;
+  // each entry. `people` is only set in that case, which is what switches the coloring on. The
+  // entries may predate `logs`, which only reaches back as far as the longest horizon.
+  const people = isSharedHabit(habit.userId, habit.memberIds.length, logs) || presence.hasLogsFromOthers ? allPeople : undefined;
 
   const cookieStore = await cookies();
   const savedHorizon = cookieStore.get(`horizon_${id}`)?.value;
@@ -111,10 +117,10 @@ export default async function HistoryPage(props: { params: Promise<{ id: string 
             <QuillIconWavy className="w-4 h-4" strokeWidth={2.5} />
             Log Entry
           </LinkButton>
-          {logs.length > 0 && <HorizonToggle habitId={habit.id} currentWeeks={weeks} />}
+          {presence.hasLogs && <HorizonToggle habitId={habit.id} currentWeeks={weeks} />}
         </div>
 
-        {logs.length === 0 ? (
+        {!presence.hasLogs ? (
           <div className="py-24 px-8 sm:px-12 text-center flex flex-col items-center justify-center">
             <img src="/hobbit-hole.svg" alt="Hobbit Hole" className="w-80 max-w-full h-auto opacity-10 mb-8" />
             <h2 className="text-2xl font-semibold text-stone-700 mb-2">No logs here yet</h2>

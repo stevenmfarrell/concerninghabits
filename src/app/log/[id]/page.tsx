@@ -4,14 +4,18 @@ import { notFound } from 'next/navigation';
 
 export default async function LogPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const habit = await getHabit(id);
-  const user = await getDefaultUser();
-  
-  if (!habit) {
+  const [user, habit, logs, people] = await Promise.all([
+    getDefaultUser(),
+    getHabit(id),
+    // Only the 5-week "Recent History" card is shown on this page. This rejects if the viewer can't
+    // see the habit, in which case getHabit returns null and the page 404s below.
+    getHabitLogs(id, 5).catch(() => null),
+    getPeople(),
+  ]);
+
+  if (!habit || !logs) {
     notFound();
   }
-
-  const [logs, people] = await Promise.all([getHabitLogs(id), getPeople()]);
   const habitWithLogs = { ...habit, logs };
 
   return (

@@ -5,7 +5,7 @@ import { notFound } from 'next/navigation';
 
 export default async function EditPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const habit = await getHabit(id);
+  const [habit, people] = await Promise.all([getHabit(id), getPeople()]);
 
   if (!habit) {
     notFound();
@@ -16,7 +16,7 @@ export default async function EditPage({ params }: { params: Promise<{ id: strin
       {habit.isOwner ? (
         <EditClient habit={habit} />
       ) : (
-        <SharedHabitSettings habit={habit} owner={(await getPeople())[habit.userId]} />
+        <SharedHabitSettings habit={habit} owner={people[habit.userId]} />
       )}
     </main>
   );
