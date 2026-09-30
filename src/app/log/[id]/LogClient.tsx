@@ -14,7 +14,7 @@ import { IconButton } from '@/components/ui/IconButton';
 import toast from 'react-hot-toast';
 import DurationWidget from '../../../components/widgets/DurationWidget';
 import UnitWidget from '../../../components/widgets/UnitWidget';
-import { DEFAULT_TARGET_COUNT } from '@/lib/constants';
+import { DEFAULT_TARGET_COUNT, PENDING_VOICE_LOG_KEY } from '@/lib/constants';
 import type { HabitSchema, HabitWithLogs, SessionUser } from '@/lib/types';
 import type { UiSchema } from '@rjsf/utils';
 import { isSharedHabit, type Person } from '@/lib/userColors';
@@ -149,7 +149,33 @@ export default function LogClient({ habit, user, people }: { habit: HabitWithLog
     }
   };
 
-  const { isListening, isProcessing: voiceProcessing, toggleListen } = useVoiceLogging(habit.schema, handleAiExtractionSuccess);
+  const { isListening, isProcessing: voiceProcessing, toggleListen, processTranscript } = useVoiceLogging(habit.schema, handleAiExtractionSuccess);
+
+  // Something the user said on the dashboard that was matched to this habit (see VoiceCapture).
+  // Fill the form from it the same way as voice logging here, or, for a habit with no fields,
+  // log it straight away. Removed from storage first so Strict Mode's second run, a refresh, or
+  // back-navigation doesn't process it again.
+  useEffect(() => {
+    const pending = sessionStorage.getItem(PENDING_VOICE_LOG_KEY);
+    if (!pending) return;
+    sessionStorage.removeItem(PENDING_VOICE_LOG_KEY);
+
+    let habitId: string | undefined, transcript: string | undefined;
+    try {
+      ({ habitId, transcript } = JSON.parse(pending));
+    } catch {}
+    if (habitId !== habit.id || !transcript) return;
+
+    if (Object.keys(schemaProperties || {}).length > 0) {
+      processTranscript(transcript);
+    } else {
+      logHabitEvent(habit.id, {}, undefined)
+        .then(log => setAutoSubmittedLog({ logId: log.id, data: {}, subtitle: `Logged from “${transcript}”` }))
+        .catch(err => toast.error(`Failed to log entry: ${err instanceof Error ? err.message : 'Unknown error'}`));
+    }
+    // Only ever runs on the initial mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const { fileInputRef, isProcessing: imageProcessing, handleImageUpload } = useImageLogging(habit.schema, handleAiExtractionSuccess);
   const { importInputRef, importing, handleImportCsv } = useCsvImport(habit.id, () => router.push(`/history/${habit.id}`));
   const aiLoading = voiceProcessing || imageProcessing;
@@ -214,6 +240,7 @@ export default function LogClient({ habit, user, people }: { habit: HabitWithLog
   if (autoSubmittedLog) {
     return (
       <AiSuccessSplash
+        habitName={habit.name}
         data={autoSubmittedLog.data}
         schemaProperties={schemaProperties}
         subtitle={autoSubmittedLog.subtitle}

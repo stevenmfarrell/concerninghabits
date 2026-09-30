@@ -6,8 +6,9 @@ import { createGoogleGenerativeAI } from '@ai-sdk/google';
 const google = createGoogleGenerativeAI({
   apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
 });
+import { choice, TypeSafeClient, type ChoiceCriteria } from '@typesafe-ai/sdk';
 import { z } from 'zod';
-import { getDefaultUser, getCategories } from './db';
+import { getDefaultUser, getCategories, getLoggableHabits } from './db';
 import { buildCategoryChoices } from '@/lib/categoryChoices';
 import type { HabitSchema } from '@/lib/types';
 
@@ -116,5 +117,89 @@ CRITICAL: A property with "x-widget": "duration" must be returned as TOTAL MINUT
   } catch (error) {
     console.error("Error parsing image log:", error);
     return { success: false, error: "Failed to parse image log." };
+  }
+}
+
+// Created on first use rather than at import, since the constructor throws without
+// TYPESAFE_API_KEY and that shouldn't break the Gemini-only actions in this file.
+let typesafe: TypeSafeClient | undefined;
+function getTypeSafe() {
+  return (typesafe ??= new TypeSafeClient());
+}
+
+// Jev's option for "none of the user's habits". Habits are option-named after themselves, so this
+// is claimed first and a habit that happens to share the name gets a numbered option instead.
+const NEW_HABIT_OPTION = 'new habit';
+// A Choice accepts at most 255 options, one of which is the new-habit option
+const MAX_HABIT_OPTIONS = 254;
+// Below this confidence the user picks from the top candidates instead of the app acting on Jev's
+// pick. A wrong match is undoable (or a draft the user reviews), so this is a moderate bar; tune it
+// against real usage.
+const MATCH_CONFIDENCE_THRESHOLD = 0.7;
+const MAX_CANDIDATES = 3;
+
+// A habit a spoken phrase might be an entry for, or `habitId: null` for a new habit
+export type SpokenHabitCandidate = { habitId: string | null; name: string; probability: number };
+
+// What Jev is told about a habit besides its name: its description and the fields its form records
+function describeHabitForMatching(habit: { description: string | null; schema: string }) {
+  let properties: Record<string, { title?: string }> = {};
+  try {
+    properties = JSON.parse(habit.schema).properties || {};
+  } catch {}
+  const fields = Object.entries(properties).map(([key, prop]) => prop.title || key);
+  if (!habit.description && fields.length === 0) return null;
+  return {
+    ...(habit.description ? { description: habit.description } : {}),
+    ...(fields.length > 0 ? { records: fields } : {}),
+  };
+}
+
+// Decide which of the user's habits something they said they did is an entry for, or whether it's
+// a new habit. Candidates are the most likely options, best first; `confident` says whether the
+// first is sure enough to act on without asking the user.
+export async function matchSpokenHabit(transcript: string): Promise<
+  { success: true; confident: boolean; candidates: SpokenHabitCandidate[] } | { success: false; error: string }
+> {
+  const habits = await getLoggableHabits();
+  if (habits.length === 0) {
+    return { success: true, confident: true, candidates: [{ habitId: null, name: 'New habit', probability: 1 }] };
+  }
+
+  const options = new Map<string, SpokenHabitCandidate>([
+    [NEW_HABIT_OPTION, { habitId: null, name: 'New habit', probability: 0 }],
+  ]);
+  const criteria: ChoiceCriteria = {
+    [NEW_HABIT_OPTION]: "Something none of the user's other habits track, so it would need a new habit",
+  };
+  for (const habit of habits.slice(0, MAX_HABIT_OPTIONS)) {
+    const name = habit.name.trim() || 'Untitled habit';
+    let option = name;
+    for (let n = 2; options.has(option); n++) option = `${name} (${n})`;
+    options.set(option, { habitId: habit.id, name: habit.name, probability: 0 });
+    criteria[option] = describeHabitForMatching(habit);
+  }
+
+  try {
+    const { answers } = await getTypeSafe().systemOne({
+      state: { said: transcript },
+      questions: {
+        habit: choice(
+          'The user said `said` out loud to record something they did. Which of their habits is it an entry for?',
+          criteria,
+        ),
+      },
+    });
+
+    const candidates = Object.entries(answers.habit.probabilities)
+      .filter(([option]) => options.has(option))
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, MAX_CANDIDATES)
+      .map(([option, probability]) => ({ ...options.get(option)!, probability }));
+
+    return { success: true, confident: answers.habit.confidence >= MATCH_CONFIDENCE_THRESHOLD, candidates };
+  } catch (error) {
+    console.error("Error matching spoken habit:", error);
+    return { success: false, error: "Failed to match what you said to a habit." };
   }
 }

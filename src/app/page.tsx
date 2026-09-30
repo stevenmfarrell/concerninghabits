@@ -4,6 +4,7 @@ import { Plus, ChevronRight, Star, Settings2 } from 'lucide-react';
 import Icon from '../components/Icon';
 import ActivityCalendar from '../components/ActivityCalendar';
 import { SortableHabitList } from './categories/[id]/SortableLists';
+import VoiceCapture from './VoiceCapture';
 import { UNCATEGORIZED_ID, UNCATEGORIZED_ICON } from '@/lib/constants';
 import { parseBedtimeOffsetMinutes, toCivilDate } from '@/lib/timezone';
 
@@ -100,16 +101,19 @@ export default async function Dashboard() {
               My Habits
             </h1>
           </div>
-          {totalHabits > 0 && (
-            <Link
-              href="/create"
-              className="inline-flex items-center justify-center p-2 sm:px-4 sm:py-2.5 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 transition-colors shadow-sm"
-              title="Add Habit"
-            >
-              <Plus className="w-6 h-6 sm:w-5 sm:h-5 sm:mr-2" strokeWidth={2.5} />
-              <span className="hidden sm:inline">Add Habit</span>
-            </Link>
-          )}
+          <div className="flex items-center gap-2">
+            <VoiceCapture />
+            {totalHabits > 0 && (
+              <Link
+                href="/create"
+                className="inline-flex items-center justify-center p-2 sm:px-4 sm:py-2.5 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 transition-colors shadow-sm"
+                title="Add Habit"
+              >
+                <Plus className="w-6 h-6 sm:w-5 sm:h-5 sm:mr-2" strokeWidth={2.5} />
+                <span className="hidden sm:inline">Add Habit</span>
+              </Link>
+            )}
+          </div>
         </div>
 
         {totalHabits === 0 ? (

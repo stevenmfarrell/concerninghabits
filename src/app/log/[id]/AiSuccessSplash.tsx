@@ -9,12 +9,15 @@ type SchemaProperties = Record<string, { title?: string; type?: string; 'x-widge
 // Mounted only while an auto-submitted log (AI-filled, or from a submit URL) is showing (LogClient swaps this in for the whole page), so
 // its countdown state starts fresh every time without needing to detect and reset on re-show.
 export default function AiSuccessSplash({
+  habitName,
   data,
   schemaProperties,
   subtitle,
   onUndo,
   onContinue,
 }: {
+  // Named on the splash so an entry logged from something said on the dashboard shows which habit it went to
+  habitName: string;
   data: Record<string, unknown>;
   schemaProperties: SchemaProperties;
   subtitle: string;
@@ -40,20 +43,24 @@ export default function AiSuccessSplash({
         <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-6 ring-8 ring-emerald-50">
           <Check className="w-10 h-10" />
         </div>
-        <h1 className="text-3xl font-bold text-stone-900 mb-2">Logged Successfully</h1>
+        <p className="text-sm font-semibold uppercase tracking-wider text-emerald-600 mb-1">Logged Successfully</p>
+        <h1 className="text-3xl font-bold text-stone-900 mb-2 break-words max-w-full">{habitName}</h1>
         <p className="text-stone-500 mb-8">{subtitle}</p>
 
-        <div className="w-full bg-stone-50 rounded-xl p-4 text-left border border-stone-200 mb-8 max-h-64 overflow-y-auto">
-          {Object.entries(data).map(([key, val]) => {
-            const label = schemaProperties?.[key]?.title || key;
-            return (
-              <div key={key} className="flex justify-between items-center py-2 border-b border-stone-100 last:border-0">
-                <span className="text-sm font-medium text-stone-500">{label}</span>
-                <span className="text-sm font-semibold text-stone-900">{formatLogValue(val, schemaProperties?.[key])}</span>
-              </div>
-            );
-          })}
-        </div>
+        {/* A habit with no fields (e.g. "took my vitamins") logs an empty entry: nothing to list */}
+        {Object.keys(data).length > 0 && (
+          <div className="w-full bg-stone-50 rounded-xl p-4 text-left border border-stone-200 mb-8 max-h-64 overflow-y-auto">
+            {Object.entries(data).map(([key, val]) => {
+              const label = schemaProperties?.[key]?.title || key;
+              return (
+                <div key={key} className="flex justify-between items-center py-2 border-b border-stone-100 last:border-0">
+                  <span className="text-sm font-medium text-stone-500">{label}</span>
+                  <span className="text-sm font-semibold text-stone-900">{formatLogValue(val, schemaProperties?.[key])}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
 
         <div className="flex flex-col sm:flex-row gap-3 w-full">
           <button

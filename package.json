@@ -19,6 +19,7 @@
     "@rjsf/core": "^6.10.1",
     "@rjsf/utils": "^6.10.1",
     "@rjsf/validator-ajv8": "^6.10.1",
+    "@typesafe-ai/sdk": "^0.6.0",
     "ai": "^7.0.108",
     "bcryptjs": "^3.0.3",
     "lucide-react": "^1.47.0",

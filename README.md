@@ -16,10 +16,11 @@ Concerning Habits is an AI-powered, highly customizable habit tracking progressi
    ```
 
 2. **Set up Environment Variables:**
-   Create a `.env` file in the root of the project and add your Google Gemini API key:
+   Create a `.env` file in the root of the project and add your Google Gemini API key, plus a TypeSafe API key for the dashboard's "I did..." voice capture (it matches what you said to one of your habits):
    ```env
    DATABASE_URL="file:./dev.db"
    GOOGLE_GENERATIVE_AI_API_KEY="your-api-key-here"
+   TYPESAFE_API_KEY="your-typesafe-api-key"
    ```
 
 3. **Initialize the Database:**
@@ -80,6 +81,8 @@ services:
     environment:
       # Add your Gemini API key for AI features
       - GOOGLE_GENERATIVE_AI_API_KEY=your-google-gemini-api-key
+      # Add your TypeSafe API key for the dashboard's "I did..." voice capture
+      - TYPESAFE_API_KEY=your-typesafe-api-key
       
       # Optional: Home Assistant (MQTT) Integration
       - MQTT_URL=mqtt://homeassistant.local:1883
@@ -109,7 +112,7 @@ volumes:
 ### Running the App
 
 1. Ensure you have Docker and Docker Compose installed.
-2. Provide your `GOOGLE_GENERATIVE_AI_API_KEY` in the `docker-compose.yml`.
+2. Provide your `GOOGLE_GENERATIVE_AI_API_KEY` and `TYPESAFE_API_KEY` in the `docker-compose.yml`.
 3. Start the container in detached mode:
    ```bash
    docker compose up -d

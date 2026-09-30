@@ -261,6 +261,17 @@ export async function getFavoriteHabits() {
   return memberships.map(toHabitListItem);
 }
 
+// Every habit the user can log into (their own and ones shared with them), for matching something
+// they said they did against their habits.
+export async function getLoggableHabits() {
+  const user = await getDefaultUser();
+  const memberships = await prisma.habitMember.findMany({
+    where: { userId: user.id },
+    select: { habit: { select: { id: true, name: true, description: true, schema: true } } },
+  });
+  return memberships.map(m => m.habit);
+}
+
 // `weeks` bounds how far back logs are fetched; see getCategory, which shares this cutoff with the
 // "Uncategorized" synthetic category's history view.
 export async function getUncategorizedHabits(weeks: number = MAX_HISTORY_WEEKS) {
