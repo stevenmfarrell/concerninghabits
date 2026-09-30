@@ -9,6 +9,7 @@ import { Loader2, Save, Wand2, SquarePen, Trash2, Mic, Camera } from 'lucide-rea
 import CategorySelect from './CategorySelect';
 import { orderCategoryTree } from '@/lib/categoryChoices';
 import NewCategoryInline from './NewCategoryInline';
+import AiContextField from './AiContextField';
 import toast from 'react-hot-toast';
 import ConfirmDialog from './ConfirmDialog';
 import DurationWidget from './widgets/DurationWidget';
@@ -26,8 +27,9 @@ interface HabitEditorProps {
   initialFrequency: string;
   initialCategoryId: string;
   initialPublishToMqtt?: boolean;
+  initialAiContext?: string;
   isCreateMode?: boolean;
-  onSave: (title: string, description: string, schema: HabitSchema, categoryId: string, frequency: string, publishToMqtt: boolean) => Promise<void>;
+  onSave: (title: string, description: string, schema: HabitSchema, categoryId: string, frequency: string, publishToMqtt: boolean, aiContext: string) => Promise<void>;
   onDelete?: () => Promise<void>;
   onChangeTitle?: (title: string) => void;
   // Added to the delete confirmation, e.g. to warn that a shared habit is deleted for everyone
@@ -41,6 +43,7 @@ export default function HabitEditor({
   initialFrequency,
   initialCategoryId,
   initialPublishToMqtt,
+  initialAiContext,
   isCreateMode,
   onSave,
   onDelete,
@@ -54,6 +57,7 @@ export default function HabitEditor({
   const [targetCount, setTargetCount] = useState<number>(initialSchema.targetCount || DEFAULT_TARGET_COUNT);
   const [categoryId, setCategoryId] = useState<string>(initialCategoryId);
   const [publishToMqtt, setPublishToMqtt] = useState(initialPublishToMqtt || false);
+  const [aiContext, setAiContext] = useState(initialAiContext || '');
   const [deleting, setDeleting] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -108,7 +112,7 @@ export default function HabitEditor({
     setSaving(true);
     const finalSchema = { ...schema, title, enableVoice, enablePhoto, targetCount: frequency === 'multiple' ? targetCount : undefined };
     try {
-      await onSave(title, description, finalSchema, categoryId, frequency, publishToMqtt);
+      await onSave(title, description, finalSchema, categoryId, frequency, publishToMqtt, aiContext);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to save habit');
       setSaving(false);
@@ -302,6 +306,10 @@ export default function HabitEditor({
           </div>
 
 
+
+          <div className="pt-8 border-t border-stone-100">
+            <AiContextField value={aiContext} onChange={setAiContext} disabled={saving} />
+          </div>
 
           <div className="pt-8 border-t border-stone-100">
             <h3 className="text-sm font-medium text-stone-500 uppercase tracking-wider mb-4">Organization & Cadence</h3>

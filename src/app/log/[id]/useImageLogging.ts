@@ -32,7 +32,7 @@ async function resizeImageToDataUrl(file: File) {
 
 // Photo logging: shrink the picked image, send it to the AI parser, and hand any extracted
 // fields to `onExtracted`.
-export function useImageLogging(habitSchema: string, onExtracted: OnExtracted) {
+export function useImageLogging(habitSchema: string, aiContext: string | null, onExtracted: OnExtracted) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -55,7 +55,7 @@ export function useImageLogging(habitSchema: string, onExtracted: OnExtracted) {
         return;
       }
 
-      const result = await parseImageLog(habitSchema, dataUrl);
+      const result = await parseImageLog(habitSchema, dataUrl, aiContext);
       if (result.success && result.data) {
         await onExtracted(result.data, loadingToast);
       } else {

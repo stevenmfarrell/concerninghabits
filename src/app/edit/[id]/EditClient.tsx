@@ -9,9 +9,9 @@ import type { HabitDetail, HabitSchema } from '@/lib/types';
 export default function EditClient({ habit }: { habit: HabitDetail }) {
   const router = useRouter();
 
-  const handleSave = async (title: string, description: string, schema: HabitSchema, categoryId: string, frequency: string, publishToMqtt: boolean) => {
+  const handleSave = async (title: string, description: string, schema: HabitSchema, categoryId: string, frequency: string, publishToMqtt: boolean, aiContext: string) => {
     const saveToast = toast.loading("Saving changes...");
-    await updateHabit(habit.id, title, description, schema, categoryId, frequency, publishToMqtt);
+    await updateHabit(habit.id, title, description, schema, categoryId, frequency, publishToMqtt, aiContext);
     toast.success("Changes saved!", { id: saveToast });
     router.push('/');
   };
@@ -42,6 +42,7 @@ export default function EditClient({ habit }: { habit: HabitDetail }) {
         initialFrequency={habit.frequency || 'daily'}
         initialCategoryId={habit.categoryId || ''}
         initialPublishToMqtt={habit.publishToMqtt}
+        initialAiContext={habit.aiContext || ''}
         onSave={handleSave}
         onDelete={handleDelete}
         deleteWarning={habit.memberIds.length > 1 ? "It's shared, so it will also be deleted for everyone it's shared with, along with their entries." : undefined}

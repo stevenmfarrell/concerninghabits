@@ -149,7 +149,7 @@ export default function LogClient({ habit, user, people }: { habit: HabitWithLog
     }
   };
 
-  const { isListening, isProcessing: voiceProcessing, toggleListen, processTranscript } = useVoiceLogging(habit.schema, handleAiExtractionSuccess);
+  const { isListening, isProcessing: voiceProcessing, toggleListen, processTranscript } = useVoiceLogging(habit.schema, habit.aiContext, handleAiExtractionSuccess);
 
   // Something the user said on the dashboard that was matched to this habit (see VoiceCapture).
   // Fill the form from it the same way as voice logging here, or, for a habit with no fields,
@@ -176,7 +176,7 @@ export default function LogClient({ habit, user, people }: { habit: HabitWithLog
     // Only ever runs on the initial mount.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  const { fileInputRef, isProcessing: imageProcessing, handleImageUpload } = useImageLogging(habit.schema, handleAiExtractionSuccess);
+  const { fileInputRef, isProcessing: imageProcessing, handleImageUpload } = useImageLogging(habit.schema, habit.aiContext, handleAiExtractionSuccess);
   const { importInputRef, importing, handleImportCsv } = useCsvImport(habit.id, () => router.push(`/history/${habit.id}`));
   const aiLoading = voiceProcessing || imageProcessing;
 

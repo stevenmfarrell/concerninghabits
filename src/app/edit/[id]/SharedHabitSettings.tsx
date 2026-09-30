@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { Loader2, LogOut, Save } from 'lucide-react';
-import { createCategory, getCategories, leaveHabit, setHabitCategory } from '../../actions/db';
+import { createCategory, getCategories, leaveHabit, setHabitAiContext, setHabitCategory } from '../../actions/db';
+import AiContextField from '@/components/AiContextField';
 import CategorySelect from '@/components/CategorySelect';
 import NewCategoryInline from '@/components/NewCategoryInline';
 import ConfirmDialog from '@/components/ConfirmDialog';
@@ -14,11 +15,12 @@ import type { CategoryOption, HabitDetail } from '@/lib/types';
 import type { Person } from '@/lib/userColors';
 
 // The edit page for someone a habit is shared with: they can't change its form, but they choose
-// where it sits in their own category tree, or remove it from their lists.
+// where it sits in their own category tree, keep their own context for AI on it, or remove it from their lists.
 export default function SharedHabitSettings({ habit, owner }: { habit: HabitDetail; owner: Person | undefined }) {
   const router = useRouter();
   const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [categoryId, setCategoryId] = useState(habit.categoryId || '');
+  const [aiContext, setAiContext] = useState(habit.aiContext || '');
   const [showNewCat, setShowNewCat] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showConfirmLeave, setShowConfirmLeave] = useState(false);
@@ -28,14 +30,18 @@ export default function SharedHabitSettings({ habit, owner }: { habit: HabitDeta
     getCategories().then(setCategories);
   }, []);
 
+  const categoryChanged = categoryId !== (habit.categoryId || '');
+  const aiContextChanged = aiContext.trim() !== (habit.aiContext || '');
+
   const handleSave = async () => {
     setSaving(true);
     try {
-      await setHabitCategory(habit.id, categoryId || null);
-      toast.success('Habit moved');
+      if (categoryChanged) await setHabitCategory(habit.id, categoryId || null);
+      if (aiContextChanged) await setHabitAiContext(habit.id, aiContext);
+      toast.success('Changes saved');
       router.push('/');
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Failed to move habit');
+      toast.error(e instanceof Error ? e.message : 'Failed to save changes');
       setSaving(false);
     }
   };
@@ -87,6 +93,10 @@ export default function SharedHabitSettings({ habit, owner }: { habit: HabitDeta
         </div>
       </div>
 
+      <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-stone-100">
+        <AiContextField value={aiContext} onChange={setAiContext} disabled={saving} />
+      </div>
+
       <div className="flex flex-col-reverse md:flex-row justify-between items-center gap-4 pt-4">
         <Button
           type="button"
@@ -103,7 +113,7 @@ export default function SharedHabitSettings({ habit, owner }: { habit: HabitDeta
           variant="primary"
           size="xl"
           onClick={handleSave}
-          disabled={saving || showNewCat || leaving || categoryId === (habit.categoryId || '')}
+          disabled={saving || showNewCat || leaving || (!categoryChanged && !aiContextChanged)}
           className="w-full md:w-auto"
         >
           {saving ? <Loader2 className="w-6 h-6 animate-spin" /> : <Save className="w-6 h-6" />}

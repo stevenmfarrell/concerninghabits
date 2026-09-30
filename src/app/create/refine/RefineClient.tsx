@@ -34,8 +34,8 @@ export default function RefineClient() {
     if (!draft) router.replace('/create');
   }, [draft, router]);
 
-  const handleSave = async (title: string, description: string, schema: HabitSchema, categoryId: string, frequency: string, publishToMqtt: boolean) => {
-    const habit = await saveHabit(title, description, schema, categoryId, frequency, publishToMqtt);
+  const handleSave = async (title: string, description: string, schema: HabitSchema, categoryId: string, frequency: string, publishToMqtt: boolean, aiContext: string) => {
+    const habit = await saveHabit(title, description, schema, categoryId, frequency, publishToMqtt, aiContext);
     sessionStorage.removeItem('draftHabit');
 
     // Hand what the user said to the new habit's log page, which fills the entry in against the

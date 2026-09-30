@@ -62,7 +62,14 @@ export async function generateHabitSchema(prompt: string, currentSchema?: HabitS
   }
 }
 
-export async function parseVoiceLog(schemaStr: string, transcript: string) {
+// The user's own context for a habit (see HabitMember.aiContext), for the form-filling prompts
+const AI_CONTEXT_INSTRUCTION = `You may also be given the user's own notes about how they do this habit. Use them to fill in values the input implies but doesn't state (e.g. if the notes say "my bike commute is 4 miles, 30 minutes" and the user says they bike commuted, fill in 4 miles and 30 minutes). A value the input states explicitly always wins over the notes.`;
+
+function aiContextPrompt(aiContext?: string | null) {
+  return aiContext ? `\n\nThe user's notes about this habit:\n${aiContext}` : '';
+}
+
+export async function parseVoiceLog(schemaStr: string, transcript: string, aiContext?: string | null) {
   await getDefaultUser();
 
   try {
@@ -75,8 +82,9 @@ You must map the transcript to the schema's 'properties'.
 Return ONLY a flat JSON object where the keys exactly match the property keys from the schema, and the values are the extracted data.
 DO NOT nest your response inside a 'properties' key.
 If the transcript implies a value that matches a field, include it. Otherwise omit it.
-CRITICAL: A property with "x-widget": "duration" must be returned as TOTAL MINUTES, as a decimal number — e.g. "90 seconds" is 1.5, "2 hours 30 minutes" is 150, "25 minutes 30 seconds" is 25.5. Never return seconds or an "HH:MM:SS" string for these fields.`,
-      prompt: `Form Schema:\n${schemaStr}\n\nVoice Transcript:\n"${transcript}"`,
+CRITICAL: A property with "x-widget": "duration" must be returned as TOTAL MINUTES, as a decimal number — e.g. "90 seconds" is 1.5, "2 hours 30 minutes" is 150, "25 minutes 30 seconds" is 25.5. Never return seconds or an "HH:MM:SS" string for these fields.
+${AI_CONTEXT_INSTRUCTION}`,
+      prompt: `Form Schema:\n${schemaStr}${aiContextPrompt(aiContext)}\n\nVoice Transcript:\n"${transcript}"`,
     });
 
     return { success: true, data: object };
@@ -86,7 +94,7 @@ CRITICAL: A property with "x-widget": "duration" must be returned as TOTAL MINUT
   }
 }
 
-export async function parseImageLog(schemaStr: string, base64Image: string) {
+export async function parseImageLog(schemaStr: string, base64Image: string, aiContext?: string | null) {
   await getDefaultUser();
 
   try {
@@ -101,12 +109,13 @@ Analyze the image (e.g. a treadmill screen, a handwritten log, a meal) and map t
 Return ONLY a flat JSON object where the keys exactly match the property keys from the schema, and the values are the extracted data.
 DO NOT nest your response inside a 'properties' key.
 If the image implies a value that matches a field, include it. Otherwise omit it.
-CRITICAL: A property with "x-widget": "duration" must be returned as TOTAL MINUTES, as a decimal number — e.g. "90 seconds" is 1.5, "2 hours 30 minutes" is 150, "25 minutes 30 seconds" is 25.5. Never return seconds or an "HH:MM:SS" string for these fields.`,
+CRITICAL: A property with "x-widget": "duration" must be returned as TOTAL MINUTES, as a decimal number — e.g. "90 seconds" is 1.5, "2 hours 30 minutes" is 150, "25 minutes 30 seconds" is 25.5. Never return seconds or an "HH:MM:SS" string for these fields.
+${AI_CONTEXT_INSTRUCTION}`,
       messages: [
         {
           role: 'user',
           content: [
-            { type: 'text', text: `Form Schema:\n${schemaStr}\n\nExtract the relevant data from this image.` },
+            { type: 'text', text: `Form Schema:\n${schemaStr}${aiContextPrompt(aiContext)}\n\nExtract the relevant data from this image.` },
             { type: 'image', image: base64Data }
           ],
         },
@@ -133,25 +142,28 @@ const NEW_HABIT_OPTION = 'new habit';
 // A Choice accepts at most 255 options, one of which is the new-habit option
 const MAX_HABIT_OPTIONS = 254;
 // Below this confidence the user picks from the top candidates instead of the app acting on Jev's
-// pick. A wrong match is undoable (or a draft the user reviews), so this is a moderate bar; tune it
-// against real usage.
-const MATCH_CONFIDENCE_THRESHOLD = 0.7;
+// pick. Measured on jev-1.13 against a real habit list: clear matches ("I practiced keys" -> Piano
+// Practice) and clear new habits ("20 minutes of yoga") came back at 0.87-0.99, while a vague
+// "I played some music" (piano? ukulele? new?) varied 0.61-0.71 across calls. 0.8 sits in that gap.
+const MATCH_CONFIDENCE_THRESHOLD = 0.8;
 const MAX_CANDIDATES = 3;
 
 // A habit a spoken phrase might be an entry for, or `habitId: null` for a new habit
 export type SpokenHabitCandidate = { habitId: string | null; name: string; probability: number };
 
-// What Jev is told about a habit besides its name: its description and the fields its form records
-function describeHabitForMatching(habit: { description: string | null; schema: string }) {
+// What Jev is told about a habit besides its name: its description, the fields its form records,
+// and the user's own notes on it (which can name things the habit's title doesn't, like "bike commute")
+function describeHabitForMatching(habit: { description: string | null; schema: string; aiContext: string | null }) {
   let properties: Record<string, { title?: string }> = {};
   try {
     properties = JSON.parse(habit.schema).properties || {};
   } catch {}
   const fields = Object.entries(properties).map(([key, prop]) => prop.title || key);
-  if (!habit.description && fields.length === 0) return null;
+  if (!habit.description && fields.length === 0 && !habit.aiContext) return null;
   return {
     ...(habit.description ? { description: habit.description } : {}),
     ...(fields.length > 0 ? { records: fields } : {}),
+    ...(habit.aiContext ? { users_notes: habit.aiContext } : {}),
   };
 }
 

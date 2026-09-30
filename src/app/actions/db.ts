@@ -9,7 +9,7 @@ import rjsfValidator from '@rjsf/validator-ajv8';
 
 import { verifySession } from '@/lib/auth';
 import { redirect } from 'next/navigation';
-import { MAX_CSV_IMPORT_ROWS, MAX_HISTORY_WEEKS, UNCATEGORIZED_ID, UNCATEGORIZED_ICON } from '@/lib/constants';
+import { MAX_AI_CONTEXT_LENGTH, MAX_CSV_IMPORT_ROWS, MAX_HISTORY_WEEKS, UNCATEGORIZED_ID, UNCATEGORIZED_ICON } from '@/lib/constants';
 import { userPreferencesSchema } from '@/lib/preferences';
 import { TIMEZONE_COOKIE, isValidTimeZone } from '@/lib/timezone';
 import { encodeCsv, parseCsv } from '@/lib/csv';
@@ -212,9 +212,10 @@ export async function deleteCategory(id: string) {
   revalidatePath('/');
 }
 
-export async function saveHabit(name: string, description: string, schema: HabitSchema, categoryId?: string, frequency: string = 'daily', publishToMqtt: boolean = false) {
+export async function saveHabit(name: string, description: string, schema: HabitSchema, categoryId?: string, frequency: string = 'daily', publishToMqtt: boolean = false, aiContext?: string) {
   const user = await getDefaultUser();
   if (categoryId) await getOwnedCategory(user.id, categoryId);
+  const normalizedAiContext = normalizeAiContext(aiContext);
 
   try {
     const habit = await prisma.habit.create({
@@ -225,7 +226,7 @@ export async function saveHabit(name: string, description: string, schema: Habit
         frequency,
         publishToMqtt,
         userId: user.id,
-        members: { create: { userId: user.id, categoryId: categoryId || null, order: END_OF_LIST_ORDER } },
+        members: { create: { userId: user.id, categoryId: categoryId || null, order: END_OF_LIST_ORDER, aiContext: normalizedAiContext } },
       }
     });
 
@@ -267,9 +268,9 @@ export async function getLoggableHabits() {
   const user = await getDefaultUser();
   const memberships = await prisma.habitMember.findMany({
     where: { userId: user.id },
-    select: { habit: { select: { id: true, name: true, description: true, schema: true } } },
+    select: { aiContext: true, habit: { select: { id: true, name: true, description: true, schema: true } } },
   });
-  return memberships.map(m => m.habit);
+  return memberships.map(m => ({ ...m.habit, aiContext: m.aiContext }));
 }
 
 // `weeks` bounds how far back logs are fetched; see getCategory, which shares this cutoff with the
@@ -306,11 +307,12 @@ export async function getHabit(id: string) {
     include: { habit: { include: { members: { select: { userId: true }, orderBy: { createdAt: 'asc' } } } } }
   });
   if (!membership) return null;
-  const { habit: { members, ...habit }, categoryId, isFavorite } = membership;
+  const { habit: { members, ...habit }, categoryId, isFavorite, aiContext } = membership;
   return {
     ...habit,
     categoryId,
     isFavorite,
+    aiContext,
     isOwner: habit.userId === user.id,
     memberIds: members.map(m => m.userId),
   };
@@ -540,10 +542,11 @@ export async function importHabitLogsCsv(habitId: string, csvText: string) {
 }
 
 // Changes the habit's definition (owner only) and which of the owner's categories it's filed in
-export async function updateHabit(id: string, name: string, description: string, schema: HabitSchema, categoryId?: string, frequency: string = 'daily', publishToMqtt: boolean = false) {
+export async function updateHabit(id: string, name: string, description: string, schema: HabitSchema, categoryId?: string, frequency: string = 'daily', publishToMqtt: boolean = false, aiContext?: string) {
   const user = await getDefaultUser();
   await getOwnedHabit(user.id, id);
   if (categoryId) await getOwnedCategory(user.id, categoryId);
+  const normalizedAiContext = normalizeAiContext(aiContext);
 
   try {
     const habit = await prisma.habit.update({
@@ -557,6 +560,10 @@ export async function updateHabit(id: string, name: string, description: string,
       }
     });
     await fileHabit(user.id, id, categoryId || null);
+    await prisma.habitMember.update({
+      where: { habitId_userId: { habitId: id, userId: user.id } },
+      data: { aiContext: normalizedAiContext },
+    });
 
     revalidatePath('/');
     revalidatePath(`/log/${id}`);
@@ -609,6 +616,29 @@ export async function setHabitCategory(habitId: string, categoryId: string | nul
   await fileHabit(user.id, habitId, categoryId);
   revalidatePath('/');
   revalidatePath(`/log/${habitId}`);
+}
+
+// Blank context is stored as null; overlong context is refused rather than silently cut short
+function normalizeAiContext(aiContext: string | undefined) {
+  const trimmed = aiContext?.trim();
+  if (!trimmed) return null;
+  if (trimmed.length > MAX_AI_CONTEXT_LENGTH) {
+    throw new Error(`Context for AI must be ${MAX_AI_CONTEXT_LENGTH} characters or fewer`);
+  }
+  return trimmed;
+}
+
+// A member's own context for AI on a habit (see HabitMember.aiContext). Any member can set theirs,
+// so this is how someone a habit is shared with sets it; the owner sets theirs through updateHabit.
+export async function setHabitAiContext(habitId: string, aiContext: string) {
+  const user = await getDefaultUser();
+  await getMembership(user.id, habitId);
+  await prisma.habitMember.update({
+    where: { habitId_userId: { habitId, userId: user.id } },
+    data: { aiContext: normalizeAiContext(aiContext) },
+  });
+  revalidatePath(`/log/${habitId}`);
+  revalidatePath(`/edit/${habitId}`);
 }
 
 // Everyone on this instance with their display color as the current user sees it (green for

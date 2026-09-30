@@ -66,6 +66,9 @@ model HabitMember {
   category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   order      Int       @default(0)
   isFavorite Boolean   @default(false)
+  // The user's own notes on how they do this habit (e.g. "my bike commute is 4 miles, 30 minutes"),
+  // given to the AI when matching and filling in their entries
+  aiContext  String?
   createdAt  DateTime  @default(now())
 
   @@id([habitId, userId])

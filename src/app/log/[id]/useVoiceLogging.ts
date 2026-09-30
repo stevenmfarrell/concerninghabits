@@ -11,7 +11,7 @@ type OnExtracted = (data: Record<string, unknown>, loadingToastId: string) => vo
 // fields to `onExtracted`. Isolated in its own hook so LogClient doesn't also have to reason about
 // SpeechRecognition's lifecycle alongside its photo/CSV/form concerns. `processTranscript` is also
 // exposed for a phrase spoken elsewhere (the dashboard's voice capture) that was matched to this habit.
-export function useVoiceLogging(habitSchema: string, onExtracted: OnExtracted) {
+export function useVoiceLogging(habitSchema: string, aiContext: string | null, onExtracted: OnExtracted) {
   const [isProcessing, setIsProcessing] = useState(false);
 
   const processTranscript = async (transcript: string) => {
@@ -19,7 +19,7 @@ export function useVoiceLogging(habitSchema: string, onExtracted: OnExtracted) {
     const loadingToast = toast.loading('AI is processing your voice...');
 
     try {
-      const result = await parseVoiceLog(habitSchema, transcript);
+      const result = await parseVoiceLog(habitSchema, transcript, aiContext);
       if (result.success && result.data) {
         await onExtracted(result.data, loadingToast);
       } else {
