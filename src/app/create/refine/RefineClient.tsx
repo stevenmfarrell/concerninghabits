@@ -7,15 +7,17 @@ import { useRouter } from 'next/navigation';
 import { Mic } from 'lucide-react';
 import BackLink from '@/components/BackLink';
 import type { HabitSchema } from '@/lib/types';
-import { PENDING_VOICE_LOG_KEY } from '@/lib/constants';
+import { setPendingSmartEntry } from '@/lib/pendingSmartEntry';
 import RefineLoading from './RefineLoading';
 
 interface HabitDraft {
   schema: HabitSchema;
   frequency?: string;
   categoryId?: string;
-  // What the user said on the dashboard, when the draft came from voice capture (see VoiceCapture)
+  // What the user said or typed on the dashboard, when the draft came from there (see SmartEntry),
+  // and whether it reported something they did, so it's logged as the first entry by default
   transcript?: string;
+  logFirstEntry?: boolean;
 }
 
 // Only rendered in the browser (see page.tsx), so sessionStorage is always available here.
@@ -28,7 +30,7 @@ export default function RefineClient() {
   const router = useRouter();
 
   const [draft] = useState<HabitDraft | null>(readDraft);
-  const [logFirstEntry, setLogFirstEntry] = useState(true);
+  const [logFirstEntry, setLogFirstEntry] = useState(draft?.logFirstEntry ?? true);
 
   useEffect(() => {
     if (!draft) router.replace('/create');
@@ -41,7 +43,7 @@ export default function RefineClient() {
     // Hand what the user said to the new habit's log page, which fills the entry in against the
     // form as saved (it may have been edited here) and submits it, the same as for an existing habit
     if (draft?.transcript && logFirstEntry) {
-      sessionStorage.setItem(PENDING_VOICE_LOG_KEY, JSON.stringify({ habitId: habit.id, transcript: draft.transcript }));
+      setPendingSmartEntry(habit.id, draft.transcript);
       router.push(`/log/${habit.id}`);
     } else {
       router.push('/');

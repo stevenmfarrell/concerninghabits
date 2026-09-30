@@ -8,9 +8,6 @@ export const DEFAULT_TARGET_COUNT = 3;
 export const MAX_HISTORY_WEEKS = 52;
 // Upper bound on rows accepted by a single CSV log import, to keep one request's batch insert bounded.
 export const MAX_CSV_IMPORT_ROWS = 5000;
-// sessionStorage key for something the user said on the dashboard that was matched to a habit,
-// handed to that habit's log page to fill in and submit: `{ habitId, transcript }`.
-export const PENDING_VOICE_LOG_KEY = 'pendingVoiceLog';
 // Longest per-habit "context for AI" a user can save (see HabitMember.aiContext), since it's sent
 // with every AI request for that habit.
 export const MAX_AI_CONTEXT_LENGTH = 1000;

@@ -1,10 +1,10 @@
 import { getCategoriesWithHierarchy, getDefaultUser, getFavoriteHabits, getPeople, getUncategorizedHabits } from './actions/db';
 import Link from 'next/link';
-import { Plus, ChevronRight, Star, Settings2 } from 'lucide-react';
+import { ChevronRight, Star, Settings2 } from 'lucide-react';
 import Icon from '../components/Icon';
 import ActivityCalendar from '../components/ActivityCalendar';
 import { SortableHabitList } from './categories/[id]/SortableLists';
-import VoiceCapture from './VoiceCapture';
+import SmartEntry from './SmartEntry';
 import { UNCATEGORIZED_ID, UNCATEGORIZED_ICON } from '@/lib/constants';
 import { parseBedtimeOffsetMinutes, toCivilDate } from '@/lib/timezone';
 
@@ -101,33 +101,16 @@ export default async function Dashboard() {
               My Habits
             </h1>
           </div>
-          <div className="flex items-center gap-2">
-            <VoiceCapture />
-            {totalHabits > 0 && (
-              <Link
-                href="/create"
-                className="inline-flex items-center justify-center p-2 sm:px-4 sm:py-2.5 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 transition-colors shadow-sm"
-                title="Add Habit"
-              >
-                <Plus className="w-6 h-6 sm:w-5 sm:h-5 sm:mr-2" strokeWidth={2.5} />
-                <span className="hidden sm:inline">Add Habit</span>
-              </Link>
-            )}
-          </div>
+          <SmartEntry />
         </div>
 
         {totalHabits === 0 ? (
           <div className="py-24 px-8 sm:px-12 text-center flex flex-col items-center justify-center">
             <img src="/hobbit-hole.svg" alt="Hobbit Hole" className="w-80 max-w-full h-auto opacity-10 mb-8" />
             <h2 className="text-2xl font-semibold text-stone-700 mb-2">No habits here yet</h2>
-            <p className="text-base text-stone-500 max-w-sm mb-8">Create your first habit to begin!</p>
-            <Link
-              href="/create"
-              className="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-xl shadow-sm text-white bg-emerald-600 hover:bg-emerald-700 transition-colors"
-            >
-              <Plus className="w-5 h-5 mr-2" />
-              Add Habit
-            </Link>
+            <p className="text-base text-stone-500 max-w-sm">
+              Tap the quill above and tell it something you did, or a habit you&apos;d like to start.
+            </p>
           </div>
         ) : (
           <div className="space-y-10">

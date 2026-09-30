@@ -6,7 +6,7 @@ import { createGoogleGenerativeAI } from '@ai-sdk/google';
 const google = createGoogleGenerativeAI({
   apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
 });
-import { choice, TypeSafeClient, type ChoiceCriteria } from '@typesafe-ai/sdk';
+import { choice, noul, TypeSafeClient, type ChoiceCriteria } from '@typesafe-ai/sdk';
 import { z } from 'zod';
 import { getDefaultUser, getCategories, getLoggableHabits } from './db';
 import { buildCategoryChoices } from '@/lib/categoryChoices';
@@ -146,10 +146,17 @@ const MAX_HABIT_OPTIONS = 254;
 // Practice) and clear new habits ("20 minutes of yoga") came back at 0.87-0.99, while a vague
 // "I played some music" (piano? ukulele? new?) varied 0.61-0.71 across calls. 0.8 sits in that gap.
 const MATCH_CONFIDENCE_THRESHOLD = 0.8;
+// At or above this, the input counts as reporting something the user did, so it becomes an entry.
+// Measured on jev-1.13: intentions ("I want to run more", "track my water intake") came back at
+// 0.02-0.04, reports ("I ran 3 miles", "took my vitamins") at 0.83-0.98, and bare nouns ("yoga",
+// "water") at 0.40-0.49. The bar is kept low so a bare noun counts as done: that's the likelier
+// meaning for an existing habit, an entry can be undone, and a new habit's draft page can switch
+// its first entry off.
+const DID_IT_THRESHOLD = 0.25;
 const MAX_CANDIDATES = 3;
 
-// A habit a spoken phrase might be an entry for, or `habitId: null` for a new habit
-export type SpokenHabitCandidate = { habitId: string | null; name: string; probability: number };
+// A habit the user's input might be about, or `habitId: null` for a new habit
+export type HabitCandidate = { habitId: string | null; name: string; probability: number };
 
 // What Jev is told about a habit besides its name: its description, the fields its form records,
 // and the user's own notes on it (which can name things the habit's title doesn't, like "bike commute")
@@ -167,18 +174,16 @@ function describeHabitForMatching(habit: { description: string | null; schema: s
   };
 }
 
-// Decide which of the user's habits something they said they did is an entry for, or whether it's
-// a new habit. Candidates are the most likely options, best first; `confident` says whether the
-// first is sure enough to act on without asking the user.
-export async function matchSpokenHabit(transcript: string): Promise<
-  { success: true; confident: boolean; candidates: SpokenHabitCandidate[] } | { success: false; error: string }
+// Interpret something the user said or typed on the dashboard: which of their habits it's about
+// (or a new one), and whether it reports something they did (so it becomes an entry) or only
+// describes a habit to set up. Both are asked of Jev in one request. Candidates are the most likely
+// habits, best first; `confident` says whether the first is sure enough to act on without asking.
+export async function interpretSmartEntry(input: string): Promise<
+  { success: true; confident: boolean; candidates: HabitCandidate[]; didIt: boolean } | { success: false; error: string }
 > {
   const habits = await getLoggableHabits();
-  if (habits.length === 0) {
-    return { success: true, confident: true, candidates: [{ habitId: null, name: 'New habit', probability: 1 }] };
-  }
 
-  const options = new Map<string, SpokenHabitCandidate>([
+  const options = new Map<string, HabitCandidate>([
     [NEW_HABIT_OPTION, { habitId: null, name: 'New habit', probability: 0 }],
   ]);
   const criteria: ChoiceCriteria = {
@@ -192,14 +197,34 @@ export async function matchSpokenHabit(transcript: string): Promise<
     criteria[option] = describeHabitForMatching(habit);
   }
 
+  const didItQuestion = noul(
+    'Is `user_input` the user reporting something they actually did, rather than only describing something they want to start tracking or doing?',
+    {
+      true: 'Reports an activity that happened, e.g. "I ran 3 miles", "took my vitamins", "20 minutes of yoga"',
+      false: 'Only describes a habit to set up or an intention, e.g. "track my water intake", "I want to start running more"',
+    },
+  );
+
   try {
+    // With no habits there's nothing to choose between, so only whether they did it is asked
+    if (habits.length === 0) {
+      const { answers } = await getTypeSafe().systemOne({
+        state: { user_input: input },
+        questions: { did_it: didItQuestion },
+      });
+      return {
+        success: true,
+        confident: true,
+        candidates: [{ habitId: null, name: 'New habit', probability: 1 }],
+        didIt: answers.did_it.noul >= DID_IT_THRESHOLD,
+      };
+    }
+
     const { answers } = await getTypeSafe().systemOne({
-      state: { said: transcript },
+      state: { user_input: input },
       questions: {
-        habit: choice(
-          'The user said `said` out loud to record something they did. Which of their habits is it an entry for?',
-          criteria,
-        ),
+        habit: choice('The user told their habit-tracking app `user_input`. Which of their habits is it about?', criteria),
+        did_it: didItQuestion,
       },
     });
 
@@ -209,9 +234,14 @@ export async function matchSpokenHabit(transcript: string): Promise<
       .slice(0, MAX_CANDIDATES)
       .map(([option, probability]) => ({ ...options.get(option)!, probability }));
 
-    return { success: true, confident: answers.habit.confidence >= MATCH_CONFIDENCE_THRESHOLD, candidates };
+    return {
+      success: true,
+      confident: answers.habit.confidence >= MATCH_CONFIDENCE_THRESHOLD,
+      candidates,
+      didIt: answers.did_it.noul >= DID_IT_THRESHOLD,
+    };
   } catch (error) {
-    console.error("Error matching spoken habit:", error);
-    return { success: false, error: "Failed to match what you said to a habit." };
+    console.error("Error interpreting smart entry:", error);
+    return { success: false, error: "Failed to match that to a habit." };
   }
 }
