@@ -10,6 +10,7 @@ import CategorySelect from './CategorySelect';
 import { orderCategoryTree } from '@/lib/categoryChoices';
 import NewCategoryInline from './NewCategoryInline';
 import AiContextField from './AiContextField';
+import SpeakOrType, { type SpeakOrTypeStatus } from './SpeakOrType';
 import toast from 'react-hot-toast';
 import ConfirmDialog from './ConfirmDialog';
 import DurationWidget from './widgets/DurationWidget';
@@ -19,6 +20,14 @@ import { Button } from './ui/Button';
 import { DEFAULT_TARGET_COUNT } from '@/lib/constants';
 import type { CategoryOption, HabitSchema } from '@/lib/types';
 import type { UiSchema } from '@rjsf/utils';
+
+const TWEAK_EXAMPLES = [
+  'Add a dropdown for mood',
+  'Make distance optional',
+  'Add a notes field',
+  'Track time instead of reps',
+  'Remove the whole form',
+];
 
 interface HabitEditorProps {
   initialTitle: string;
@@ -64,8 +73,9 @@ export default function HabitEditor({
   const [enableVoice, setEnableVoice] = useState(initialSchema.enableVoice !== false);
   const [enablePhoto, setEnablePhoto] = useState(initialSchema.enablePhoto !== false);
 
-  const [tweakPrompt, setTweakPrompt] = useState('');
-  const [isTweaking, setIsTweaking] = useState(false);
+  // While an AI tweak is being applied: what's happening, and the requested change
+  const [tweakStatus, setTweakStatus] = useState<SpeakOrTypeStatus>(null);
+  const isTweaking = tweakStatus !== null;
 
   const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [showNewCat, setShowNewCat] = useState(false);
@@ -82,23 +92,22 @@ export default function HabitEditor({
     isMqttConfigured().then(setMqttConfigured);
   }, []);
 
-  const handleTweakSchema = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!tweakPrompt.trim() || !schema) return;
+  const handleTweakSchema = async (tweak: string) => {
+    if (!schema) return;
 
-    setIsTweaking(true);
-    const result = await generateHabitSchema(tweakPrompt, schema);
+    setTweakStatus({ message: 'Updating the form...', input: tweak });
+    const result = await generateHabitSchema(tweak, schema);
+    setTweakStatus(null);
     if (result.success) {
       setSchema((prev) => ({
         ...prev,
         properties: result.schema?.properties,
         required: result.schema?.required,
       }));
-      setTweakPrompt('');
+      toast.success('Form updated');
     } else {
       toast.error(result.error || "An error occurred");
     }
-    setIsTweaking(false);
   };
 
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -212,36 +221,24 @@ export default function HabitEditor({
 
           <div className="space-y-4">
             <p className="text-sm font-medium text-stone-500 uppercase tracking-wider">Tweak Form with AI</p>
-            <form onSubmit={handleTweakSchema} className="flex flex-col gap-3">
-              <textarea
-                className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 min-h-[100px] resize-none text-sm"
-                placeholder="e.g. 'Add a dropdown for mood', 'Make distance optional', 'Remove the whole form'"
-                value={tweakPrompt}
-                onChange={(e) => setTweakPrompt(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    if (tweakPrompt.trim() && !isTweaking && !saving) {
-                      e.currentTarget.form?.requestSubmit();
-                    }
-                  }
-                }}
-                disabled={isTweaking || saving}
-                autoComplete="off"
-                data-1p-ignore
-                enterKeyHint="send"
-              />
-              <Button
-                type="submit"
-                variant="secondary"
-                size="sm"
-                disabled={isTweaking || saving || !tweakPrompt.trim()}
-                className="self-end"
-              >
-                {isTweaking ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
-                Apply AI Tweak
-              </Button>
-            </form>
+            <p className="text-sm text-stone-500">Describe a change and AI will update the form above.</p>
+            <SpeakOrType
+              icon={<Wand2 className="w-4 h-4" />}
+              label="Apply AI Tweak"
+              ariaLabel={{ speak: 'Say a change to the form', type: 'Type a change to the form' }}
+              variant="secondary"
+              size="sm"
+              disabled={saving}
+              prompt={{
+                listening: 'Listening...',
+                typing: 'What should change?',
+                hint: 'Describe how to change this habit\'s form.',
+                placeholder: 'e.g. "Make distance optional"',
+              }}
+              examples={TWEAK_EXAMPLES}
+              status={tweakStatus}
+              onInput={handleTweakSchema}
+            />
 
             {Object.keys(schema?.properties || {}).length > 0 && (
               <div className="mt-8 pt-6 border-t border-stone-100 space-y-4">

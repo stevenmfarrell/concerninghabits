@@ -10,16 +10,24 @@ interface SpeechRecognitionLike {
   lang: string;
   start(): void;
   stop(): void;
-  onresult: ((event: { results: { [i: number]: { [j: number]: { transcript: string } } } }) => void) | null;
+  abort(): void;
+  onresult: ((event: { results: ArrayLike<{ isFinal: boolean; 0: { transcript: string } }> }) => void) | null;
   onerror: ((event: { error: string }) => void) | null;
   onend: (() => void) | null;
 }
 
 // Records one spoken phrase with the browser's speech recognition and hands its transcript to
-// `onTranscript`. Shared by the habit log page's voice logging and the dashboard's voice capture.
+// `onTranscript`. Shared by the habit log page's voice logging and the dashboard's SmartEntry.
+//
+// The browser ends the phrase at the first pause. `stop()` ends it now and still hands over what
+// was heard; `cancel()` ends it and discards it. `liveTranscript` is the phrase so far, while
+// listening.
 export function useSpeechRecognition(onTranscript: (transcript: string) => void) {
   const [isListening, setIsListening] = useState(false);
+  const [liveTranscript, setLiveTranscript] = useState('');
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  // Whether this listen produced a transcript (or was cancelled), to say so when it heard nothing
+  const handledRef = useRef(false);
 
   // Kept current so the effect below doesn't need to recreate the recognition object (and lose
   // its listening state) every time `onTranscript`'s identity changes.
@@ -38,49 +46,75 @@ export function useSpeechRecognition(onTranscript: (transcript: string) => void)
 
     const recognition = new SpeechRecognition();
     recognition.continuous = false;
-    recognition.interimResults = false;
+    recognition.interimResults = true;
     recognition.lang = 'en-US';
 
     recognition.onresult = (event) => {
+      const result = event.results[0];
+      setLiveTranscript(result[0].transcript);
+      if (!result.isFinal) return;
+      handledRef.current = true;
       setIsListening(false);
-      onTranscriptRef.current(event.results[0][0].transcript);
+      setLiveTranscript('');
+      onTranscriptRef.current(result[0].transcript);
     };
 
     recognition.onerror = (event) => {
-      console.error('Speech recognition error', event.error);
       setIsListening(false);
-      if (event.error !== 'aborted') {
-        toast.error(`Microphone error: ${event.error}`);
-      }
+      // Aborting is how cancel() and unmounting stop it, so it isn't an error
+      if (event.error === 'aborted') return;
+      // no-speech falls through to onend's "didn't catch anything"
+      if (event.error === 'no-speech') return;
+      handledRef.current = true;
+      console.error('Speech recognition error', event.error);
+      toast.error(`Microphone error: ${event.error}`);
     };
 
     recognition.onend = () => {
       setIsListening(false);
+      setLiveTranscript('');
+      if (!handledRef.current) toast("Didn't catch anything. Try again?", { icon: '🎙️' });
     };
 
     recognitionRef.current = recognition;
-    return () => recognition.stop();
+    return () => {
+      handledRef.current = true;
+      recognition.abort();
+    };
   }, []);
 
-  const toggleListen = () => {
+  const start = () => {
     if (!recognitionRef.current) {
       toast.error('Voice recognition is not supported in this browser.');
       return;
     }
-
-    if (isListening) {
-      recognitionRef.current.stop();
-      setIsListening(false);
-    } else {
-      try {
-        recognitionRef.current.start();
-        setIsListening(true);
-        toast('Listening...', { icon: '🎙️' });
-      } catch (e) {
-        console.error(e);
-      }
+    handledRef.current = false;
+    setLiveTranscript('');
+    try {
+      recognitionRef.current.start();
+      setIsListening(true);
+    } catch (e) {
+      console.error(e);
     }
   };
 
-  return { isListening, toggleListen };
+  const stop = () => {
+    recognitionRef.current?.stop();
+  };
+
+  const cancel = () => {
+    handledRef.current = true;
+    recognitionRef.current?.abort();
+  };
+
+  const toggleListen = () => {
+    if (isListening) {
+      stop();
+    } else {
+      start();
+      if (recognitionRef.current) toast('Listening...', { icon: '🎙️' });
+    }
+  };
+
+  return { isListening, liveTranscript, start, stop, cancel, toggleListen };
 }

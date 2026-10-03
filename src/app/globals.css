@@ -12,12 +12,19 @@
   --font-sans: var(--font-geist-sans), "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
   --font-mono: var(--font-geist-mono);
   --animate-highlight-fade: highlight-fade 2s ease-out forwards;
+  --animate-voice-bar: voice-bar 1.1s ease-in-out infinite;
 }
 
 @keyframes highlight-fade {
   0% { background-color: #ecfdf5; }
   15% { background-color: #d1fae5; }
   100% { background-color: transparent; }
+}
+
+/* The smart entry panel's listening indicator: bars that rise and fall, staggered by delay */
+@keyframes voice-bar {
+  0%, 100% { transform: scaleY(0.25); }
+  50% { transform: scaleY(1); }
 }
 
 body {

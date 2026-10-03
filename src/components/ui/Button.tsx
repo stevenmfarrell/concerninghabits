@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import type { ButtonHTMLAttributes, ComponentProps } from 'react';
 
-export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger' | 'danger-ghost';
+export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger' | 'danger-ghost' | 'inverse' | 'inverse-ghost';
 export type ButtonSize = 'sm' | 'md' | 'lg' | 'xl';
 
 const VARIANT_CLASSES: Record<ButtonVariant, string> = {
@@ -11,6 +11,9 @@ const VARIANT_CLASSES: Record<ButtonVariant, string> = {
   ghost: 'text-stone-500 hover:text-stone-800 hover:bg-stone-100',
   danger: 'bg-red-600 text-white hover:bg-red-700',
   'danger-ghost': 'text-red-600 hover:bg-red-50',
+  // For dark emerald surfaces, e.g. the smart entry panel
+  inverse: 'bg-white text-emerald-800 hover:bg-emerald-50 shadow-sm',
+  'inverse-ghost': 'text-emerald-100 hover:text-white hover:bg-white/10',
 };
 
 const SIZE_CLASSES: Record<ButtonSize, string> = {
