@@ -4,7 +4,8 @@ import { useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { parseImageLog } from '../../actions/habit';
 
-type OnExtracted = (data: Record<string, unknown>, loadingToastId: string) => void | Promise<void>;
+// `source` describes where the data came from, for the logged-entry toast
+type OnExtracted = (data: Record<string, unknown>, loadingToastId: string, source: string) => void | Promise<void>;
 
 // Server Action request bodies are capped at 1MB, and a full-size phone photo is several MB once
 // base64-encoded. Downscaling to this size keeps uploads to a few hundred KB, which is still plenty
@@ -57,7 +58,7 @@ export function useImageLogging(habitSchema: string, aiContext: string | null, o
 
       const result = await parseImageLog(habitSchema, dataUrl, aiContext);
       if (result.success && result.data) {
-        await onExtracted(result.data, loadingToast);
+        await onExtracted(result.data, loadingToast, 'From your photo');
       } else {
         toast.error(result.error || 'AI could not analyze the image', { id: loadingToast });
       }

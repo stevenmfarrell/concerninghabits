@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Form from '@rjsf/core';
 import validator from '@rjsf/validator-ajv8';
-import { logHabitEvent, deleteHabitLog, toggleFavorite } from '../../actions/db';
+import { logHabitEvent, toggleFavorite } from '../../actions/db';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Loader2, Link2, Mic, Camera, MoreVertical, Edit2, ChevronRight, Star, Upload, Users, FolderInput, Zap } from 'lucide-react';
 import ActivityCalendar from '../../../components/ActivityCalendar';
@@ -20,7 +20,7 @@ import type { HabitSchema, HabitWithLogs, SessionUser } from '@/lib/types';
 import type { UiSchema } from '@rjsf/utils';
 import { isSharedHabit, type Person } from '@/lib/userColors';
 import PersonLabel from '@/components/PersonLabel';
-import AiSuccessSplash from './AiSuccessSplash';
+import { showLoggedToast } from '@/components/LoggedToast';
 import ShareDialog from './ShareDialog';
 import { useVoiceLogging } from './useVoiceLogging';
 import { useImageLogging } from './useImageLogging';
@@ -46,7 +46,6 @@ export default function LogClient({ habit, user, people }: { habit: HabitWithLog
 
   const [logDate, setLogDate] = useState('');
   const [showBackdate, setShowBackdate] = useState(false);
-  const [autoSubmittedLog, setAutoSubmittedLog] = useState<{ logId: string, data: Record<string, unknown>, subtitle: string } | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [isFavorite, setIsFavorite] = useState<boolean>(!!habit.isFavorite);
 
@@ -102,8 +101,19 @@ export default function LogClient({ habit, user, people }: { habit: HabitWithLog
       data[field] !== undefined && data[field] !== null && data[field] !== ''
     );
 
+  // After any entry is logged: confirm it in a toast (with Undo) and go to the habit's history, where
+  // it shows. `source` says how an automatic entry was made; `toastId` is a loading toast to replace.
+  const announceLogged = (logId: string, data: Record<string, unknown>, source?: string, toastId?: string) => {
+    showLoggedToast(
+      { habitId: habit.id, habitName: habit.name, logId, data, schemaProperties, source },
+      href => router.push(href),
+      toastId,
+    );
+    router.push(`/history/${habit.id}`);
+  };
+
   // A "submit URL" (the prefill URL plus `submit=1`) logs the entry as soon as the page opens and
-  // shows the same undo splash as voice/photo logging. The ref guards against Strict Mode running
+  // confirms it the same way as voice/photo logging. The ref guards against Strict Mode running
   // the effect twice, and `submit` is stripped from the address bar first so a refresh or
   // back-navigation doesn't log a second entry.
   const autoSubmitStarted = useRef(false);
@@ -122,13 +132,13 @@ export default function LogClient({ habit, user, people }: { habit: HabitWithLog
       return;
     }
     logHabitEvent(habit.id, formData, undefined)
-      .then(log => setAutoSubmittedLog({ logId: log.id, data: formData, subtitle: 'Your entry was submitted from a link' }))
+      .then(log => announceLogged(log.id, formData, 'From a submit link'))
       .catch(err => toast.error(`Failed to log entry: ${err instanceof Error ? err.message : 'Unknown error'}`));
     // Only ever runs on the initial mount, with the formData prefilled from the URL.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleAiExtractionSuccess = async (extractedData: Record<string, unknown>, loadingToastId: string) => {
+  const handleAiExtractionSuccess = async (extractedData: Record<string, unknown>, loadingToastId: string, source: string) => {
     if (Object.keys(extractedData).length === 0) {
       toast.error('Could not find any relevant data.', { id: loadingToastId });
       return;
@@ -138,12 +148,11 @@ export default function LogClient({ habit, user, people }: { habit: HabitWithLog
     setFormData(newFormData);
 
     if (hasRequiredFields(newFormData)) {
-      toast.dismiss(loadingToastId);
       try {
         const log = await logHabitEvent(habit.id, newFormData, undefined);
-        setAutoSubmittedLog({ logId: log.id, data: newFormData, subtitle: 'AI automatically submitted your entry' });
+        announceLogged(log.id, newFormData, source, loadingToastId);
       } catch {
-        toast.error('AI filled the form, but auto-submit failed.');
+        toast.error('AI filled the form, but auto-submit failed.', { id: loadingToastId });
       }
     } else {
       toast.success('Form partially filled by AI. Please complete missing fields.', { id: loadingToastId });
@@ -163,7 +172,7 @@ export default function LogClient({ habit, user, people }: { habit: HabitWithLog
       processTranscript(transcript, 'AI is filling in your entry...');
     } else {
       logHabitEvent(habit.id, {}, undefined)
-        .then(log => setAutoSubmittedLog({ logId: log.id, data: {}, subtitle: `Logged from “${transcript}”` }))
+        .then(log => announceLogged(log.id, {}, `From “${transcript}”`))
         .catch(err => toast.error(`Failed to log entry: ${err instanceof Error ? err.message : 'Unknown error'}`));
     }
     // Only ever runs on the initial mount.
@@ -183,29 +192,7 @@ export default function LogClient({ habit, user, people }: { habit: HabitWithLog
       }
 
       const log = await logHabitEvent(habit.id, formData || {}, createdAt);
-
-      toast.success((t) => (
-        <div className="flex items-center gap-4">
-          <span className="font-semibold whitespace-nowrap">{habit.name} Logged</span>
-          <button
-            onClick={async () => {
-              toast.dismiss(t.id);
-              try {
-                await deleteHabitLog(log.id, habit.id);
-                toast.success("Entry undone");
-                router.refresh(); // Refresh to remove the undone item
-              } catch (err) {
-                toast.error(`Failed to undo: ${err instanceof Error ? err.message : 'Unknown error'}`);
-              }
-            }}
-            className="px-3 py-1 text-sm font-semibold text-stone-900 bg-white hover:bg-stone-200 rounded-lg transition-colors ml-2 shadow-sm"
-          >
-            Undo
-          </button>
-        </div>
-      ), { duration: 6000 });
-
-      router.push(`/history/${habit.id}`);
+      announceLogged(log.id, formData || {});
     } catch (err) {
       toast.error(`Failed to log entry: ${err instanceof Error ? err.message : 'Unknown error'}`);
     } finally {
@@ -229,27 +216,6 @@ export default function LogClient({ habit, user, people }: { habit: HabitWithLog
     navigator.clipboard.writeText(url.toString());
     toast.success(submit ? 'Submit URL copied to clipboard!' : 'Automation URL copied to clipboard!');
   };
-
-  if (autoSubmittedLog) {
-    return (
-      <AiSuccessSplash
-        habitName={habit.name}
-        data={autoSubmittedLog.data}
-        schemaProperties={schemaProperties}
-        subtitle={autoSubmittedLog.subtitle}
-        onUndo={async () => {
-          try {
-            await deleteHabitLog(autoSubmittedLog.logId, habit.id);
-            setAutoSubmittedLog(null);
-            toast.success("Entry undone. You can now edit.");
-          } catch (e) {
-            toast.error(`Failed to undo: ${e instanceof Error ? e.message : 'Unknown error'}`);
-          }
-        }}
-        onContinue={() => router.push(`/history/${habit.id}`)}
-      />
-    );
-  }
 
   return (
     <div className="flex flex-col h-full">

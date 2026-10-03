@@ -5,7 +5,8 @@ import toast from 'react-hot-toast';
 import { parseVoiceLog } from '../../actions/habit';
 import { useSpeechRecognition } from '@/lib/useSpeechRecognition';
 
-type OnExtracted = (data: Record<string, unknown>, loadingToastId: string) => void | Promise<void>;
+// `source` describes where the data came from, for the logged-entry toast
+type OnExtracted = (data: Record<string, unknown>, loadingToastId: string, source: string) => void | Promise<void>;
 
 // Voice logging: record a phrase, send the transcript to the AI parser, and hand any extracted
 // fields to `onExtracted`. Isolated in its own hook so LogClient doesn't also have to reason about
@@ -21,7 +22,7 @@ export function useVoiceLogging(habitSchema: string, aiContext: string | null, o
     try {
       const result = await parseVoiceLog(habitSchema, transcript, aiContext);
       if (result.success && result.data) {
-        await onExtracted(result.data, loadingToast);
+        await onExtracted(result.data, loadingToast, `From “${transcript}”`);
       } else {
         toast.error(result.error || 'AI could not understand', { id: loadingToast });
       }
