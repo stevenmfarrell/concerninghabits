@@ -1,10 +1,9 @@
 'use client';
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { toggleFavorite } from '../../actions/db';
 import { parseVoiceLog } from '../../actions/habit';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { History, Loader2, Link2, MoreVertical, Edit2, Star, Upload, Users, FolderInput, Zap } from 'lucide-react';
+import { History, Loader2, Link2, MoreVertical, Edit2, Upload, Users, FolderInput, Zap } from 'lucide-react';
 import Link from 'next/link';
 import PageHeader from '@/components/PageHeader';
 import { Button } from '@/components/ui/Button';
@@ -48,18 +47,6 @@ export default function LogClient({ habit, user, people, categories, children }:
   const sharedWith = habit.memberIds.filter(id => id !== habit.userId);
 
   const [menuOpen, setMenuOpen] = useState(false);
-  const [isFavorite, setIsFavorite] = useState<boolean>(!!habit.isFavorite);
-
-  const handleToggleFavorite = async () => {
-    const next = !isFavorite;
-    setIsFavorite(next);
-    try {
-      setIsFavorite(await toggleFavorite(habit.id));
-    } catch (err) {
-      setIsFavorite(!next);
-      toast.error(`Failed to update favorite: ${err instanceof Error ? err.message : 'Unknown error'}`);
-    }
-  };
 
   const [prefill] = useState(() => prefillFrom(searchParams, parseHabitSchema(habit.schema).properties as HabitFormProperties | undefined));
 
@@ -150,18 +137,8 @@ export default function LogClient({ habit, user, people, categories, children }:
     <div className="flex flex-col h-full">
       <PageHeader
         title={<span className="truncate">{habit.name}</span>}
-        titleInsetClassName="px-24"
         actions={
           <>
-            <button
-              onClick={handleToggleFavorite}
-              className={`p-2 rounded-full transition-colors shrink-0 hover:bg-stone-100 ${isFavorite ? 'text-amber-500' : 'text-stone-500 hover:text-stone-700'}`}
-              title={isFavorite ? 'Remove from Favorites' : 'Add to Favorites'}
-              aria-label={isFavorite ? 'Remove from Favorites' : 'Add to Favorites'}
-              aria-pressed={isFavorite}
-            >
-              <Star className={`w-6 h-6 ${isFavorite ? 'fill-amber-400' : ''}`} />
-            </button>
             <IconButton onClick={() => setMenuOpen(!menuOpen)} edge="right" title="More options">
               <MoreVertical className="w-6 h-6" />
             </IconButton>
@@ -267,7 +244,7 @@ export default function LogClient({ habit, user, people, categories, children }:
           </div>
         )}
 
-        {/* Split like the dashboard's smart entry button: log now, or pick an earlier date and time */}
+        {/* Split like the Due page's smart entry button: log now, or pick an earlier date and time */}
         <div className="flex">
           <Button size="xl" onClick={logger.start} disabled={logger.busy} className="flex-1 rounded-r-none">
             <LogButtonIcon hasForm={logger.hasForm} busy={logger.busy} size="lg" />

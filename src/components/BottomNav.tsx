@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { CalendarDays, Home, Settings } from 'lucide-react';
+import { CalendarDays, LayoutGrid, ListChecks, Settings } from 'lucide-react';
 
 export default function BottomNav() {
   const pathname = usePathname();
@@ -13,9 +13,11 @@ export default function BottomNav() {
   }
 
   const navItems = [
-    { name: 'Dashboard', href: '/', icon: Home, matchPrefix: '/categories' },
-    { name: 'History', href: '/history', icon: CalendarDays, matchPrefix: '/history' },
-    { name: 'Settings', href: '/settings', icon: Settings, matchPrefix: '/settings' },
+    { name: 'Due', href: '/', icon: ListChecks, matchPrefixes: [] },
+    // A category's pages are reached from Habits
+    { name: 'Habits', href: '/habits', icon: LayoutGrid, matchPrefixes: ['/habits', '/categories'] },
+    { name: 'History', href: '/history', icon: CalendarDays, matchPrefixes: ['/history'] },
+    { name: 'Settings', href: '/settings', icon: Settings, matchPrefixes: ['/settings'] },
   ];
 
   return (
@@ -27,7 +29,7 @@ export default function BottomNav() {
         <div className="flex justify-around items-center h-16 px-2 sm:px-4 max-w-md mx-auto">
           {navItems.map((item) => {
             const Icon = item.icon;
-            const isActive = pathname === item.href || (!!item.matchPrefix && pathname.startsWith(item.matchPrefix));
+            const isActive = pathname === item.href || item.matchPrefixes.some(prefix => pathname.startsWith(prefix));
 
             return (
               <Link

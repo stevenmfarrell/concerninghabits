@@ -43,10 +43,10 @@ export async function generateHabitSchema(prompt: string, currentSchema?: HabitS
         title: z.string().describe(`A short, concise name for the habit. Do NOT prefix with 'Track' or 'Log'. ${user.useEmojiTitle ? 'MUST start with a relevant emoji.' : 'NO emojis.'}`),
         category: categorySchema.optional(),
         cadence: z.object({
-          type: z.enum(CADENCE_TYPES).describe("How often the habit is meant to be done: 'daily' (every day, possibly several times), 'everyNDays' (again N days after the last time, e.g. watering plants every 3 days), 'calendarWeek' (once per calendar week), 'calendarMonth' (once per calendar month), or 'none' (logged whenever it happens, with no expected frequency, e.g. eating dessert)"),
+          type: z.enum(CADENCE_TYPES).describe("How often the habit is meant to be done. DEFAULT TO 'none' (logged whenever it happens, nothing expected): most habits just record something when it happens, e.g. 'track when I go on a walk', 'log my runs', 'I just went for a walk'. Only choose a recurring cadence when the user clearly says they want to do it regularly: 'daily' (e.g. 'I want to walk every day'; several times a day for e.g. 'drink 8 glasses of water a day'), 'everyNDays' (again N days after the last time, e.g. 'water the plants every 3 days'), 'calendarWeek' (once per calendar week, e.g. 'call mom every week'), 'calendarMonth' (once per calendar month, e.g. 'pay rent each month')."),
           timesPerDay: z.number().int().optional().describe("For 'daily': how many times a day, if more than once (e.g. 8 glasses of water)"),
           days: z.number().int().optional().describe("For 'everyNDays': how many days apart, 2 or more"),
-        }).optional().describe("The suggested cadence"),
+        }).optional().describe("The suggested cadence. Leave it out, or use type 'none', unless the user clearly wants this to recur."),
         type: z.literal('object'),
         properties: z.record(z.string(), z.any()).describe(`The fields required. Keep it simple. Use empty {} for simple boolean tasks. CRITICAL: For time durations, set 'type': 'number' AND 'x-widget': 'duration'. For other numeric fields, include an 'x-unit' key specifying the unit of measurement (e.g., 'miles', 'lbs', 'oz', 'pages'). The user prefers the ${user.unitSystem} measurement system.`),
         required: z.array(z.string()).optional().describe("Array of required property keys"),

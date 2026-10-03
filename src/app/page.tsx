@@ -1,77 +1,58 @@
-import { getCategoriesWithHierarchy, getDefaultUser, getFavoriteHabits, getPeople, getUncategorizedHabits } from './actions/db';
+import { getCategoriesWithHierarchy, getDefaultUser, getLatestLogDates, getPeople, getUncategorizedHabits } from './actions/db';
 import Link from 'next/link';
-import { Check, ChevronRight, Star, Settings2 } from 'lucide-react';
+import { Check } from 'lucide-react';
 import Icon from '../components/Icon';
-import ActivityCalendar from '../components/ActivityCalendar';
 import { SortableHabitList } from './categories/[id]/SortableLists';
 import SmartEntry from './SmartEntry';
-import { UNCATEGORIZED_ID, UNCATEGORIZED_ICON } from '@/lib/constants';
+import { describeCadence } from '@/lib/cadence';
+import { buildDueList, type DueCategory } from '@/lib/dueList';
 import { parseBedtimeOffsetMinutes, toCivilDate } from '@/lib/timezone';
-import { isHabitComplete, parseCadence } from '@/lib/cadence';
 import type { HabitListItem } from '@/lib/types';
 
-type CategoryRowProps = {
-  href: string;
-  name: string;
-  icon: string;
-  dates: Date[];
-  habitCount: number;
-  bedtime: string;
-  weekStartsOn: string;
-  timeZone: string;
-};
-
-function CategoryRow({ href, name, icon, dates, habitCount, bedtime, weekStartsOn, timeZone }: CategoryRowProps) {
+// A category with a cadence that's due: its name and cadence, linking to its page, with its habits
+// below to log from (any of them counts)
+function DueCategoryCard({ category, user, people }: { category: DueCategory } & Pick<Parameters<typeof SortableHabitList>[0], 'user' | 'people'>) {
   return (
-    <Link
-      href={href}
-      className="flex items-stretch transition-colors bg-blue-50/50 hover:bg-blue-50 group/row"
-    >
-      <div className="flex-1 flex items-center py-4 px-4 sm:px-6 gap-3 sm:gap-6 min-w-0">
-        <div className="flex items-center gap-3 flex-1 min-w-0">
-          <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center text-blue-700 transition-colors shrink-0">
-            <Icon name={icon} className="w-5 h-5" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <h3 className="text-lg font-semibold text-stone-800 group-hover/row:text-blue-700 transition-colors truncate">
-              {name}
-            </h3>
-            <p className="text-sm text-stone-500">
-              {habitCount} {habitCount === 1 ? 'habit' : 'habits'}
-            </p>
-          </div>
+    <section className="bg-white rounded-2xl shadow-sm border border-stone-100 overflow-hidden">
+      <Link href={`/categories/${category.id}`} className="flex items-center gap-3 px-4 sm:px-6 py-3 bg-blue-50/50 hover:bg-blue-50 border-b border-stone-100 transition-colors">
+        <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center shrink-0">
+          <Icon name={category.icon || 'Folder'} className="w-4 h-4" />
         </div>
-
-        <div className="shrink-0 flex flex-col justify-center">
-          <div className="opacity-80 group-hover/row:opacity-100 transition-opacity">
-            <ActivityCalendar
-              dates={dates}
-              weeks={3}
-              density={habitCount}
-              bedtime={bedtime}
-              weekStartsOn={weekStartsOn}
-              timeZone={timeZone}
-              color="blue"
-              emptyColor="bg-stone-200/70"
-              futureColor="bg-transparent border border-stone-200"
-            />
-          </div>
+        <div className="min-w-0">
+          <h3 className="font-semibold text-stone-800 truncate">
+            {category.parentName && <span className="text-stone-500 font-medium">{category.parentName} › </span>}
+            {category.name}
+          </h3>
+          <p className="text-xs text-stone-500">{describeCadence(category.cadence)}: any of these counts</p>
         </div>
-        <div className="shrink-0 text-stone-300 group-hover/row:text-blue-600 transition-colors">
-          <ChevronRight className="w-5 h-5" />
-        </div>
-      </div>
-    </Link>
+      </Link>
+      {category.habits.length > 0 ? (
+        <SortableHabitList items={category.habits} user={user} people={people} dndContextId={`due-category-${category.id}`} isNested />
+      ) : (
+        <p className="px-4 sm:px-6 py-3 text-sm text-stone-500">No habits in this category yet.</p>
+      )}
+    </section>
   );
 }
 
-// Favorites whose current period is already done, as small chips under the ones still to do. They
-// have no Log button, which is what keeps a done habit from being logged twice by accident; each
-// links to its habit's page, where it can still be logged. A link styled as a chip, not a button,
-// so it doesn't use LinkButton.
-function CompletedChips({ habits }: { habits: HabitListItem[] }) {
+// What's done for now, as small chips under what's still due. They have no Log button, which is
+// what keeps something done from being logged twice by accident; each links to its page, where it
+// can still be logged. Links styled as chips, not buttons, so they don't use LinkButton.
+function DoneChips({ habits, categories }: { habits: HabitListItem[]; categories: DueCategory[] }) {
   return (
     <ul className="flex flex-wrap gap-2" aria-label="Done">
+      {categories.map(category => (
+        <li key={category.id}>
+          <Link
+            href={`/categories/${category.id}`}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-50 border border-blue-100 text-sm font-medium text-blue-800 hover:bg-blue-100 transition-colors"
+          >
+            <Check className="w-3.5 h-3.5 shrink-0" strokeWidth={3} />
+            <Icon name={category.icon || 'Folder'} className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate max-w-[14rem]">{category.name}</span>
+          </Link>
+        </li>
+      ))}
       {habits.map(habit => (
         <li key={habit.id}>
           <Link
@@ -87,58 +68,39 @@ function CompletedChips({ habits }: { habits: HabitListItem[] }) {
   );
 }
 
-export default async function Dashboard() {
+// Due: every habit and category with a cadence that isn't done for now, to log from, and what's
+// done as chips. Habits and categories without a cadence aren't here; they're on the Habits page.
+export default async function DuePage() {
   const user = await getDefaultUser();
-  const [categories, favorites, uncategorized, people] = await Promise.all([
+  const [categories, uncategorized, latestLogDates, people] = await Promise.all([
     getCategoriesWithHierarchy(),
-    getFavoriteHabits(),
-    getUncategorizedHabits(),
+    getUncategorizedHabits(5),
+    getLatestLogDates(),
     getPeople(),
   ]);
 
-  const categoryRows = categories
-    .map(cat => {
-      const habits = [...cat.habits, ...cat.children.flatMap(c => c.habits)];
-      return {
-        id: cat.id,
-        name: cat.name,
-        icon: cat.icon || 'Folder',
-        habitCount: habits.length,
-        dates: habits.flatMap(h => h.logs.map(l => l.createdAt)),
-      };
-    })
-    .filter(cat => cat.habitCount > 0);
+  const { dueHabits, doneHabits, dueCategories, doneCategories } = buildDueList(categories, uncategorized, latestLogDates, user);
+  const anyDue = dueHabits.length > 0 || dueCategories.length > 0;
+  const anyDone = doneHabits.length > 0 || doneCategories.length > 0;
+  const anyHabits = uncategorized.length > 0 || categories.some(c => c.habits.length > 0 || c.children.some(child => child.habits.length > 0));
 
   // Today in the viewer's time zone, following the same bedtime rule as the calendars
   const today = toCivilDate(new Date(), user.timeZone, parseBedtimeOffsetMinutes(user.bedtime));
 
-  const totalHabits = categoryRows.reduce((acc, c) => acc + c.habitCount, 0) + uncategorized.length;
-
-  // Favorites still to do this period come first, as rows to log from; done ones drop to chips.
-  // Only the viewer's own entries count: on a shared habit, someone else logging it doesn't mean
-  // the viewer has.
-  const isDone = (habit: HabitListItem) =>
-    isHabitComplete(parseCadence(habit.cadence), (habit.logs ?? []).filter(l => l.userId === user.id).map(l => l.createdAt), user);
-  const favoritesToDo = favorites.filter(habit => !isDone(habit));
-  const favoritesDone = favorites.filter(isDone);
-
   return (
     <main className="flex-1 p-4 sm:p-8 bg-stone-50 font-sans">
       <div className="max-w-4xl mx-auto space-y-6 sm:space-y-8">
-
         <div className="flex items-center justify-between">
           <div>
             <p className="text-stone-500 font-semibold text-sm uppercase tracking-wider mb-1">
               {today.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC' })}
             </p>
-            <h1 className="text-3xl sm:text-4xl font-extrabold text-stone-900 tracking-tight">
-              My Habits
-            </h1>
+            <h1 className="text-3xl sm:text-4xl font-extrabold text-stone-900 tracking-tight">Due</h1>
           </div>
           <SmartEntry />
         </div>
 
-        {totalHabits === 0 ? (
+        {!anyHabits ? (
           <div className="py-24 px-8 sm:px-12 text-center flex flex-col items-center justify-center">
             <img src="/hobbit-hole.svg" alt="Hobbit Hole" className="w-80 max-w-full h-auto opacity-10 mb-8" />
             <h2 className="text-2xl font-semibold text-stone-700 mb-2">No habits here yet</h2>
@@ -146,63 +108,20 @@ export default async function Dashboard() {
               Tap the quill above and tell it something you did, or a habit you&apos;d like to start.
             </p>
           </div>
+        ) : !anyDue && !anyDone ? (
+          <p className="text-stone-500 text-center py-16 max-w-md mx-auto">
+            Nothing has a cadence yet. Give a habit or category one on its page (in <Link href="/habits" className="text-emerald-700 underline">Habits</Link>), and it shows up here whenever it&apos;s due.
+          </p>
         ) : (
-          <div className="space-y-10">
-            {favorites.length > 0 && (
-              <section className="space-y-4">
-                <div className="flex items-center gap-2 border-b border-stone-200 pb-2">
-                  <Star className="w-6 h-6 text-stone-500" />
-                  <h2 className="text-2xl font-semibold text-stone-800">Favorites</h2>
-                </div>
-                {favoritesToDo.length > 0 ? (
-                  <SortableHabitList items={favoritesToDo} user={user} people={people} dndContextId="favorites-dnd-context" />
-                ) : (
-                  <p className="text-stone-500">All done for now.</p>
-                )}
-                {favoritesDone.length > 0 && <CompletedChips habits={favoritesDone} />}
-              </section>
+          <div className="space-y-6">
+            {dueHabits.length > 0 && (
+              <SortableHabitList items={dueHabits} user={user} people={people} dndContextId="due-habits" />
             )}
-
-            <section className="space-y-4">
-              <div className="flex items-center justify-between border-b border-stone-200 pb-2">
-                <h2 className="text-2xl font-semibold text-stone-800">Categories</h2>
-                <Link
-                  href="/settings/categories"
-                  className="p-2 -mr-2 text-stone-400 hover:text-emerald-600 hover:bg-stone-100 rounded-full transition-colors"
-                  title="Manage Categories"
-                  aria-label="Manage Categories"
-                >
-                  <Settings2 className="w-5 h-5" />
-                </Link>
-              </div>
-              <div className="bg-white rounded-2xl shadow-sm border border-stone-100 overflow-hidden divide-y divide-stone-100 flex flex-col">
-                {categoryRows.map(cat => (
-                  <CategoryRow
-                    key={cat.id}
-                    href={`/categories/${cat.id}`}
-                    name={cat.name}
-                    icon={cat.icon}
-                    dates={cat.dates}
-                    habitCount={cat.habitCount}
-                    bedtime={user.bedtime}
-                    weekStartsOn={user.weekStartsOn}
-                    timeZone={user.timeZone}
-                  />
-                ))}
-                {uncategorized.length > 0 && (
-                  <CategoryRow
-                    href={`/categories/${UNCATEGORIZED_ID}`}
-                    name="Uncategorized"
-                    icon={UNCATEGORIZED_ICON}
-                    dates={uncategorized.flatMap(h => h.logs.map(l => l.createdAt))}
-                    habitCount={uncategorized.length}
-                    bedtime={user.bedtime}
-                    weekStartsOn={user.weekStartsOn}
-                    timeZone={user.timeZone}
-                  />
-                )}
-              </div>
-            </section>
+            {dueCategories.map(category => (
+              <DueCategoryCard key={category.id} category={category} user={user} people={people} />
+            ))}
+            {!anyDue && <p className="text-stone-500">All done for now.</p>}
+            {anyDone && <DoneChips habits={doneHabits} categories={doneCategories} />}
           </div>
         )}
       </div>

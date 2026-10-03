@@ -15,7 +15,6 @@ import {
   saveHabit,
   setHabitCategory,
   setHabitSharing,
-  toggleFavorite,
   updateHabit,
 } from '@/app/actions/db';
 import { deleteUser } from '@/app/actions/auth';
@@ -89,7 +88,6 @@ describe('habit sharing', () => {
     await expect(getHabit(habitId)).resolves.toBeNull();
     await expect(getHabitLogs(habitId)).rejects.toThrow('Unauthorized');
     await expect(logHabitEvent(habitId, {})).rejects.toThrow('Unauthorized');
-    await expect(toggleFavorite(habitId)).rejects.toThrow('Unauthorized');
     await expect(setHabitCategory(habitId, null)).rejects.toThrow('Unauthorized');
   });
 
@@ -147,14 +145,11 @@ describe('habit sharing', () => {
     await expect(setHabitCategory(habitId, ownerCategory.id)).rejects.toThrow('Unauthorized');
   });
 
-  it('keeps favorites and order per person', async () => {
+  it('keeps order per person', async () => {
     asMember();
-    await toggleFavorite(habitId);
     await reorderHabits([{ id: habitId, order: 3 }]);
-    expect((await getHabit(habitId))?.isFavorite).toBe(true);
 
     asOwner();
-    expect((await getHabit(habitId))?.isFavorite).toBe(false);
     const ownerMembership = await prisma.habitMember.findUnique({
       where: { habitId_userId: { habitId, userId: owner.user.id } },
     });

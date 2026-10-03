@@ -96,6 +96,10 @@ describe('parseCadence', () => {
     expect(parseCadence('{"type":"fortnightly"}')).toEqual(daily);
     expect(parseCadence('{"type":"everyNDays","days":0}')).toEqual(daily);
   });
+
+  it('uses the given fallback instead, e.g. none for a category', () => {
+    expect(parseCadence(undefined, { type: 'none' })).toEqual({ type: 'none' });
+  });
 });
 
 describe('cadenceFromSuggestion', () => {
@@ -105,9 +109,9 @@ describe('cadenceFromSuggestion', () => {
     expect(cadenceFromSuggestion({ type: 'calendarMonth', days: 5 })).toEqual({ type: 'calendarMonth' });
   });
 
-  it('falls back to daily for no suggestion or one that doesn\'t fit', () => {
-    expect(cadenceFromSuggestion(undefined)).toEqual({ type: 'daily', timesPerDay: 1 });
-    expect(cadenceFromSuggestion({ type: 'everyNDays', days: 1 })).toEqual({ type: 'daily', timesPerDay: 1 });
+  it('means no cadence for no suggestion or one that doesn\'t fit', () => {
+    expect(cadenceFromSuggestion(undefined)).toEqual({ type: 'none' });
+    expect(cadenceFromSuggestion({ type: 'everyNDays', days: 1 })).toEqual({ type: 'none' });
   });
 });
 

@@ -22,7 +22,7 @@ export default function NotFound() {
             className="inline-flex items-center gap-2 px-6 py-3 bg-stone-900 text-white rounded-xl font-medium hover:bg-stone-800 transition-colors"
           >
             <ArrowLeft className="w-5 h-5" />
-            Back to Dashboard
+            Back to Due
           </Link>
         </div>
       </div>

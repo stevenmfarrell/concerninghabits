@@ -7,6 +7,9 @@ import PageHeader from '@/components/PageHeader';
 import { LinkButton } from '@/components/ui/Button';
 import { ChevronRight, } from 'lucide-react';
 import CategoryMenu from './CategoryMenu';
+import CategoryCadence from './CategoryCadence';
+import { NO_CADENCE, parseCadence } from '@/lib/cadence';
+import { UNCATEGORIZED_ID } from '@/lib/constants';
 import { SortableCategoryItemList } from './SortableLists';
 
 export default async function CategoryLogPage(props: { params: Promise<{ id: string }>, searchParams: Promise<{ reorder?: string }> }) {
@@ -28,6 +31,7 @@ export default async function CategoryLogPage(props: { params: Promise<{ id: str
   const habitCount = category.habits.length + (category.children ? category.children.reduce((acc, c) => acc + c.habits.length, 0) : 0);
 
   const isTopLevel = category.parentId === null;
+  const cadence = parseCadence(category.cadence, NO_CADENCE);
 
   // Direct habits and subcategories share one order sequence. On ties, habits come first.
   const items = [
@@ -57,6 +61,12 @@ export default async function CategoryLogPage(props: { params: Promise<{ id: str
 
       <div className="p-4 sm:p-8 max-w-4xl mx-auto w-full space-y-6 sm:space-y-8">
         
+        {category.id !== UNCATEGORIZED_ID && (
+          <div className="flex justify-center">
+            <CategoryCadence categoryId={category.id} cadence={cadence} />
+          </div>
+        )}
+
         {/* Component Lists Front and Center */}
         {items.length > 0 && (
           <SortableCategoryItemList items={items} user={user} people={people} isReordering={isReordering} />
@@ -78,7 +88,7 @@ export default async function CategoryLogPage(props: { params: Promise<{ id: str
               dates={dates} 
               size="md"
               weeks={5} 
-              density={habitCount}
+              {...(cadence.type === 'none' ? { density: habitCount } : { cadence })}
               bedtime={user.bedtime} 
               weekStartsOn={user.weekStartsOn}
               timeZone={user.timeZone}

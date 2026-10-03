@@ -1,4 +1,5 @@
 import { getCategory, getDefaultUser } from '../../../actions/db';
+import { describeCadence, NO_CADENCE, parseCadence } from '@/lib/cadence';
 import { notFound } from 'next/navigation';
 import ActivityCalendar from '../../../../components/ActivityCalendar';
 import PageHeader from '@/components/PageHeader';
@@ -34,6 +35,9 @@ export default async function CategoryOverview(props: { params: Promise<{ id: st
   const dates = allLogs.map(l => l.createdAt);
   const habitCount = category.habits.length + (category.children ? category.children.reduce((acc, c) => acc + c.habits.length, 0) : 0);
   const targetCount = Math.max(habitCount, 1);
+  // Shaded by the category's cadence when it has one, otherwise by how many of its habits were logged
+  const cadence = parseCadence(category.cadence, NO_CADENCE);
+  const calendarShading = cadence.type === 'none' ? { density: targetCount } : { cadence };
 
   return (
     <main className="flex-1 bg-stone-50 font-sans flex flex-col h-full">
@@ -58,14 +62,16 @@ export default async function CategoryOverview(props: { params: Promise<{ id: st
           <h2 className="text-lg font-semibold text-stone-800 mb-4">Activity Heatmap</h2>
           <div className="flex flex-col w-full overflow-x-auto pb-4">
             <div className={`hidden sm:flex w-full ${weeks === 5 ? 'justify-center' : 'justify-center sm:justify-start'}`}>
-              <ActivityCalendar dates={dates} weeks={weeks} density={targetCount} size="md" monthsPerColumn={desktopMonthsPerColumn} bedtime={user.bedtime} weekStartsOn={user.weekStartsOn} timeZone={user.timeZone} color="blue" />
+              <ActivityCalendar dates={dates} weeks={weeks} {...calendarShading} size="md" monthsPerColumn={desktopMonthsPerColumn} bedtime={user.bedtime} weekStartsOn={user.weekStartsOn} timeZone={user.timeZone} color="blue" />
             </div>
             <div className={`flex sm:hidden w-full ${weeks === 5 ? 'justify-center' : 'justify-start'}`}>
-              <ActivityCalendar dates={dates} weeks={weeks} density={targetCount} size="md" monthsPerColumn={mobileMonthsPerColumn} bedtime={user.bedtime} weekStartsOn={user.weekStartsOn} timeZone={user.timeZone} color="blue" />
+              <ActivityCalendar dates={dates} weeks={weeks} {...calendarShading} size="md" monthsPerColumn={mobileMonthsPerColumn} bedtime={user.bedtime} weekStartsOn={user.weekStartsOn} timeZone={user.timeZone} color="blue" />
             </div>
           </div>
           <p className="text-center text-sm text-stone-500 mt-2">
-            Target density: {targetCount} {targetCount === 1 ? 'habit' : 'habits'} per day
+            {cadence.type === 'none'
+              ? `Target density: ${targetCount} ${targetCount === 1 ? 'habit' : 'habits'} per day`
+              : `${describeCadence(cadence)}: any of its habits counts`}
           </p>
         </div>
 

@@ -23,6 +23,7 @@ export type Cadence = z.infer<typeof cadenceSchema>;
 export type CadenceType = Cadence['type'];
 
 export const DEFAULT_CADENCE: Cadence = { type: 'daily', timesPerDay: 1 };
+export const NO_CADENCE: Cadence = { type: 'none' };
 
 // Every cadence type, e.g. for the AI to choose from. Checked against the union below, so a new
 // cadence can't be left out.
@@ -110,26 +111,28 @@ export const describeCadence = (cadence: Cadence) => ruleFor(cadence).describe(c
 export const cadenceCovers = (cadence: Cadence, day: Date, context: CadenceContext) => ruleFor(cadence).covers(cadence, day, context);
 export const entriesNeeded = (cadence: Cadence) => ruleFor(cadence).needed(cadence);
 
-// A habit's cadence from its stored JSON, or the default if it's missing or not one we know
-export function parseCadence(raw: string | null | undefined): Cadence {
+// A cadence from its stored JSON, or `fallback` if it's missing or not one we know (once a day for
+// a habit; categories pass NO_CADENCE, since a category has none unless the user sets one)
+export function parseCadence(raw: string | null | undefined, fallback: Cadence = DEFAULT_CADENCE): Cadence {
   try {
     const parsed = cadenceSchema.safeParse(JSON.parse(raw ?? ''));
     if (parsed.success) return parsed.data;
   } catch {
-    // Not JSON: fall through to the default
+    // Not JSON: fall through to the fallback
   }
-  return DEFAULT_CADENCE;
+  return fallback;
 }
 
 // A cadence from a loosely shaped suggestion (e.g. the AI's, which picks a type and may leave out
-// or misjudge the numbers), with defaults filled in for anything missing or out of range
+// or misjudge the numbers), with defaults filled in for missing numbers. No suggestion, or one that
+// doesn't fit, means no cadence: a habit only recurs when that's clearly what the user wants.
 export function cadenceFromSuggestion(suggestion: { type?: string; timesPerDay?: number; days?: number } | undefined): Cadence {
   const candidate =
     suggestion?.type === 'daily' ? { type: 'daily', timesPerDay: suggestion.timesPerDay ?? 1 }
     : suggestion?.type === 'everyNDays' ? { type: 'everyNDays', days: suggestion.days ?? 2 }
     : { type: suggestion?.type };
   const parsed = cadenceSchema.safeParse(candidate);
-  return parsed.success ? parsed.data : DEFAULT_CADENCE;
+  return parsed.success ? parsed.data : NO_CADENCE;
 }
 
 // Whether a habit is done for now: enough entries count toward today by its cadence (logged today

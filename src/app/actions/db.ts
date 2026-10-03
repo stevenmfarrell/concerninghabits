@@ -11,7 +11,7 @@ import { verifySession } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { MAX_AI_CONTEXT_LENGTH, MAX_CSV_IMPORT_ROWS, MAX_HISTORY_WEEKS, UNCATEGORIZED_ID, UNCATEGORIZED_ICON } from '@/lib/constants';
 import { userPreferencesSchema } from '@/lib/preferences';
-import { cadenceSchema, DEFAULT_CADENCE, type Cadence } from '@/lib/cadence';
+import { cadenceSchema, DEFAULT_CADENCE, NO_CADENCE, type Cadence } from '@/lib/cadence';
 import { TIMEZONE_COOKIE, civilDayKey, isValidTimeZone, parseBedtimeOffsetMinutes, parseCivilDayKey, toCivilDate } from '@/lib/timezone';
 import { encodeCsv, parseCsv } from '@/lib/csv';
 import { assignUserColors } from '@/lib/userColors';
@@ -63,6 +63,13 @@ async function getRequestTimeZone() {
   return isValidTimeZone(timeZone) ? timeZone : Intl.DateTimeFormat().resolvedOptions().timeZone;
 }
 
+// The Due page and the Habits page both list habits with their recent entries, so anything that
+// changes a habit, a category, or an entry refreshes both
+function revalidateLists() {
+  revalidatePath('/');
+  revalidatePath('/habits');
+}
+
 async function getOwnedCategory(userId: string, categoryId: string) {
   const category = await prisma.category.findUnique({ where: { id: categoryId } });
   if (!category || category.userId !== userId) throw new Error("Unauthorized");
@@ -82,7 +89,7 @@ async function assertValidParent(userId: string, parentId: string, categoryId?: 
   }
 }
 
-// A user's habits in one list (a category, favorites, uncategorized), in that user's saved order,
+// A user's habits in one list (a category, uncategorized), in that user's saved order,
 // each with the recent log times its mini calendar shows. Logs are everyone's, not just the
 // viewer's: a shared habit's history is the whole household's.
 const habitListRows = (logsCutoff: Date) => ({
@@ -99,10 +106,10 @@ const habitListRows = (logsCutoff: Date) => ({
 
 type HabitListMembership = Prisma.HabitMemberGetPayload<ReturnType<typeof habitListRows>>;
 
-// Flatten a membership onto its habit, so list rows read the viewer's own order and favorite flag
-// the same way whether the habit is theirs or shared with them.
-function toHabitListItem({ habit, order, isFavorite, categoryId, aiContext }: HabitListMembership) {
-  return { ...habit, order, isFavorite, categoryId, aiContext, memberCount: habit._count.members };
+// Flatten a membership onto its habit, so list rows read the viewer's own order and category the
+// same way whether the habit is theirs or shared with them.
+function toHabitListItem({ habit, order, categoryId, aiContext }: HabitListMembership) {
+  return { ...habit, order, categoryId, aiContext, memberCount: habit._count.members };
 }
 
 function withHabits<C extends { habitMembers: HabitListMembership[] }>({ habitMembers, ...category }: C) {
@@ -140,6 +147,7 @@ export async function getCategory(id: string, weeks: number = MAX_HISTORY_WEEKS)
       id: UNCATEGORIZED_ID,
       name: 'Uncategorized',
       icon: UNCATEGORIZED_ICON,
+      cadence: JSON.stringify(NO_CADENCE),
       parentId: null,
       parent: null,
       children: [] as never[],
@@ -178,7 +186,7 @@ export async function createCategory(name: string, icon?: string, parentId?: str
   const category = await prisma.category.create({
     data: { name, icon, userId: user.id, parentId: parentId || null }
   });
-  revalidatePath('/');
+  revalidateLists();
   return category;
 }
 
@@ -192,8 +200,22 @@ export async function updateCategory(id: string, name: string, icon: string, par
     where: { id },
     data: { name, icon, parentId: parentId || null }
   });
-  revalidatePath('/');
+  revalidateLists();
   return category;
+}
+
+// How often the user means to do something in one of their categories (any habit in it or its
+// subcategories counts)
+export async function setCategoryCadence(id: string, cadence: Cadence) {
+  const user = await getDefaultUser();
+  await getOwnedCategory(user.id, id);
+  await prisma.category.update({
+    where: { id },
+    // Checked here as well as typed, since it comes from the browser
+    data: { cadence: JSON.stringify(cadenceSchema.parse(cadence)) },
+  });
+  revalidateLists();
+  revalidatePath(`/categories/${id}`);
 }
 
 export async function deleteCategory(id: string) {
@@ -210,7 +232,7 @@ export async function deleteCategory(id: string) {
   await prisma.category.delete({
     where: { id }
   });
-  revalidatePath('/');
+  revalidateLists();
 }
 
 export async function saveHabit(name: string, description: string, schema: HabitSchema, categoryId?: string, cadence: Cadence = DEFAULT_CADENCE, publishToMqtt: boolean = false, aiContext?: string) {
@@ -232,7 +254,7 @@ export async function saveHabit(name: string, description: string, schema: Habit
       }
     });
 
-    revalidatePath('/');
+    revalidateLists();
     return habit;
   } catch (error) {
     throw new Error("Prisma Create Error: " + (error instanceof Error ? error.message : String(error)));
@@ -255,13 +277,16 @@ function getRecentLogsCutoff(weeks: number) {
   return cutoff;
 }
 
-export async function getFavoriteHabits() {
+// When each of the user's habits was last logged, by anyone. List rows only carry the last few
+// weeks of entries, but an every-N-days habit can still be done by an entry older than that.
+export async function getLatestLogDates(): Promise<Record<string, Date>> {
   const user = await getDefaultUser();
-  const memberships = await prisma.habitMember.findMany({
-    where: { userId: user.id, isFavorite: true },
-    ...habitListRows(getRecentLogsCutoff(5)),
+  const latest = await prisma.habitLog.groupBy({
+    by: ['habitId'],
+    where: { habit: { members: { some: { userId: user.id } } } },
+    _max: { createdAt: true },
   });
-  return memberships.map(toHabitListItem);
+  return Object.fromEntries(latest.flatMap(l => (l._max.createdAt ? [[l.habitId, l._max.createdAt]] : [])));
 }
 
 // Every habit the user can log into (their own and ones shared with them), for matching something
@@ -287,19 +312,6 @@ export async function getUncategorizedHabits(weeks: number = MAX_HISTORY_WEEKS) 
   return memberships.map(toHabitListItem);
 }
 
-export async function toggleFavorite(habitId: string) {
-  const user = await getDefaultUser();
-  const membership = await getMembership(user.id, habitId);
-
-  const updated = await prisma.habitMember.update({
-    where: { habitId_userId: { habitId, userId: user.id } },
-    data: { isFavorite: !membership.isFavorite }
-  });
-  revalidatePath('/');
-  revalidatePath(`/log/${habitId}`);
-  return updated.isFavorite;
-}
-
 // A habit the current user can see (their own or one shared with them), with their own placement
 // of it and who has it. Null if they have no access.
 export async function getHabit(id: string) {
@@ -309,11 +321,10 @@ export async function getHabit(id: string) {
     include: { habit: { include: { members: { select: { userId: true }, orderBy: { createdAt: 'asc' } } } } }
   });
   if (!membership) return null;
-  const { habit: { members, ...habit }, categoryId, isFavorite, aiContext } = membership;
+  const { habit: { members, ...habit }, categoryId, aiContext } = membership;
   return {
     ...habit,
     categoryId,
-    isFavorite,
     aiContext,
     isOwner: habit.userId === user.id,
     memberIds: members.map(m => m.userId),
@@ -357,7 +368,7 @@ export async function logHabitEvent(habitId: string, payload: Record<string, unk
   }
   
   revalidatePath(`/log/${habitId}`);
-  revalidatePath('/');
+  revalidateLists();
   revalidatePath('/history');
   return log;
 }
@@ -376,7 +387,7 @@ export async function deleteHabitLog(logId: string, habitId: string) {
     where: { id: logId }
   });
   revalidatePath(`/log/${habitId}`);
-  revalidatePath('/');
+  revalidateLists();
   revalidatePath('/history');
 }
 
@@ -568,7 +579,7 @@ export async function importHabitLogsCsv(habitId: string, csvText: string) {
   }
 
   revalidatePath(`/log/${habitId}`);
-  revalidatePath('/');
+  revalidateLists();
 
   return { imported: toCreate.length, skipped: dataRows.length - toCreate.length, errors };
 }
@@ -598,7 +609,7 @@ export async function updateHabit(id: string, name: string, description: string,
       data: { aiContext: normalizedAiContext },
     });
 
-    revalidatePath('/');
+    revalidateLists();
     revalidatePath(`/log/${id}`);
     return habit;
   } catch (error) {
@@ -615,7 +626,7 @@ export async function updateUserPreferences(prefs: { bedtime?: string, weekStart
     data
   });
   revalidatePath('/settings');
-  revalidatePath('/');
+  revalidateLists();
 }
 
 // Deletes the habit for everyone it's shared with, including every member's entries (owner only)
@@ -627,7 +638,7 @@ export async function deleteHabit(habitId: string) {
     prisma.habitLog.deleteMany({ where: { habitId } }),
     prisma.habit.delete({ where: { id: habitId } })
   ]);
-  revalidatePath('/');
+  revalidateLists();
 }
 
 // Files a habit into one of the user's categories (or Uncategorized when null), moving it to the
@@ -651,7 +662,7 @@ export async function setHabitCadence(habitId: string, cadence: Cadence) {
     // Checked here as well as typed, since it comes from the browser
     data: { cadence: JSON.stringify(cadenceSchema.parse(cadence)) },
   });
-  revalidatePath('/');
+  revalidateLists();
   revalidatePath(`/log/${habitId}`);
 }
 
@@ -660,7 +671,7 @@ export async function setHabitCategory(habitId: string, categoryId: string | nul
   const user = await getDefaultUser();
   if (categoryId) await getOwnedCategory(user.id, categoryId);
   await fileHabit(user.id, habitId, categoryId);
-  revalidatePath('/');
+  revalidateLists();
   revalidatePath(`/log/${habitId}`);
 }
 
@@ -715,7 +726,7 @@ export async function setHabitSharing(habitId: string, userIds: string[]) {
     }),
   ]);
 
-  revalidatePath('/');
+  revalidateLists();
   revalidatePath(`/log/${habitId}`);
 }
 
@@ -725,7 +736,7 @@ export async function leaveHabit(habitId: string) {
   const { habit } = await getMembership(user.id, habitId);
   if (habit.userId === user.id) throw new Error("You own this habit. Delete it instead.");
   await prisma.habitMember.delete({ where: { habitId_userId: { habitId, userId: user.id } } });
-  revalidatePath('/');
+  revalidateLists();
 }
 
 export async function isMqttConfigured() {
@@ -745,7 +756,7 @@ export async function reorderCategories(updates: { id: string, order: number }[]
     )
   );
   
-  revalidatePath('/');
+  revalidateLists();
 }
 
 export async function reorderHabits(updates: { id: string; order: number }[]) {
@@ -771,5 +782,5 @@ export async function reorderHabits(updates: { id: string; order: number }[]) {
     )
   );
   
-  revalidatePath('/');
+  revalidateLists();
 }

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { prisma } from '@/lib/prisma';
 import { setSessionCookie } from '../setup';
-import { saveHabit, setHabitCadence, updateHabit } from '@/app/actions/db';
+import { createCategory, saveHabit, setCategoryCadence, setHabitCadence, updateHabit } from '@/app/actions/db';
 import type { Cadence } from '@/lib/cadence';
 
 const testSchema = { type: 'object' as const, properties: {} };
@@ -57,5 +57,22 @@ describe('habit cadence', () => {
 
     setSessionCookie(owner.sessionId);
     await expect(setHabitCadence(habit.id, { type: 'everyNDays', days: 1 } as Cadence)).rejects.toThrow();
+  });
+
+  it('lets a user give their own category a cadence, starting from none', async () => {
+    const category = await createCategory('Cardio');
+    expect(JSON.parse(category.cadence)).toEqual({ type: 'none' });
+
+    await setCategoryCadence(category.id, { type: 'daily', timesPerDay: 1 });
+    const stored = await prisma.category.findUniqueOrThrow({ where: { id: category.id } });
+    expect(JSON.parse(stored.cadence)).toEqual({ type: 'daily', timesPerDay: 1 });
+  });
+
+  it('doesn\'t let anyone else set a category\'s cadence, or set an invalid one', async () => {
+    const category = await createCategory('Cardio');
+    await expect(setCategoryCadence(category.id, { type: 'everyNDays', days: 1 } as Cadence)).rejects.toThrow();
+
+    setSessionCookie((await createTestUser('Other')).sessionId);
+    await expect(setCategoryCadence(category.id, { type: 'calendarWeek' })).rejects.toThrow('Unauthorized');
   });
 });

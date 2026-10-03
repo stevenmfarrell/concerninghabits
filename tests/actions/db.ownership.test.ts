@@ -10,7 +10,6 @@ import {
   reorderCategories,
   reorderHabits,
   saveHabit,
-  toggleFavorite,
   updateCategory,
   updateHabit,
   updateUserPreferences,
@@ -86,14 +85,6 @@ describe('server actions only let a user touch their own data', () => {
 
     asBob();
     await expect(getHabit(habit.id)).resolves.toBeNull();
-  });
-
-  it('rejects favoriting another user\'s habit', async () => {
-    asAlice();
-    const habit = await saveHabit('Alice Favorite Habit', '', testSchema);
-
-    asBob();
-    await expect(toggleFavorite(habit.id)).rejects.toThrow('Unauthorized');
   });
 
   it('rejects logging an event against another user\'s habit', async () => {

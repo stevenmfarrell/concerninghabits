@@ -1,8 +1,8 @@
 // An undone entry waiting to be put back in its habit's entry sheet, to correct and log again.
 // Undo can't reach the sheet that logged the entry directly: logging can move the habit elsewhere
-// on the page (a done favorite drops to a chip), which unmounts that Log button and its sheet. So
-// undo leaves the values here, and whichever Log button is showing that habit when they arrive, or
-// next appears for it, takes them and reopens its sheet (see useHabitLogger).
+// on the page (a done habit on the Due page drops to a chip), which unmounts that Log button and
+// its sheet. So undo leaves the values here, and whichever Log button is showing that habit when
+// they arrive, or next appears for it, takes them and reopens its sheet (see useHabitLogger).
 
 type PendingReopen = { habitId: string; data: Record<string, unknown>; createdAt: number };
 

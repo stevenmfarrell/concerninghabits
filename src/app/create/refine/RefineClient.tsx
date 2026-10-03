@@ -7,13 +7,13 @@ import { useRouter } from 'next/navigation';
 import { Mic } from 'lucide-react';
 import BackLink from '@/components/BackLink';
 import type { HabitSchema } from '@/lib/types';
-import { DEFAULT_CADENCE, type Cadence } from '@/lib/cadence';
+import { NO_CADENCE, type Cadence } from '@/lib/cadence';
 import { setPendingSmartEntry } from '@/lib/pendingSmartEntry';
 import RefineLoading from './RefineLoading';
 
 interface HabitDraft {
   schema: HabitSchema;
-  // Suggested by the AI; missing when building a habit by hand
+  // Suggested by the AI; missing when building a habit by hand, which starts with no cadence
   cadence?: Cadence;
   categoryId?: string;
   // What the user said or typed on the dashboard, when the draft came from there (see SmartEntry),
@@ -95,7 +95,7 @@ export default function RefineClient() {
           initialTitle={draft.schema?.title || ''}
           initialDescription={draft.schema?.description || ''}
           initialSchema={draft.schema}
-          initialCadence={draft.cadence ?? DEFAULT_CADENCE}
+          initialCadence={draft.cadence ?? NO_CADENCE}
           initialCategoryId={draft.categoryId || ''}
           isCreateMode={true}
           onSave={handleSave}

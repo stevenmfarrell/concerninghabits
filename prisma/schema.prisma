@@ -68,6 +68,7 @@ model HabitMember {
   categoryId String?
   category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   order      Int       @default(0)
+  // No longer used (the Due page replaced favorites); kept until a later migration drops it
   isFavorite Boolean   @default(false)
   // The user's own notes on how they do this habit (e.g. "my bike commute is 4 miles, 30 minutes"),
   // given to the AI when matching and filling in their entries
@@ -88,6 +89,9 @@ model Category {
   habitMembers HabitMember[]
   parentId     String?
   order        Int           @default(0)
+  // How often the user means to do something in this category (any of its habits, its
+  // subcategories' included), as JSON (see src/lib/cadence.ts). No cadence unless they set one.
+  cadence      String        @default("{\"type\":\"none\"}")
   parent       Category?     @relation("Subcategories", fields: [parentId], references: [id])
   children     Category[]    @relation("Subcategories")
   createdAt    DateTime      @default(now())
