@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { prisma } from '@/lib/prisma';
 import { setSessionCookie } from '../setup';
-import { saveHabit, updateHabit } from '@/app/actions/db';
+import { saveHabit, setHabitCadence, updateHabit } from '@/app/actions/db';
 import type { Cadence } from '@/lib/cadence';
 
 const testSchema = { type: 'object' as const, properties: {} };
@@ -17,8 +17,11 @@ async function createTestUser(name: string) {
 }
 
 describe('habit cadence', () => {
+  let owner: Awaited<ReturnType<typeof createTestUser>>;
+
   beforeEach(async () => {
-    setSessionCookie((await createTestUser('Owner')).sessionId);
+    owner = await createTestUser('Owner');
+    setSessionCookie(owner.sessionId);
   });
 
   it('stores the cadence a habit is saved and updated with', async () => {
@@ -37,5 +40,22 @@ describe('habit cadence', () => {
   it('rejects a cadence that isn\'t valid, since it comes from the browser', async () => {
     await expect(saveHabit('Bad', '', testSchema, undefined, { type: 'everyNDays', days: 0 } as Cadence)).rejects.toThrow();
     await expect(saveHabit('Bad', '', testSchema, undefined, { type: 'fortnightly' } as unknown as Cadence)).rejects.toThrow();
+  });
+
+  it('lets the owner change just the cadence', async () => {
+    const habit = await saveHabit('Water plants', '', testSchema);
+    await setHabitCadence(habit.id, { type: 'everyNDays', days: 4 });
+    const stored = await prisma.habit.findUniqueOrThrow({ where: { id: habit.id } });
+    expect(JSON.parse(stored.cadence)).toEqual({ type: 'everyNDays', days: 4 });
+    expect(stored.name).toBe('Water plants');
+  });
+
+  it('doesn\'t let anyone else change the cadence', async () => {
+    const habit = await saveHabit('Water plants', '', testSchema);
+    setSessionCookie((await createTestUser('Other')).sessionId);
+    await expect(setHabitCadence(habit.id, { type: 'none' })).rejects.toThrow('Unauthorized');
+
+    setSessionCookie(owner.sessionId);
+    await expect(setHabitCadence(habit.id, { type: 'everyNDays', days: 1 } as Cadence)).rejects.toThrow();
   });
 });

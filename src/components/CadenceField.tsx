@@ -8,9 +8,9 @@ import { CADENCE_TYPES, type Cadence, type CadenceType } from '@/lib/cadence';
 // Keyed by every cadence type, so a new one doesn't build until it's given a place here.
 const CADENCE_OPTIONS: { [T in CadenceType]: { label: string; initial: () => Extract<Cadence, { type: T }> } } = {
   daily: { label: 'Daily', initial: () => ({ type: 'daily', timesPerDay: 1 }) },
-  everyNDays: { label: 'Every few days', initial: () => ({ type: 'everyNDays', days: 2 }) },
-  calendarWeek: { label: 'Once a week', initial: () => ({ type: 'calendarWeek' }) },
-  calendarMonth: { label: 'Once a month', initial: () => ({ type: 'calendarMonth' }) },
+  everyNDays: { label: 'Every N days', initial: () => ({ type: 'everyNDays', days: 2 }) },
+  calendarWeek: { label: 'Once per calendar week', initial: () => ({ type: 'calendarWeek' }) },
+  calendarMonth: { label: 'Once per calendar month', initial: () => ({ type: 'calendarMonth' }) },
   none: { label: 'No set cadence', initial: () => ({ type: 'none' }) },
 };
 

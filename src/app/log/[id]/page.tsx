@@ -1,4 +1,4 @@
-import { getHabit, getHabitLogs, getHabitLogPresence, deleteHabitLog, getDefaultUser, getPeople } from '../../actions/db';
+import { getCategories, getHabit, getHabitLogs, getHabitLogPresence, deleteHabitLog, getDefaultUser, getPeople } from '../../actions/db';
 import PersonLabel from '@/components/PersonLabel';
 import HorizonToggle from '@/components/HorizonToggle';
 import { isSharedHabit } from '@/lib/userColors';
@@ -22,7 +22,7 @@ export default async function HabitPage(props: { params: Promise<{ id: string }>
   const searchParams = await props.searchParams;
   const { id } = params;
 
-  const [user, habit, logs, presence, allPeople] = await Promise.all([
+  const [user, habit, logs, presence, allPeople, categories] = await Promise.all([
     getDefaultUser(),
     getHabit(id),
     // These reject if the viewer can't see the habit, in which case getHabit returns null and the
@@ -30,6 +30,7 @@ export default async function HabitPage(props: { params: Promise<{ id: string }>
     getHabitLogs(id).catch(() => null),
     getHabitLogPresence(id).catch(() => null),
     getPeople(),
+    getCategories(),
   ]);
 
   if (!habit || !logs || !presence) {
@@ -105,7 +106,7 @@ export default async function HabitPage(props: { params: Promise<{ id: string }>
 
   return (
     <main className="flex-1 bg-stone-50 font-sans flex flex-col h-full">
-      <LogClient habit={habit} user={user} people={allPeople}>
+      <LogClient habit={habit} user={user} people={allPeople} categories={categories}>
         {!presence.hasLogs ? (
           <div className="py-24 px-8 sm:px-12 text-center flex flex-col items-center justify-center">
             <img src="/hobbit-hole.svg" alt="Hobbit Hole" className="w-80 max-w-full h-auto opacity-10 mb-8" />

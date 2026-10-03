@@ -12,13 +12,14 @@ import { IconButton } from '@/components/ui/IconButton';
 import toast from 'react-hot-toast';
 import { parseHabitSchema, type HabitFormProperties } from '@/components/widgets/habitForm';
 import { takePendingSmartEntry } from '@/lib/pendingSmartEntry';
-import type { HabitDetail, SessionUser } from '@/lib/types';
+import type { CategoryOption, HabitDetail, SessionUser } from '@/lib/types';
 import type { Person } from '@/lib/userColors';
 import PersonLabel from '@/components/PersonLabel';
 import LogButtonIcon from '@/components/logging/LogButtonIcon';
 import LogEntrySheet from '@/components/logging/LogEntrySheet';
 import { useHabitLogger } from '@/components/logging/useHabitLogger';
 import ShareDialog from './ShareDialog';
+import HabitDetails from './HabitDetails';
 import { useCsvImport } from './useCsvImport';
 
 // Values for the habit's form from the address bar (e.g. a shortcut or automation), as their
@@ -38,7 +39,7 @@ function prefillFrom(searchParams: URLSearchParams, properties: HabitFormPropert
 // The top of a habit's page: its header and menu, and the Log Habit button, which logs a habit with
 // no form on the tap or opens the entry sheet for one with a form (see useHabitLogger). The habit's
 // history comes in as `children`, below the button.
-export default function LogClient({ habit, user, people, children }: { habit: HabitDetail, user: SessionUser, people: Record<string, Person>, children: ReactNode }) {
+export default function LogClient({ habit, user, people, categories, children }: { habit: HabitDetail, user: SessionUser, people: Record<string, Person>, categories: CategoryOption[], children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -250,6 +251,8 @@ export default function LogClient({ habit, user, people, children }: { habit: Ha
 
       <div className="p-4 sm:p-8 max-w-4xl mx-auto w-full space-y-6 sm:space-y-8">
         {habit.description && <p className="text-stone-600 text-center">{habit.description}</p>}
+
+        <HabitDetails habit={habit} categories={categories} />
 
         {habit.isOwner && sharedWith.length > 0 && (
           <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5 -mt-2 text-xs text-stone-500">

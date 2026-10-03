@@ -78,7 +78,7 @@ const RULES: { [T in CadenceType]: CadenceRule<Extract<Cadence, { type: T }>> } 
     needed: () => 1,
   },
   calendarWeek: {
-    describe: () => 'Once a week',
+    describe: () => 'Once per calendar week',
     covers: (_, day, context) => {
       const from = startOfWeek(day, context.weekStartsOn);
       return { from, to: addDays(from, 6) };
@@ -86,7 +86,7 @@ const RULES: { [T in CadenceType]: CadenceRule<Extract<Cadence, { type: T }>> } 
     needed: () => 1,
   },
   calendarMonth: {
-    describe: () => 'Once a month',
+    describe: () => 'Once per calendar month',
     covers: (_, day) => ({
       from: new Date(Date.UTC(day.getUTCFullYear(), day.getUTCMonth(), 1)),
       to: new Date(Date.UTC(day.getUTCFullYear(), day.getUTCMonth() + 1, 0)),

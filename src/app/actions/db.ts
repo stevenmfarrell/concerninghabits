@@ -641,6 +641,20 @@ async function fileHabit(userId: string, habitId: string, categoryId: string | n
   });
 }
 
+// Changes how often the habit is meant to be done. Owner only: unlike where it's filed, the cadence
+// is part of the habit itself, the same for everyone it's shared with.
+export async function setHabitCadence(habitId: string, cadence: Cadence) {
+  const user = await getDefaultUser();
+  await getOwnedHabit(user.id, habitId);
+  await prisma.habit.update({
+    where: { id: habitId },
+    // Checked here as well as typed, since it comes from the browser
+    data: { cadence: JSON.stringify(cadenceSchema.parse(cadence)) },
+  });
+  revalidatePath('/');
+  revalidatePath(`/log/${habitId}`);
+}
+
 // Lets any member, not just the owner, file a habit into their own category tree
 export async function setHabitCategory(habitId: string, categoryId: string | null) {
   const user = await getDefaultUser();
