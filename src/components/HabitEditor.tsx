@@ -3,8 +3,6 @@
 import { useState, useEffect } from 'react';
 import { generateHabitSchema } from '../app/actions/habit';
 import { getCategories, createCategory, isMqttConfigured } from '../app/actions/db';
-import Form from '@rjsf/core';
-import validator from '@rjsf/validator-ajv8';
 import { Loader2, Save, Wand2, SquarePen, Trash2, Mic, Camera } from 'lucide-react';
 import CategorySelect from './CategorySelect';
 import { orderCategoryTree } from '@/lib/categoryChoices';
@@ -13,7 +11,7 @@ import AiContextField from './AiContextField';
 import SpeakOrType, { type SpeakOrTypeStatus } from './SpeakOrType';
 import toast from 'react-hot-toast';
 import ConfirmDialog from './ConfirmDialog';
-import { HABIT_FORM_WIDGETS, habitFormUiSchema, type HabitFormProperties } from './widgets/habitForm';
+import HabitFormOverview from './HabitFormOverview';
 import { Button } from './ui/Button';
 import type { Cadence } from '@/lib/cadence';
 import { CadencePicker, CadenceSettings } from './CadenceField';
@@ -184,30 +182,12 @@ export default function HabitEditor({
                 </button>
               )}
             </div>
-            <div className="mb-8">
-              {(() => {
-                const uiSchema = habitFormUiSchema(schema?.properties as HabitFormProperties | undefined);
-                return (
-                  <Form
-                    schema={{ ...schema, title: '' }}
-                    uiSchema={uiSchema}
-                    widgets={HABIT_FORM_WIDGETS}
-                    validator={validator}
-                    onSubmit={() => toast.success('Form valid! (Test mode - nothing was saved)')}
-                    className="rjsf rjsf-preview"
-                  >
-                    <Button type="submit" variant="secondary" size="lg" className="mt-4 w-full">
-                      Test Submit
-                    </Button>
-                  </Form>
-                );
-              })()}
-            </div>
+            <HabitFormOverview schema={schema} title={title} />
           </div>
 
           <div className="space-y-4">
             <p className="text-sm font-medium text-stone-500 uppercase tracking-wider">Tweak Form with AI</p>
-            <p className="text-sm text-stone-500">Describe a change and AI will update the form above.</p>
+            <p className="text-sm text-stone-500">Describe a change and AI will update the fields above.</p>
             <SpeakOrType
               icon={<Wand2 className="w-4 h-4" />}
               label="Apply AI Tweak"

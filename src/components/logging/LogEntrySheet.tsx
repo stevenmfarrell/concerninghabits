@@ -3,9 +3,9 @@
 import { useState } from 'react';
 import Form from '@rjsf/core';
 import validator from '@rjsf/validator-ajv8';
-import { Camera, History, Loader2, Mic, X } from 'lucide-react';
+import { Camera, History, Loader2, Mic } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-import { IconButton } from '@/components/ui/IconButton';
+import BottomSheet from '@/components/BottomSheet';
 import QuillIconWavy from '@/components/QuillIconWavy';
 import { HABIT_FORM_WIDGETS, habitFormUiSchema } from '@/components/widgets/habitForm';
 import type { HabitLogger } from './useHabitLogger';
@@ -57,100 +57,89 @@ export default function LogEntrySheet({ logger }: { logger: HabitLogger }) {
   );
 
   return (
-    // Above the bottom nav (z-50), which would otherwise cover the bottom of the sheet on phones
-    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-stone-900/40 backdrop-blur-sm animate-in fade-in duration-200" onClick={logger.closeSheet}>
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={`Log ${habit.name}`}
-        className="bg-white rounded-t-2xl shadow-xl w-full max-w-xl max-h-[90vh] overflow-y-auto animate-in slide-in-from-bottom duration-300"
-        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
-        onClick={e => e.stopPropagation()}
-      >
-        <div className="p-6 space-y-6">
-          <div className="flex items-center gap-3">
-            <h2 className="flex-1 min-w-0 text-xl font-bold text-stone-900 truncate">{habit.name}</h2>
-            {showPhoto && (
-              <>
-                <input type="file" accept="image/*" capture="environment" ref={fileInputRef} className="hidden" onChange={handleImageUpload} />
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={aiLoading}
-                  className="w-12 h-12 flex items-center justify-center rounded-xl border-2 transition-all shadow-sm bg-blue-50 border-blue-100 text-blue-700 hover:bg-blue-100 hover:border-blue-200 disabled:opacity-70 shrink-0"
-                  title="Photo Log"
-                >
-                  {imageProcessing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Camera className="w-5 h-5" strokeWidth={2.5} />}
-                </button>
-              </>
-            )}
-            {showVoice && (
+    <BottomSheet
+      title={habit.name}
+      ariaLabel={`Log ${habit.name}`}
+      onClose={logger.closeSheet}
+      headerActions={
+        <>
+          {showPhoto && (
+            <>
+              <input type="file" accept="image/*" capture="environment" ref={fileInputRef} className="hidden" onChange={handleImageUpload} />
               <button
                 type="button"
-                onClick={toggleListen}
+                onClick={() => fileInputRef.current?.click()}
                 disabled={aiLoading}
-                className={`w-12 h-12 flex items-center justify-center rounded-xl border-2 transition-all shadow-sm shrink-0 ${
-                  isListening
-                    ? 'bg-red-50 border-red-200 text-red-600 animate-pulse'
-                    : 'bg-emerald-50 border-emerald-100 text-emerald-700 hover:bg-emerald-100 hover:border-emerald-200'
-                } disabled:opacity-70`}
-                title="Voice Log"
+                className="w-12 h-12 flex items-center justify-center rounded-xl border-2 transition-all shadow-sm bg-blue-50 border-blue-100 text-blue-700 hover:bg-blue-100 hover:border-blue-200 disabled:opacity-70 shrink-0"
+                title="Photo Log"
               >
-                {voiceProcessing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Mic className="w-5 h-5" strokeWidth={2.5} />}
+                {imageProcessing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Camera className="w-5 h-5" strokeWidth={2.5} />}
               </button>
-            )}
-            <IconButton onClick={logger.closeSheet} edge="right" title="Close">
-              <X className="w-6 h-6" />
-            </IconButton>
-          </div>
-
-          {showBackdate && (
-            <div className="p-4 bg-stone-50 border border-stone-200 rounded-xl">
-              <div className="flex justify-between items-center mb-2">
-                <label htmlFor="log-date" className="block text-sm font-medium text-stone-700">Custom Date & Time</label>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowBackdate(false);
-                    setLogDate('');
-                  }}
-                  className="text-xs text-stone-500 hover:text-stone-700 font-medium"
-                >
-                  Cancel
-                </button>
-              </div>
-              <input
-                id="log-date"
-                type="datetime-local"
-                className="w-full px-4 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-stone-700 text-sm"
-                value={logDate}
-                onChange={e => setLogDate(e.target.value)}
-                disabled={busy}
-              />
-            </div>
+            </>
           )}
-
-          {hasForm ? (
-            <div className="rjsf-custom">
-              <Form
-                schema={{ ...schema, title: '' }}
-                uiSchema={habitFormUiSchema(properties)}
-                widgets={HABIT_FORM_WIDGETS}
-                validator={validator}
-                formData={formData}
-                onChange={e => setFormData(e.formData)}
-                onSubmit={submit}
-                disabled={busy}
-                noHtml5Validate
-                showErrorList={false}
-                className="rjsf space-y-6"
-              >
-                {submitButton}
-              </Form>
-            </div>
-          ) : submitButton}
+          {showVoice && (
+            <button
+              type="button"
+              onClick={toggleListen}
+              disabled={aiLoading}
+              className={`w-12 h-12 flex items-center justify-center rounded-xl border-2 transition-all shadow-sm shrink-0 ${
+                isListening
+                  ? 'bg-red-50 border-red-200 text-red-600 animate-pulse'
+                  : 'bg-emerald-50 border-emerald-100 text-emerald-700 hover:bg-emerald-100 hover:border-emerald-200'
+              } disabled:opacity-70`}
+              title="Voice Log"
+            >
+              {voiceProcessing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Mic className="w-5 h-5" strokeWidth={2.5} />}
+            </button>
+          )}
+        </>
+      }
+    >
+      {showBackdate && (
+        <div className="p-4 bg-stone-50 border border-stone-200 rounded-xl">
+          <div className="flex justify-between items-center mb-2">
+            <label htmlFor="log-date" className="block text-sm font-medium text-stone-700">Custom Date & Time</label>
+            <button
+              type="button"
+              onClick={() => {
+                setShowBackdate(false);
+                setLogDate('');
+              }}
+              className="text-xs text-stone-500 hover:text-stone-700 font-medium"
+            >
+              Cancel
+            </button>
+          </div>
+          <input
+            id="log-date"
+            type="datetime-local"
+            className="w-full px-4 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-stone-700 text-sm"
+            value={logDate}
+            onChange={e => setLogDate(e.target.value)}
+            disabled={busy}
+          />
         </div>
-      </div>
-    </div>
+      )}
+
+      {hasForm ? (
+        <div className="rjsf-custom">
+          <Form
+            schema={{ ...schema, title: '' }}
+            uiSchema={habitFormUiSchema(properties)}
+            widgets={HABIT_FORM_WIDGETS}
+            validator={validator}
+            formData={formData}
+            onChange={e => setFormData(e.formData)}
+            onSubmit={submit}
+            disabled={busy}
+            noHtml5Validate
+            showErrorList={false}
+            className="rjsf space-y-6"
+          >
+            {submitButton}
+          </Form>
+        </div>
+      ) : submitButton}
+    </BottomSheet>
   );
 }
