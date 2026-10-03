@@ -23,15 +23,15 @@ function CategoryRow({ href, name, icon, dates, habitCount, bedtime, weekStartsO
   return (
     <Link
       href={href}
-      className="flex items-stretch transition-colors hover:bg-stone-50 group/row"
+      className="flex items-stretch transition-colors bg-blue-50/50 hover:bg-blue-50 group/row"
     >
       <div className="flex-1 flex items-center py-4 px-4 sm:px-6 gap-3 sm:gap-6 min-w-0">
         <div className="flex items-center gap-3 flex-1 min-w-0">
-          <div className="w-10 h-10 rounded-full bg-stone-100 flex items-center justify-center text-stone-600 group-hover/row:bg-emerald-100 group-hover/row:text-emerald-600 transition-colors shrink-0">
+          <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center text-blue-700 transition-colors shrink-0">
             <Icon name={icon} className="w-5 h-5" />
           </div>
           <div className="flex-1 min-w-0">
-            <h3 className="text-lg font-semibold text-stone-800 group-hover/row:text-emerald-600 transition-colors truncate">
+            <h3 className="text-lg font-semibold text-stone-800 group-hover/row:text-blue-700 transition-colors truncate">
               {name}
             </h3>
             <p className="text-sm text-stone-500">
@@ -50,10 +50,13 @@ function CategoryRow({ href, name, icon, dates, habitCount, bedtime, weekStartsO
               bedtime={bedtime}
               weekStartsOn={weekStartsOn}
               timeZone={timeZone}
+              color="blue"
+              emptyColor="bg-stone-200/70"
+              futureColor="bg-transparent border border-stone-200"
             />
           </div>
         </div>
-        <div className="shrink-0 text-stone-300 group-hover/row:text-emerald-600 transition-colors">
+        <div className="shrink-0 text-stone-300 group-hover/row:text-blue-600 transition-colors">
           <ChevronRight className="w-5 h-5" />
         </div>
       </div>

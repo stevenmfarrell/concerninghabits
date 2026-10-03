@@ -2,6 +2,7 @@
 
 import { civilDayKey, parseBedtimeOffsetMinutes, toCivilDate } from '@/lib/timezone';
 import { DEFAULT_TARGET_COUNT } from '@/lib/constants';
+import { ACTIVITY_PALETTES, activityShade, type ActivityColor } from '@/lib/activityShade';
 import type { Person } from '@/lib/userColors';
 
 // `frequency` is stored as a plain string (see Habit.frequency in schema.prisma), so these can't
@@ -33,6 +34,8 @@ interface ActivityCalendarProps {
   // `loggedBy[i]` is the id of the user who logged `dates[i]`; `people` has each user's color.
   loggedBy?: string[];
   people?: Record<string, Person>;
+  // Fill color for logged days: emerald for a habit, blue for a category's combined calendar
+  color?: ActivityColor;
 }
 
 // A cell's fill for the people who logged that day: their color, or equal diagonal bands of each
@@ -45,7 +48,7 @@ function personFill(ids: string[], people: Record<string, Person>) {
 }
 
 // All dates below are civil dates (UTC midnight for a day in `timeZone`), so only UTC methods are used.
-export default function ActivityCalendar({ dates, timeZone, weeks = 5, frequency = FREQUENCY.DAILY, size = 'sm', monthsPerColumn = 4, bedtime = '00:00', weekStartsOn = 'sunday', targetCount = DEFAULT_TARGET_COUNT, emptyColor = 'bg-stone-100', futureColor = 'bg-transparent border border-stone-100', onDateClick, loggedBy, people }: ActivityCalendarProps) {
+export default function ActivityCalendar({ dates, timeZone, weeks = 5, frequency = FREQUENCY.DAILY, size = 'sm', monthsPerColumn = 4, bedtime = '00:00', weekStartsOn = 'sunday', targetCount = DEFAULT_TARGET_COUNT, emptyColor = 'bg-stone-100', futureColor = 'bg-transparent border border-stone-100', onDateClick, loggedBy, people, color = 'emerald' }: ActivityCalendarProps) {
   const bedtimeOffsetMinutes = parseBedtimeOffsetMinutes(bedtime);
   const startsMonday = weekStartsOn === 'monday';
   const colorByPerson = !!(loggedBy && people);
@@ -204,16 +207,10 @@ export default function ActivityCalendar({ dates, timeZone, weeks = 5, frequency
   const getBackgroundColor = (count: number, isFuture: boolean, isPeriodCompleted: boolean) => {
     if (isFuture) return futureColor;
     if (count > 0) {
-      if (frequency === FREQUENCY.MULTIPLE) {
-        const ratio = count / targetCount;
-        return ratio >= 1 ? 'bg-emerald-600' :
-               ratio >= 0.66 ? 'bg-emerald-500' :
-               ratio >= 0.33 ? 'bg-emerald-400' :
-               'bg-emerald-300';
-      }
-      return 'bg-emerald-500';
+      if (frequency === FREQUENCY.MULTIPLE) return activityShade(count, targetCount, color);
+      return ACTIVITY_PALETTES[color].done;
     }
-    if (isPeriodCompleted) return 'bg-emerald-200';
+    if (isPeriodCompleted) return ACTIVITY_PALETTES[color].periodDone;
     return emptyColor;
   };
 

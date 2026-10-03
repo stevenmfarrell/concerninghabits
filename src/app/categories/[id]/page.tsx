@@ -70,7 +70,7 @@ export default async function CategoryLogPage(props: { params: Promise<{ id: str
         >
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-stone-800">Recent History</h2>
-            <div className="flex items-center text-sm font-medium text-stone-400 group-hover:text-emerald-600 transition-colors">
+            <div className="flex items-center text-sm font-medium text-stone-400 group-hover:text-blue-600 transition-colors">
               View All <ChevronRight className="w-4 h-4 ml-1" />
             </div>
           </div>
@@ -84,6 +84,7 @@ export default async function CategoryLogPage(props: { params: Promise<{ id: str
               bedtime={user.bedtime} 
               weekStartsOn={user.weekStartsOn}
               timeZone={user.timeZone}
+              color="blue"
             />
           </div>
         </Link>

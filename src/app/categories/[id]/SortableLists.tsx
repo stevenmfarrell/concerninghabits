@@ -8,7 +8,6 @@ import { CSS } from '@dnd-kit/utilities';
 import { GripVertical, ChevronRight } from 'lucide-react';
 import Icon from '../../../components/Icon';
 import ActivityCalendar from '../../../components/ActivityCalendar';
-import QuillIconWavy from '../../../components/QuillIconWavy';
 import { reorderCategories } from '../../actions/db';
 import { reorderHabits } from '../../actions/db';
 import { DEFAULT_TARGET_COUNT } from '@/lib/constants';
@@ -37,13 +36,11 @@ const SortableSubcategoryItem = ({ sub, user, people, isOverlay, isReordering, c
   };
 
   const subHabits = sub.habits ?? [];
-  const subLogs = subHabits.flatMap(h => h.logs?.map(l => l.createdAt) || []);
-  const subTargetCount = subHabits.length > 0 ? subHabits.length : 1;
 
   const content = (
     <div className={`flex flex-col relative w-full ${isOverlay ? 'shadow-2xl scale-[1.02] z-50 rounded-2xl' : ''}`}>
       {/* Header */}
-      <div className={`py-4 px-4 sm:px-6 flex justify-between items-center group/header transition-colors ${isOpen && subHabits.length > 0 ? 'border-b border-stone-100' : ''} bg-stone-50/80 hover:bg-stone-100/80`}>
+      <div className={`py-4 px-4 sm:px-6 flex justify-between items-center group/header transition-colors ${isOpen && subHabits.length > 0 ? 'border-b border-stone-100' : ''} bg-blue-50/50 hover:bg-blue-50`}>
         <div className="flex items-center gap-2 sm:gap-4 w-full">
           {isReordering && (
             <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing text-stone-300 hover:text-stone-500 touch-none shrink-0 p-1 -ml-2">
@@ -53,7 +50,7 @@ const SortableSubcategoryItem = ({ sub, user, people, isOverlay, isReordering, c
 
           <button onClick={() => setIsOpen(!isOpen)} className="flex-1 flex flex-wrap sm:flex-nowrap items-center justify-between min-w-0 text-left gap-3 sm:gap-6">
             <div className="flex items-center gap-3 min-w-0 flex-1">
-              <div className="w-8 h-8 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600 shrink-0">
+              <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-blue-700 shrink-0">
                 <Icon name={sub.icon || 'Folder'} className="w-4 h-4" />
               </div>
               <div className="min-w-0 flex flex-col">
@@ -62,7 +59,7 @@ const SortableSubcategoryItem = ({ sub, user, people, isOverlay, isReordering, c
                   <Link
                     href={`/categories/${sub.id}`}
                     onClick={(e) => e.stopPropagation()}
-                    className="p-1.5 text-stone-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors shrink-0"
+                    className="p-1.5 text-stone-400 hover:text-blue-600 hover:bg-blue-100 rounded-lg transition-colors shrink-0"
                     title="Open Subcategory Page"
                   >
                     <ExternalLink className="w-3.5 h-3.5" />
@@ -73,21 +70,6 @@ const SortableSubcategoryItem = ({ sub, user, people, isOverlay, isReordering, c
             </div>
 
             <div className="flex items-center gap-3 sm:gap-6 shrink-0">
-              {subHabits.length > 0 && (
-                <div className="shrink-0 flex flex-col justify-center pointer-events-none">
-                  <ActivityCalendar 
-                    dates={subLogs} 
-                    weeks={3} 
-                    frequency="multiple" 
-                    targetCount={subTargetCount} 
-                    bedtime={user.bedtime} 
-                    weekStartsOn={user.weekStartsOn}
-                    timeZone={user.timeZone}
-                    emptyColor="bg-stone-200"
-                    futureColor="bg-transparent border border-stone-200"
-                  />
-                </div>
-              )}
               <div className="shrink-0 text-stone-300 hover:text-stone-600 transition-colors w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center">
                 {isOpen ? <ChevronDown className="w-5 h-5 sm:w-6 sm:h-6" /> : <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />}
               </div>
@@ -204,9 +186,6 @@ const SortableHabitItem = ({ habit, user, people, isOverlay, isReordering, class
                 timeZone={user.timeZone}
               />
             </div>
-          </div>
-          <div className="shrink-0 text-stone-300 group-hover/row:text-emerald-600 transition-colors pointer-events-none">
-            <QuillIconWavy className="w-6 h-6 sm:w-7 sm:h-7" strokeWidth={2.5} />
           </div>
         </Link>
       </div>
