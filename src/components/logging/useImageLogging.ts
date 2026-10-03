@@ -2,7 +2,7 @@
 
 import { useRef, useState } from 'react';
 import toast from 'react-hot-toast';
-import { parseImageLog } from '../../actions/habit';
+import { parseImageLog } from '@/app/actions/habit';
 
 // `source` describes where the data came from, for the logged-entry toast
 type OnExtracted = (data: Record<string, unknown>, loadingToastId: string, source: string) => void | Promise<void>;

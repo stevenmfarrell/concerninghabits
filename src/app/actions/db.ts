@@ -100,8 +100,8 @@ type HabitListMembership = Prisma.HabitMemberGetPayload<ReturnType<typeof habitL
 
 // Flatten a membership onto its habit, so list rows read the viewer's own order and favorite flag
 // the same way whether the habit is theirs or shared with them.
-function toHabitListItem({ habit, order, isFavorite, categoryId }: HabitListMembership) {
-  return { ...habit, order, isFavorite, categoryId, memberCount: habit._count.members };
+function toHabitListItem({ habit, order, isFavorite, categoryId, aiContext }: HabitListMembership) {
+  return { ...habit, order, isFavorite, categoryId, aiContext, memberCount: habit._count.members };
 }
 
 function withHabits<C extends { habitMembers: HabitListMembership[] }>({ habitMembers, ...category }: C) {
@@ -128,7 +128,7 @@ export async function getCategoriesWithHierarchy() {
 }
 
 // `weeks` bounds how far back logs are fetched for the activity heatmap; pass the widest horizon
-// a caller might display (the history page's horizon toggle tops out at MAX_HISTORY_WEEKS).
+// a caller might display (the habit page's horizon toggle tops out at MAX_HISTORY_WEEKS).
 export async function getCategory(id: string, weeks: number = MAX_HISTORY_WEEKS) {
   const user = await getDefaultUser();
 
@@ -355,7 +355,6 @@ export async function logHabitEvent(habitId: string, payload: Record<string, unk
   }
   
   revalidatePath(`/log/${habitId}`);
-  revalidatePath(`/history/${habitId}`);
   revalidatePath('/');
   revalidatePath('/today');
   return log;
@@ -374,7 +373,7 @@ export async function deleteHabitLog(logId: string, habitId: string) {
   await prisma.habitLog.delete({
     where: { id: logId }
   });
-  revalidatePath(`/history/${habitId}`);
+  revalidatePath(`/log/${habitId}`);
   revalidatePath('/');
   revalidatePath('/today');
 }
@@ -423,7 +422,7 @@ export async function getHabitLogs(habitId: string, weeks: number = MAX_HISTORY_
   return logs.map(log => ({ ...log, canDelete: canDeleteLog(user.id, log, habit) }));
 }
 
-// What the history page needs to know about a habit's logs beyond getHabitLogs' window: whether it
+// What the habit page's history needs to know about a habit's logs beyond getHabitLogs' window: whether it
 // has any at all, and whether anyone besides the owner has ever logged it (see isSharedHabit).
 export async function getHabitLogPresence(habitId: string) {
   const user = await getDefaultUser();
@@ -567,7 +566,6 @@ export async function importHabitLogsCsv(habitId: string, csvText: string) {
   }
 
   revalidatePath(`/log/${habitId}`);
-  revalidatePath(`/history/${habitId}`);
   revalidatePath('/');
 
   return { imported: toCreate.length, skipped: dataRows.length - toCreate.length, errors };
@@ -599,7 +597,6 @@ export async function updateHabit(id: string, name: string, description: string,
 
     revalidatePath('/');
     revalidatePath(`/log/${id}`);
-    revalidatePath(`/history/${id}`);
     return habit;
   } catch (error) {
     throw new Error("Prisma Update Error: " + (error instanceof Error ? error.message : String(error)));
@@ -703,7 +700,6 @@ export async function setHabitSharing(habitId: string, userIds: string[]) {
 
   revalidatePath('/');
   revalidatePath(`/log/${habitId}`);
-  revalidatePath(`/history/${habitId}`);
 }
 
 // Removes a habit someone shared with you from your own lists. The entries you logged stay on it.

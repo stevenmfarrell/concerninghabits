@@ -25,26 +25,17 @@ const AUTOMATIC_DURATION_MS = 10000;
 // Most fields listed in the toast; the rest are summarized as "+N more"
 const MAX_LISTED_FIELDS = 4;
 
-// The log page URL with the entry's values as prefill params (see LogClient), so undoing an entry
-// reopens the form with what was submitted, ready to correct and log again
-function prefillUrl({ habitId, data }: LoggedEntry) {
-  const params = new URLSearchParams();
-  for (const [key, val] of Object.entries(data)) {
-    if (typeof val === 'string' || typeof val === 'number' || typeof val === 'boolean') params.set(key, String(val));
-  }
-  return params.size ? `/log/${habitId}?${params}` : `/log/${habitId}`;
-}
-
-// Confirms a just-logged entry, with what was logged and an Undo. Doesn't block the page, so the
-// user can carry on (callers navigate to the habit's history, where the new entry shows). Replaces
-// `toastId` when given, e.g. the "AI is processing..." toast that led to this entry.
-export function showLoggedToast(entry: LoggedEntry, navigate: (href: string) => void, toastId?: string) {
+// Confirms a just-logged entry, with what was logged and an Undo. Doesn't block or move the page:
+// logging happens in place, so the user stays where they logged from. Undo deletes the entry and
+// calls `onUndone`, e.g. for a form to take the entry's values back, ready to correct and log again.
+// Replaces `toastId` when given, e.g. the "AI is processing..." toast that led to this entry.
+export function showLoggedToast(entry: LoggedEntry, { onUndone, toastId }: { onUndone?: () => void; toastId?: string } = {}) {
   const undo = async (t: Toast) => {
     toast.dismiss(t.id);
     try {
       await deleteHabitLog(entry.logId, entry.habitId);
-      navigate(prefillUrl(entry));
-      toast.success('Entry undone. Edit it and log again.');
+      onUndone?.();
+      toast.success(onUndone ? 'Entry undone. Edit it and log again.' : 'Entry undone.');
     } catch (err) {
       toast.error(`Failed to undo: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }

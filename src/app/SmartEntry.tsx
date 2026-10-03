@@ -8,14 +8,24 @@ import toast from 'react-hot-toast';
 import { Button } from '@/components/ui/Button';
 import QuillIconWavy from '@/components/QuillIconWavy';
 import SpeakOrType, { type SpeakOrTypeStatus } from '@/components/SpeakOrType';
-import { generateHabitSchema, interpretSmartEntry, type HabitCandidate } from './actions/habit';
-import { setPendingSmartEntry } from '@/lib/pendingSmartEntry';
+import { generateHabitSchema, interpretSmartEntry, logSmartEntry, type HabitCandidate } from './actions/habit';
+import { showLoggedToast } from '@/components/LoggedToast';
+import type { HabitFormProperties } from '@/components/widgets/habitForm';
+
+// The habit's log page with `data` as prefill params (see LogClient), to finish an entry there
+function prefillHref(habitId: string, data: Record<string, unknown>) {
+  const params = new URLSearchParams();
+  for (const [key, val] of Object.entries(data)) {
+    if (typeof val === 'string' || typeof val === 'number' || typeof val === 'boolean') params.set(key, String(val));
+  }
+  return params.size ? `/log/${habitId}?${params}` : `/log/${habitId}`;
+}
 
 // The dashboard's main button: say or type what you did, or a habit you want to start. Jev picks
 // which habit it's about (or a new one) and whether it reports something done. Something done on an
-// existing habit goes to that habit's log page, which fills in and submits the entry; a new habit is
-// drafted by Gemini for the user to review, with the input as its first entry when it was something
-// done. When Jev isn't sure which habit, the user picks from its top candidates instead.
+// existing habit is filled in and logged right here (or finished on the habit's page if it needs
+// more than was said); a new habit is drafted by Gemini for the user to review, with the input as
+// its first entry when it was something done. When Jev isn't sure which habit, the user picks from its top candidates instead.
 export default function SmartEntry() {
   const router = useRouter();
   // While the input is being matched or a new habit drafted: what's happening, and the input
@@ -28,13 +38,35 @@ export default function SmartEntry() {
   const proceed = async (candidate: HabitCandidate, input: string, didIt: boolean) => {
     setPicker(null);
 
-    if (candidate.habitId) {
-      if (didIt) {
-        setPendingSmartEntry(candidate.habitId, input);
+    if (candidate.habitId && didIt) {
+      // Logged right here, like everywhere else in the app. Only an entry that needs more than was
+      // said goes to the habit's page, with what could be filled in, to finish it there.
+      setStatus({ message: `Logging ${candidate.name}...`, input });
+      const result = await logSmartEntry(candidate.habitId, input);
+      if (!result.success) {
+        closePanel();
+        toast.error(result.error);
+      } else if (result.logged) {
+        closePanel();
+        showLoggedToast({
+          habitId: candidate.habitId,
+          habitName: candidate.name,
+          logId: result.logId,
+          data: result.data,
+          schemaProperties: result.schema.properties as HabitFormProperties | undefined,
+          source: `From “${input}”`,
+        });
       } else {
-        // e.g. "I want to run more" when they already track running: show the habit, log nothing
-        toast(`You already track ${candidate.name}`, { icon: '👍' });
+        toast(`Add the rest of the details for ${candidate.name}`, { icon: '✏️' });
+        setStatus({ message: `Opening ${candidate.name}...`, input });
+        router.push(prefillHref(candidate.habitId, result.data));
       }
+      return;
+    }
+
+    if (candidate.habitId) {
+      // e.g. "I want to run more" when they already track running: show the habit, log nothing
+      toast(`You already track ${candidate.name}`, { icon: '👍' });
       setStatus({ message: `Opening ${candidate.name}...`, input });
       router.push(`/log/${candidate.habitId}`);
       return;

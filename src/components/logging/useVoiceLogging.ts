@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import toast from 'react-hot-toast';
-import { parseVoiceLog } from '../../actions/habit';
+import { parseVoiceLog } from '@/app/actions/habit';
 import { useSpeechRecognition } from '@/lib/useSpeechRecognition';
 
 // `source` describes where the data came from, for the logged-entry toast

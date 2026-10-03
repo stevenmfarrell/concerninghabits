@@ -44,7 +44,7 @@ export default function InteractiveCalendar(props: {
       params.delete('t');
     }
     
-    router.replace(`/history/${props.habitId}?${params.toString()}`, { scroll: false });
+    router.replace(`/log/${props.habitId}?${params.toString()}`, { scroll: false });
     
     // Smoothly glide down to the target log (or the table if no log)
     setTimeout(() => {

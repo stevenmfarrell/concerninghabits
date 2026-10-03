@@ -5,7 +5,7 @@ import PageHeader from '@/components/PageHeader';
 import { IconLinkButton } from '@/components/ui/IconButton';
 import QuillIconWavy from '../../../../components/QuillIconWavy';
 import { cookies } from 'next/headers';
-import HorizonToggle from '../../../history/[id]/HorizonToggle';
+import HorizonToggle from '@/components/HorizonToggle';
 
 export default async function CategoryOverview(props: { params: Promise<{ id: string }>, searchParams: Promise<{ horizon?: string }> }) {
   const params = await props.params;

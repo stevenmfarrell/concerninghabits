@@ -8,7 +8,7 @@ const google = createGoogleGenerativeAI({
 });
 import { choice, noul, TypeSafeClient, type ChoiceCriteria } from '@typesafe-ai/sdk';
 import { z } from 'zod';
-import { getDefaultUser, getCategories, getLoggableHabits } from './db';
+import { getDefaultUser, getCategories, getHabit, getLoggableHabits, logHabitEvent } from './db';
 import { buildCategoryChoices } from '@/lib/categoryChoices';
 import type { HabitSchema } from '@/lib/types';
 
@@ -243,5 +243,43 @@ export async function interpretSmartEntry(input: string): Promise<
   } catch (error) {
     console.error("Error interpreting smart entry:", error);
     return { success: false, error: "Failed to match that to a habit." };
+  }
+}
+
+// Logs something the user said or typed on the dashboard (see SmartEntry) to the habit it was
+// matched to, filling in the habit's form from it the same way as voice logging, so it can be
+// logged without leaving the dashboard. When the form can't be completed from what was said, nothing
+// is logged and what could be filled in is returned (`logged: false`) for the user to finish on the
+// habit's page.
+export async function logSmartEntry(habitId: string, input: string): Promise<
+  | { success: true; logged: true; logId: string; data: Record<string, unknown>; schema: HabitSchema }
+  | { success: true; logged: false; data: Record<string, unknown> }
+  | { success: false; error: string }
+> {
+  const habit = await getHabit(habitId);
+  if (!habit) return { success: false, error: 'Habit not found.' };
+
+  let schema: HabitSchema = {};
+  try {
+    schema = JSON.parse(habit.schema);
+  } catch {}
+
+  let data: Record<string, unknown> = {};
+  if (Object.keys(schema.properties ?? {}).length > 0) {
+    const parsed = await parseVoiceLog(habit.schema, input, habit.aiContext);
+    if (!parsed.success || !parsed.data) return { success: false, error: parsed.error || 'AI could not understand' };
+    // Only the habit's own fields, as logging keeps
+    data = Object.fromEntries(Object.entries(parsed.data).filter(([key]) => key in schema.properties!));
+  }
+
+  const isComplete = (schema.required ?? []).every(field => data[field] !== undefined && data[field] !== null && data[field] !== '');
+  if (!isComplete) return { success: true, logged: false, data };
+
+  try {
+    const log = await logHabitEvent(habitId, data);
+    return { success: true, logged: true, logId: log.id, data, schema };
+  } catch {
+    // e.g. a value the AI filled in that the form doesn't accept: let the user fix it on the form
+    return { success: true, logged: false, data };
   }
 }

@@ -14,6 +14,7 @@ import { DEFAULT_TARGET_COUNT } from '@/lib/constants';
 import type { HabitListItem, SessionUser, SubcategoryListItem } from '@/lib/types';
 import { isSharedHabit, type Person } from '@/lib/userColors';
 import { useReorderableList } from './useReorderableList';
+import LogHabitButton from '@/components/logging/LogHabitButton';
 
 import { ChevronDown, ExternalLink, Users } from 'lucide-react';
 
@@ -188,6 +189,8 @@ const SortableHabitItem = ({ habit, user, people, isOverlay, isReordering, class
             </div>
           </div>
         </Link>
+        {/* Logs in place, the same as the Log Habit button on the habit's page */}
+        {!isReordering && !isOverlay && <LogHabitButton habit={habit} />}
       </div>
     </div>
   );

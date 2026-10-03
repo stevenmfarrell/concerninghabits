@@ -1,6 +1,6 @@
 import { ArrowLeft } from 'lucide-react';
 import type { ReactNode } from 'react';
-import BackButton from '@/app/history/[id]/BackButton';
+import BackButton from '@/components/BackButton';
 import { IconLinkButton } from '@/components/ui/IconButton';
 
 interface PageHeaderProps {

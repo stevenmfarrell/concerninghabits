@@ -1,6 +1,5 @@
-// Hands something the user said or typed on the dashboard (see SmartEntry), once it's been matched
-// to a habit, to that habit's log page, which fills in and submits the entry. Also used when saving
-// a habit drafted from it, to log it as the first entry.
+// Hands something the user said or typed on the dashboard (see SmartEntry) that a new habit was
+// drafted from to the saved habit's log page, which fills in and submits it as the first entry.
 
 const KEY = 'pendingSmartEntry';
 // Long enough for the navigation to the log page (including a cold dev compile); short enough that

@@ -129,7 +129,7 @@ export default function HabitChart({
     params.set('highlight', clickedLogId);
     params.set('t', Date.now().toString());
     
-    router.replace(`/history/${habitId}?${params.toString()}`, { scroll: false });
+    router.replace(`/log/${habitId}?${params.toString()}`, { scroll: false });
     
     setTimeout(() => {
       const targetElement = document.getElementById(`log-${clickedLogId}`);
