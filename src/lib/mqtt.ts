@@ -67,7 +67,8 @@ export function publishHabitLog(user: { id: string; name: string }, habit: { id:
     timestamp: new Date().toISOString(),
   });
 
-  mqttClient.publish(topic, message, { qos: 0 }, (err) => {
+  // Retained so subscribers that connect later (e.g. Home Assistant after a restart) get the latest log
+  mqttClient.publish(topic, message, { qos: 0, retain: true }, (err) => {
     if (err) {
       console.error('Failed to publish MQTT message:', err);
     }
