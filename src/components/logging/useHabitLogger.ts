@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { logHabitEvent } from '@/app/actions/db';
 import { showLoggedToast } from '@/components/LoggedToast';
 import { parseHabitSchema, type HabitFormProperties } from '@/components/widgets/habitForm';
+import { requestReopen, subscribeReopen, takeReopen } from './pendingReopen';
 
 // What logging needs to know about a habit. `aiContext` is the viewer's own notes on it, for
 // voice and photo logging.
@@ -26,7 +27,8 @@ export interface LogOptions {
 // The one way an entry gets logged from a habit's Log button, on its page or in a list row:
 // a habit with no form is logged on the tap; one with a form opens the entry sheet (see
 // LogEntrySheet) to fill in. Either way it happens in place, confirmed by the logged toast with an
-// Undo. Undoing an entry with a form reopens the sheet with its values, to correct and log again.
+// Undo. Undoing an entry with a form reopens the sheet with its values, to correct and log again
+// (see pendingReopen).
 export function useHabitLogger(habit: LoggableHabit, { initialData = {}, onLogged }: {
   initialData?: Record<string, unknown>;
   onLogged?: () => void;
@@ -41,6 +43,21 @@ export function useHabitLogger(habit: LoggableHabit, { initialData = {}, onLogge
   const [sheetBackdate, setSheetBackdate] = useState(false);
   const [busy, setBusy] = useState(false);
 
+  // An undone entry for this habit, put back in the sheet to correct and log again: one waiting
+  // when this Log button appears (e.g. a favorite restored from the done chips), or arriving while
+  // it's showing
+  useEffect(() => {
+    const reopen = () => {
+      const data = takeReopen(habit.id);
+      if (!data) return;
+      setFormData(data);
+      setSheetBackdate(false);
+      setSheetOpen(true);
+    };
+    reopen();
+    return subscribeReopen(reopen);
+  }, [habit.id]);
+
   const isComplete = (data: Record<string, unknown>) =>
     (schema.required ?? []).every(field => data[field] !== undefined && data[field] !== null && data[field] !== '');
 
@@ -53,10 +70,8 @@ export function useHabitLogger(habit: LoggableHabit, { initialData = {}, onLogge
         { habitId: habit.id, habitName: habit.name, logId: log.id, data, schemaProperties: properties, source },
         {
           toastId,
-          onUndone: hasForm ? () => {
-            setFormData(data);
-            openSheet();
-          } : undefined,
+          // Through pendingReopen rather than this hook's own state: logging may have unmounted it
+          onUndone: hasForm ? () => requestReopen(habit.id, data) : undefined,
         },
       );
       setFormData({});

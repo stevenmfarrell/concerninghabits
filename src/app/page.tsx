@@ -1,12 +1,14 @@
 import { getCategoriesWithHierarchy, getDefaultUser, getFavoriteHabits, getPeople, getUncategorizedHabits } from './actions/db';
 import Link from 'next/link';
-import { ChevronRight, Star, Settings2 } from 'lucide-react';
+import { Check, ChevronRight, Star, Settings2 } from 'lucide-react';
 import Icon from '../components/Icon';
 import ActivityCalendar from '../components/ActivityCalendar';
 import { SortableHabitList } from './categories/[id]/SortableLists';
 import SmartEntry from './SmartEntry';
 import { UNCATEGORIZED_ID, UNCATEGORIZED_ICON } from '@/lib/constants';
 import { parseBedtimeOffsetMinutes, toCivilDate } from '@/lib/timezone';
+import { isHabitComplete } from '@/lib/habitCompletion';
+import type { HabitListItem } from '@/lib/types';
 
 type CategoryRowProps = {
   href: string;
@@ -64,6 +66,28 @@ function CategoryRow({ href, name, icon, dates, habitCount, bedtime, weekStartsO
   );
 }
 
+// Favorites whose current period is already done, as small chips under the ones still to do. They
+// have no Log button, which is what keeps a done habit from being logged twice by accident; each
+// links to its habit's page, where it can still be logged. A link styled as a chip, not a button,
+// so it doesn't use LinkButton.
+function CompletedChips({ habits }: { habits: HabitListItem[] }) {
+  return (
+    <ul className="flex flex-wrap gap-2" aria-label="Done">
+      {habits.map(habit => (
+        <li key={habit.id}>
+          <Link
+            href={`/log/${habit.id}`}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-100 text-sm font-medium text-emerald-800 hover:bg-emerald-100 transition-colors"
+          >
+            <Check className="w-3.5 h-3.5 shrink-0" strokeWidth={3} />
+            <span className="truncate max-w-[14rem]">{habit.name}</span>
+          </Link>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export default async function Dashboard() {
   const user = await getDefaultUser();
   const [categories, favorites, uncategorized, people] = await Promise.all([
@@ -90,6 +114,14 @@ export default async function Dashboard() {
   const today = toCivilDate(new Date(), user.timeZone, parseBedtimeOffsetMinutes(user.bedtime));
 
   const totalHabits = categoryRows.reduce((acc, c) => acc + c.habitCount, 0) + uncategorized.length;
+
+  // Favorites still to do this period come first, as rows to log from; done ones drop to chips.
+  // Only the viewer's own entries count: on a shared habit, someone else logging it doesn't mean
+  // the viewer has.
+  const isDone = (habit: HabitListItem) =>
+    isHabitComplete(habit, (habit.logs ?? []).filter(l => l.userId === user.id).map(l => l.createdAt), user);
+  const favoritesToDo = favorites.filter(habit => !isDone(habit));
+  const favoritesDone = favorites.filter(isDone);
 
   return (
     <main className="flex-1 p-4 sm:p-8 bg-stone-50 font-sans">
@@ -123,7 +155,12 @@ export default async function Dashboard() {
                   <Star className="w-6 h-6 text-stone-500" />
                   <h2 className="text-2xl font-semibold text-stone-800">Favorites</h2>
                 </div>
-                <SortableHabitList items={favorites} user={user} people={people} dndContextId="favorites-dnd-context" />
+                {favoritesToDo.length > 0 ? (
+                  <SortableHabitList items={favoritesToDo} user={user} people={people} dndContextId="favorites-dnd-context" />
+                ) : (
+                  <p className="text-stone-500">All done for now.</p>
+                )}
+                {favoritesDone.length > 0 && <CompletedChips habits={favoritesDone} />}
               </section>
             )}
 

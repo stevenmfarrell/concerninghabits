@@ -2,6 +2,7 @@
 
 import { civilDayKey, parseBedtimeOffsetMinutes, toCivilDate } from '@/lib/timezone';
 import { DEFAULT_TARGET_COUNT } from '@/lib/constants';
+import { startOfWeek } from '@/lib/habitCompletion';
 import { ACTIVITY_PALETTES, activityShade, type ActivityColor } from '@/lib/activityShade';
 import type { Person } from '@/lib/userColors';
 
@@ -55,16 +56,7 @@ export default function ActivityCalendar({ dates, timeZone, weeks = 5, frequency
 
   const today = toCivilDate(new Date(), timeZone, bedtimeOffsetMinutes);
 
-  const getStartOfWeek = (d: Date) => {
-    const dt = new Date(d);
-    const day = dt.getUTCDay();
-    if (startsMonday) {
-      dt.setUTCDate(dt.getUTCDate() - day + (day === 0 ? -6 : 1));
-    } else {
-      dt.setUTCDate(dt.getUTCDate() - day);
-    }
-    return dt;
-  };
+  const getStartOfWeek = (d: Date) => startOfWeek(d, weekStartsOn);
 
   const endDate = getStartOfWeek(today);
   endDate.setUTCDate(endDate.getUTCDate() + 6);
