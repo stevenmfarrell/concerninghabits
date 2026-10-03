@@ -11,7 +11,7 @@ import { verifySession } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { MAX_AI_CONTEXT_LENGTH, MAX_CSV_IMPORT_ROWS, MAX_HISTORY_WEEKS, UNCATEGORIZED_ID, UNCATEGORIZED_ICON } from '@/lib/constants';
 import { userPreferencesSchema } from '@/lib/preferences';
-import { TIMEZONE_COOKIE, isValidTimeZone } from '@/lib/timezone';
+import { TIMEZONE_COOKIE, civilDayKey, isValidTimeZone, parseBedtimeOffsetMinutes, parseCivilDayKey, toCivilDate } from '@/lib/timezone';
 import { encodeCsv, parseCsv } from '@/lib/csv';
 import { assignUserColors } from '@/lib/userColors';
 import { cookies, headers } from 'next/headers';
@@ -357,6 +357,7 @@ export async function logHabitEvent(habitId: string, payload: Record<string, unk
   revalidatePath(`/log/${habitId}`);
   revalidatePath(`/history/${habitId}`);
   revalidatePath('/');
+  revalidatePath('/today');
   return log;
 }
 
@@ -375,6 +376,37 @@ export async function deleteHabitLog(logId: string, habitId: string) {
   });
   revalidatePath(`/history/${habitId}`);
   revalidatePath('/');
+  revalidatePath('/today');
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+// The current user's own entries on one of their days (`dayKey`, a civil date like "2024-03-10" in
+// their time zone, with their bedtime deciding when a day ends), oldest first, for the Log the day
+// view. Only their own: on a shared habit, someone else's entry doesn't check it off for them.
+export async function getDayEntries(dayKey: string) {
+  const user = await getDefaultUser();
+  const day = parseCivilDayKey(dayKey);
+  if (!day) throw new Error('Invalid day');
+
+  // Where a day starts and ends in UTC depends on the time zone and bedtime, so fetch a generous
+  // window around it and keep the logs that fall on it exactly
+  const offset = parseBedtimeOffsetMinutes(user.bedtime);
+  const logs = await prisma.habitLog.findMany({
+    where: { userId: user.id, createdAt: { gte: new Date(day.getTime() - 2 * DAY_MS), lt: new Date(day.getTime() + 3 * DAY_MS) } },
+    orderBy: { createdAt: 'asc' },
+    select: { id: true, habitId: true, payload: true, createdAt: true },
+  });
+
+  return logs
+    .filter(log => civilDayKey(toCivilDate(log.createdAt, user.timeZone, offset)) === dayKey)
+    .map(log => {
+      let payload: Record<string, unknown> = {};
+      try {
+        payload = JSON.parse(log.payload);
+      } catch {}
+      return { ...log, payload };
+    });
 }
 
 // Every entry on a habit the user can see, whoever logged it, newest first. `canDelete` says

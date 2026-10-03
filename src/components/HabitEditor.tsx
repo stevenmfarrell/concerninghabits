@@ -13,13 +13,11 @@ import AiContextField from './AiContextField';
 import SpeakOrType, { type SpeakOrTypeStatus } from './SpeakOrType';
 import toast from 'react-hot-toast';
 import ConfirmDialog from './ConfirmDialog';
-import DurationWidget from './widgets/DurationWidget';
-import UnitWidget from './widgets/UnitWidget';
+import { HABIT_FORM_WIDGETS, habitFormUiSchema, type HabitFormProperties } from './widgets/habitForm';
 import Select from './Select';
 import { Button } from './ui/Button';
 import { DEFAULT_TARGET_COUNT } from '@/lib/constants';
 import type { CategoryOption, HabitSchema } from '@/lib/types';
-import type { UiSchema } from '@rjsf/utils';
 
 const TWEAK_EXAMPLES = [
   'Add a dropdown for mood',
@@ -189,23 +187,12 @@ export default function HabitEditor({
             </div>
             <div className="mb-8">
               {(() => {
-                const uiSchema: UiSchema = {};
-                const properties = schema?.properties as Record<string, { 'x-widget'?: string; 'x-unit'?: string }> | undefined;
-                if (properties) {
-                  Object.keys(properties).forEach(key => {
-                    const prop = properties[key];
-                    if (prop['x-widget'] === 'duration') {
-                      uiSchema[key] = { 'ui:widget': 'duration' };
-                    } else if (prop['x-unit']) {
-                      uiSchema[key] = { 'ui:widget': 'unit' };
-                    }
-                  });
-                }
+                const uiSchema = habitFormUiSchema(schema?.properties as HabitFormProperties | undefined);
                 return (
                   <Form
                     schema={{ ...schema, title: '' }}
                     uiSchema={uiSchema}
-                    widgets={{ duration: DurationWidget, unit: UnitWidget }}
+                    widgets={HABIT_FORM_WIDGETS}
                     validator={validator}
                     onSubmit={() => toast.success('Form valid! (Test mode - nothing was saved)')}
                     className="rjsf rjsf-preview"

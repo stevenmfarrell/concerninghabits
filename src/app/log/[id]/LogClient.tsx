@@ -12,12 +12,10 @@ import Link from 'next/link';
 import PageHeader from '@/components/PageHeader';
 import { IconButton } from '@/components/ui/IconButton';
 import toast from 'react-hot-toast';
-import DurationWidget from '../../../components/widgets/DurationWidget';
-import UnitWidget from '../../../components/widgets/UnitWidget';
+import { HABIT_FORM_WIDGETS, habitFormUiSchema, parseHabitSchema, type HabitFormProperties } from '@/components/widgets/habitForm';
 import { DEFAULT_TARGET_COUNT } from '@/lib/constants';
 import { takePendingSmartEntry } from '@/lib/pendingSmartEntry';
-import type { HabitSchema, HabitWithLogs, SessionUser } from '@/lib/types';
-import type { UiSchema } from '@rjsf/utils';
+import type { HabitWithLogs, SessionUser } from '@/lib/types';
 import { isSharedHabit, type Person } from '@/lib/userColors';
 import PersonLabel from '@/components/PersonLabel';
 import { showLoggedToast } from '@/components/LoggedToast';
@@ -25,14 +23,6 @@ import ShareDialog from './ShareDialog';
 import { useVoiceLogging } from './useVoiceLogging';
 import { useImageLogging } from './useImageLogging';
 import { useCsvImport } from './useCsvImport';
-
-function parseHabitSchema(rawSchema: string): HabitSchema {
-  try {
-    return JSON.parse(rawSchema);
-  } catch {
-    return {};
-  }
-}
 
 export default function LogClient({ habit, user, people }: { habit: HabitWithLogs, user: SessionUser, people: Record<string, Person> }) {
   const router = useRouter();
@@ -61,20 +51,8 @@ export default function LogClient({ habit, user, people }: { habit: HabitWithLog
   };
 
   const schema = parseHabitSchema(habit.schema);
-  const schemaProperties = schema.properties as Record<string, { type?: string; title?: string; 'x-widget'?: string; 'x-unit'?: string }> | undefined;
-
-  // Build uiSchema for custom widgets
-  const uiSchema: UiSchema = {};
-  if (schemaProperties) {
-    Object.keys(schemaProperties).forEach(key => {
-      const prop = schemaProperties[key];
-      if (prop['x-widget'] === 'duration') {
-        uiSchema[key] = { 'ui:widget': 'duration' };
-      } else if (prop['x-unit']) {
-        uiSchema[key] = { 'ui:widget': 'unit' };
-      }
-    });
-  }
+  const schemaProperties = schema.properties as HabitFormProperties | undefined;
+  const uiSchema = habitFormUiSchema(schemaProperties);
 
   // Prefill from URL search params (e.g. a shortcut or automation). Read through useSearchParams
   // rather than window.location, which still holds the previous page's URL when this renders during
@@ -387,7 +365,7 @@ export default function LogClient({ habit, user, people }: { habit: HabitWithLog
             <Form
               schema={schema}
               uiSchema={uiSchema}
-              widgets={{ duration: DurationWidget, unit: UnitWidget }}
+              widgets={HABIT_FORM_WIDGETS}
               validator={validator}
               formData={formData}
               onChange={(e) => setFormData(e.formData)}

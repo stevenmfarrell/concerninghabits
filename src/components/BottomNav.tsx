@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Settings } from 'lucide-react';
+import { CalendarCheck, Home, Settings } from 'lucide-react';
 
 export default function BottomNav() {
   const pathname = usePathname();
@@ -14,6 +14,7 @@ export default function BottomNav() {
 
   const navItems = [
     { name: 'Dashboard', href: '/', icon: Home, matchPrefix: '/categories' },
+    { name: 'Today', href: '/today', icon: CalendarCheck, matchPrefix: '/today' },
     { name: 'Settings', href: '/settings', icon: Settings, matchPrefix: '/settings' },
   ];
 
