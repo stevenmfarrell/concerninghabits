@@ -33,7 +33,7 @@ describe('per-member context for AI', () => {
     outsider = await createTestUser('Outsider');
 
     asOwner();
-    const habit = await saveHabit('Cycling', '', testSchema, undefined, 'daily', false, '  Bike commute is 4 miles, 30 minutes.  ');
+    const habit = await saveHabit('Cycling', '', testSchema, undefined, { type: 'daily', timesPerDay: 1 }, false, '  Bike commute is 4 miles, 30 minutes.  ');
     habitId = habit.id;
     await setHabitSharing(habitId, [member.user.id]);
   });
@@ -56,10 +56,10 @@ describe('per-member context for AI', () => {
 
   it('lets the owner change or clear their context when editing the habit', async () => {
     asOwner();
-    await updateHabit(habitId, 'Cycling', '', testSchema, undefined, 'daily', false, 'Commute is 5 miles now.');
+    await updateHabit(habitId, 'Cycling', '', testSchema, undefined, { type: 'daily', timesPerDay: 1 }, false, 'Commute is 5 miles now.');
     expect((await getHabit(habitId))?.aiContext).toBe('Commute is 5 miles now.');
 
-    await updateHabit(habitId, 'Cycling', '', testSchema, undefined, 'daily', false, '   ');
+    await updateHabit(habitId, 'Cycling', '', testSchema, undefined, { type: 'daily', timesPerDay: 1 }, false, '   ');
     expect((await getHabit(habitId))?.aiContext).toBeNull();
   });
 
@@ -67,7 +67,7 @@ describe('per-member context for AI', () => {
     asOwner();
     const tooLong = 'x'.repeat(MAX_AI_CONTEXT_LENGTH + 1);
     await expect(setHabitAiContext(habitId, tooLong)).rejects.toThrow();
-    await expect(updateHabit(habitId, 'Renamed', '', testSchema, undefined, 'daily', false, tooLong)).rejects.toThrow();
+    await expect(updateHabit(habitId, 'Renamed', '', testSchema, undefined, { type: 'daily', timesPerDay: 1 }, false, tooLong)).rejects.toThrow();
 
     const habit = await getHabit(habitId);
     expect(habit?.name).toBe('Cycling');

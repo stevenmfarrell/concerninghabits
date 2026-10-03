@@ -12,7 +12,7 @@ import HabitChart from './HabitChart';
 import ExportCsvButton from './ExportCsvButton';
 import { formatLogValue } from '../../../lib/format';
 import { parseBedtimeOffsetMinutes, toCivilDate } from '../../../lib/timezone';
-import { DEFAULT_TARGET_COUNT } from '@/lib/constants';
+import { parseCadence } from '@/lib/cadence';
 import type { HabitSchema } from '@/lib/types';
 
 // A habit's page: the Log Habit button (see LogClient), then its history: an activity calendar over
@@ -124,8 +124,7 @@ export default async function HabitPage(props: { params: Promise<{ id: string }>
             logs={filteredLogs.map(l => ({ id: l.id, createdAt: l.createdAt, userId: l.userId }))}
             people={people}
             weeks={weeks} 
-            frequency={habit.frequency} 
-            targetCount={schemaObj?.targetCount || DEFAULT_TARGET_COUNT}
+            cadence={parseCadence(habit.cadence)}
             mobileMonthsPerColumn={mobileMonthsPerColumn} 
             desktopMonthsPerColumn={desktopMonthsPerColumn} 
             bedtime={user.bedtime} 

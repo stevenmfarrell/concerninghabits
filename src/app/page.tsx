@@ -7,7 +7,7 @@ import { SortableHabitList } from './categories/[id]/SortableLists';
 import SmartEntry from './SmartEntry';
 import { UNCATEGORIZED_ID, UNCATEGORIZED_ICON } from '@/lib/constants';
 import { parseBedtimeOffsetMinutes, toCivilDate } from '@/lib/timezone';
-import { isHabitComplete } from '@/lib/habitCompletion';
+import { isHabitComplete, parseCadence } from '@/lib/cadence';
 import type { HabitListItem } from '@/lib/types';
 
 type CategoryRowProps = {
@@ -47,8 +47,7 @@ function CategoryRow({ href, name, icon, dates, habitCount, bedtime, weekStartsO
             <ActivityCalendar
               dates={dates}
               weeks={3}
-              frequency="multiple"
-              targetCount={habitCount > 0 ? habitCount : 1}
+              density={habitCount}
               bedtime={bedtime}
               weekStartsOn={weekStartsOn}
               timeZone={timeZone}
@@ -119,7 +118,7 @@ export default async function Dashboard() {
   // Only the viewer's own entries count: on a shared habit, someone else logging it doesn't mean
   // the viewer has.
   const isDone = (habit: HabitListItem) =>
-    isHabitComplete(habit, (habit.logs ?? []).filter(l => l.userId === user.id).map(l => l.createdAt), user);
+    isHabitComplete(parseCadence(habit.cadence), (habit.logs ?? []).filter(l => l.userId === user.id).map(l => l.createdAt), user);
   const favoritesToDo = favorites.filter(habit => !isDone(habit));
   const favoritesDone = favorites.filter(isDone);
 

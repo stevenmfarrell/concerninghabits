@@ -43,7 +43,10 @@ model Habit {
   name          String
   description   String?
   schema        String
+  // Superseded by `cadence` and no longer read or written; kept until a later migration drops it
   frequency     String        @default("daily")
+  // How often the habit is meant to be done, as JSON (see src/lib/cadence.ts)
+  cadence       String        @default("{\"type\":\"daily\",\"timesPerDay\":1}")
   // The habit's owner: the only user who can edit, share, or delete it
   userId        String
   user          User          @relation(fields: [userId], references: [id])

@@ -30,7 +30,7 @@ describe('habit log window', () => {
     vi.setSystemTime(new Date('2026-09-28T12:00:00Z'));
     owner = await createTestUser('Owner');
     setSessionCookie(owner.sessionId);
-    habitId = (await saveHabit('Pay rent', '', testSchema, undefined, 'monthly')).id;
+    habitId = (await saveHabit('Pay rent', '', testSchema, undefined, { type: 'calendarMonth' })).id;
   });
 
   afterEach(() => {

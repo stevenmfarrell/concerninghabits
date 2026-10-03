@@ -1,15 +1,9 @@
 'use client';
 
 import { civilDayKey, parseBedtimeOffsetMinutes, toCivilDate } from '@/lib/timezone';
-import { DEFAULT_TARGET_COUNT } from '@/lib/constants';
-import { startOfWeek } from '@/lib/habitCompletion';
+import { cadenceCovers, DEFAULT_CADENCE, entriesNeeded, startOfWeek, type Cadence } from '@/lib/cadence';
 import { ACTIVITY_PALETTES, activityShade, type ActivityColor } from '@/lib/activityShade';
 import type { Person } from '@/lib/userColors';
-
-// `frequency` is stored as a plain string (see Habit.frequency in schema.prisma), so these can't
-// be a real enum without touching every caller — but centralizing the literals here means a typo
-// only has one place to hide, instead of recurring at each comparison below.
-const FREQUENCY = { DAILY: 'daily', WEEKLY: 'weekly', MONTHLY: 'monthly', MULTIPLE: 'multiple' } as const;
 
 // Whether `neighbor` (a possibly-absent, possibly-padding cell) falls in a different month than
 // `day`. Shared by all four month-divider checks below so they can't drift from one another.
@@ -22,14 +16,19 @@ interface ActivityCalendarProps {
   // browser render agree regardless of where each one runs.
   timeZone: string;
   weeks?: number;
-  frequency?: string;
+  // The habit's cadence, which decides how a day is shaded: logged, partly logged toward a
+  // several-times-a-day target, or covered by an entry on another day (its week, its month, or
+  // within N days of it)
+  cadence?: Cadence;
+  // Instead of a cadence, for a calendar combining several habits (e.g. a category's): shade each
+  // day by its number of entries out of this many
+  density?: number;
   size?: 'sm' | 'md';
   monthsPerColumn?: number;
   emptyColor?: string;
   futureColor?: string;
   bedtime?: string;
   weekStartsOn?: string;
-  targetCount?: number;
   onDateClick?: (date: Date) => void;
   // For a shared habit: color each day by who logged it instead of the single emerald scale.
   // `loggedBy[i]` is the id of the user who logged `dates[i]`; `people` has each user's color.
@@ -49,10 +48,16 @@ function personFill(ids: string[], people: Record<string, Person>) {
 }
 
 // All dates below are civil dates (UTC midnight for a day in `timeZone`), so only UTC methods are used.
-export default function ActivityCalendar({ dates, timeZone, weeks = 5, frequency = FREQUENCY.DAILY, size = 'sm', monthsPerColumn = 4, bedtime = '00:00', weekStartsOn = 'sunday', targetCount = DEFAULT_TARGET_COUNT, emptyColor = 'bg-stone-100', futureColor = 'bg-transparent border border-stone-100', onDateClick, loggedBy, people, color = 'emerald' }: ActivityCalendarProps) {
+export default function ActivityCalendar({ dates, timeZone, weeks = 5, cadence = DEFAULT_CADENCE, density, size = 'sm', monthsPerColumn = 4, bedtime = '00:00', weekStartsOn = 'sunday', emptyColor = 'bg-stone-100', futureColor = 'bg-transparent border border-stone-100', onDateClick, loggedBy, people, color = 'emerald' }: ActivityCalendarProps) {
   const bedtimeOffsetMinutes = parseBedtimeOffsetMinutes(bedtime);
   const startsMonday = weekStartsOn === 'monday';
   const colorByPerson = !!(loggedBy && people);
+
+  // A combined calendar's density works like a habit due that many times a day
+  const effectiveCadence: Cadence = density ? { type: 'daily', timesPerDay: Math.max(1, density) } : cadence;
+  const needed = entriesNeeded(effectiveCadence);
+  // What a fully shaded logged day takes: the cadence's daily target, or one entry when it has none
+  const shadeTarget = Number.isFinite(needed) ? needed : 1;
 
   const today = toCivilDate(new Date(), timeZone, bedtimeOffsetMinutes);
 
@@ -105,30 +110,31 @@ export default function ActivityCalendar({ dates, timeZone, weeks = 5, frequency
   }
   if (currentColumn.length > 0) columns.push(currentColumn);
 
-  // Logs per day, per week and per month. A log before bedtime counts toward the previous day.
+  // Entries on each day, and entries counting toward each day by the cadence (an entry counts for
+  // its own day, and for a weekly, monthly or every-N-days habit, the rest of its week, month or N
+  // days too). Only the days shown are tracked. When coloring by person, also who made them.
   const dayCounts = new Map<string, number>();
-  const completedWeeks = new Set<string>();
-  const completedMonths = new Set<string>();
-  // Who logged in each day, week, and month (only tracked when coloring by person). Keys match the
-  // ones above.
-  const loggersByPeriod = new Map<string, Set<string>>();
-  const addLogger = (key: string, userId: string) => {
-    const loggers = loggersByPeriod.get(key) ?? new Set<string>();
-    loggers.add(userId);
-    loggersByPeriod.set(key, loggers);
+  const countingCounts = new Map<string, number>();
+  const loggersOn = new Map<string, Set<string>>();
+  const loggersCounting = new Map<string, Set<string>>();
+  const addLogger = (loggers: Map<string, Set<string>>, key: string, userId: string) => {
+    const set = loggers.get(key) ?? new Set<string>();
+    set.add(userId);
+    loggers.set(key, set);
   };
 
   dates.forEach((d, i) => {
-    const dt = toCivilDate(d, timeZone, bedtimeOffsetMinutes);
-    const dayKey = civilDayKey(dt);
-    const weekKey = civilDayKey(getStartOfWeek(dt));
+    const day = toCivilDate(d, timeZone, bedtimeOffsetMinutes);
+    const dayKey = civilDayKey(day);
     dayCounts.set(dayKey, (dayCounts.get(dayKey) ?? 0) + 1);
-    completedWeeks.add(weekKey);
-    completedMonths.add(monthKey(dt));
-    if (colorByPerson) {
-      addLogger(`day:${dayKey}`, loggedBy![i]);
-      addLogger(`week:${weekKey}`, loggedBy![i]);
-      addLogger(`month:${monthKey(dt)}`, loggedBy![i]);
+    if (colorByPerson) addLogger(loggersOn, dayKey, loggedBy![i]);
+
+    const { from, to } = cadenceCovers(effectiveCadence, day, { weekStartsOn });
+    const last = to < endDate ? to : endDate;
+    for (const covered = new Date(from > startDate ? from : startDate); covered <= last; covered.setUTCDate(covered.getUTCDate() + 1)) {
+      const key = civilDayKey(covered);
+      countingCounts.set(key, (countingCounts.get(key) ?? 0) + 1);
+      if (colorByPerson) addLogger(loggersCounting, key, loggedBy![i]);
     }
   });
 
@@ -155,29 +161,25 @@ export default function ActivityCalendar({ dates, timeZone, weeks = 5, frequency
       for (let d = 0; d < 7; d++) {
         const day = cellAt(w, d);
         if (!day) {
-          grid.push({ isNull: true, date: today, count: 0, isFuture: false, isPeriodCompleted: false, loggers: [] as string[], isNewMonthLeft: false, isNewMonthRight: false, isNewMonthTop: false, isNewMonthBottom: false, w, d });
+          grid.push({ isNull: true, date: today, count: 0, counting: 0, isFuture: false, isPeriodCompleted: false, loggers: [] as string[], isNewMonthLeft: false, isNewMonthRight: false, isNewMonthTop: false, isNewMonthBottom: false, w, d });
           continue;
         }
         
         const isFuture = day > today;
-        let count = 0;
-        let isPeriodCompleted = false;
-        
-        if (!isFuture) {
-          const dayCount = dayCounts.get(civilDayKey(day)) ?? 0;
-          count = frequency === FREQUENCY.MULTIPLE ? dayCount : Math.min(dayCount, 1);
+        const key = civilDayKey(day);
+        // Entries made that day, and entries counting toward it (including those)
+        const count = isFuture ? 0 : dayCounts.get(key) ?? 0;
+        const counting = isFuture ? 0 : countingCounts.get(key) ?? 0;
+        // A day with no entries of its own that's done anyway, by entries elsewhere in its week,
+        // month or N days
+        const isPeriodCompleted = count === 0 && counting >= needed;
 
-          if (frequency === FREQUENCY.WEEKLY && completedWeeks.has(civilDayKey(getStartOfWeek(day)))) isPeriodCompleted = true;
-          if (frequency === FREQUENCY.MONTHLY && completedMonths.has(monthKey(day))) isPeriodCompleted = true;
-        }
-
-        // Who to color this cell for: whoever logged that day, or for a day with no entries in a
-        // completed week/month, whoever completed that period.
+        // Who to color this cell for: whoever logged that day, or for a day done by entries on
+        // other days, whoever made those
         let loggers: string[] = [];
         if (colorByPerson && !isFuture) {
-          if (count > 0) loggers = sortLoggers(loggersByPeriod.get(`day:${civilDayKey(day)}`));
-          else if (isPeriodCompleted && frequency === FREQUENCY.WEEKLY) loggers = sortLoggers(loggersByPeriod.get(`week:${civilDayKey(getStartOfWeek(day))}`));
-          else if (isPeriodCompleted && frequency === FREQUENCY.MONTHLY) loggers = sortLoggers(loggersByPeriod.get(`month:${monthKey(day)}`));
+          if (count > 0) loggers = sortLoggers(loggersOn.get(key));
+          else if (isPeriodCompleted) loggers = sortLoggers(loggersCounting.get(key));
         }
         
         const isNewMonthLeft = d > 0 && isDifferentMonth(cellAt(w, d - 1), day);
@@ -190,16 +192,16 @@ export default function ActivityCalendar({ dates, timeZone, weeks = 5, frequency
 
         const isToday = civilDayKey(day) === civilDayKey(today);
         
-        grid.push({ isNull: false, date: day, count, isFuture, isPeriodCompleted, loggers, isNewMonthLeft, isNewMonthRight, isNewMonthTop, isNewMonthBottom, w, d, isToday });
+        grid.push({ isNull: false, date: day, count, counting, isFuture, isPeriodCompleted, loggers, isNewMonthLeft, isNewMonthRight, isNewMonthTop, isNewMonthBottom, w, d, isToday });
       }
     }
     return grid;
   });
 
-  const getBackgroundColor = (count: number, isFuture: boolean, isPeriodCompleted: boolean) => {
+  const getBackgroundColor = (count: number, counting: number, isFuture: boolean, isPeriodCompleted: boolean) => {
     if (isFuture) return futureColor;
     if (count > 0) {
-      if (frequency === FREQUENCY.MULTIPLE) return activityShade(count, targetCount, color);
+      if (shadeTarget > 1) return activityShade(counting, shadeTarget, color);
       return ACTIVITY_PALETTES[color].done;
     }
     if (isPeriodCompleted) return ACTIVITY_PALETTES[color].periodDone;
@@ -209,11 +211,11 @@ export default function ActivityCalendar({ dates, timeZone, weeks = 5, frequency
   // The person-colored equivalent of getBackgroundColor's emerald shades: full color for a logged
   // day (lighter while a multiple-times-a-day habit is short of its target), faint for a day in a
   // completed week or month.
-  const getPersonStyle = (loggers: string[], count: number): React.CSSProperties | undefined => {
+  const getPersonStyle = (loggers: string[], count: number, counting: number): React.CSSProperties | undefined => {
     if (loggers.length === 0 || !people) return undefined;
     let opacity = 0.35;
     if (count > 0) {
-      const ratio = frequency === FREQUENCY.MULTIPLE ? count / targetCount : 1;
+      const ratio = counting / shadeTarget;
       opacity = ratio >= 1 ? 1 : ratio >= 0.66 ? 0.85 : ratio >= 0.33 ? 0.7 : 0.55;
     }
     return { background: personFill(loggers, people), opacity };
@@ -300,7 +302,7 @@ export default function ActivityCalendar({ dates, timeZone, weeks = 5, frequency
                   if (cell.isNull) {
                     return <div key={i} className={cellClass} />;
                   }
-                  const personStyle = getPersonStyle(cell.loggers, cell.count);
+                  const personStyle = getPersonStyle(cell.loggers, cell.count, cell.counting);
                   const loggerNames = cell.loggers.map(id => people?.[id]?.name ?? 'Former member').join(', ');
                   return (
                     <div
@@ -310,7 +312,7 @@ export default function ActivityCalendar({ dates, timeZone, weeks = 5, frequency
                         if (onDateClick && !cell.isFuture) onDateClick(cell.date);
                       }}
                       style={personStyle}
-                      className={`${cellClass} transition-colors relative z-10 flex items-center justify-center ${personStyle ? '' : getBackgroundColor(cell.count, cell.isFuture, cell.isPeriodCompleted)} ${onDateClick && !cell.isFuture ? 'cursor-pointer hover:opacity-80' : ''}`}
+                      className={`${cellClass} transition-colors relative z-10 flex items-center justify-center ${personStyle ? '' : getBackgroundColor(cell.count, cell.counting, cell.isFuture, cell.isPeriodCompleted)} ${onDateClick && !cell.isFuture ? 'cursor-pointer hover:opacity-80' : ''}`}
                     >
                       {cell.isToday && (
                         <div className={`rounded-full ${cell.count > 0 ? 'bg-white' : 'bg-stone-500'} ${size === 'sm' ? 'w-[4px] h-[4px]' : 'w-[6px] h-[6px]'}`} />

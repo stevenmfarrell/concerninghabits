@@ -14,9 +14,9 @@ import SpeakOrType, { type SpeakOrTypeStatus } from './SpeakOrType';
 import toast from 'react-hot-toast';
 import ConfirmDialog from './ConfirmDialog';
 import { HABIT_FORM_WIDGETS, habitFormUiSchema, type HabitFormProperties } from './widgets/habitForm';
-import Select from './Select';
 import { Button } from './ui/Button';
-import { DEFAULT_TARGET_COUNT } from '@/lib/constants';
+import type { Cadence } from '@/lib/cadence';
+import { CadencePicker, CadenceSettings } from './CadenceField';
 import type { CategoryOption, HabitSchema } from '@/lib/types';
 
 const TWEAK_EXAMPLES = [
@@ -31,12 +31,12 @@ interface HabitEditorProps {
   initialTitle: string;
   initialDescription: string;
   initialSchema: HabitSchema;
-  initialFrequency: string;
+  initialCadence: Cadence;
   initialCategoryId: string;
   initialPublishToMqtt?: boolean;
   initialAiContext?: string;
   isCreateMode?: boolean;
-  onSave: (title: string, description: string, schema: HabitSchema, categoryId: string, frequency: string, publishToMqtt: boolean, aiContext: string) => Promise<void>;
+  onSave: (title: string, description: string, schema: HabitSchema, categoryId: string, cadence: Cadence, publishToMqtt: boolean, aiContext: string) => Promise<void>;
   onDelete?: () => Promise<void>;
   onChangeTitle?: (title: string) => void;
   // Added to the delete confirmation, e.g. to warn that a shared habit is deleted for everyone
@@ -47,7 +47,7 @@ export default function HabitEditor({
   initialTitle,
   initialDescription,
   initialSchema,
-  initialFrequency,
+  initialCadence,
   initialCategoryId,
   initialPublishToMqtt,
   initialAiContext,
@@ -60,8 +60,7 @@ export default function HabitEditor({
   const [schema, setSchema] = useState<HabitSchema>(initialSchema);
   const [title, setTitle] = useState(initialTitle);
   const [description, setDescription] = useState(initialDescription);
-  const [frequency, setFrequency] = useState<string>(initialFrequency);
-  const [targetCount, setTargetCount] = useState<number>(initialSchema.targetCount || DEFAULT_TARGET_COUNT);
+  const [cadence, setCadence] = useState<Cadence>(initialCadence);
   const [categoryId, setCategoryId] = useState<string>(initialCategoryId);
   const [publishToMqtt, setPublishToMqtt] = useState(initialPublishToMqtt || false);
   const [aiContext, setAiContext] = useState(initialAiContext || '');
@@ -117,9 +116,9 @@ export default function HabitEditor({
   const handleSaveAction = async () => {
     if (!schema || !title) return;
     setSaving(true);
-    const finalSchema = { ...schema, title, enableVoice, enablePhoto, targetCount: frequency === 'multiple' ? targetCount : undefined };
+    const finalSchema = { ...schema, title, enableVoice, enablePhoto };
     try {
-      await onSave(title, description, finalSchema, categoryId, frequency, publishToMqtt, aiContext);
+      await onSave(title, description, finalSchema, categoryId, cadence, publishToMqtt, aiContext);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to save habit');
       setSaving(false);
@@ -321,38 +320,11 @@ export default function HabitEditor({
               </div>
 
               <div className="w-full sm:flex-1">
-                <Select
-                  value={frequency}
-                  onChange={setFrequency}
-                  options={[
-                    { id: 'daily', label: 'Daily' },
-                    { id: 'weekly', label: 'Weekly' },
-                    { id: 'monthly', label: 'Monthly' },
-                    { id: 'multiple', label: 'Multiple times a day' }
-                  ]}
-                  disabled={saving}
-                />
+                <CadencePicker value={cadence} onChange={setCadence} disabled={saving} />
               </div>
             </div>
 
-            {frequency === 'multiple' && (
-              <div className="mt-4 animate-in fade-in slide-in-from-top-2">
-                <label className="block text-sm font-semibold text-stone-700 mb-1">
-                  Daily Target Count
-                </label>
-                <p className="text-xs text-stone-500 mb-2">
-                  How many times per day saturates the calendar history?
-                </p>
-                <input
-                  type="number"
-                  min="1"
-                  className="w-full sm:w-32 h-[42px] px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm shadow-sm"
-                  value={targetCount}
-                  onChange={(e) => setTargetCount(parseInt(e.target.value) || 1)}
-                  disabled={saving}
-                />
-              </div>
-            )}
+            <CadenceSettings value={cadence} onChange={setCadence} disabled={saving} />
           </div>
         </div>
       </div>

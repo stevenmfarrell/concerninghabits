@@ -5,13 +5,14 @@ import HabitEditor from '../../../components/HabitEditor';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import type { HabitDetail, HabitSchema } from '@/lib/types';
+import { parseCadence, type Cadence } from '@/lib/cadence';
 
 export default function EditClient({ habit }: { habit: HabitDetail }) {
   const router = useRouter();
 
-  const handleSave = async (title: string, description: string, schema: HabitSchema, categoryId: string, frequency: string, publishToMqtt: boolean, aiContext: string) => {
+  const handleSave = async (title: string, description: string, schema: HabitSchema, categoryId: string, cadence: Cadence, publishToMqtt: boolean, aiContext: string) => {
     const saveToast = toast.loading("Saving changes...");
-    await updateHabit(habit.id, title, description, schema, categoryId, frequency, publishToMqtt, aiContext);
+    await updateHabit(habit.id, title, description, schema, categoryId, cadence, publishToMqtt, aiContext);
     toast.success("Changes saved!", { id: saveToast });
     router.push('/');
   };
@@ -39,7 +40,7 @@ export default function EditClient({ habit }: { habit: HabitDetail }) {
         initialTitle={habit.name}
         initialDescription={habit.description || ''}
         initialSchema={JSON.parse(habit.schema)}
-        initialFrequency={habit.frequency || 'daily'}
+        initialCadence={parseCadence(habit.cadence)}
         initialCategoryId={habit.categoryId || ''}
         initialPublishToMqtt={habit.publishToMqtt}
         initialAiContext={habit.aiContext || ''}

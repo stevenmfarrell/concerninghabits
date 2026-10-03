@@ -7,12 +7,14 @@ import { useRouter } from 'next/navigation';
 import { Mic } from 'lucide-react';
 import BackLink from '@/components/BackLink';
 import type { HabitSchema } from '@/lib/types';
+import { DEFAULT_CADENCE, type Cadence } from '@/lib/cadence';
 import { setPendingSmartEntry } from '@/lib/pendingSmartEntry';
 import RefineLoading from './RefineLoading';
 
 interface HabitDraft {
   schema: HabitSchema;
-  frequency?: string;
+  // Suggested by the AI; missing when building a habit by hand
+  cadence?: Cadence;
   categoryId?: string;
   // What the user said or typed on the dashboard, when the draft came from there (see SmartEntry),
   // and whether it reported something they did, so it's logged as the first entry by default
@@ -36,8 +38,8 @@ export default function RefineClient() {
     if (!draft) router.replace('/create');
   }, [draft, router]);
 
-  const handleSave = async (title: string, description: string, schema: HabitSchema, categoryId: string, frequency: string, publishToMqtt: boolean, aiContext: string) => {
-    const habit = await saveHabit(title, description, schema, categoryId, frequency, publishToMqtt, aiContext);
+  const handleSave = async (title: string, description: string, schema: HabitSchema, categoryId: string, cadence: Cadence, publishToMqtt: boolean, aiContext: string) => {
+    const habit = await saveHabit(title, description, schema, categoryId, cadence, publishToMqtt, aiContext);
     sessionStorage.removeItem('draftHabit');
 
     // Hand what the user said to the new habit's log page, which fills the entry in against the
@@ -93,7 +95,7 @@ export default function RefineClient() {
           initialTitle={draft.schema?.title || ''}
           initialDescription={draft.schema?.description || ''}
           initialSchema={draft.schema}
-          initialFrequency={draft.frequency || 'daily'}
+          initialCadence={draft.cadence ?? DEFAULT_CADENCE}
           initialCategoryId={draft.categoryId || ''}
           isCreateMode={true}
           onSave={handleSave}

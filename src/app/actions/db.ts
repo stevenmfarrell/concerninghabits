@@ -11,6 +11,7 @@ import { verifySession } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { MAX_AI_CONTEXT_LENGTH, MAX_CSV_IMPORT_ROWS, MAX_HISTORY_WEEKS, UNCATEGORIZED_ID, UNCATEGORIZED_ICON } from '@/lib/constants';
 import { userPreferencesSchema } from '@/lib/preferences';
+import { cadenceSchema, DEFAULT_CADENCE, type Cadence } from '@/lib/cadence';
 import { TIMEZONE_COOKIE, civilDayKey, isValidTimeZone, parseBedtimeOffsetMinutes, parseCivilDayKey, toCivilDate } from '@/lib/timezone';
 import { encodeCsv, parseCsv } from '@/lib/csv';
 import { assignUserColors } from '@/lib/userColors';
@@ -212,7 +213,7 @@ export async function deleteCategory(id: string) {
   revalidatePath('/');
 }
 
-export async function saveHabit(name: string, description: string, schema: HabitSchema, categoryId?: string, frequency: string = 'daily', publishToMqtt: boolean = false, aiContext?: string) {
+export async function saveHabit(name: string, description: string, schema: HabitSchema, categoryId?: string, cadence: Cadence = DEFAULT_CADENCE, publishToMqtt: boolean = false, aiContext?: string) {
   const user = await getDefaultUser();
   if (categoryId) await getOwnedCategory(user.id, categoryId);
   const normalizedAiContext = normalizeAiContext(aiContext);
@@ -223,7 +224,8 @@ export async function saveHabit(name: string, description: string, schema: Habit
         name,
         description,
         schema: JSON.stringify(schema),
-        frequency,
+        // Checked here as well as typed, since it comes from the browser
+        cadence: JSON.stringify(cadenceSchema.parse(cadence)),
         publishToMqtt,
         userId: user.id,
         members: { create: { userId: user.id, categoryId: categoryId || null, order: END_OF_LIST_ORDER, aiContext: normalizedAiContext } },
@@ -572,7 +574,7 @@ export async function importHabitLogsCsv(habitId: string, csvText: string) {
 }
 
 // Changes the habit's definition (owner only) and which of the owner's categories it's filed in
-export async function updateHabit(id: string, name: string, description: string, schema: HabitSchema, categoryId?: string, frequency: string = 'daily', publishToMqtt: boolean = false, aiContext?: string) {
+export async function updateHabit(id: string, name: string, description: string, schema: HabitSchema, categoryId?: string, cadence: Cadence = DEFAULT_CADENCE, publishToMqtt: boolean = false, aiContext?: string) {
   const user = await getDefaultUser();
   await getOwnedHabit(user.id, id);
   if (categoryId) await getOwnedCategory(user.id, categoryId);
@@ -585,7 +587,8 @@ export async function updateHabit(id: string, name: string, description: string,
         name,
         description,
         schema: JSON.stringify(schema),
-        frequency,
+        // Checked here as well as typed, since it comes from the browser
+        cadence: JSON.stringify(cadenceSchema.parse(cadence)),
         publishToMqtt,
       }
     });

@@ -10,7 +10,7 @@ import Icon from '../../../components/Icon';
 import ActivityCalendar from '../../../components/ActivityCalendar';
 import { reorderCategories } from '../../actions/db';
 import { reorderHabits } from '../../actions/db';
-import { DEFAULT_TARGET_COUNT } from '@/lib/constants';
+import { parseCadence } from '@/lib/cadence';
 import type { HabitListItem, SessionUser, SubcategoryListItem } from '@/lib/types';
 import { isSharedHabit, type Person } from '@/lib/userColors';
 import { useReorderableList } from './useReorderableList';
@@ -146,13 +146,6 @@ const SortableHabitItem = ({ habit, user, people, isOverlay, isReordering, class
     transition: transition || undefined,
   };
 
-  let habitTargetCount = DEFAULT_TARGET_COUNT;
-  try {
-    habitTargetCount = JSON.parse(habit.schema).targetCount || DEFAULT_TARGET_COUNT;
-  } catch {
-    // Malformed schema JSON: fall back to the default target count
-  }
-
   const logs = habit.logs ?? [];
   const isShared = isSharedHabit(habit.userId, habit.memberCount ?? 1, logs);
 
@@ -180,8 +173,7 @@ const SortableHabitItem = ({ habit, user, people, isOverlay, isReordering, class
                 loggedBy={isShared ? logs.map(l => l.userId) : undefined}
                 people={isShared ? people : undefined}
                 weeks={3}
-                frequency={habit.frequency} 
-                targetCount={habitTargetCount} 
+                cadence={parseCadence(habit.cadence)}
                 bedtime={user.bedtime} 
                 weekStartsOn={user.weekStartsOn}
                 timeZone={user.timeZone}

@@ -11,6 +11,7 @@ import { z } from 'zod';
 import { getDefaultUser, getCategories, getHabit, getLoggableHabits, logHabitEvent } from './db';
 import { buildCategoryChoices } from '@/lib/categoryChoices';
 import type { HabitSchema } from '@/lib/types';
+import { CADENCE_TYPES, cadenceFromSuggestion } from '@/lib/cadence';
 
 export async function generateHabitSchema(prompt: string, currentSchema?: HabitSchema) {
   const user = await getDefaultUser();
@@ -41,19 +42,23 @@ export async function generateHabitSchema(prompt: string, currentSchema?: HabitS
       schema: z.object({
         title: z.string().describe(`A short, concise name for the habit. Do NOT prefix with 'Track' or 'Log'. ${user.useEmojiTitle ? 'MUST start with a relevant emoji.' : 'NO emojis.'}`),
         category: categorySchema.optional(),
-        frequency: z.enum(['daily', 'weekly', 'monthly', 'multiple']).optional().describe("The suggested tracking cadence"),
+        cadence: z.object({
+          type: z.enum(CADENCE_TYPES).describe("How often the habit is meant to be done: 'daily' (every day, possibly several times), 'everyNDays' (again N days after the last time, e.g. watering plants every 3 days), 'calendarWeek' (once per calendar week), 'calendarMonth' (once per calendar month), or 'none' (logged whenever it happens, with no expected frequency, e.g. eating dessert)"),
+          timesPerDay: z.number().int().optional().describe("For 'daily': how many times a day, if more than once (e.g. 8 glasses of water)"),
+          days: z.number().int().optional().describe("For 'everyNDays': how many days apart, 2 or more"),
+        }).optional().describe("The suggested cadence"),
         type: z.literal('object'),
         properties: z.record(z.string(), z.any()).describe(`The fields required. Keep it simple. Use empty {} for simple boolean tasks. CRITICAL: For time durations, set 'type': 'number' AND 'x-widget': 'duration'. For other numeric fields, include an 'x-unit' key specifying the unit of measurement (e.g., 'miles', 'lbs', 'oz', 'pages'). The user prefers the ${user.unitSystem} measurement system.`),
         required: z.array(z.string()).optional().describe("Array of required property keys"),
       }),
     });
 
-    // category and frequency are suggestions for the editor, not part of the habit's form schema
-    const { category, frequency, ...schema } = object;
+    // category and cadence are suggestions for the editor, not part of the habit's form schema
+    const { category, cadence, ...schema } = object;
     return {
       success: true,
       schema,
-      frequency,
+      cadence: cadenceFromSuggestion(cadence),
       categoryId: category ? categoryIdsByLabel.get(category) : undefined,
     };
   } catch (error) {

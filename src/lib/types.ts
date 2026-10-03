@@ -12,7 +12,6 @@ import type {
 // A habit's form definition: an RJSF (draft-07) JSON schema plus this app's own extensions.
 export type HabitSchema = RJSFSchema & {
   title?: string;
-  targetCount?: number;
   enableVoice?: boolean;
   enablePhoto?: boolean;
 };
@@ -30,7 +29,8 @@ export interface HabitListItem {
   id: string;
   name: string;
   schema: string;
-  frequency: string;
+  // The habit's cadence as stored, JSON (see parseCadence)
+  cadence: string;
   // The habit's owner
   userId: string;
   order?: number | null;

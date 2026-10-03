@@ -4,14 +4,14 @@ import ActivityCalendar from '../../../components/ActivityCalendar';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { parseBedtimeOffsetMinutes, toCivilDate } from '@/lib/timezone';
 import type { Person } from '@/lib/userColors';
+import type { Cadence } from '@/lib/cadence';
 
 export default function InteractiveCalendar(props: {
   logs: { id: string; createdAt: Date; userId: string }[];
   // Set for a shared habit, to color each day by who logged it
   people?: Record<string, Person>;
   weeks: number;
-  frequency: string;
-  targetCount: number;
+  cadence: Cadence;
   mobileMonthsPerColumn: number;
   desktopMonthsPerColumn: number;
   bedtime: string;
@@ -61,10 +61,10 @@ export default function InteractiveCalendar(props: {
   return (
     <>
       <div className={`hidden sm:flex w-full ${props.weeks === 5 ? 'justify-center' : 'justify-center sm:justify-start'}`}>
-        <ActivityCalendar dates={dates} loggedBy={loggedBy} people={props.people} weeks={props.weeks} frequency={props.frequency} targetCount={props.targetCount} size="md" monthsPerColumn={props.desktopMonthsPerColumn} bedtime={props.bedtime} weekStartsOn={props.weekStartsOn} timeZone={props.timeZone} onDateClick={handleDateClick} />
+        <ActivityCalendar dates={dates} loggedBy={loggedBy} people={props.people} weeks={props.weeks} cadence={props.cadence} size="md" monthsPerColumn={props.desktopMonthsPerColumn} bedtime={props.bedtime} weekStartsOn={props.weekStartsOn} timeZone={props.timeZone} onDateClick={handleDateClick} />
       </div>
       <div className={`flex sm:hidden w-full ${props.weeks === 5 ? 'justify-center' : 'justify-start'}`}>
-        <ActivityCalendar dates={dates} loggedBy={loggedBy} people={props.people} weeks={props.weeks} frequency={props.frequency} targetCount={props.targetCount} size="md" monthsPerColumn={props.mobileMonthsPerColumn} bedtime={props.bedtime} weekStartsOn={props.weekStartsOn} timeZone={props.timeZone} onDateClick={handleDateClick} />
+        <ActivityCalendar dates={dates} loggedBy={loggedBy} people={props.people} weeks={props.weeks} cadence={props.cadence} size="md" monthsPerColumn={props.mobileMonthsPerColumn} bedtime={props.bedtime} weekStartsOn={props.weekStartsOn} timeZone={props.timeZone} onDateClick={handleDateClick} />
       </div>
     </>
   );

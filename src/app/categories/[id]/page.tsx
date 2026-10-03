@@ -26,7 +26,6 @@ export default async function CategoryLogPage(props: { params: Promise<{ id: str
   ];
   const dates = allLogs.map(l => l.createdAt);
   const habitCount = category.habits.length + (category.children ? category.children.reduce((acc, c) => acc + c.habits.length, 0) : 0);
-  const targetCount = habitCount > 0 ? habitCount : 1;
 
   const isTopLevel = category.parentId === null;
 
@@ -79,8 +78,7 @@ export default async function CategoryLogPage(props: { params: Promise<{ id: str
               dates={dates} 
               size="md"
               weeks={5} 
-              frequency="multiple" 
-              targetCount={targetCount} 
+              density={habitCount}
               bedtime={user.bedtime} 
               weekStartsOn={user.weekStartsOn}
               timeZone={user.timeZone}
