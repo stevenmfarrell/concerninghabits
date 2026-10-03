@@ -67,4 +67,17 @@ describe('buildDueList', () => {
     const twiceADay = habit('water', { type: 'daily', timesPerDay: 2 }, [{ createdAt: today, userId: 'me' }]);
     expect(ids(buildDueList([], [twiceADay], { water: today }, user, now).dueHabits)).toEqual(['water']);
   });
+
+  it('lists every-N-days habits and categories due again soon as upcoming, with how soon', () => {
+    const elevenDaysAgo = [{ createdAt: new Date('2026-09-22T09:00:00Z'), userId: 'me' }];
+    const everyFourteenDays: Cadence = { type: 'everyNDays', days: 14 };
+    const list = buildDueList(
+      [category('Health', everyFourteenDays, [habit('blood pressure', everyFourteenDays, elevenDaysAgo)])],
+      [], {}, user, now,
+    );
+    expect(list.upcomingHabits.map(u => [u.item.id, u.dueInDays])).toEqual([['blood pressure', 3]]);
+    expect(list.upcomingCategories.map(u => [u.item.id, u.dueInDays])).toEqual([['Health', 3]]);
+    expect(list.dueHabits).toEqual([]);
+    expect(list.doneHabits).toEqual([]);
+  });
 });

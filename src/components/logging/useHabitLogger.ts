@@ -44,8 +44,8 @@ export function useHabitLogger(habit: LoggableHabit, { initialData = {}, onLogge
   const [busy, setBusy] = useState(false);
 
   // An undone entry for this habit, put back in the sheet to correct and log again: one waiting
-  // when this Log button appears (e.g. a habit restored from the Due page's done chips), or arriving while
-  // it's showing
+  // when this Log button appears (e.g. a habit restored from the Agenda page's done chips), or
+  // arriving while it's showing
   useEffect(() => {
     const reopen = () => {
       const data = takeReopen(habit.id);

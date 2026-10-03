@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cadenceFromSuggestion, describeCadence, isHabitComplete, parseCadence, startOfWeek, type Cadence } from '@/lib/cadence';
+import { cadenceFromSuggestion, cadenceStatus, describeCadence, isHabitComplete, parseCadence, startOfWeek, upcomingDays, type Cadence } from '@/lib/cadence';
 import { civilDayKey, parseCivilDayKey } from '@/lib/timezone';
 
 const user = { timeZone: 'UTC', bedtime: '00:00', weekStartsOn: 'sunday' };
@@ -80,6 +80,48 @@ describe('isHabitComplete', () => {
   it('follows the user\'s time zone for where a day starts', () => {
     // 3am UTC Saturday is still Friday evening in New York
     expect(complete({ type: 'daily', timesPerDay: 1 }, [at('2026-10-03T03:00:00Z')], { ...user, timeZone: 'America/New_York' })).toBe(false);
+  });
+});
+
+describe('cadenceStatus', () => {
+  const status = (cadence: Cadence, logs: Date[]) => cadenceStatus(cadence, logs, user, now);
+  const everyFourteenDays: Cadence = { type: 'everyNDays', days: 14 };
+
+  it('is due on and after the due date', () => {
+    // Done 14 days ago: covered through yesterday, due today
+    expect(status(everyFourteenDays, [at('2026-09-19T09:00:00Z')])).toEqual({ state: 'due' });
+    expect(status(everyFourteenDays, [at('2026-09-01T09:00:00Z')])).toEqual({ state: 'due' });
+    expect(status(everyFourteenDays, [])).toEqual({ state: 'due' });
+  });
+
+  it('is upcoming in the last 20% of an every-N-days stretch, rounded up to whole days', () => {
+    // 14 days: upcoming for the last 3 (2.8 rounded up)
+    expect(status(everyFourteenDays, [at('2026-09-22T09:00:00Z')])).toEqual({ state: 'upcoming', dueInDays: 3 });
+    expect(status(everyFourteenDays, [at('2026-09-20T09:00:00Z')])).toEqual({ state: 'upcoming', dueInDays: 1 });
+    expect(status(everyFourteenDays, [at('2026-09-23T09:00:00Z')])).toEqual({ state: 'done' });
+  });
+
+  it('counts from the latest entry', () => {
+    expect(status(everyFourteenDays, [at('2026-09-20T09:00:00Z'), at('2026-10-01T09:00:00Z')])).toEqual({ state: 'done' });
+  });
+
+  it('is never upcoming for every 3 days or fewer, or for other cadences', () => {
+    expect(status({ type: 'everyNDays', days: 3 }, [at('2026-10-01T09:00:00Z')])).toEqual({ state: 'done' });
+    expect(status({ type: 'daily', timesPerDay: 1 }, [at('2026-10-03T09:00:00Z')])).toEqual({ state: 'done' });
+    // Done this week, and the week ends tomorrow
+    expect(status({ type: 'calendarWeek' }, [at('2026-09-28T09:00:00Z')])).toEqual({ state: 'done' });
+  });
+});
+
+describe('upcomingDays', () => {
+  it('is a fifth of the stretch, rounded up, without floating point surprises', () => {
+    expect(upcomingDays({ type: 'everyNDays', days: 4 })).toBe(1);
+    expect(upcomingDays({ type: 'everyNDays', days: 10 })).toBe(2);
+    // 15 * 0.2 is 3.0000000000000004 in floating point, which would round up to 4
+    expect(upcomingDays({ type: 'everyNDays', days: 15 })).toBe(3);
+    expect(upcomingDays({ type: 'everyNDays', days: 30 })).toBe(6);
+    expect(upcomingDays({ type: 'everyNDays', days: 3 })).toBe(0);
+    expect(upcomingDays({ type: 'calendarMonth' })).toBe(0);
   });
 });
 

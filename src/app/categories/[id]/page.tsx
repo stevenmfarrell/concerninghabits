@@ -8,6 +8,7 @@ import { LinkButton } from '@/components/ui/Button';
 import { ChevronRight, } from 'lucide-react';
 import CategoryMenu from './CategoryMenu';
 import CategoryCadence from './CategoryCadence';
+import EmptyState from '@/components/EmptyState';
 import { NO_CADENCE, parseCadence } from '@/lib/cadence';
 import { UNCATEGORIZED_ID } from '@/lib/constants';
 import { SortableCategoryItemList } from './SortableLists';
@@ -68,8 +69,12 @@ export default async function CategoryLogPage(props: { params: Promise<{ id: str
         )}
 
         {/* Component Lists Front and Center */}
-        {items.length > 0 && (
+        {items.length > 0 ? (
           <SortableCategoryItemList items={items} user={user} people={people} isReordering={isReordering} />
+        ) : (
+          <EmptyState title="No habits in this category yet" action={<LinkButton href={category.id === UNCATEGORIZED_ID ? '/create' : `/create?category=${category.id}`} variant="outline">New Habit</LinkButton>}>
+            Add one here, or move an existing habit into this category from its page.
+          </EmptyState>
         )}
 
         {/* Recent History Card */}

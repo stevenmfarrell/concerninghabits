@@ -1,7 +1,7 @@
-import { isHabitComplete, NO_CADENCE, parseCadence, type Cadence } from './cadence';
+import { cadenceStatus, NO_CADENCE, parseCadence, type Cadence } from './cadence';
 import type { HabitListItem } from './types';
 
-// A category as the Due page needs it: its cadence, and its habits with their recent entries
+// A category as the Agenda page needs it: its cadence, and its habits with their recent entries
 interface CategoryWithHabits {
   id: string;
   name: string;
@@ -14,8 +14,8 @@ export interface CategoryTree extends CategoryWithHabits {
   children: CategoryWithHabits[];
 }
 
-// A category with a cadence on the Due page: every habit counting toward it (a top-level
-// category's subcategories' habits included), to log from
+// A category with a cadence on the Agenda page, with every habit counting toward it (a top-level
+// category's subcategories' habits included), for its calendar
 export interface DueCategory {
   id: string;
   name: string;
@@ -26,15 +26,21 @@ export interface DueCategory {
   habits: HabitListItem[];
 }
 
+// Something done for now that's due again soon, in `dueInDays` days
+export type Upcoming<T> = { item: T; dueInDays: number };
+
 export interface DueList {
   dueHabits: HabitListItem[];
+  upcomingHabits: Upcoming<HabitListItem>[];
   doneHabits: HabitListItem[];
   dueCategories: DueCategory[];
+  upcomingCategories: Upcoming<DueCategory>[];
   doneCategories: DueCategory[];
 }
 
-// What the Due page shows: every habit and category with a cadence, split into those still to do
-// and those done for now, in the order of the user's category tree (uncategorized habits last).
+// What the Agenda page shows: every habit and category with a cadence, split into those due, those
+// done but due again soon (upcoming), and those done for now (see cadenceStatus), in the order of
+// the user's category tree (uncategorized habits last).
 // Done-ness counts everyone's entries, so a shared habit is done when anyone does it.
 //
 // A habit's `logs` only reach back a few weeks; `latestLogDates` (when each habit was last logged)
@@ -53,19 +59,25 @@ export function buildDueList(
     return dates;
   };
 
-  const list: DueList = { dueHabits: [], doneHabits: [], dueCategories: [], doneCategories: [] };
+  const list: DueList = { dueHabits: [], upcomingHabits: [], doneHabits: [], dueCategories: [], upcomingCategories: [], doneCategories: [] };
 
   const addHabit = (habit: HabitListItem) => {
     const cadence = parseCadence(habit.cadence);
     if (cadence.type === 'none') return;
-    (isHabitComplete(cadence, entryDates(habit), user, now) ? list.doneHabits : list.dueHabits).push(habit);
+    const status = cadenceStatus(cadence, entryDates(habit), user, now);
+    if (status.state === 'due') list.dueHabits.push(habit);
+    else if (status.state === 'upcoming') list.upcomingHabits.push({ item: habit, dueInDays: status.dueInDays });
+    else list.doneHabits.push(habit);
   };
 
   const addCategory = (category: CategoryWithHabits, habits: HabitListItem[], parentName?: string) => {
     const cadence = parseCadence(category.cadence, NO_CADENCE);
     if (cadence.type === 'none') return;
-    const due: DueCategory = { id: category.id, name: category.name, icon: category.icon, parentName, cadence, habits };
-    (isHabitComplete(cadence, habits.flatMap(entryDates), user, now) ? list.doneCategories : list.dueCategories).push(due);
+    const item: DueCategory = { id: category.id, name: category.name, icon: category.icon, parentName, cadence, habits };
+    const status = cadenceStatus(cadence, habits.flatMap(entryDates), user, now);
+    if (status.state === 'due') list.dueCategories.push(item);
+    else if (status.state === 'upcoming') list.upcomingCategories.push({ item, dueInDays: status.dueInDays });
+    else list.doneCategories.push(item);
   };
 
   for (const category of categories) {

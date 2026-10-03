@@ -13,7 +13,7 @@ export default function BottomNav() {
   }
 
   const navItems = [
-    { name: 'Due', href: '/', icon: ListChecks, matchPrefixes: [] },
+    { name: 'Agenda', href: '/', icon: ListChecks, matchPrefixes: [] },
     // A category's pages are reached from Habits
     { name: 'Habits', href: '/habits', icon: LayoutGrid, matchPrefixes: ['/habits', '/categories'] },
     { name: 'History', href: '/history', icon: CalendarDays, matchPrefixes: ['/history'] },

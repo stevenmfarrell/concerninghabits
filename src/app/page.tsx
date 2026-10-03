@@ -4,38 +4,41 @@ import { Check } from 'lucide-react';
 import Icon from '../components/Icon';
 import { SortableHabitList } from './categories/[id]/SortableLists';
 import SmartEntry from './SmartEntry';
-import { describeCadence } from '@/lib/cadence';
+import EmptyState from '@/components/EmptyState';
+import CategoryRow from '@/components/CategoryRow';
+import { LinkButton } from '@/components/ui/Button';
 import { buildDueList, type DueCategory } from '@/lib/dueList';
 import { parseBedtimeOffsetMinutes, toCivilDate } from '@/lib/timezone';
-import type { HabitListItem } from '@/lib/types';
+import type { HabitListItem, SessionUser } from '@/lib/types';
 
-// A category with a cadence that's due: its name and cadence, linking to its page, with its habits
-// below to log from (any of them counts)
-function DueCategoryCard({ category, user, people }: { category: DueCategory } & Pick<Parameters<typeof SortableHabitList>[0], 'user' | 'people'>) {
+// When something upcoming is due again
+const dueLabel = (dueInDays: number) => (dueInDays === 1 ? 'Due tomorrow' : `Due in ${dueInDays} days`);
+
+// Categories with a cadence that are due or upcoming, as rows linking to their pages (where their
+// habits are, to log one), each with a calendar of its recent entries like a habit's
+function CategoryList({ categories, user }: { categories: { category: DueCategory; note?: string }[]; user: SessionUser }) {
   return (
-    <section className="bg-white rounded-2xl shadow-sm border border-stone-100 overflow-hidden">
-      <Link href={`/categories/${category.id}`} className="flex items-center gap-3 px-4 sm:px-6 py-3 bg-blue-50/50 hover:bg-blue-50 border-b border-stone-100 transition-colors">
-        <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center shrink-0">
-          <Icon name={category.icon || 'Folder'} className="w-4 h-4" />
-        </div>
-        <div className="min-w-0">
-          <h3 className="font-semibold text-stone-800 truncate">
-            {category.parentName && <span className="text-stone-500 font-medium">{category.parentName} › </span>}
-            {category.name}
-          </h3>
-          <p className="text-xs text-stone-500">{describeCadence(category.cadence)}: any of these counts</p>
-        </div>
-      </Link>
-      {category.habits.length > 0 ? (
-        <SortableHabitList items={category.habits} user={user} people={people} dndContextId={`due-category-${category.id}`} isNested />
-      ) : (
-        <p className="px-4 sm:px-6 py-3 text-sm text-stone-500">No habits in this category yet.</p>
-      )}
-    </section>
+    <div className="bg-white rounded-2xl shadow-sm border border-stone-100 overflow-hidden divide-y divide-stone-100 flex flex-col">
+      {categories.map(({ category, note }) => (
+        <CategoryRow
+          key={category.id}
+          href={`/categories/${category.id}`}
+          name={category.parentName ? `${category.parentName} › ${category.name}` : category.name}
+          icon={category.icon || 'Folder'}
+          subtitle={note}
+          dates={category.habits.flatMap(h => (h.logs ?? []).map(l => l.createdAt))}
+          habitCount={category.habits.length}
+          cadence={category.cadence}
+          bedtime={user.bedtime}
+          weekStartsOn={user.weekStartsOn}
+          timeZone={user.timeZone}
+        />
+      ))}
+    </div>
   );
 }
 
-// What's done for now, as small chips under what's still due. They have no Log button, which is
+// What's done for now, as small chips. They have no Log button, which is
 // what keeps something done from being logged twice by accident; each links to its page, where it
 // can still be logged. Links styled as chips, not buttons, so they don't use LinkButton.
 function DoneChips({ habits, categories }: { habits: HabitListItem[]; categories: DueCategory[] }) {
@@ -68,9 +71,15 @@ function DoneChips({ habits, categories }: { habits: HabitListItem[]; categories
   );
 }
 
-// Due: every habit and category with a cadence that isn't done for now, to log from, and what's
-// done as chips. Habits and categories without a cadence aren't here; they're on the Habits page.
-export default async function DuePage() {
+function SectionHeading({ children }: { children: string }) {
+  return <h2 className="text-xl font-semibold text-stone-800 border-b border-stone-200 pb-2">{children}</h2>;
+}
+
+// Agenda: every habit and category with a cadence, in three sections: due now (on or past when
+// it's due), upcoming (done, but an every-N-days one due again soon; still loggable, since doing it
+// early restarts its count), and done, as chips. Habits and categories without a cadence aren't
+// here; they're on the Habits page.
+export default async function AgendaPage() {
   const user = await getDefaultUser();
   const [categories, uncategorized, latestLogDates, people] = await Promise.all([
     getCategoriesWithHierarchy(),
@@ -79,8 +88,9 @@ export default async function DuePage() {
     getPeople(),
   ]);
 
-  const { dueHabits, doneHabits, dueCategories, doneCategories } = buildDueList(categories, uncategorized, latestLogDates, user);
+  const { dueHabits, upcomingHabits, doneHabits, dueCategories, upcomingCategories, doneCategories } = buildDueList(categories, uncategorized, latestLogDates, user);
   const anyDue = dueHabits.length > 0 || dueCategories.length > 0;
+  const anyUpcoming = upcomingHabits.length > 0 || upcomingCategories.length > 0;
   const anyDone = doneHabits.length > 0 || doneCategories.length > 0;
   const anyHabits = uncategorized.length > 0 || categories.some(c => c.habits.length > 0 || c.children.some(child => child.habits.length > 0));
 
@@ -95,33 +105,56 @@ export default async function DuePage() {
             <p className="text-stone-500 font-semibold text-sm uppercase tracking-wider mb-1">
               {today.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC' })}
             </p>
-            <h1 className="text-3xl sm:text-4xl font-extrabold text-stone-900 tracking-tight">Due</h1>
+            <h1 className="text-3xl sm:text-4xl font-extrabold text-stone-900 tracking-tight">Agenda</h1>
           </div>
           <SmartEntry />
         </div>
 
         {!anyHabits ? (
-          <div className="py-24 px-8 sm:px-12 text-center flex flex-col items-center justify-center">
-            <img src="/hobbit-hole.svg" alt="Hobbit Hole" className="w-80 max-w-full h-auto opacity-10 mb-8" />
-            <h2 className="text-2xl font-semibold text-stone-700 mb-2">No habits here yet</h2>
-            <p className="text-base text-stone-500 max-w-sm">
-              Tap the quill above and tell it something you did, or a habit you&apos;d like to start.
-            </p>
-          </div>
-        ) : !anyDue && !anyDone ? (
-          <p className="text-stone-500 text-center py-16 max-w-md mx-auto">
-            Nothing has a cadence yet. Give a habit or category one on its page (in <Link href="/habits" className="text-emerald-700 underline">Habits</Link>), and it shows up here whenever it&apos;s due.
-          </p>
+          <EmptyState title="No habits here yet">
+            Tap the quill above and tell it something you did, or a habit you&apos;d like to start.
+          </EmptyState>
+        ) : !anyDue && !anyUpcoming && !anyDone ? (
+          <EmptyState title="Nothing on the agenda" action={<LinkButton href="/habits" variant="outline">Go to Habits</LinkButton>}>
+            Nothing has a cadence yet. Give a habit or category one on its page, and it shows up here whenever it&apos;s due.
+          </EmptyState>
         ) : (
-          <div className="space-y-6">
-            {dueHabits.length > 0 && (
-              <SortableHabitList items={dueHabits} user={user} people={people} dndContextId="due-habits" />
+          <div className="space-y-8">
+            <section className="space-y-4">
+              <SectionHeading>Due Now</SectionHeading>
+              {dueHabits.length > 0 && (
+                <SortableHabitList items={dueHabits} user={user} people={people} dndContextId="due-habits" />
+              )}
+              {dueCategories.length > 0 && (
+                <CategoryList categories={dueCategories.map(category => ({ category }))} user={user} />
+              )}
+              {!anyDue && <p className="text-stone-500">Nothing due right now.</p>}
+            </section>
+
+            {anyUpcoming && (
+              <section className="space-y-4">
+                <SectionHeading>Upcoming</SectionHeading>
+                {upcomingHabits.length > 0 && (
+                  <SortableHabitList
+                    items={upcomingHabits.map(u => u.item)}
+                    notes={Object.fromEntries(upcomingHabits.map(u => [u.item.id, dueLabel(u.dueInDays)]))}
+                    user={user}
+                    people={people}
+                    dndContextId="upcoming-habits"
+                  />
+                )}
+                {upcomingCategories.length > 0 && (
+                  <CategoryList categories={upcomingCategories.map(({ item, dueInDays }) => ({ category: item, note: dueLabel(dueInDays) }))} user={user} />
+                )}
+              </section>
             )}
-            {dueCategories.map(category => (
-              <DueCategoryCard key={category.id} category={category} user={user} people={people} />
-            ))}
-            {!anyDue && <p className="text-stone-500">All done for now.</p>}
-            {anyDone && <DoneChips habits={doneHabits} categories={doneCategories} />}
+
+            {anyDone && (
+              <section className="space-y-4">
+                <SectionHeading>Done</SectionHeading>
+                <DoneChips habits={doneHabits} categories={doneCategories} />
+              </section>
+            )}
           </div>
         )}
       </div>

@@ -2,7 +2,9 @@ import Link from 'next/link';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { getCategoriesWithHierarchy, getDayEntries, getDefaultUser, getUncategorizedHabits } from '../actions/db';
 import Icon from '@/components/Icon';
+import EmptyState from '@/components/EmptyState';
 import { IconLinkButton } from '@/components/ui/IconButton';
+import { LinkButton } from '@/components/ui/Button';
 import { parseHabitSchema, type HabitFormProperties } from '@/components/widgets/habitForm';
 import { civilDayKey, parseBedtimeOffsetMinutes, parseCivilDayKey, toCivilDate } from '@/lib/timezone';
 import { formatLogValue } from '@/lib/format';
@@ -79,6 +81,7 @@ export default async function HistoryPage(props: { searchParams: Promise<{ day?:
   const entriesByHabit = new Map<string, DayEntry[]>();
   for (const entry of entries) entriesByHabit.set(entry.habitId, [...(entriesByHabit.get(entry.habitId) ?? []), entry]);
   const groups = groupByCategory(categories, uncategorized, entriesByHabit);
+  const anyHabits = uncategorized.length > 0 || categories.some(c => c.habits.length > 0 || c.children.some(child => child.habits.length > 0));
   const habitCount = groups.reduce((acc, g) => acc + g.sections.reduce((n, s) => n + s.habits.length, 0), 0);
 
   const daysAgo = Math.round((today.getTime() - day.getTime()) / (24 * 60 * 60 * 1000));
@@ -113,8 +116,14 @@ export default async function HistoryPage(props: { searchParams: Promise<{ day?:
           </div>
         </div>
 
-        {groups.length === 0 ? (
-          <p className="text-stone-500 text-center py-16">Nothing logged {isToday ? 'yet today' : 'on this day'}.</p>
+        {!anyHabits ? (
+          <EmptyState title="No habits here yet" action={<LinkButton href="/create" variant="outline">New Habit</LinkButton>}>
+            Once you have habits, what you log each day shows up here.
+          </EmptyState>
+        ) : groups.length === 0 ? (
+          <EmptyState title={isToday ? 'Nothing logged yet today' : 'Nothing logged on this day'}>
+            {isToday ? 'Log a habit from the Agenda or Habits page and it shows up here.' : 'Use the arrows above to look at another day.'}
+          </EmptyState>
         ) : (
           <div className="space-y-4">
             {groups.map(group => (

@@ -1,12 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { use, useState } from 'react';
 import { generateHabitSchema } from '../actions/habit';
 import { Loader2, Sparkles } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 
-export default function CreateHabit() {
+// `?category=<id>` starts the new habit in that category (e.g. from an empty category's page),
+// instead of the one the AI suggests
+export default function CreateHabit({ searchParams }: { searchParams: Promise<{ category?: string }> }) {
+  const { category } = use(searchParams);
   const router = useRouter();
   const [initialPrompt, setInitialPrompt] = useState('');
   const [loading, setLoading] = useState(false);
@@ -18,7 +21,7 @@ export default function CreateHabit() {
     setLoading(true);
     const result = await generateHabitSchema(initialPrompt);
     if (result.success) {
-      sessionStorage.setItem('draftHabit', JSON.stringify(result));
+      sessionStorage.setItem('draftHabit', JSON.stringify(category ? { ...result, categoryId: category } : result));
       router.push('/create/refine');
     } else {
       toast.error(result.error || "An error occurred");
@@ -65,7 +68,8 @@ export default function CreateHabit() {
               onClick={() => {
                 sessionStorage.setItem('draftHabit', JSON.stringify({
                   success: true,
-                  schema: { title: 'New Habit', type: 'object', properties: {} }
+                  schema: { title: 'New Habit', type: 'object', properties: {} },
+                  categoryId: category,
                 }));
                 router.push('/create/refine');
               }}

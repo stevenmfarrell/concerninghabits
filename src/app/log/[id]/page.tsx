@@ -6,6 +6,7 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { cookies } from 'next/headers';
 import LogClient from './LogClient';
+import EmptyState from '@/components/EmptyState';
 import DeleteButton from './DeleteButton';
 import InteractiveCalendar from './InteractiveCalendar';
 import HabitChart from './HabitChart';
@@ -108,11 +109,9 @@ export default async function HabitPage(props: { params: Promise<{ id: string }>
     <main className="flex-1 bg-stone-50 font-sans flex flex-col h-full">
       <LogClient habit={habit} user={user} people={allPeople} categories={categories}>
         {!presence.hasLogs ? (
-          <div className="py-24 px-8 sm:px-12 text-center flex flex-col items-center justify-center">
-            <img src="/hobbit-hole.svg" alt="Hobbit Hole" className="w-80 max-w-full h-auto opacity-10 mb-8" />
-            <h2 className="text-2xl font-semibold text-stone-700 mb-2">No logs here yet</h2>
-            <p className="text-base text-stone-500 max-w-sm">Time to step out your front door and start an adventure. Log your first entry!</p>
-          </div>
+          <EmptyState title="No logs here yet">
+            Time to step out your front door and start an adventure. Log your first entry!
+          </EmptyState>
         ) : (
           <>
             {/* Activity Graphic */}

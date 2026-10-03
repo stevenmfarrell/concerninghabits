@@ -63,7 +63,7 @@ async function getRequestTimeZone() {
   return isValidTimeZone(timeZone) ? timeZone : Intl.DateTimeFormat().resolvedOptions().timeZone;
 }
 
-// The Due page and the Habits page both list habits with their recent entries, so anything that
+// The Agenda page and the Habits page both list habits with their recent entries, so anything that
 // changes a habit, a category, or an entry refreshes both
 function revalidateLists() {
   revalidatePath('/');

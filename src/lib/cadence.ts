@@ -52,6 +52,8 @@ interface CadenceRule<C extends Cadence> {
   covers(cadence: C, day: Date, context: CadenceContext): DayRange;
   // How many entries counting toward a day make it done; Infinity for never
   needed(cadence: C): number;
+  // How many days before it's due again a done habit counts as upcoming (0: never upcoming)
+  upcomingDays(cadence: C): number;
 }
 
 function addDays(day: Date, days: number) {
@@ -72,11 +74,16 @@ const RULES: { [T in CadenceType]: CadenceRule<Extract<Cadence, { type: T }>> } 
     describe: c => (c.timesPerDay === 1 ? 'Daily' : `${c.timesPerDay}× a day`),
     covers: (_, day) => justThatDay(day),
     needed: c => c.timesPerDay,
+    upcomingDays: () => 0,
   },
   everyNDays: {
     describe: c => `Every ${c.days} days`,
     covers: (c, day) => ({ from: day, to: addDays(day, c.days - 1) }),
     needed: () => 1,
+    // The last 20% of the stretch, rounded up to whole days (N / 5 rather than N * 0.2, which isn't
+    // exact in floating point: 15 * 0.2 rounds up to 4). Not for 3 days or fewer, where it would be
+    // upcoming nearly as soon as it's done.
+    upcomingDays: c => (c.days > 3 ? Math.ceil(c.days / 5) : 0),
   },
   calendarWeek: {
     describe: () => 'Once per calendar week',
@@ -85,6 +92,7 @@ const RULES: { [T in CadenceType]: CadenceRule<Extract<Cadence, { type: T }>> } 
       return { from, to: addDays(from, 6) };
     },
     needed: () => 1,
+    upcomingDays: () => 0,
   },
   calendarMonth: {
     describe: () => 'Once per calendar month',
@@ -93,11 +101,13 @@ const RULES: { [T in CadenceType]: CadenceRule<Extract<Cadence, { type: T }>> } 
       to: new Date(Date.UTC(day.getUTCFullYear(), day.getUTCMonth() + 1, 0)),
     }),
     needed: () => 1,
+    upcomingDays: () => 0,
   },
   none: {
     describe: () => 'No set cadence',
     covers: (_, day) => justThatDay(day),
     needed: () => Infinity,
+    upcomingDays: () => 0,
   },
 };
 
@@ -110,6 +120,7 @@ function ruleFor<C extends Cadence>(cadence: C) {
 export const describeCadence = (cadence: Cadence) => ruleFor(cadence).describe(cadence);
 export const cadenceCovers = (cadence: Cadence, day: Date, context: CadenceContext) => ruleFor(cadence).covers(cadence, day, context);
 export const entriesNeeded = (cadence: Cadence) => ruleFor(cadence).needed(cadence);
+export const upcomingDays = (cadence: Cadence) => ruleFor(cadence).upcomingDays(cadence);
 
 // A cadence from its stored JSON, or `fallback` if it's missing or not one we know (once a day for
 // a habit; categories pass NO_CADENCE, since a category has none unless the user sets one)
@@ -135,21 +146,42 @@ export function cadenceFromSuggestion(suggestion: { type?: string; timesPerDay?:
   return parsed.success ? parsed.data : NO_CADENCE;
 }
 
-// Whether a habit is done for now: enough entries count toward today by its cadence (logged today
-// as often as it needs, this week or month, or within its last N days). Days follow the user's time
-// zone and bedtime, the same as the activity calendars. `logDates` are the entries that count, e.g.
-// only the viewer's own.
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+// Where a habit (or category) stands today by its cadence:
+// - due: not enough entries count toward today (not logged today as often as it needs, this week
+//   or month, or within its last N days)
+// - upcoming: done, but due again within its upcoming window (see upcomingDays), `dueInDays` from now
+// - done: done, and not due again for a while
+// Days follow the user's time zone and bedtime, the same as the activity calendars. `logDates` are
+// the entries that count.
+export type CadenceStatus = { state: 'due' } | { state: 'upcoming'; dueInDays: number } | { state: 'done' };
+
+export function cadenceStatus(
+  cadence: Cadence,
+  logDates: Date[],
+  user: { timeZone: string; bedtime: string; weekStartsOn: string },
+  now = new Date(),
+): CadenceStatus {
+  const offset = parseBedtimeOffsetMinutes(user.bedtime);
+  const today = toCivilDate(now, user.timeZone, offset);
+  const counting = logDates
+    .map(date => cadenceCovers(cadence, toCivilDate(date, user.timeZone, offset), user))
+    .filter(({ from, to }) => from <= today && today <= to);
+  if (counting.length < entriesNeeded(cadence)) return { state: 'due' };
+
+  // Due again the day after the last day today's entries count for
+  const lastCovered = Math.max(...counting.map(({ to }) => to.getTime()));
+  const dueInDays = Math.round((lastCovered - today.getTime()) / DAY_MS) + 1;
+  return dueInDays <= upcomingDays(cadence) ? { state: 'upcoming', dueInDays } : { state: 'done' };
+}
+
+// Whether a habit is done for now (upcoming counts as done)
 export function isHabitComplete(
   cadence: Cadence,
   logDates: Date[],
   user: { timeZone: string; bedtime: string; weekStartsOn: string },
   now = new Date(),
 ) {
-  const offset = parseBedtimeOffsetMinutes(user.bedtime);
-  const today = toCivilDate(now, user.timeZone, offset);
-  const counting = logDates.filter(date => {
-    const { from, to } = cadenceCovers(cadence, toCivilDate(date, user.timeZone, offset), user);
-    return from <= today && today <= to;
-  }).length;
-  return counting >= entriesNeeded(cadence);
+  return cadenceStatus(cadence, logDates, user, now).state !== 'due';
 }

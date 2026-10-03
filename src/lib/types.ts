@@ -22,9 +22,10 @@ export type CategoryDetail = NonNullable<Awaited<ReturnType<typeof getCategory>>
 export type HabitDetail = NonNullable<Awaited<ReturnType<typeof getHabit>>>;
 export type HabitWithLogs = HabitDetail & { logs: Awaited<ReturnType<typeof getHabitLogs>> };
 
-// Minimal shapes for the habit/subcategory list rows shared by the dashboard and category pages.
-// Kept structural (rather than tied to one query's exact `include`) since the Due page, uncategorized
-// habits, and a category's own habits all come from different queries with slightly different shapes.
+// Minimal shapes for the habit/subcategory list rows shared by the Agenda, Habits and category
+// pages. Kept structural (rather than tied to one query's exact `include`) since the Agenda page,
+// uncategorized habits, and a category's own habits all come from different queries with slightly
+// different shapes.
 export interface HabitListItem {
   id: string;
   name: string;

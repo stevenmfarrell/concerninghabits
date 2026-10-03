@@ -244,7 +244,7 @@ export default function LogClient({ habit, user, people, categories, children }:
           </div>
         )}
 
-        {/* Split like the Due page's smart entry button: log now, or pick an earlier date and time */}
+        {/* Split like the Agenda page's smart entry button: log now, or pick an earlier time */}
         <div className="flex">
           <Button size="xl" onClick={logger.start} disabled={logger.busy} className="flex-1 rounded-r-none">
             <LogButtonIcon hasForm={logger.hasForm} busy={logger.busy} size="lg" />
