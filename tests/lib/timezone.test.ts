@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { civilDateAtHour, civilDayKey, isValidTimeZone, parseBedtimeOffsetMinutes, parseCivilDayKey, toCivilDate } from '@/lib/timezone';
+import { civilDayKey, isValidTimeZone, parseBedtimeOffsetMinutes, parseCivilDayKey, toCivilDate } from '@/lib/timezone';
 
 describe('isValidTimeZone', () => {
   it('accepts real IANA time zones', () => {
@@ -72,23 +72,5 @@ describe('parseCivilDayKey', () => {
     expect(parseCivilDayKey('2024-3-10')).toBeNull();
     expect(parseCivilDayKey('2024-02-30')).toBeNull();
     expect(parseCivilDayKey('yesterday')).toBeNull();
-  });
-});
-
-describe('civilDateAtHour', () => {
-  it('gives the instant of that hour on that day in the zone', () => {
-    const day = parseCivilDayKey('2024-01-15')!;
-    // Noon in New York in January (EST, UTC-5) is 17:00 UTC
-    expect(civilDateAtHour(day, 12, 'America/New_York').toISOString()).toBe('2024-01-15T17:00:00.000Z');
-    // ...and in July (EDT, UTC-4) it's 16:00 UTC
-    expect(civilDateAtHour(parseCivilDayKey('2024-07-15')!, 12, 'America/New_York').toISOString()).toBe('2024-07-15T16:00:00.000Z');
-    // East of UTC, noon in Tokyo (UTC+9) is 03:00 UTC the same day
-    expect(civilDateAtHour(day, 12, 'Asia/Tokyo').toISOString()).toBe('2024-01-15T03:00:00.000Z');
-  });
-
-  it('round-trips through toCivilDate onto the same day, even with a bedtime offset', () => {
-    const day = parseCivilDayKey('2024-03-10')!; // a DST change day in the US
-    const instant = civilDateAtHour(day, 12, 'America/Denver');
-    expect(civilDayKey(toCivilDate(instant, 'America/Denver', parseBedtimeOffsetMinutes('02:00')))).toBe('2024-03-10');
   });
 });

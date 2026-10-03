@@ -356,7 +356,7 @@ export async function logHabitEvent(habitId: string, payload: Record<string, unk
   
   revalidatePath(`/log/${habitId}`);
   revalidatePath('/');
-  revalidatePath('/today');
+  revalidatePath('/history');
   return log;
 }
 
@@ -375,13 +375,13 @@ export async function deleteHabitLog(logId: string, habitId: string) {
   });
   revalidatePath(`/log/${habitId}`);
   revalidatePath('/');
-  revalidatePath('/today');
+  revalidatePath('/history');
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 // The current user's own entries on one of their days (`dayKey`, a civil date like "2024-03-10" in
-// their time zone, with their bedtime deciding when a day ends), oldest first, for the Log the day
+// their time zone, with their bedtime deciding when a day ends), oldest first, for the History
 // view. Only their own: on a shared habit, someone else's entry doesn't check it off for them.
 export async function getDayEntries(dayKey: string) {
   const user = await getDefaultUser();

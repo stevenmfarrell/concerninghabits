@@ -1,7 +1,7 @@
 'use client';
 
 import toast, { type Toast } from 'react-hot-toast';
-import { Check, Undo2, X } from 'lucide-react';
+import { Check, X } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/Button';
 import { deleteHabitLog } from '@/app/actions/db';
@@ -62,26 +62,6 @@ export function showLoggedToast(entry: LoggedEntry, { onUndone, toastId }: { onU
     id: toastId,
     duration: entry.source ? AUTOMATIC_DURATION_MS : MANUAL_DURATION_MS,
   });
-}
-
-// Confirms a removed entry, with an Undo that restores it (e.g. turning a chip off in Log the day)
-export function showRemovedToast(habitName: string, onUndo: () => Promise<void>) {
-  toast.custom(t => (
-    <ToastCard
-      t={t}
-      icon={<Undo2 className="w-4 h-4" strokeWidth={2.5} />}
-      iconClassName="bg-stone-600"
-      title={`${habitName} removed`}
-      onUndo={async () => {
-        toast.dismiss(t.id);
-        try {
-          await onUndo();
-        } catch (err) {
-          toast.error(`Failed to undo: ${err instanceof Error ? err.message : 'Unknown error'}`);
-        }
-      }}
-    />
-  ), { duration: MANUAL_DURATION_MS });
 }
 
 function ToastCard({ t, icon, iconClassName, title, detail, values, onUndo }: {

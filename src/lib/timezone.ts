@@ -52,25 +52,3 @@ export function parseCivilDayKey(key: string | undefined | null) {
   const date = new Date(`${key}T00:00:00Z`);
   return Number.isNaN(date.getTime()) || civilDayKey(date) !== key ? null : date;
 }
-
-const wallClockFormatters = new Map<string, Intl.DateTimeFormat>();
-
-// The instant at `hour`:00 on a civil date in `timeZone`, e.g. midday on a day an entry is being
-// backdated to. Midday keeps it well clear of DST changes and of any bedtime rollover.
-export function civilDateAtHour(civilDate: Date, hour: number, timeZone: string) {
-  let formatter = wallClockFormatters.get(timeZone);
-  if (!formatter) {
-    formatter = new Intl.DateTimeFormat('en-US', {
-      timeZone, hourCycle: 'h23', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric',
-    });
-    wallClockFormatters.set(timeZone, formatter);
-  }
-
-  // That wall-clock time read as if it were UTC, then corrected by how far the zone's clock is from
-  // UTC around then
-  const asUtc = Date.UTC(civilDate.getUTCFullYear(), civilDate.getUTCMonth(), civilDate.getUTCDate(), hour);
-  const parts = formatter.formatToParts(new Date(asUtc));
-  const part = (type: Intl.DateTimeFormatPartTypes) => Number(parts.find(p => p.type === type)?.value);
-  const wallClock = Date.UTC(part('year'), part('month') - 1, part('day'), part('hour'), part('minute'));
-  return new Date(asUtc - (wallClock - asUtc));
-}
