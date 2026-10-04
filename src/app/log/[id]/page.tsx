@@ -154,8 +154,9 @@ export default async function HabitPage(props: { params: Promise<{ id: string }>
           />
         )}
 
-        {/* Log Entries Table */}
-        <div id="logs-table" className="bg-white rounded-2xl shadow-sm border border-stone-100 overflow-hidden scroll-mt-24">
+        {/* Log Entries Table. Not overflow-hidden, which would clip an entry's menu at the card's
+            bottom edge; the last row and the pagination bar round their own corners instead. */}
+        <div id="logs-table" className="bg-white rounded-2xl shadow-sm border border-stone-100 scroll-mt-24">
           <div className="flex items-center justify-between p-4 border-b border-stone-100">
             <h2 className="text-lg font-semibold text-stone-800">Log Entries</h2>
             <ExportCsvButton habitId={habit.id} />
@@ -188,7 +189,7 @@ export default async function HabitPage(props: { params: Promise<{ id: string }>
                     <tr 
                       id={`log-${log.id}`}
                       key={isHighlighted ? `${log.id}-${searchParams?.t || '1'}` : log.id} 
-                      className={`border-b border-stone-50 last:border-0 group transition-colors ${
+                      className={`border-b border-stone-50 last:border-0 group transition-colors [&:last-child>td:first-child]:rounded-bl-2xl [&:last-child>td:last-child]:rounded-br-2xl ${
                         isHighlighted ? 'animate-highlight-fade' : 'hover:bg-stone-50/50'
                       }`}
                     >
@@ -237,7 +238,7 @@ export default async function HabitPage(props: { params: Promise<{ id: string }>
           
           {/* Pagination Controls */}
           {totalPages > 1 && (
-            <div className="flex items-center justify-between px-4 py-3 border-t border-stone-100 bg-stone-50/50">
+            <div className="flex items-center justify-between px-4 py-3 border-t border-stone-100 bg-stone-50/50 rounded-b-2xl">
               <span className="text-sm text-stone-500 font-medium">
                 Showing {(page - 1) * pageSize + 1} to {Math.min(page * pageSize, filteredLogs.length)} of {filteredLogs.length}
               </span>
