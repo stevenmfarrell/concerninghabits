@@ -3,6 +3,7 @@
 import { civilDayKey, parseBedtimeOffsetMinutes, toCivilDate } from '@/lib/timezone';
 import { cadenceCovers, DEFAULT_CADENCE, entriesNeeded, startOfWeek, type Cadence } from '@/lib/cadence';
 import { ACTIVITY_PALETTES, activityShade, type ActivityColor } from '@/lib/activityShade';
+import { calendarStart } from '@/lib/calendarRange';
 import type { Person } from '@/lib/userColors';
 
 // Whether `neighbor` (a possibly-absent, possibly-padding cell) falls in a different month than
@@ -67,22 +68,9 @@ export default function ActivityCalendar({ dates, timeZone, weeks = 5, cadence =
   const endDate = getStartOfWeek(today);
   endDate.setUTCDate(endDate.getUTCDate() + 6);
 
-  // Determine start date
-  const startDate = new Date(today);
-  if (weeks >= 52) {
-    // For a year view, go back 11 months and snap to the 1st to ensure exactly 12 months (3 columns of 4)
-    startDate.setUTCMonth(startDate.getUTCMonth() - 11);
-    startDate.setUTCDate(1);
-  } else if (weeks > 7) {
-    // Snap to 1st of the month
-    startDate.setUTCDate(today.getUTCDate() - weeks * 7 + 1);
-    startDate.setUTCDate(1);
-  } else {
-    // Start date is exactly (weeks - 1) weeks prior to the start of the current week
-    const alignedStart = getStartOfWeek(today);
-    alignedStart.setUTCDate(alignedStart.getUTCDate() - (weeks - 1) * 7);
-    startDate.setTime(alignedStart.getTime());
-  }
+  // Whole months when it draws month dividers (all but a row's plain xs calendar), so its first row
+  // never has a divider over only part of it
+  const startDate = calendarStart(today, weeks, weekStartsOn, size !== 'xs');
 
   const allDays = [];
   for (let d = new Date(startDate); d <= endDate; d.setUTCDate(d.getUTCDate() + 1)) {

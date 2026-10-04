@@ -15,6 +15,7 @@ import ExportCsvButton from './ExportCsvButton';
 import { formatLogValue } from '../../../lib/format';
 import { parseBedtimeOffsetMinutes, toCivilDate } from '../../../lib/timezone';
 import { parseCadence } from '@/lib/cadence';
+import { calendarStart } from '@/lib/calendarRange';
 import type { HabitSchema } from '@/lib/types';
 import { fieldTitle, type HabitFormProperties } from '@/components/widgets/habitForm';
 
@@ -59,20 +60,12 @@ export default async function HabitPage(props: { params: Promise<{ id: string }>
   const mobileMonthsPerColumn = weeks === 52 ? 7 : 4;
   const desktopMonthsPerColumn = weeks === 52 ? 5 : 4;
 
-  // Filter logs based on chosen horizon cutoff date. Days are calendar days in the viewer's time zone,
-  // with the same bedtime rule as the calendar (see ActivityCalendar).
+  // Filter logs to the days the calendar shows (see ActivityCalendar, whose md calendar draws month
+  // dividers, so starts on whole months). Days are calendar days in the viewer's time zone, with the
+  // same bedtime rule as the calendar.
   const bedtimeOffsetMinutes = parseBedtimeOffsetMinutes(user.bedtime);
   const today = toCivilDate(new Date(), user.timeZone, bedtimeOffsetMinutes);
-  const cutoffDate = new Date(today);
-  if (weeks >= 52) {
-    cutoffDate.setUTCMonth(cutoffDate.getUTCMonth() - 11);
-    cutoffDate.setUTCDate(1);
-  } else if (weeks > 7) {
-    cutoffDate.setUTCDate(today.getUTCDate() - weeks * 7 + 1);
-    cutoffDate.setUTCDate(1);
-  } else {
-    cutoffDate.setUTCDate(today.getUTCDate() - weeks * 7 + 1);
-  }
+  const cutoffDate = calendarStart(today, weeks, user.weekStartsOn, true);
 
   const filteredLogs = logs.filter(l => toCivilDate(l.createdAt, user.timeZone, bedtimeOffsetMinutes) >= cutoffDate);
 
