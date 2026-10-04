@@ -299,7 +299,9 @@ export default function ActivityCalendar({ dates, timeZone, weeks = 5, cadence =
                 })}
               </div>
             )}
-            <div className="relative shrink-0">
+            {/* Isolated, so the cells' and month lines' z-indexes only layer them within the grid, rather
+                than lifting them over a page's pinned section headings as it scrolls under them */}
+            <div className="relative isolate shrink-0">
               <div className={`grid grid-cols-7 ${gapClass}`}>
                 {grid.map((cell, i) => {
                   if (cell.isNull) {
