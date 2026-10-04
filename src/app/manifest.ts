@@ -8,7 +8,7 @@ export default function manifest(): MetadataRoute.Manifest {
     start_url: '/',
     display: 'standalone',
     orientation: 'portrait',
-    background_color: '#fafaf9', // stone-50
+    background_color: '#f4f3f3', // the light theme's canvas (see globals.css)
     theme_color: '#059669', // emerald-500
     icons: [
       {

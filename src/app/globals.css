@@ -11,7 +11,8 @@
 
   /* What things sit on: the page, the white of its lists and dialogs, and fills a step or two
      stronger for inputs, hovered rows, tracks and wells */
-  --canvas: var(--color-stone-50);
+  /* A touch past stone-100, so the white surfaces stand clearly apart from it */
+  --canvas: color-mix(in oklab, var(--color-stone-100) 90%, var(--color-stone-200));
   --surface: var(--color-white);
   --surface-subtle: var(--color-stone-50);
   --surface-muted: var(--color-stone-100);
