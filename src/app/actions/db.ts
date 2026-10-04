@@ -20,7 +20,7 @@ import { RETURN_TO_HEADER, withReturnTo } from '@/lib/returnTo';
 import type { HabitSchema } from '@/lib/types';
 import { calculatedFieldProblem, calculatedFieldSchema, calculatedFieldsSchema, MAX_CALCULATED_FIELDS, parseCalculatedFields, type CalculatedField } from '@/lib/calculatedFields';
 import { keyFor } from '@/lib/formFields';
-import { chartProblem, chartSpecSchema, MAX_CHARTS, newChartId, parseCharts, plottableFields, type SavedChart } from '@/lib/charts';
+import { chartProblem, chartSpecSchema, MAX_CHARTS, newChartId, parseCharts, plottableFields, type SavedChartInput } from '@/lib/charts';
 
 type SchemaProperty = { type?: string; title?: string };
 
@@ -746,7 +746,7 @@ export async function deleteCalculatedField(habitId: string, key: string) {
 // the id of the chart to show (a field's own chart's id is its key), and the calculated fields added.
 export async function saveChart(
   habitId: string,
-  chart: Omit<SavedChart, 'id'> & { id: string | null },
+  chart: Omit<SavedChartInput, 'id'> & { id: string | null },
   newCalculatedFields: CalculatedField[] = [],
 ) {
   const user = await getDefaultUser();

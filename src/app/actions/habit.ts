@@ -426,7 +426,7 @@ A chart has:
 - period: what it's shown by at first. Anyone viewing it can switch it between entries, days, weeks and months, so pick the one that best fits the request. 'entry' is a point per entry, the entry's own value. 'day', 'week' or 'month' combine each calendar period's entries into one point. 'rolling' is a point per day combining the entries of the last rollingDays days (2 to ${MAX_ROLLING_DAYS}), e.g. a 7-day average.
 - series: 1 to ${MAX_SERIES} lines on the same axis. Each takes a field (a form field key or calculated field key that's a number, or 'entries' to count entries) and fn: how a period's entries combine (${AGGREGATES.join(', ')}), whichever period it's shown by, so give it even for period 'entry'. Amounts that add up, like a distance, a time spent or pages read, use sum; rates, ratios and readings, like a pace, a speed, a weight or a mood, use avg (or min or max when asked for the lowest or highest). 'count' counts the entries (with a value for the field). 'entries' can only use fn 'count'.
 - kind: 'bar' suits totals and counts per period; 'line' suits values over time, averages and rolling values.
-All series must be in the same unit, since they share one axis (a count's unit is entries). Don't put e.g. distance and time on one chart.
+- layout, for 2 or more series: 'shared' draws them on one axis, for comparing like amounts directly (e.g. total distance and longest run). 'separate' stacks a panel per series over the same dates, each scaled to its own values: use it when the series sit in different ranges that would flatten each other's movement on one axis (e.g. systolic around 120 and diastolic around 80 blood pressure), or are in different units (e.g. distance and time; a count's unit is entries). Series in different units must be 'separate'.
 
 When the chart needs a value worked out from each entry that isn't a form field or an existing calculated field (e.g. a pace or a speed), define it in newCalculatedFields: a new key (not one already used), a short title, a formula using only form field keys, numbers, + - * / and parentheses, its unit, and format 'duration' only when the result is a length of time in minutes (shown as m:ss). Durations are stored as total minutes, so a pace in minutes per mile is \`duration / distance\` and a speed in mph is \`distance / (duration / 60)\`. Reuse an existing calculated field when one fits. The user prefers the ${user.unitSystem} measurement system.
 Give the chart a short title naming what it shows, without the period, since the viewer can change that: e.g. "Miles run", "Pace", "Runs", "Distance and longest run". Never "per week", "weekly", "daily", "monthly", "each month" or the like in the title.
@@ -438,6 +438,7 @@ ${current ? `The user is changing this chart: ${JSON.stringify(current.chart)}. 
     reason: z.string().optional().describe('When not possible: why, in a short sentence to the user'),
     title: z.string(),
     kind: z.enum(['line', 'bar']),
+    layout: z.enum(['shared', 'separate']).describe("With 2 or more series: one axis, or a panel each"),
     period: z.enum(['entry', 'day', 'week', 'month', 'rolling']),
     rollingDays: z.number().int().optional().describe("For period 'rolling': how many days each point covers"),
     series: z.array(z.object({
@@ -480,7 +481,7 @@ ${current ? `The user is changing this chart: ${JSON.stringify(current.chart)}. 
 
 // The AI's answer as a chart and the calculated fields it adds
 function toChartDraft(object: {
-  title: string; kind: 'line' | 'bar'; period: 'entry' | 'day' | 'week' | 'month' | 'rolling'; rollingDays?: number;
+  title: string; kind: 'line' | 'bar'; layout: 'shared' | 'separate'; period: 'entry' | 'day' | 'week' | 'month' | 'rolling'; rollingDays?: number;
   series: { field: string; fn: (typeof AGGREGATES)[number] }[];
   newCalculatedFields: { key: string; title: string; expression: string; unit: string; format: 'number' | 'duration' }[];
 }) {
@@ -488,6 +489,7 @@ function toChartDraft(object: {
   const chart: ChartDraft = {
     title: object.title.trim(),
     kind: object.kind,
+    layout: object.series.length > 1 ? object.layout : 'shared',
     period,
     series: object.series.slice(0, MAX_SERIES).map(s => ({
       field: s.field === 'entries' ? null : s.field,

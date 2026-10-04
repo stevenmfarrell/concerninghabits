@@ -78,23 +78,28 @@ export const chartPeriodSchema = z.union([
   z.object({ rollingDays: z.number().int().min(2).max(MAX_ROLLING_DAYS) }),
 ]);
 
-// A chart the habit's owner made (stored as JSON in Habit.charts): up to three series on the same
-// axis, so in the same unit. `period` is what it's shown by unless the viewer switches it (see
-// periodChoices), so a title names what's charted, not the period.
+// A chart the habit's owner made (stored as JSON in Habit.charts): up to three series, either on
+// one `shared` axis (so in the same unit) or `separate`, stacked panels over the same dates, each
+// scaled to its own values (e.g. systolic and diastolic blood pressure, whose movements would flatten
+// on one axis, or values in different units). `period` is what it's shown by unless the viewer
+// switches it (see periodChoices), so a title names what's charted, not the period.
 export const chartSpecSchema = z.object({
   id: z.string().regex(/^c_[A-Za-z0-9]{1,32}$/),
   title: z.string().trim().min(1).max(100),
   kind: z.enum(['line', 'bar']),
   period: chartPeriodSchema,
   series: z.array(chartSeriesSchema.extend({ fn: z.enum(AGGREGATES) })).min(1).max(MAX_SERIES),
+  layout: z.enum(['shared', 'separate']).default('shared'),
 });
 
 export type ChartSeries = z.infer<typeof chartSeriesSchema>;
 export type ChartPeriod = z.infer<typeof chartPeriodSchema>;
 export type SavedChart = z.infer<typeof chartSpecSchema>;
+// A chart as given to be saved, where `layout` may be left out (shared)
+export type SavedChartInput = z.input<typeof chartSpecSchema>;
 
 // What drawing a chart needs: its series (whether or not they say how to combine) and its period
-export type ChartShape = { series: ChartSeries[]; period: ChartPeriod };
+export type ChartShape = { series: ChartSeries[]; period: ChartPeriod; layout?: 'shared' | 'separate' };
 
 // Any chart on a habit's page: one it was given (`custom`) or one of the defaults, a chart per
 // plottable field with a point per entry, whose series don't say how to combine. A default chart's
@@ -120,7 +125,7 @@ export function periodChoiceId(period: ChartPeriod) {
 }
 
 export function defaultCharts(fields: PlottableField[]): ChartSpec[] {
-  return fields.map(field => ({ id: field.key, title: field.title, kind: 'line' as const, period: 'entry' as const, series: [{ field: field.key }], custom: false as const }));
+  return fields.map(field => ({ id: field.key, title: field.title, kind: 'line' as const, period: 'entry' as const, layout: 'shared' as const, series: [{ field: field.key }], custom: false as const }));
 }
 
 export function newChartId() {
@@ -142,13 +147,14 @@ export function parseCharts(raw: string | null | undefined): SavedChart[] {
 }
 
 // The unit and format a series' values are in: its field's, or entries when it counts them
-function seriesUnit(series: ChartSeries, fields: PlottableField[], period: ChartPeriod) {
+export function seriesUnit(series: ChartSeries, fields: PlottableField[], period: ChartPeriod) {
   if (series.field === null || (period !== 'entry' && series.fn === 'count')) return { unit: 'entries', format: 'number' as const };
   const field = fields.find(f => f.key === series.field);
   return { unit: field?.unit, format: field?.format ?? ('number' as const) };
 }
 
-// The unit and format a chart's values are in (its series all share one; see chartProblem)
+// The unit and format a chart's values are in (on a shared axis its series all share one; see
+// chartProblem). With separate axes, each series' own is seriesUnit's.
 export function chartUnit(spec: ChartShape, fields: PlottableField[]) {
   return seriesUnit(spec.series[0], fields, spec.period);
 }
@@ -165,7 +171,7 @@ export function chartProblem(spec: ChartShape, fields: PlottableField[]): string
   const keys = spec.series.map(s => `${s.field}:${byEntry ? '' : s.fn}`);
   if (new Set(keys).size !== keys.length) return 'The same line is on the chart twice';
   const units = spec.series.map(s => JSON.stringify(seriesUnit(s, fields, spec.period)));
-  if (new Set(units).size > 1) return 'Lines in different units can\'t share an axis: make them separate charts';
+  if (spec.layout !== 'separate' && new Set(units).size > 1) return 'Lines in different units can\'t share an axis: give each its own';
   return null;
 }
 

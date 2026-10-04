@@ -28,7 +28,12 @@ import {
 } from '@/lib/charts';
 import type { HabitSchema } from '@/lib/types';
 
-const EMPTY: ChartDraft = { title: '', kind: 'line', period: 'week', series: [{ field: null, fn: 'count' }] };
+const EMPTY: ChartDraft = { title: '', kind: 'line', period: 'week', layout: 'shared', series: [{ field: null, fn: 'count' }] };
+
+const LAYOUT_OPTIONS = [
+  { value: 'shared' as const, label: 'One axis' },
+  { value: 'separate' as const, label: 'Own axes' },
+];
 
 const KIND_OPTIONS = [
   { value: 'line' as const, label: 'Line' },
@@ -287,6 +292,18 @@ export default function ChartSheet({ habitId, schema, calculatedFields, initial,
             )}
           </div>
 
+          {draft.series.length > 1 && (
+            <div className="space-y-1.5">
+              <span className="block text-sm font-medium text-ink-secondary">Lines are drawn on</span>
+              <SegmentedControl size="md" label="Lines are drawn on" options={LAYOUT_OPTIONS} value={draft.layout} onChange={layout => set({ layout })} />
+              <p className="text-xs text-ink-muted">
+                {draft.layout === 'separate'
+                  ? 'A panel each, over the same dates, scaled to its own values: for values in different units, or ranges that would flatten each other.'
+                  : 'One shared scale, to compare the values directly.'}
+              </p>
+            </div>
+          )}
+
           <div className="space-y-1.5">
             <span className="block text-sm font-medium text-ink-secondary">Drawn as</span>
             <SegmentedControl size="md" label="Drawn as" options={KIND_OPTIONS} value={draft.kind} onChange={kind => set({ kind })} />
@@ -297,7 +314,7 @@ export default function ChartSheet({ habitId, schema, calculatedFields, initial,
           ) : !problem && (
             <div className="space-y-2">
               <span className="block text-sm font-medium text-ink-secondary">Preview</span>
-              <ChartView spec={draft} kind={draft.kind} rows={rows} fields={fields} timeZone={context.timeZone} heightClassName="h-44" />
+              <ChartView spec={draft} kind={draft.kind} rows={rows} fields={fields} timeZone={context.timeZone} height={180} />
             </div>
           )}
 

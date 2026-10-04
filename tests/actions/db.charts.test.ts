@@ -85,6 +85,12 @@ describe('charts', () => {
     expect(await stored(habitId)).toEqual({ charts: [], calculatedFields: [] });
   });
 
+  it('saves lines in different units when each has its own axis', async () => {
+    const { chart } = await saveChart(habitId, { ...weeklyMiles, layout: 'separate', series: [{ field: 'distance', fn: 'sum' }, { field: 'duration', fn: 'sum' }] });
+    expect((await stored(habitId)).charts).toEqual([chart]);
+    expect(chart!.layout).toBe('separate');
+  });
+
   it('only lets the owner change them, even on a shared habit', async () => {
     const { chart } = await saveChart(habitId, weeklyMiles);
     const member = await createTestUser('Member');

@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useId, useMemo, useRef } from 'react';
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import type { Person } from '@/lib/userColors';
 import { formatDuration } from '@/lib/format';
-import { chartUnit, formatChartX, formatPlotted, seriesLabel, type ChartRow, type ChartShape, type PlottableField } from '@/lib/charts';
+import { chartUnit, formatChartX, formatPlotted, seriesLabel, seriesUnit, type ChartRow, type ChartShape, type PlottableField } from '@/lib/charts';
 
 // The theme's colors (see globals.css), as CSS variables so the chart follows light and dark mode.
 // Series take the chart colors in order, never cycled (a chart has at most three).
@@ -20,11 +20,16 @@ const MARGIN = { top: 5, right: 10, left: -20, bottom: 5 };
 // Above this many points a line drops its dots, which would crowd into a smear
 const MAX_DOTS = 60;
 
-// A chart of a habit's entries (see charts.ts): its rows drawn as lines or bars, a series each, on
-// one axis, with a legend under it when there's more than one. A chart with a point per entry and one
+// The shortest a panel of a chart with separate axes gets
+const MIN_PANEL_HEIGHT = 96;
+
+// A chart of a habit's entries (see charts.ts): its rows drawn as lines or bars, a series each,
+// either on one axis with a legend under it (when there's more than one), or with separate axes,
+// stacked panels over the same dates, each named over it. `height` is the chart's, or roughly each
+// panel's two thirds of it (a little under half with three). A chart with a point per entry and one
 // series colors each point by who logged it when `people` is given (a shared habit). Clicking a
 // point calls `onPointClick` with the entry it shows (a period's latest).
-export default function ChartView({ spec, kind, rows, fields, timeZone, people, onPointClick, heightClassName = 'h-64' }: {
+export default function ChartView({ spec, kind, rows, fields, timeZone, people, onPointClick, height = 256 }: {
   spec: ChartShape;
   kind: 'line' | 'bar';
   rows: ChartRow[];
@@ -32,21 +37,24 @@ export default function ChartView({ spec, kind, rows, fields, timeZone, people, 
   timeZone: string;
   people?: Record<string, Person>;
   onPointClick?: (logId: string) => void;
-  heightClassName?: string;
+  height?: number;
 }) {
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const syncId = useId();
   const { period, series } = spec;
   const byEntry = period === 'entry';
   const byPerson = !!people && byEntry && series.length === 1;
-  const unit = chartUnit(spec, fields);
   const labels = series.map(s => seriesLabel(s, fields, period));
 
-  // Recharts tooltips can get stuck on mobile/touch devices. This forces a mouseleave on the chart
-  // when touching outside it, which clears the tooltip.
+  // Recharts tooltips can get stuck on mobile/touch devices. This sends a mouseleave to each plot
+  // (Recharts listens on its own wrapper, which an event on a parent wouldn't reach) when touching
+  // outside the chart, which clears the tooltip.
   useEffect(() => {
     const handleTouchOutside = (e: TouchEvent) => {
       if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
-        wrapperRef.current.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true, cancelable: true }));
+        wrapperRef.current.querySelectorAll('.recharts-wrapper').forEach(plot => {
+          plot.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true, cancelable: true }));
+        });
       }
     };
     document.addEventListener('touchstart', handleTouchOutside, { passive: true });
@@ -78,40 +86,11 @@ export default function ChartView({ spec, kind, rows, fields, timeZone, people, 
   const hasData = rows.some(row => row.values.some(v => v !== null));
   if (!hasData) {
     return (
-      <div className={`w-full ${heightClassName} flex items-center justify-center text-ink-subtle text-sm italic`}>
+      <div style={{ height }} className="w-full flex items-center justify-center text-ink-subtle text-sm italic">
         No data recorded for this chart yet.
       </div>
     );
   }
-
-  // Totals and counts start from zero, as bars do; other lines fit their values
-  const fromZero = kind === 'bar' || (!byEntry && series.every(s => s.fn === 'sum' || s.fn === 'count'));
-  const yAxis = (
-    <YAxis
-      domain={fromZero ? [0, 'auto'] : ['auto', 'auto']}
-      axisLine={false}
-      tickLine={false}
-      tick={CHART_TICK}
-      tickFormatter={tick => (unit.format === 'duration' ? formatDuration(Number(tick)) : String(tick))}
-    />
-  );
-  const tooltip = (
-    <Tooltip
-      cursor={kind === 'bar' ? { fill: 'var(--surface-muted)' } : false}
-      contentStyle={TOOLTIP_STYLE}
-      labelStyle={TOOLTIP_LABEL_STYLE}
-      itemStyle={TOOLTIP_ITEM_STYLE}
-      labelFormatter={(_label, payload) => {
-        const x = (payload?.[0]?.payload as { x?: number } | undefined)?.x;
-        return x === undefined ? '' : formatChartX(x, period, timeZone, 'tooltip');
-      }}
-      formatter={(value: unknown, name: unknown, item: unknown) => {
-        const personName = (item as { payload?: { personName?: string } } | undefined)?.payload?.personName;
-        return [formatPlotted(value, unit), personName ? `${name} · ${personName}` : String(name)];
-      }}
-    />
-  );
-  const grid = <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={CHART_GRID} />;
 
   const handleChartClick = (e: unknown) => {
     // Clicks anywhere on the chart's vertical slice
@@ -125,15 +104,51 @@ export default function ChartView({ spec, kind, rows, fields, timeZone, people, 
   };
 
   const showDots = rows.length <= MAX_DOTS;
+  const separate = spec.layout === 'separate' && series.length > 1;
 
-  return (
-    <div className="space-y-3">
-      <div ref={wrapperRef} className={`w-full ${heightClassName}`}>
+  // One plot of some of the series (all of them on a shared axis, or one per panel), `plotHeight`
+  // tall. Panels keep the same x axis, hidden but for the last, so they line up, and hover together.
+  const plot = (indices: number[], plotHeight: number, showXAxis: boolean) => {
+    const unit = separate ? seriesUnit(series[indices[0]], fields, period) : chartUnit(spec, fields);
+    // Totals and counts start from zero, as bars do; other lines fit their values
+    const fromZero = kind === 'bar' || (!byEntry && indices.every(i => series[i].fn === 'sum' || series[i].fn === 'count'));
+    const margin = { ...MARGIN, bottom: showXAxis ? 5 : 0 };
+    const yAxis = (
+      <YAxis
+        domain={fromZero ? [0, 'auto'] : ['auto', 'auto']}
+        axisLine={false}
+        tickLine={false}
+        tick={CHART_TICK}
+        tickFormatter={tick => (unit.format === 'duration' ? formatDuration(Number(tick)) : String(tick))}
+      />
+    );
+    const tooltip = (
+      <Tooltip
+        cursor={kind === 'bar' ? { fill: 'var(--surface-muted)' } : false}
+        contentStyle={TOOLTIP_STYLE}
+        labelStyle={TOOLTIP_LABEL_STYLE}
+        itemStyle={TOOLTIP_ITEM_STYLE}
+        labelFormatter={(_label, payload) => {
+          const x = (payload?.[0]?.payload as { x?: number } | undefined)?.x;
+          return x === undefined ? '' : formatChartX(x, period, timeZone, 'tooltip');
+        }}
+        formatter={(value: unknown, name: unknown, item: unknown) => {
+          const personName = (item as { payload?: { personName?: string } } | undefined)?.payload?.personName;
+          return [formatPlotted(value, unit), personName ? `${name} · ${personName}` : String(name)];
+        }}
+      />
+    );
+    const grid = <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={CHART_GRID} />;
+    const common = { data, margin, onClick: handleChartClick, style: CHART_STYLE, syncId: separate ? syncId : undefined };
+
+    return (
+      <div style={{ height: plotHeight }} className="w-full">
         <ResponsiveContainer width="100%" height="100%">
           {kind === 'bar' ? (
-            <BarChart data={data} margin={MARGIN} onClick={handleChartClick} style={CHART_STYLE}>
+            <BarChart {...common}>
               {grid}
               <XAxis
+                hide={!showXAxis}
                 dataKey={byEntry ? 'logId' : 'x'}
                 ticks={dayTicks}
                 tickFormatter={value => {
@@ -149,23 +164,24 @@ export default function ChartView({ spec, kind, rows, fields, timeZone, people, 
               />
               {yAxis}
               {tooltip}
-              {series.map((_, i) => (
+              {indices.map(i => (
                 <Bar
                   key={i}
                   dataKey={`s${i}`}
                   name={labels[i]}
                   fill={SERIES_COLORS[i]}
                   radius={[4, 4, 0, 0]}
-                  maxBarSize={60 / series.length}
+                  maxBarSize={60 / indices.length}
                   onClick={handleMarkClick}
                 />
               ))}
             </BarChart>
           ) : (
-            <LineChart data={data} margin={MARGIN} onClick={handleChartClick} style={CHART_STYLE}>
+            <LineChart {...common}>
               {grid}
               {byEntry ? (
                 <XAxis
+                  hide={!showXAxis}
                   dataKey="x"
                   type="number"
                   scale="time"
@@ -179,6 +195,7 @@ export default function ChartView({ spec, kind, rows, fields, timeZone, people, 
                 />
               ) : (
                 <XAxis
+                  hide={!showXAxis}
                   dataKey="x"
                   tickFormatter={value => formatChartX(Number(value), period, timeZone, 'tick')}
                   interval="preserveStartEnd"
@@ -191,7 +208,7 @@ export default function ChartView({ spec, kind, rows, fields, timeZone, people, 
               )}
               {yAxis}
               {tooltip}
-              {series.map((_, i) => {
+              {indices.map(i => {
                 const color = SERIES_COLORS[i];
                 return (
                   <Line
@@ -222,15 +239,46 @@ export default function ChartView({ spec, kind, rows, fields, timeZone, people, 
           )}
         </ResponsiveContainer>
       </div>
-      {series.length > 1 && (
-        <ul className="flex flex-wrap gap-x-4 gap-y-1.5" aria-label="Legend">
-          {labels.map((label, i) => (
-            <li key={i} className="flex items-center gap-1.5 text-sm text-ink-secondary">
-              <span className="w-3 h-3 rounded-sm shrink-0" style={{ backgroundColor: SERIES_COLORS[i] }} />
-              {label}
-            </li>
+    );
+  };
+
+  // A series' name with its unit, e.g. "Systolic (mmHg)", over its own panel
+  const panelLabel = (i: number) => {
+    const { unit, format } = seriesUnit(series[i], fields, period);
+    const shownUnit = format === 'duration' ? 'm:ss' : unit;
+    return shownUnit && shownUnit !== 'entries' ? `${labels[i]} (${shownUnit})` : labels[i];
+  };
+
+  return (
+    <div ref={wrapperRef} className="space-y-3">
+      {separate ? (
+        // A panel per series, the same dates across, each with its own axis. Each is named over it,
+        // so there's no legend.
+        <div className="space-y-2">
+          {series.map((_, i) => (
+            <div key={i}>
+              <p className="flex items-center gap-1.5 text-xs font-medium text-ink-secondary">
+                <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ backgroundColor: SERIES_COLORS[i] }} />
+                {panelLabel(i)}
+              </p>
+              {plot([i], Math.max(MIN_PANEL_HEIGHT, Math.round(height * (series.length === 2 ? 0.6 : 0.45))), i === series.length - 1)}
+            </div>
           ))}
-        </ul>
+        </div>
+      ) : (
+        <>
+          {plot(series.map((_, i) => i), height, true)}
+          {series.length > 1 && (
+            <ul className="flex flex-wrap gap-x-4 gap-y-1.5" aria-label="Legend">
+              {labels.map((label, i) => (
+                <li key={i} className="flex items-center gap-1.5 text-sm text-ink-secondary">
+                  <span className="w-3 h-3 rounded-sm shrink-0" style={{ backgroundColor: SERIES_COLORS[i] }} />
+                  {label}
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
       )}
     </div>
   );

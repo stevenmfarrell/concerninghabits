@@ -108,6 +108,9 @@ describe('custom charts', () => {
     expect(chartProblem({ period: 'week', series: [{ field: 'distance', fn: 'sum' }, { field: 'distance', fn: 'sum' }] }, fields)).toMatch(/twice/);
     expect(chartProblem({ period: 'entry', series: [{ field: 'distance' }, { field: 'duration' }] }, fields)).toMatch(/different units/);
     expect(chartProblem({ period: 'week', series: [{ field: 'distance', fn: 'sum' }, { field: null, fn: 'count' }] }, fields)).toMatch(/different units/);
+    // Each on its own axis, lines in different units are fine
+    expect(chartProblem({ period: 'entry', layout: 'separate', series: [{ field: 'distance' }, { field: 'duration' }] }, fields)).toBeNull();
+    expect(chartProblem({ period: 'week', layout: 'separate', series: [{ field: 'distance', fn: 'sum' }, { field: null, fn: 'count' }] }, fields)).toBeNull();
     expect(chartUnit({ period: 'week', series: [{ field: 'duration', fn: 'sum' }] }, fields)).toEqual({ unit: undefined, format: 'duration' });
   });
 
@@ -122,7 +125,8 @@ describe('custom charts', () => {
 
   it('reads stored charts, dropping anything unreadable', () => {
     const chart = { id: 'c_abc123', title: 'Miles per week', kind: 'bar', period: 'week', series: [{ field: 'distance', fn: 'sum' }] };
-    expect(parseCharts(JSON.stringify([chart, { ...chart, id: 'bad id' }, { ...chart, series: [] }]))).toEqual([chart]);
+    // A chart saved before it had a layout shares one axis
+    expect(parseCharts(JSON.stringify([chart, { ...chart, id: 'bad id' }, { ...chart, series: [] }]))).toEqual([{ ...chart, layout: 'shared' }]);
     expect(parseCharts('nope')).toEqual([]);
   });
 
