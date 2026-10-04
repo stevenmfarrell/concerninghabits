@@ -83,7 +83,7 @@ const SortableSubcategoryItem = ({ sub, user, people, isOverlay, isReordering, c
       
       {/* Habits */}
       {isOpen && !isOverlay && subHabits.length > 0 && (
-        <SortableHabitList items={subHabits} user={user} people={people} isReordering={isReordering} dndContextId={`habits-dnd-${sub.id}`} isNested={true} />
+        <SortableHabitList items={subHabits} user={user} people={people} isReordering={isReordering} dndContextId={`habits-dnd-${sub.id}`} bare />
       )}
     </div>
   );
@@ -200,8 +200,10 @@ const SortableHabitItem = ({ habit, status, user, people, isOverlay, isReorderin
   return <div ref={setNodeRef} style={style} className={`relative bg-white ${className}`}>{content}</div>;
 };
 
-// `statuses` are what some habits' rows show beside their calendars, by habit id (see SortableHabitItem)
-export function SortableHabitList({ items: initialItems, statuses, user, people, isReordering, dndContextId = "habits-dnd-context", isNested = false }: { items: HabitListItem[], statuses?: Record<string, Status>, user: SessionUser, people: Record<string, Person>, isReordering?: boolean, dndContextId?: string, isNested?: boolean }) {
+// `statuses` are what some habits' rows show beside their calendars, by habit id (see SortableHabitItem).
+// `bare` leaves out the list's own card, for a list inside something else (a subcategory's card) or
+// laid straight on the page (the Agenda's full-width pane).
+export function SortableHabitList({ items: initialItems, statuses, user, people, isReordering, dndContextId = "habits-dnd-context", bare = false }: { items: HabitListItem[], statuses?: Record<string, Status>, user: SessionUser, people: Record<string, Person>, isReordering?: boolean, dndContextId?: string, bare?: boolean }) {
   const { items, activeId, sensors, handleDragStart, handleDragCancel, handleDragEnd } = useReorderableList(initialItems, async (newItems) => {
     const updates = newItems.map((item, index) => ({ id: item.id, order: index }));
     await reorderHabits(updates);
@@ -210,7 +212,7 @@ export function SortableHabitList({ items: initialItems, statuses, user, people,
   const activeItem = items.find(i => i.id === activeId);
 
   return (
-    <div className={isNested ? "divide-y divide-stone-100 flex flex-col w-full" : "bg-white rounded-2xl shadow-sm border border-stone-100 overflow-hidden divide-y divide-stone-100 flex flex-col"}>
+    <div className={bare ? "divide-y divide-stone-100 flex flex-col w-full" : "bg-white rounded-2xl shadow-sm border border-stone-100 overflow-hidden divide-y divide-stone-100 flex flex-col"}>
       <DndContext id={dndContextId} sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={handleDragCancel}>
         <SortableContext items={items.map(i => i.id)} strategy={verticalListSortingStrategy}>
           {items.map(habit => <SortableHabitItem key={habit.id} habit={habit} status={statuses?.[habit.id]} user={user} people={people} isReordering={isReordering} />)}

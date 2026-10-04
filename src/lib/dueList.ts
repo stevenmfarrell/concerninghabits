@@ -31,8 +31,6 @@ export interface DueCategory {
   id: string;
   name: string;
   icon: string | null;
-  // The parent's name, for a subcategory
-  parentName?: string;
   cadence: Cadence;
   habits: HabitListItem[];
   // When it's due or upcoming, what its row shows beside its calendar
@@ -101,10 +99,10 @@ export function buildDueList(
     if (shown) list.statuses[habit.id] = shown;
   };
 
-  const addCategory = (category: CategoryWithHabits, habits: HabitListItem[], parentName?: string) => {
+  const addCategory = (category: CategoryWithHabits, habits: HabitListItem[]) => {
     const cadence = parseCadence(category.cadence, NO_CADENCE);
     if (cadence.type === 'none') return;
-    const item: DueCategory = { id: category.id, name: category.name, icon: category.icon, parentName, cadence, habits };
+    const item: DueCategory = { id: category.id, name: category.name, icon: category.icon, cadence, habits };
     const dates = habits.flatMap(entryDates);
     const status = cadenceStatus(cadence, dates, user, now);
     if (status.state === 'due') list.dueCategories.push({ ...item, status: rowStatus(cadence, dates) });
@@ -116,7 +114,7 @@ export function buildDueList(
     addCategory(category, [...category.habits, ...category.children.flatMap(child => child.habits)]);
     category.habits.forEach(addHabit);
     for (const child of category.children) {
-      addCategory(child, child.habits, category.name);
+      addCategory(child, child.habits);
       child.habits.forEach(addHabit);
     }
   }

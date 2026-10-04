@@ -43,10 +43,10 @@ describe('buildDueList', () => {
     expect(ids(list.doneCategories[0].habits)).toEqual(['pushups', 'bike']);
   });
 
-  it('lists a due subcategory with its parent\'s name, and only its own habits', () => {
+  it('lists a due subcategory with only its own habits', () => {
     const cardio = category('Cardio', daily, [habit('bike', none)]);
     const list = buildDueList([category('Fitness', none, [habit('pushups', none)], [cardio])], [], {}, user, now);
-    expect(list.dueCategories).toMatchObject([{ id: 'Cardio', parentName: 'Fitness' }]);
+    expect(ids(list.dueCategories)).toEqual(['Cardio']);
     expect(ids(list.dueCategories[0].habits)).toEqual(['bike']);
   });
 

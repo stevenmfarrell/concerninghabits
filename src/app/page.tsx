@@ -15,12 +15,12 @@ import type { HabitListItem, SessionUser } from '@/lib/types';
 // habits are, to log one), each with a calendar of its recent entries like a habit's
 function CategoryList({ categories, user }: { categories: DueCategory[]; user: SessionUser }) {
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-stone-100 overflow-hidden divide-y divide-stone-100 flex flex-col">
+    <div className="divide-y divide-stone-100 flex flex-col">
       {categories.map(category => (
         <CategoryRow
           key={category.id}
           href={`/categories/${category.id}`}
-          name={category.parentName ? `${category.parentName} › ${category.name}` : category.name}
+          name={category.name}
           icon={category.icon || 'Folder'}
           dates={category.habits.flatMap(h => (h.logs ?? []).map(l => l.createdAt))}
           habitCount={category.habits.length}
@@ -69,8 +69,11 @@ function DoneChips({ habits, categories }: { habits: HabitListItem[]; categories
   );
 }
 
+// Lined up with the rows' contents, which run the full width of the page
+const INSET = 'px-4 sm:px-6';
+
 function SectionHeading({ children }: { children: string }) {
-  return <h2 className="text-xl font-semibold text-stone-800 border-b border-stone-200 pb-2">{children}</h2>;
+  return <h2 className={`${INSET} pb-2 text-xs font-semibold uppercase tracking-wider text-stone-500`}>{children}</h2>;
 }
 
 // Agenda: every habit and category with a cadence, in three sections: due now (on or past when
@@ -96,9 +99,12 @@ export default async function AgendaPage() {
   const today = toCivilDate(new Date(), user.timeZone, parseBedtimeOffsetMinutes(user.bedtime));
 
   return (
-    <main className="flex-1 p-4 sm:p-8 bg-stone-50 font-sans">
+    // One full-width white pane rather than cards, so lists run edge to edge with only the lines
+    // between rows. It reaches down under the bottom nav's spacer (5rem, see BottomNav), which would
+    // otherwise show the body's stone background as a band above the nav.
+    <main className="flex-1 pt-4 sm:pt-8 pb-24 sm:pb-28 -mb-20 bg-white font-sans">
       <div className="max-w-4xl mx-auto space-y-6 sm:space-y-8">
-        <div className="flex items-center justify-between">
+        <div className={`${INSET} flex items-center justify-between`}>
           <div>
             <p className="text-stone-500 font-semibold text-sm uppercase tracking-wider mb-1">
               {today.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC' })}
@@ -118,39 +124,46 @@ export default async function AgendaPage() {
           </EmptyState>
         ) : (
           <div className="space-y-8">
-            <section className="space-y-4">
+            <section>
               <SectionHeading>Due Now</SectionHeading>
-              {dueHabits.length > 0 && (
-                <SortableHabitList items={dueHabits} statuses={statuses} user={user} people={people} dndContextId="due-habits" />
-              )}
-              {dueCategories.length > 0 && (
-                <CategoryList categories={dueCategories} user={user} />
-              )}
-              {!anyDue && <p className="text-stone-500">Nothing due right now.</p>}
+              <div className="divide-y divide-stone-100">
+                {dueHabits.length > 0 && (
+                  <SortableHabitList items={dueHabits} statuses={statuses} user={user} people={people} dndContextId="due-habits" bare />
+                )}
+                {dueCategories.length > 0 && (
+                  <CategoryList categories={dueCategories} user={user} />
+                )}
+              </div>
+              {!anyDue && <p className={`${INSET} text-stone-500`}>Nothing due right now.</p>}
             </section>
 
             {anyUpcoming && (
-              <section className="space-y-4">
+              <section>
                 <SectionHeading>Upcoming</SectionHeading>
-                {upcomingHabits.length > 0 && (
-                  <SortableHabitList
-                    items={upcomingHabits.map(u => u.item)}
-                    statuses={statuses}
-                    user={user}
-                    people={people}
-                    dndContextId="upcoming-habits"
-                  />
-                )}
-                {upcomingCategories.length > 0 && (
-                  <CategoryList categories={upcomingCategories.map(u => u.item)} user={user} />
-                )}
+                <div className="divide-y divide-stone-100">
+                  {upcomingHabits.length > 0 && (
+                    <SortableHabitList
+                      items={upcomingHabits.map(u => u.item)}
+                      statuses={statuses}
+                      user={user}
+                      people={people}
+                      dndContextId="upcoming-habits"
+                      bare
+                    />
+                  )}
+                  {upcomingCategories.length > 0 && (
+                    <CategoryList categories={upcomingCategories.map(u => u.item)} user={user} />
+                  )}
+                </div>
               </section>
             )}
 
             {anyDone && (
-              <section className="space-y-4">
+              <section>
                 <SectionHeading>Done</SectionHeading>
-                <DoneChips habits={doneHabits} categories={doneCategories} />
+                <div className={INSET}>
+                  <DoneChips habits={doneHabits} categories={doneCategories} />
+                </div>
               </section>
             )}
           </div>
