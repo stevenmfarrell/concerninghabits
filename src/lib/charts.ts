@@ -106,13 +106,16 @@ export type ChartShape = { series: ChartSeries[]; period: ChartPeriod; layout?: 
 // id is its field's key, which is what the chartField_<habit> cookie has always stored.
 export type ChartSpec = (SavedChart & { custom: true }) | (Omit<SavedChart, 'series'> & { series: ChartSeries[]; custom: false });
 
-// The periods a saved chart can be switched between: each entry (unless it counts entries, which
-// needs periods to count in), each day, week or month, and its own rolling window if it has one.
+// The periods a saved chart can be switched between: each day, week or month, its own rolling window
+// if it has one, and each entry, unless it counts entries (which needs periods to count in) or has
+// two lines of one field (e.g. a week's total and longest distance), which by entry are the same.
 // `id` is the choice as the chartPeriod_<habit>_<chart> cookie stores it.
 export function periodChoices(spec: ChartShape): { id: string; period: ChartPeriod; label: string }[] {
   const counts = spec.series.some(s => s.field === null || s.fn === 'count');
+  const fields = spec.series.map(s => s.field);
+  const byEntry = !counts && new Set(fields).size === fields.length;
   return [
-    ...(counts ? [] : [{ id: 'entry', period: 'entry' as const, label: 'Entry' }]),
+    ...(!byEntry ? [] : [{ id: 'entry', period: 'entry' as const, label: 'Entry' }]),
     { id: 'day', period: 'day' as const, label: 'Day' },
     { id: 'week', period: 'week' as const, label: 'Week' },
     { id: 'month', period: 'month' as const, label: 'Month' },
@@ -169,7 +172,11 @@ export function chartProblem(spec: ChartShape, fields: PlottableField[]): string
     if (series.field === null && series.fn !== 'count') return 'Entries themselves can only be counted';
   }
   const keys = spec.series.map(s => `${s.field}:${byEntry ? '' : s.fn}`);
-  if (new Set(keys).size !== keys.length) return 'The same line is on the chart twice';
+  if (new Set(keys).size !== keys.length) {
+    return byEntry
+      ? 'With a point per entry, two lines of the same field are the same line: show it by day, week or month'
+      : 'The same line is on the chart twice';
+  }
   const units = spec.series.map(s => JSON.stringify(seriesUnit(s, fields, spec.period)));
   if (spec.layout !== 'separate' && new Set(units).size > 1) return 'Lines in different units can\'t share an axis: give each its own';
   return null;
@@ -238,10 +245,11 @@ function round(value: number) {
 }
 
 // A chart's points, oldest first. By entry, a point per entry in the chart's days with a value for
-// any series. By period, a point for every day, week or month from the one `from` falls in to
-// today's, including entries before `from` in the first one; a total or count with no entries is
-// 0, while an average, lowest or highest has no value. Rolling, a point per day from `from`, over
-// the days up to it, entries before `from` included.
+// any series. By period, a point for every day, week or month from the one the chart starts in to
+// today's, including entries before the start in the first one; a total or count with no entries
+// is 0, while an average, lowest or highest has no value. Rolling, a point per day from the start,
+// over the days up to it, entries before the start included. A chart starts at `from`, or later, on
+// the first day with an entry for it, so its time axis never runs back past its first value.
 export function chartRows(spec: ChartShape, fields: PlottableField[], entries: ChartEntry[], context: ChartContext): ChartRow[] {
   const series = spec.series.map(s => ({ ...s, plotted: s.field === null ? null : fields.find(f => f.key === s.field) ?? null }));
   const parsed = entries.flatMap(entry => {
@@ -261,6 +269,13 @@ export function chartRows(spec: ChartShape, fields: PlottableField[], entries: C
   }).sort((a, b) => a.time - b.time);
 
   const { period } = spec;
+  // The first day with an entry the chart shows (one with a value for any series, or any entry
+  // when a series counts them)
+  const countsEntries = series.some(s => s.field === null);
+  const firstDay = parsed.find(p => countsEntries || p.values.some(v => v !== null))?.day;
+  if (!firstDay) return [];
+  const start = firstDay > context.from ? firstDay : context.from;
+
   if (period === 'entry') {
     return parsed
       .filter(p => p.day >= context.from && p.day <= context.to && p.values.some(v => v !== null))
@@ -275,7 +290,7 @@ export function chartRows(spec: ChartShape, fields: PlottableField[], entries: C
 
   const rows: ChartRow[] = [];
   if (typeof period === 'object') {
-    for (let day = context.from; day <= context.to; day = addDays(day, 1)) {
+    for (let day = start; day <= context.to; day = addDays(day, 1)) {
       const windowStart = addDays(day, -(period.rollingDays - 1));
       const inWindow = parsed.filter(p => p.day >= windowStart && p.day <= day);
       rows.push({ x: day.getTime(), values: combine(inWindow), logId: inWindow[inWindow.length - 1]?.entry.id });
@@ -283,11 +298,11 @@ export function chartRows(spec: ChartShape, fields: PlottableField[], entries: C
     return rows;
   }
 
-  for (let start = periodStart(context.from, period, context.weekStartsOn); start <= context.to; ) {
-    const end = nextPeriod(start, period);
-    const inPeriod = parsed.filter(p => p.day >= start && p.day < end);
-    rows.push({ x: start.getTime(), values: combine(inPeriod), logId: inPeriod[inPeriod.length - 1]?.entry.id });
-    start = end;
+  for (let periodFrom = periodStart(start, period, context.weekStartsOn); periodFrom <= context.to; ) {
+    const periodTo = nextPeriod(periodFrom, period);
+    const inPeriod = parsed.filter(p => p.day >= periodFrom && p.day < periodTo);
+    rows.push({ x: periodFrom.getTime(), values: combine(inPeriod), logId: inPeriod[inPeriod.length - 1]?.entry.id });
+    periodFrom = periodTo;
   }
   return rows;
 }

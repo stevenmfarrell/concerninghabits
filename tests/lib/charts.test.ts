@@ -85,13 +85,27 @@ describe('custom charts', () => {
   it('counts a late-night entry toward the day before, by the user\'s bedtime', () => {
     const late = [run('x', 6, 0, { distance: 1 })];
     const byDay = (bedtimeOffsetMinutes: number) => values(chartRows({ period: 'day', series: [{ field: 'distance', fn: 'sum' }] }, fields, late, { ...context, bedtimeOffsetMinutes, to: day(6) }));
-    expect(byDay(0)).toEqual([[0], [1]]);
+    // The chart starts on the entry's day: Oct 6, or Oct 5 by an hour's bedtime
+    expect(byDay(0)).toEqual([[1]]);
     expect(byDay(60)).toEqual([[1], [0]]);
   });
 
   it('works out a rolling window over the days up to each day', () => {
     const rows = chartRows({ period: { rollingDays: 3 }, series: [{ field: 'distance', fn: 'sum' }] }, fields, entries, { ...context, from: day(5), to: day(8) });
     expect(values(rows)).toEqual([[4], [3], [5], [2]]);
+  });
+
+  it("starts at the first entry with a value for it, not before, when that's after the chart's first day", () => {
+    const later = { ...context, from: day(1), to: day(18) };
+    const weeks = chartRows({ period: 'week', series: [{ field: 'distance', fn: 'sum' }] }, fields, entries.slice(1), later);
+    expect(weeks.map(r => new Date(r.x).getUTCDate())).toEqual([5, 12]);
+    // Entry d has no distance, so a chart of distance alone starts at e's day
+    const days = chartRows({ period: { rollingDays: 2 }, series: [{ field: 'distance', fn: 'sum' }] }, fields, entries.slice(3), { ...later, to: day(16) });
+    expect(days.map(r => new Date(r.x).getUTCDate())).toEqual([15, 16]);
+    // A count starts at the first entry of any kind
+    const counts = chartRows({ period: 'day', series: [{ field: null, fn: 'count' }] }, fields, entries.slice(3), { ...later, to: day(15) });
+    expect(counts.map(r => [new Date(r.x).getUTCDate(), r.values[0]])).toEqual([[14, 1], [15, 1]]);
+    expect(chartRows({ period: 'week', series: [{ field: 'distance', fn: 'sum' }] }, fields, [], later)).toEqual([]);
   });
 
   it('has a point per entry with a value, in the chart\'s days', () => {
@@ -106,6 +120,7 @@ describe('custom charts', () => {
     expect(chartProblem({ period: 'week', series: [{ field: 'distance' }] }, fields)).toMatch(/combine/);
     expect(chartProblem({ period: 'week', series: [{ field: null, fn: 'sum' }] }, fields)).toMatch(/only be counted/);
     expect(chartProblem({ period: 'week', series: [{ field: 'distance', fn: 'sum' }, { field: 'distance', fn: 'sum' }] }, fields)).toMatch(/twice/);
+    expect(chartProblem({ period: 'entry', series: [{ field: 'distance', fn: 'sum' }, { field: 'distance', fn: 'max' }] }, fields)).toMatch(/same field are the same line/);
     expect(chartProblem({ period: 'entry', series: [{ field: 'distance' }, { field: 'duration' }] }, fields)).toMatch(/different units/);
     expect(chartProblem({ period: 'week', series: [{ field: 'distance', fn: 'sum' }, { field: null, fn: 'count' }] }, fields)).toMatch(/different units/);
     // Each on its own axis, lines in different units are fine
@@ -136,5 +151,7 @@ describe('custom charts', () => {
     // Counting entries needs periods to count in
     expect(ids({ period: 'week', series: [{ field: null, fn: 'count' }] })).toEqual(['Day', 'Week', 'Month']);
     expect(ids({ period: { rollingDays: 7 }, series: [{ field: 'distance', fn: 'avg' }] })).toEqual(['Entry', 'Day', 'Week', 'Month', '7-day']);
+    // A week's total and longest distance are the same line by entry
+    expect(ids({ period: 'week', series: [{ field: 'distance', fn: 'sum' }, { field: 'distance', fn: 'max' }] })).toEqual(['Day', 'Week', 'Month']);
   });
 });

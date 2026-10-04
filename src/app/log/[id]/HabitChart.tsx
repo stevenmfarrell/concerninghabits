@@ -295,26 +295,30 @@ export default function HabitChart({
               New chart
             </Button>
           </div>
-        ) : problem ? (
-          <div className="w-full h-64 flex flex-col items-center justify-center gap-3 text-center">
-            <p className="text-ink-subtle text-sm">This chart can&apos;t be drawn: {problem.charAt(0).toLowerCase() + problem.slice(1)}.</p>
-            {owner && chart.custom && (
-              <Button variant="outline" size="sm" onClick={() => setEditing({ kind: 'chart', id: chart.id })}>
-                <Pencil className="w-4 h-4" />
-                Fix chart
-              </Button>
-            )}
-          </div>
         ) : (
           <div className="space-y-3">
-            <ChartView spec={shown!} kind={kind} rows={rows} fields={fields} timeZone={context.timeZone} people={people} onPointClick={showEntry} />
-            {choice && (
-              <div className="flex items-center gap-2">
+            {problem ? (
+              <div className="w-full h-64 flex flex-col items-center justify-center gap-3 text-center">
+                <p className="text-ink-subtle text-sm">This chart can&apos;t be drawn: {problem.charAt(0).toLowerCase() + problem.slice(1)}.</p>
+                {owner && chart.custom && (
+                  <Button variant="outline" size="sm" onClick={() => setEditing({ kind: 'chart', id: chart.id })}>
+                    <Pencil className="w-4 h-4" />
+                    Fix chart
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <ChartView spec={shown!} kind={kind} rows={rows} fields={fields} timeZone={context.timeZone} people={people} onPointClick={showEntry} />
+            )}
+            {/* Shown even when the chart can't be drawn by its period, so another can be picked */}
+            {choices.length > 0 && (
+              <div className="flex items-center justify-end gap-2">
                 <span className="text-xs font-medium text-ink-muted">By</span>
                 <SegmentedControl
                   label="Show by"
                   options={choices.map(c => ({ value: c.id, label: c.label }))}
-                  value={choice.id}
+                  // None is picked when the chart's own period isn't one it can be switched to
+                  value={choice?.id ?? periodChoiceId(chart.period)}
                   onChange={id => {
                     setChartPeriods(prev => ({ ...prev, [chartId]: id }));
                     rememberChartPeriod(habitId, chartId, id);
