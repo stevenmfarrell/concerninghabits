@@ -27,7 +27,7 @@ import { IconButton, IconLinkButton } from '@/components/ui/IconButton';
 <IconLinkButton href="/settings" edge="left" title="Back"><ArrowLeft /></IconLinkButton>
 ```
 
-- `variant`: `default` (stone, most icon buttons) · `accent` (emerald, e.g. link-outs to history/overview) · `solid` (filled emerald, a row's primary action, e.g. logging a habit) · `danger`.
+- `variant`: `default` (stone, most icon buttons) · `accent` (emerald, e.g. link-outs to history/overview) · `soft` (pale emerald, an action repeated down a list, e.g. each row's Log button) · `solid` (filled emerald, a primary action, e.g. sending typed input) · `danger`.
 - `edge`: `left` or `right` when the button sits at the edge of a header/toolbar (adds the `-ml-2`/`-mr-2` optical alignment) — `none` otherwise.
 - Don't write a bespoke `p-2 rounded-full hover:bg-stone-100` button; that's what this component is for. A button with genuinely state-dependent styling (e.g. a favorite toggle that turns solid amber) is a legitimate exception — leave it custom rather than forcing a fake variant into the shared component.
 

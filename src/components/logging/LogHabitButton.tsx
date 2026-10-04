@@ -8,13 +8,14 @@ import { useHabitLogger, type LoggableHabit } from './useHabitLogger';
 // A list row's Log button: the same workflow as the Log Habit button on the habit's page, without
 // leaving the list. A habit with no form is logged on the tap; one with a form opens the entry sheet,
 // which its icon shows. Every row's button is the same width, so they line up down the list.
+// Pale rather than filled, so a column of them doesn't outweigh the rows.
 export default function LogHabitButton({ habit }: { habit: LoggableHabit }) {
   const logger = useHabitLogger(habit);
 
   return (
     <>
       <IconButton
-        variant="solid"
+        variant="soft"
         onClick={logger.start}
         disabled={logger.busy}
         title={logger.hasForm ? `Log ${habit.name} (opens a form)` : `Log ${habit.name}`}
