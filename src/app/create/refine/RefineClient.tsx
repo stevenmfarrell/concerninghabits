@@ -2,9 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { saveHabit } from '../../actions/db';
-import HabitEditor from '../../../components/HabitEditor';
+import HabitEditor, { type HabitDraft as EditorDraft } from '../../../components/HabitEditor';
 import { useRouter } from 'next/navigation';
-import { Mic } from 'lucide-react';
 import BackLink from '@/components/BackLink';
 import type { HabitSchema } from '@/lib/types';
 import { NO_CADENCE, type Cadence } from '@/lib/cadence';
@@ -16,6 +15,8 @@ interface HabitDraft {
   // Suggested by the AI; missing when building a habit by hand, which starts with no cadence
   cadence?: Cadence;
   categoryId?: string;
+  // What the user asked for on the New Habit page, shown as what the draft came from
+  prompt?: string;
   // What the user said or typed on the dashboard, when the draft came from there (see SmartEntry),
   // and whether it reported something they did, so it's logged as the first entry by default
   transcript?: string;
@@ -38,7 +39,7 @@ export default function RefineClient() {
     if (!draft) router.replace('/create');
   }, [draft, router]);
 
-  const handleSave = async (title: string, description: string, schema: HabitSchema, categoryId: string, cadence: Cadence, publishToMqtt: boolean, aiContext: string) => {
+  const handleSave = async ({ title, description, schema, categoryId, cadence, publishToMqtt, aiContext }: EditorDraft) => {
     const habit = await saveHabit(title, description, schema, categoryId, cadence, publishToMqtt, aiContext);
     sessionStorage.removeItem('draftHabit');
 
@@ -62,44 +63,41 @@ export default function RefineClient() {
     return <RefineLoading />;
   }
 
+  const source = draft.transcript ?? draft.prompt;
+
   return (
     <main className="flex-1 p-4 sm:p-8 bg-stone-50 font-sans">
-      <div className="max-w-3xl mx-auto space-y-6 sm:space-y-8">
+      <div className="max-w-3xl mx-auto space-y-4 sm:space-y-6">
         <div>
-          <BackLink href="/create">Back to Goal</BackLink>
-          <div className="space-y-2">
-            <h1 className="text-3xl font-bold text-stone-900">Almost there...</h1>
-            <p className="text-stone-600">Here is the draft we created. Make any updates and save when you&apos;re ready.</p>
-          </div>
+          <BackLink href="/create">Start over</BackLink>
+          <h1 className="text-3xl font-bold text-stone-900">New Habit</h1>
+          {source && <p className="text-stone-500 mt-1 break-words">From “{source}”</p>}
         </div>
 
-        {draft.transcript && (
-          <label className="flex items-center justify-between gap-4 p-4 bg-white border border-stone-200 rounded-xl cursor-pointer hover:bg-stone-50 transition-colors">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className={`p-2 rounded-lg shrink-0 ${logFirstEntry ? 'bg-emerald-100 text-emerald-600' : 'bg-stone-200 text-stone-500'}`}>
-                <Mic className="w-5 h-5" />
-              </div>
-              <div className="min-w-0">
-                <div className="font-semibold text-stone-900 text-sm">Log it as the first entry</div>
-                <div className="text-xs text-stone-500 break-words">“{draft.transcript}”</div>
-              </div>
-            </div>
-            <div className={`w-12 h-6 rounded-full transition-colors relative shrink-0 ${logFirstEntry ? 'bg-emerald-500' : 'bg-stone-300'}`}>
-              <input type="checkbox" className="sr-only" checked={logFirstEntry} onChange={(e) => setLogFirstEntry(e.target.checked)} />
-              <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${logFirstEntry ? 'translate-x-7' : 'translate-x-1'}`} />
-            </div>
-          </label>
-        )}
-
         <HabitEditor
-          initialTitle={draft.schema?.title || ''}
-          initialDescription={draft.schema?.description || ''}
-          initialSchema={draft.schema}
-          initialCadence={draft.cadence ?? NO_CADENCE}
-          initialCategoryId={draft.categoryId || ''}
-          isCreateMode={true}
+          mode="create"
+          initial={{
+            title: draft.schema?.title || '',
+            description: draft.schema?.description || '',
+            schema: draft.schema,
+            cadence: draft.cadence ?? NO_CADENCE,
+            categoryId: draft.categoryId || '',
+            publishToMqtt: false,
+            aiContext: '',
+          }}
           onSave={handleSave}
           onChangeTitle={handleTitleChange}
+          saveBarExtra={draft.transcript && (
+            <label className="flex items-center gap-2 text-sm text-stone-700 cursor-pointer min-w-0">
+              <input
+                type="checkbox"
+                className="w-4 h-4 accent-emerald-600 shrink-0"
+                checked={logFirstEntry}
+                onChange={e => setLogFirstEntry(e.target.checked)}
+              />
+              <span className="truncate">Log it as the first entry</span>
+            </label>
+          )}
         />
       </div>
     </main>

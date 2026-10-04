@@ -7,6 +7,7 @@ import { Eye } from 'lucide-react';
 import toast from 'react-hot-toast';
 import BottomSheet from './BottomSheet';
 import { Button } from './ui/Button';
+import { IconButton } from './ui/IconButton';
 import { HABIT_FORM_WIDGETS, habitFormUiSchema, type HabitFormProperties } from './widgets/habitForm';
 import type { HabitSchema } from '@/lib/types';
 
@@ -28,43 +29,51 @@ function describeField(field: FieldSchema) {
   }
 }
 
-// The habit's form in the editor: its fields listed as plain text, with a button to try the real
-// form in a pane like the one used to log it
-export default function HabitFormOverview({ schema, title }: { schema: HabitSchema; title: string }) {
-  const [previewOpen, setPreviewOpen] = useState(false);
+// The habit's form in the editor: its fields listed as plain text
+export default function HabitFormOverview({ schema }: { schema: HabitSchema }) {
   const properties = (schema.properties ?? {}) as Record<string, FieldSchema>;
   const fields = Object.entries(properties);
   const required = new Set(schema.required ?? []);
 
-  return (
-    <div className="space-y-3">
-      {fields.length === 0 ? (
-        <p className="text-sm text-stone-500 p-4 bg-stone-50 border border-stone-100 rounded-xl">
-          No fields: logging it is a single tap.
-        </p>
-      ) : (
-        <ul className="divide-y divide-stone-100 border border-stone-100 rounded-xl">
-          {fields.map(([key, field]) => (
-            <li key={key} className="flex items-baseline gap-3 px-4 py-3">
-              <span className="font-medium text-stone-800 min-w-0 truncate">{field.title || key}</span>
-              <span className="flex-1 min-w-0 text-sm text-stone-500 truncate">{describeField(field)}</span>
-              <span className={`text-xs font-medium shrink-0 ${required.has(key) ? 'text-emerald-700' : 'text-stone-400'}`}>
-                {required.has(key) ? 'Required' : 'Optional'}
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
+  if (fields.length === 0) {
+    return (
+      <p className="text-sm text-stone-500 p-4 bg-stone-50 border border-stone-100 rounded-xl">
+        No fields: logging it is a single tap.
+      </p>
+    );
+  }
 
-      <Button variant="outline" size="sm" onClick={() => setPreviewOpen(true)}>
-        <Eye className="w-4 h-4" />
-        Preview form
-      </Button>
+  return (
+    <ul className="divide-y divide-stone-100 border border-stone-100 rounded-xl">
+      {fields.map(([key, field]) => (
+        <li key={key} className="flex items-baseline gap-3 px-4 py-3">
+          <span className="font-medium text-stone-800 min-w-0 truncate">{field.title || key}</span>
+          <span className="flex-1 min-w-0 text-sm text-stone-500 truncate">{describeField(field)}</span>
+          <span className={`text-xs font-medium shrink-0 ${required.has(key) ? 'text-emerald-700' : 'text-stone-400'}`}>
+            {required.has(key) ? 'Required' : 'Optional'}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+// A button to try the habit's real form, in a pane like the one used to log it. Nothing is logged.
+export function FormPreviewButton({ schema, title }: { schema: HabitSchema; title: string }) {
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const properties = (schema.properties ?? {}) as Record<string, FieldSchema>;
+  const hasFields = Object.keys(properties).length > 0;
+
+  return (
+    <>
+      <IconButton variant="accent" edge="right" onClick={() => setPreviewOpen(true)} title="Preview form" aria-label="Preview form">
+        <Eye className="w-5 h-5" />
+      </IconButton>
 
       {previewOpen && (
         <BottomSheet title={title || 'New Habit'} ariaLabel="Form preview" onClose={() => setPreviewOpen(false)}>
           <p className="text-sm text-stone-500 -mt-3">A preview: nothing is logged.</p>
-          {fields.length > 0 && (
+          {hasFields ? (
             <div className="rjsf-custom">
               <Form
                 schema={{ ...schema, title: '' }}
@@ -81,12 +90,11 @@ export default function HabitFormOverview({ schema, title }: { schema: HabitSche
                 </Button>
               </Form>
             </div>
-          )}
-          {fields.length === 0 && (
+          ) : (
             <p className="text-stone-600">This habit has no form: its Log button logs it straight away.</p>
           )}
         </BottomSheet>
       )}
-    </div>
+    </>
   );
 }

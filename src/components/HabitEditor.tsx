@@ -1,349 +1,373 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
+import { Camera, Loader2, Lock, Mic, Save, SquarePen, Zap } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { generateHabitSchema } from '../app/actions/habit';
 import { getCategories, createCategory, isMqttConfigured } from '../app/actions/db';
-import { Loader2, Save, Wand2, SquarePen, Trash2, Mic, Camera } from 'lucide-react';
 import CategorySelect from './CategorySelect';
-import { orderCategoryTree } from '@/lib/categoryChoices';
 import NewCategoryInline from './NewCategoryInline';
 import AiContextField from './AiContextField';
-import SpeakOrType, { type SpeakOrTypeStatus } from './SpeakOrType';
-import toast from 'react-hot-toast';
+import AiTweakInput from './AiTweakInput';
+import CollapsibleSection from './CollapsibleSection';
 import ConfirmDialog from './ConfirmDialog';
-import HabitFormOverview from './HabitFormOverview';
+import HabitFormOverview, { FormPreviewButton } from './HabitFormOverview';
+import PersonLabel from './PersonLabel';
 import { Button } from './ui/Button';
-import type { Cadence } from '@/lib/cadence';
+import { Toggle } from './ui/Toggle';
 import { CadencePicker, CadenceSettings } from './CadenceField';
+import { orderCategoryTree } from '@/lib/categoryChoices';
+import { describeCadence, type Cadence } from '@/lib/cadence';
 import type { CategoryOption, HabitSchema } from '@/lib/types';
+import type { Person } from '@/lib/userColors';
 
-const TWEAK_EXAMPLES = [
-  'Add a dropdown for mood',
-  'Make distance optional',
-  'Add a notes field',
-  'Track time instead of reps',
-  'Remove the whole form',
-];
-
-interface HabitEditorProps {
-  initialTitle: string;
-  initialDescription: string;
-  initialSchema: HabitSchema;
-  initialCadence: Cadence;
-  initialCategoryId: string;
-  initialPublishToMqtt?: boolean;
-  initialAiContext?: string;
-  isCreateMode?: boolean;
-  onSave: (title: string, description: string, schema: HabitSchema, categoryId: string, cadence: Cadence, publishToMqtt: boolean, aiContext: string) => Promise<void>;
-  onDelete?: () => Promise<void>;
-  onChangeTitle?: (title: string) => void;
-  // Added to the delete confirmation, e.g. to warn that a shared habit is deleted for everyone
-  deleteWarning?: string;
+// Everything the editor edits about a habit. `schema` carries the form's own settings (its title,
+// and whether voice and photo logging are on) as saved.
+export interface HabitDraft {
+  title: string;
+  description: string;
+  schema: HabitSchema;
+  cadence: Cadence;
+  categoryId: string;
+  publishToMqtt: boolean;
+  aiContext: string;
 }
 
-export default function HabitEditor({
-  initialTitle,
-  initialDescription,
-  initialSchema,
-  initialCadence,
-  initialCategoryId,
-  initialPublishToMqtt,
-  initialAiContext,
-  isCreateMode,
-  onSave,
-  onDelete,
-  onChangeTitle,
-  deleteWarning
-}: HabitEditorProps) {
-  const [schema, setSchema] = useState<HabitSchema>(initialSchema);
-  const [title, setTitle] = useState(initialTitle);
-  const [description, setDescription] = useState(initialDescription);
-  const [cadence, setCadence] = useState<Cadence>(initialCadence);
-  const [categoryId, setCategoryId] = useState<string>(initialCategoryId);
-  const [publishToMqtt, setPublishToMqtt] = useState(initialPublishToMqtt || false);
-  const [aiContext, setAiContext] = useState(initialAiContext || '');
-  const [deleting, setDeleting] = useState(false);
-  const [saving, setSaving] = useState(false);
+// - create: a new habit, before it's saved (the refine page)
+// - edit: the owner's own habit
+// - shared: a habit shared with the viewer, who can only file it in their own categories and keep
+//   their own notes for AI; the rest is shown as set by `owner`
+export type HabitEditorMode = 'create' | 'edit' | 'shared';
 
-  const [enableVoice, setEnableVoice] = useState(initialSchema.enableVoice !== false);
-  const [enablePhoto, setEnablePhoto] = useState(initialSchema.enablePhoto !== false);
+// The page's one way out other than saving, e.g. deleting the habit, with its confirmation
+export interface RemoveAction {
+  label: string;
+  icon: ReactNode;
+  confirmTitle: string;
+  confirmMessage: string;
+  confirmText: string;
+  onConfirm: () => Promise<void>;
+}
 
-  // While an AI tweak is being applied: what's happening, and the requested change
-  const [tweakStatus, setTweakStatus] = useState<SpeakOrTypeStatus>(null);
-  const isTweaking = tweakStatus !== null;
+interface HabitEditorProps {
+  mode: HabitEditorMode;
+  initial: HabitDraft;
+  owner?: Person;
+  onSave: (draft: HabitDraft) => Promise<void>;
+  remove?: RemoveAction;
+  // Beside the save button, e.g. whether to log the habit's first entry when it's created
+  saveBarExtra?: ReactNode;
+  onChangeTitle?: (title: string) => void;
+}
+
+// Whether the form's voice and photo logging are on: on unless the schema turns them off
+const voiceOn = (schema: HabitSchema) => schema.enableVoice !== false;
+const photoOn = (schema: HabitSchema) => schema.enablePhoto !== false;
+
+// A draft as compared for unsaved changes, so e.g. trailing spaces or a missing (default) voice
+// setting don't count as one
+function comparable(draft: HabitDraft) {
+  return JSON.stringify({
+    ...draft,
+    title: draft.title.trim(),
+    description: draft.description.trim(),
+    aiContext: draft.aiContext.trim(),
+    schema: { ...draft.schema, title: draft.title.trim(), enableVoice: voiceOn(draft.schema), enablePhoto: photoOn(draft.schema) },
+  });
+}
+
+// The habit editor, for creating, editing, and a shared habit's own settings, in the order things
+// are most often changed: the habit's name, where it's filed and how often it's due, what its form
+// records, then settings rarely touched, folded away with a summary. Changes are saved from a bar
+// above the bottom nav, which shows once there's something to save.
+export default function HabitEditor({ mode, initial, owner, onSave, remove, saveBarExtra, onChangeTitle }: HabitEditorProps) {
+  const isOwner = mode !== 'shared';
+
+  const [title, setTitle] = useState(initial.title);
+  const [description, setDescription] = useState(initial.description);
+  const [schema, setSchema] = useState<HabitSchema>(initial.schema);
+  const [enableVoice, setEnableVoice] = useState(voiceOn(initial.schema));
+  const [enablePhoto, setEnablePhoto] = useState(photoOn(initial.schema));
+  const [cadence, setCadence] = useState<Cadence>(initial.cadence);
+  const [categoryId, setCategoryId] = useState(initial.categoryId);
+  const [publishToMqtt, setPublishToMqtt] = useState(initial.publishToMqtt);
+  const [aiContext, setAiContext] = useState(initial.aiContext);
+  // Bumped by Discard, to remount fields that keep their own state (e.g. a cadence's typed number)
+  const [resetKey, setResetKey] = useState(0);
 
   const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [showNewCat, setShowNewCat] = useState(false);
   const [mqttConfigured, setMqttConfigured] = useState(false);
+  const [tweaking, setTweaking] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [removing, setRemoving] = useState(false);
+  const [confirmRemove, setConfirmRemove] = useState(false);
 
   useEffect(() => {
     getCategories().then(cats => {
       setCategories(cats);
-      setCategoryId(current =>
-        // Default to the first category as shown in the dropdown
-        cats.length > 0 && !cats.some(c => c.id === current) ? orderCategoryTree(cats)[0].category.id : current
-      );
+      // A new habit starts in the first category shown in the dropdown, unless one was picked for
+      // it. An existing habit stays where it is, uncategorized included.
+      if (mode === 'create') {
+        setCategoryId(current =>
+          cats.length > 0 && !cats.some(c => c.id === current) ? orderCategoryTree(cats)[0].category.id : current
+        );
+      }
     });
-    isMqttConfigured().then(setMqttConfigured);
-  }, []);
+    if (isOwner) isMqttConfigured().then(setMqttConfigured);
+  }, [mode, isOwner]);
 
-  const handleTweakSchema = async (tweak: string) => {
-    if (!schema) return;
+  const draft: HabitDraft = {
+    title: title.trim(),
+    description: description.trim(),
+    schema: { ...schema, title: title.trim(), enableVoice, enablePhoto },
+    cadence,
+    categoryId,
+    publishToMqtt,
+    aiContext,
+  };
+  const dirty = comparable(draft) !== comparable(initial);
+  const busy = saving || removing;
+  const hasFields = Object.keys(schema.properties ?? {}).length > 0;
+  const showSaveBar = mode === 'create' || dirty || saving;
 
-    setTweakStatus({ message: 'Updating the form...', input: tweak });
-    const result = await generateHabitSchema(tweak, schema);
-    setTweakStatus(null);
-    if (result.success) {
-      setSchema((prev) => ({
-        ...prev,
-        properties: result.schema?.properties,
-        required: result.schema?.required,
-      }));
-      toast.success('Form updated');
-    } else {
-      toast.error(result.error || "An error occurred");
+  const handleTweak = async (change: string) => {
+    setTweaking(true);
+    const result = await generateHabitSchema(change, schema);
+    setTweaking(false);
+    if (!result.success) {
+      toast.error(result.error || 'An error occurred');
+      return false;
     }
+    setSchema(prev => ({ ...prev, properties: result.schema?.properties, required: result.schema?.required }));
+    toast.success('Form updated');
+    return true;
   };
 
-  const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newTitle = e.target.value;
-    setTitle(newTitle);
-    if (onChangeTitle) onChangeTitle(newTitle);
-  };
-
-  const handleSaveAction = async () => {
-    if (!schema || !title) return;
+  const handleSave = async () => {
+    if (!draft.title) return;
     setSaving(true);
-    const finalSchema = { ...schema, title, enableVoice, enablePhoto };
     try {
-      await onSave(title, description, finalSchema, categoryId, cadence, publishToMqtt, aiContext);
+      await onSave(draft);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to save habit');
       setSaving(false);
     }
   };
 
-  const [showConfirmDelete, setShowConfirmDelete] = useState(false);
+  const discard = () => {
+    setTitle(initial.title);
+    setDescription(initial.description);
+    setSchema(initial.schema);
+    setEnableVoice(voiceOn(initial.schema));
+    setEnablePhoto(photoOn(initial.schema));
+    setCadence(initial.cadence);
+    setCategoryId(initial.categoryId);
+    setPublishToMqtt(initial.publishToMqtt);
+    setAiContext(initial.aiContext);
+    setShowNewCat(false);
+    setResetKey(k => k + 1);
+  };
 
-  const handleDeleteAction = async () => {
-    if (onDelete) {
-      setDeleting(true);
-      try {
-        await onDelete();
-      } catch {
-        setDeleting(false);
-      }
-      setShowConfirmDelete(false);
+  const handleRemove = async () => {
+    if (!remove) return;
+    setRemoving(true);
+    try {
+      await remove.onConfirm();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Something went wrong');
+      setRemoving(false);
+      setConfirmRemove(false);
     }
   };
 
+  const aiSummary = [
+    ...(isOwner && hasFields ? [`Voice ${enableVoice ? 'on' : 'off'}`, `Photo ${enablePhoto ? 'on' : 'off'}`] : []),
+    aiContext.trim() ? 'Notes added' : 'No notes',
+  ].join(' · ');
+
   return (
-    <div className="space-y-8 animate-in fade-in zoom-in duration-300">
-      <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-stone-100 space-y-6">
-        <div className="flex justify-between items-center border-b pb-4">
-          <h2 className="text-xl font-bold text-stone-800">{isCreateMode ? 'Draft Habit' : 'Habit Form'}</h2>
-        </div>
-
-        <div className="space-y-8">
-          <div>
-            <div className="mb-6">
-              <div className="relative group flex items-center">
-                <input
-                  type="text"
-                  className="text-2xl font-bold text-stone-900 bg-transparent border-b border-dashed border-stone-300 focus:outline-none focus:border-emerald-500 w-full placeholder-stone-300 pb-1 pr-8"
-                  value={title}
-                  placeholder="New Habit"
-                  onChange={handleTitleChange}
-                  disabled={saving}
-                />
-                <SquarePen className="w-5 h-5 text-stone-400 absolute right-1 top-2 pointer-events-none" />
-              </div>
-              {description !== '' ? (
-                <div className="relative group flex items-center mt-2">
-                  <input
-                    type="text"
-                    autoFocus={description === ' '}
-                    className="w-full bg-transparent border-b border-dashed border-stone-300 focus:outline-none focus:border-emerald-500 text-stone-600 placeholder-stone-400 pb-0.5 pr-8"
-                    placeholder="Why are you tracking this?"
-                    value={description.trimStart()}
-                    onChange={(e) => setDescription(e.target.value)}
-                    disabled={saving}
-                  />
-                  <SquarePen className="w-4 h-4 text-stone-400 absolute right-1 top-1 pointer-events-none" />
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setDescription(' ')}
-                  className="mt-2 text-sm text-stone-400 hover:text-stone-600 transition-colors border-b border-dashed border-stone-300 pb-0.5 inline-flex items-center gap-1.5"
-                >
-                  [Add Description]
-                  <SquarePen className="w-3.5 h-3.5" />
-                </button>
-              )}
+    <div key={resetKey} className={`space-y-4 sm:space-y-6 ${showSaveBar ? 'pb-24' : ''}`}>
+      {/* The habit's name and description */}
+      <section className="bg-white p-5 sm:p-6 rounded-2xl shadow-sm border border-stone-100 space-y-2">
+        {isOwner ? (
+          <>
+            <div className="relative">
+              <input
+                type="text"
+                className="w-full text-2xl font-bold text-stone-900 bg-transparent border-b border-transparent hover:border-stone-200 focus:border-emerald-500 focus:outline-none placeholder-stone-300 pb-1 pr-8 transition-colors"
+                value={title}
+                placeholder="Name your habit"
+                aria-label="Habit name"
+                onChange={e => {
+                  setTitle(e.target.value);
+                  onChangeTitle?.(e.target.value);
+                }}
+                disabled={busy}
+              />
+              <SquarePen className="w-5 h-5 text-stone-300 absolute right-1 top-2 pointer-events-none" />
             </div>
-            <HabitFormOverview schema={schema} title={title} />
-          </div>
-
-          <div className="space-y-4">
-            <p className="text-sm font-medium text-stone-500 uppercase tracking-wider">Tweak Form with AI</p>
-            <p className="text-sm text-stone-500">Describe a change and AI will update the fields above.</p>
-            <SpeakOrType
-              icon={<Wand2 className="w-4 h-4" />}
-              label="Apply AI Tweak"
-              ariaLabel={{ speak: 'Say a change to the form', type: 'Type a change to the form' }}
-              variant="secondary"
-              size="sm"
-              disabled={saving}
-              prompt={{
-                listening: 'Listening...',
-                typing: 'What should change?',
-                hint: 'Describe how to change this habit\'s form.',
-                placeholder: 'e.g. "Make distance optional"',
-              }}
-              examples={TWEAK_EXAMPLES}
-              status={tweakStatus}
-              onInput={handleTweakSchema}
+            <input
+              type="text"
+              className="w-full text-stone-600 bg-transparent border-b border-transparent hover:border-stone-200 focus:border-emerald-500 focus:outline-none placeholder-stone-400 pb-0.5 transition-colors"
+              placeholder="Add a description"
+              aria-label="Description"
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+              disabled={busy}
             />
+          </>
+        ) : (
+          <>
+            <h2 className="text-2xl font-bold text-stone-900 break-words">{initial.title}</h2>
+            {initial.description && <p className="text-stone-600">{initial.description}</p>}
+            <p className="text-sm text-stone-500 pt-1">
+              Shared with you by <PersonLabel person={owner} size="sm" className="align-middle" />. Only they can change its name, form, and cadence.
+            </p>
+          </>
+        )}
+      </section>
 
-            {Object.keys(schema?.properties || {}).length > 0 && (
-              <div className="mt-8 pt-6 border-t border-stone-100 space-y-4">
-                <p className="text-sm font-medium text-stone-500 uppercase tracking-wider">AI Input Methods</p>
-
-                <label className="flex items-center justify-between p-4 bg-stone-50 border border-stone-200 rounded-xl cursor-pointer hover:bg-stone-100 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-lg ${enableVoice ? 'bg-emerald-100 text-emerald-600' : 'bg-stone-200 text-stone-500'}`}>
-                      <Mic className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <div className="font-semibold text-stone-900 text-sm">Voice Log</div>
-                      <div className="text-xs text-stone-500">Extract fields from speech</div>
-                    </div>
-                  </div>
-                  <div className={`w-12 h-6 rounded-full transition-colors relative ${enableVoice ? 'bg-emerald-500' : 'bg-stone-300'}`}>
-                    <input type="checkbox" className="sr-only" checked={enableVoice} onChange={(e) => setEnableVoice(e.target.checked)} disabled={saving} />
-                    <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${enableVoice ? 'translate-x-7' : 'translate-x-1'}`} />
-                  </div>
-                </label>
-
-                <label className="flex items-center justify-between p-4 bg-stone-50 border border-stone-200 rounded-xl cursor-pointer hover:bg-stone-100 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-lg ${enablePhoto ? 'bg-blue-100 text-blue-600' : 'bg-stone-200 text-stone-500'}`}>
-                      <Camera className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <div className="font-semibold text-stone-900 text-sm">Photo Log</div>
-                      <div className="text-xs text-stone-500">Extract fields from images</div>
-                    </div>
-                  </div>
-                  <div className={`w-12 h-6 rounded-full transition-colors relative ${enablePhoto ? 'bg-blue-500' : 'bg-stone-300'}`}>
-                    <input type="checkbox" className="sr-only" checked={enablePhoto} onChange={(e) => setEnablePhoto(e.target.checked)} disabled={saving} />
-                    <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${enablePhoto ? 'translate-x-7' : 'translate-x-1'}`} />
-                  </div>
-                </label>
-              </div>
-            )}
-            
-            {mqttConfigured && (
-              <div className="mt-8 pt-6 border-t border-stone-100 space-y-4">
-                <p className="text-sm font-medium text-stone-500 uppercase tracking-wider">Integrations</p>
-                <label className="flex items-center justify-between p-4 bg-stone-50 border border-stone-200 rounded-xl cursor-pointer hover:bg-stone-100 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-lg ${publishToMqtt ? 'bg-amber-100 text-amber-600' : 'bg-stone-200 text-stone-500'}`}>
-                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                      </svg>
-                    </div>
-                    <div>
-                      <div className="font-semibold text-stone-900 text-sm">Home Assistant (MQTT)</div>
-                      <div className="text-xs text-stone-500">Publish log events to MQTT</div>
-                    </div>
-                  </div>
-                  <div className={`w-12 h-6 rounded-full transition-colors relative ${publishToMqtt ? 'bg-amber-500' : 'bg-stone-300'}`}>
-                    <input type="checkbox" className="sr-only" checked={publishToMqtt} onChange={(e) => setPublishToMqtt(e.target.checked)} disabled={saving} />
-                    <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${publishToMqtt ? 'translate-x-7' : 'translate-x-1'}`} />
-                  </div>
-                </label>
-              </div>
-            )}
+      {/* Where it's filed, and how often it's due */}
+      <section className="bg-white p-5 sm:p-6 rounded-2xl shadow-sm border border-stone-100 space-y-4">
+        <SettingRow label="Category">
+          {showNewCat ? (
+            <NewCategoryInline
+              onSave={async (name, icon) => {
+                const newCat = await createCategory(name, icon);
+                setCategories([...categories, newCat]);
+                setCategoryId(newCat.id);
+                setShowNewCat(false);
+              }}
+              onCancel={() => setShowNewCat(false)}
+            />
+          ) : (
+            <CategorySelect
+              categories={categories}
+              value={categoryId}
+              onChange={setCategoryId}
+              onNew={() => setShowNewCat(true)}
+              disabled={busy || categories.length === 0}
+            />
+          )}
+        </SettingRow>
+        <SettingRow label="How often">
+          {isOwner ? (
+            <CadencePicker value={cadence} onChange={setCadence} disabled={busy} />
+          ) : (
+            <p className="h-[42px] flex items-center gap-2 px-3 text-sm text-stone-600 bg-stone-50 border border-stone-100 rounded-lg" title="Set by the habit's owner">
+              {describeCadence(cadence)}
+              <Lock className="w-3.5 h-3.5 text-stone-400" aria-label="Set by the habit's owner" />
+            </p>
+          )}
+        </SettingRow>
+        {isOwner && (
+          <div className="sm:pl-28 -mt-2">
+            <CadenceSettings value={cadence} onChange={setCadence} disabled={busy} />
           </div>
+        )}
+      </section>
 
+      {/* What an entry records */}
+      <section className="bg-white p-5 sm:p-6 rounded-2xl shadow-sm border border-stone-100 space-y-4">
+        <div className="flex items-center justify-between gap-2 -my-1">
+          <h2 className="font-semibold text-stone-800">What you record</h2>
+          <FormPreviewButton schema={schema} title={title} />
+        </div>
+        <HabitFormOverview schema={schema} />
+        {isOwner && <AiTweakInput onApply={handleTweak} applying={tweaking} disabled={busy} />}
+      </section>
 
+      <CollapsibleSection title="AI logging" summary={aiSummary} defaultOpen={mode === 'shared'}>
+        {isOwner && hasFields && (
+          <>
+            <Toggle
+              icon={<Mic className="w-5 h-5" />}
+              title="Voice Log"
+              description="Fill in the form from what you say"
+              checked={enableVoice}
+              onChange={setEnableVoice}
+              disabled={busy}
+            />
+            <Toggle
+              icon={<Camera className="w-5 h-5" />}
+              title="Photo Log"
+              description="Fill in the form from a photo"
+              color="blue"
+              checked={enablePhoto}
+              onChange={setEnablePhoto}
+              disabled={busy}
+            />
+          </>
+        )}
+        <AiContextField value={aiContext} onChange={setAiContext} disabled={busy} />
+      </CollapsibleSection>
 
-          <div className="pt-8 border-t border-stone-100">
-            <AiContextField value={aiContext} onChange={setAiContext} disabled={saving} />
-          </div>
+      {isOwner && mqttConfigured && (
+        <CollapsibleSection title="Integrations" summary={publishToMqtt ? 'Publishing entries to Home Assistant' : 'None on'}>
+          <Toggle
+            icon={<Zap className="w-5 h-5" />}
+            title="Home Assistant (MQTT)"
+            description="Publish each entry to MQTT"
+            color="amber"
+            checked={publishToMqtt}
+            onChange={setPublishToMqtt}
+            disabled={busy}
+          />
+        </CollapsibleSection>
+      )}
 
-          <div className="pt-8 border-t border-stone-100">
-            <h3 className="text-sm font-medium text-stone-500 uppercase tracking-wider mb-4">Organization & Cadence</h3>
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="w-full sm:w-[220px]">
-                {showNewCat ? (
-                  <NewCategoryInline
-                    onSave={async (name, icon) => {
-                      const newCat = await createCategory(name, icon);
-                      setCategories([...categories, newCat]);
-                      setCategoryId(newCat.id);
-                      setShowNewCat(false);
-                    }}
-                    onCancel={() => setShowNewCat(false)}
-                  />
-                ) : (
-                  <CategorySelect
-                    categories={categories}
-                    value={categoryId}
-                    onChange={setCategoryId}
-                    onNew={() => setShowNewCat(true)}
-                    disabled={saving || categories.length === 0}
-                  />
-                )}
-              </div>
+      {remove && (
+        <div className="flex justify-center pt-4">
+          <Button variant="danger-ghost" onClick={() => setConfirmRemove(true)} disabled={busy}>
+            {removing ? <Loader2 className="w-4 h-4 animate-spin" /> : remove.icon}
+            {remove.label}
+          </Button>
+        </div>
+      )}
 
-              <div className="w-full sm:flex-1">
-                <CadencePicker value={cadence} onChange={setCadence} disabled={saving} />
-              </div>
-            </div>
-
-            <CadenceSettings value={cadence} onChange={setCadence} disabled={saving} />
+      {showSaveBar && (
+        // Above the bottom nav, which is 4rem tall plus the safe area
+        <div
+          className="fixed inset-x-0 z-40 bg-white/90 backdrop-blur-md border-t border-stone-200 animate-in slide-in-from-bottom-2 duration-200"
+          style={{ bottom: 'calc(4rem + env(safe-area-inset-bottom))' }}
+        >
+          <div className="max-w-3xl mx-auto px-4 py-3 flex items-center gap-3">
+            <div className="flex-1 min-w-0">{saveBarExtra}</div>
+            {mode !== 'create' && (
+              <Button variant="ghost" onClick={discard} disabled={busy}>
+                Discard
+              </Button>
+            )}
+            <Button onClick={handleSave} disabled={busy || showNewCat || tweaking || !draft.title}>
+              {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+              {mode === 'create' ? 'Create Habit' : 'Save Changes'}
+            </Button>
           </div>
         </div>
-      </div>
+      )}
 
-      <div className={`flex flex-col-reverse md:flex-row ${onDelete ? 'justify-between' : 'justify-end'} items-center gap-4 pt-4`}>
-        {onDelete && (
-          <Button
-            type="button"
-            variant="danger-ghost"
-            size="xl"
-            onClick={() => setShowConfirmDelete(true)}
-            disabled={deleting || saving}
-            className="w-full md:w-auto"
-          >
-            {deleting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Trash2 className="w-5 h-5" />}
-            Delete Habit
-          </Button>
-        )}
-        <Button
-          variant="primary"
-          size="xl"
-          onClick={handleSaveAction}
-          disabled={saving || showNewCat || isTweaking || deleting}
-          className="w-full md:w-auto"
-        >
-          {saving ? <Loader2 className="w-6 h-6 animate-spin" /> : <Save className="w-6 h-6" />}
-          {isCreateMode ? 'Looks Good, Create Habit' : 'Save Changes'}
-        </Button>
-      </div>
+      {remove && (
+        <ConfirmDialog
+          isOpen={confirmRemove}
+          title={remove.confirmTitle}
+          message={remove.confirmMessage}
+          confirmText={remove.confirmText}
+          isProcessing={removing}
+          onConfirm={handleRemove}
+          onCancel={() => setConfirmRemove(false)}
+        />
+      )}
+    </div>
+  );
+}
 
-      <ConfirmDialog
-        isOpen={showConfirmDelete}
-        title="Delete Habit"
-        message={`Are you sure you want to delete "${title}"? This will permanently delete all of its history and logs.${deleteWarning ? ` ${deleteWarning}` : ''}`}
-        confirmText="Delete Habit"
-        isProcessing={deleting}
-        onConfirm={handleDeleteAction}
-        onCancel={() => setShowConfirmDelete(false)}
-      />
+// A setting as a row: its label beside its control, or above it on a phone
+function SettingRow({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-4">
+      <span className="sm:w-24 shrink-0 text-sm font-medium text-stone-600">{label}</span>
+      <div className="flex-1 min-w-0">{children}</div>
     </div>
   );
 }

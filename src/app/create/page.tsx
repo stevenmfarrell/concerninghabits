@@ -21,7 +21,7 @@ export default function CreateHabit({ searchParams }: { searchParams: Promise<{ 
     setLoading(true);
     const result = await generateHabitSchema(initialPrompt);
     if (result.success) {
-      sessionStorage.setItem('draftHabit', JSON.stringify(category ? { ...result, categoryId: category } : result));
+      sessionStorage.setItem('draftHabit', JSON.stringify({ ...result, prompt: initialPrompt.trim(), ...(category ? { categoryId: category } : {}) }));
       router.push('/create/refine');
     } else {
       toast.error(result.error || "An error occurred");

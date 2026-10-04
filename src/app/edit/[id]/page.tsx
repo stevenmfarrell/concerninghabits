@@ -1,6 +1,6 @@
 import { getHabit, getPeople } from '../../actions/db';
 import EditClient from './EditClient';
-import SharedHabitSettings from './SharedHabitSettings';
+import PageHeader from '@/components/PageHeader';
 import { notFound } from 'next/navigation';
 
 export default async function EditPage({ params }: { params: Promise<{ id: string }> }) {
@@ -12,12 +12,12 @@ export default async function EditPage({ params }: { params: Promise<{ id: strin
   }
 
   return (
-    <main className="flex-1 p-4 sm:p-8 bg-stone-50 font-sans">
-      {habit.isOwner ? (
-        <EditClient habit={habit} />
-      ) : (
-        <SharedHabitSettings habit={habit} owner={people[habit.userId]} />
-      )}
+    <main className="flex-1 bg-stone-50 font-sans flex flex-col">
+      <PageHeader
+        title={<span className="truncate">{habit.isOwner ? `Edit ${habit.name}` : habit.name}</span>}
+        backHref={`/log/${habit.id}`}
+      />
+      <EditClient habit={habit} owner={people[habit.userId]} />
     </main>
   );
 }
