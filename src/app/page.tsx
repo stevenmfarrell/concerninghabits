@@ -38,8 +38,9 @@ function CategoryList({ categories, user }: { categories: DueCategory[]; user: S
   );
 }
 
-// What's done for now, as small chips. They have no Log button, which is
-// what keeps something done from being logged twice by accident; each links to its page, where it
+// What's done for now, as small chips: white, with the check (and border) in the habit's emerald or
+// the category's blue, so they don't look like the rows' Log buttons. They have no Log button, which
+// is what keeps something done from being logged twice by accident; each links to its page, where it
 // can still be logged. Links styled as chips, not buttons, so they don't use LinkButton.
 function DoneChips({ habits, categories }: { habits: HabitListItem[]; categories: DueCategory[] }) {
   return (
@@ -48,10 +49,10 @@ function DoneChips({ habits, categories }: { habits: HabitListItem[]; categories
         <li key={category.id}>
           <Link
             href={`/categories/${category.id}`}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-50 border border-blue-100 text-sm font-medium text-blue-800 hover:bg-blue-100 transition-colors"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border border-blue-200 text-sm font-medium text-stone-700 hover:bg-stone-50 transition-colors"
           >
-            <Check className="w-3.5 h-3.5 shrink-0" strokeWidth={3} />
-            <Icon name={category.icon || 'Folder'} className="w-3.5 h-3.5 shrink-0" />
+            <Check className="w-3.5 h-3.5 shrink-0 text-blue-600" strokeWidth={3} />
+            <Icon name={category.icon || 'Folder'} className="w-3.5 h-3.5 shrink-0 text-blue-600" />
             <span className="truncate max-w-[14rem]">{category.name}</span>
           </Link>
         </li>
@@ -60,9 +61,9 @@ function DoneChips({ habits, categories }: { habits: HabitListItem[]; categories
         <li key={habit.id}>
           <Link
             href={`/log/${habit.id}`}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-100 text-sm font-medium text-emerald-800 hover:bg-emerald-100 transition-colors"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border border-emerald-200 text-sm font-medium text-stone-700 hover:bg-stone-50 transition-colors"
           >
-            <Check className="w-3.5 h-3.5 shrink-0" strokeWidth={3} />
+            <Check className="w-3.5 h-3.5 shrink-0 text-emerald-600" strokeWidth={3} />
             <span className="truncate max-w-[14rem]">{habit.name}</span>
           </Link>
         </li>
