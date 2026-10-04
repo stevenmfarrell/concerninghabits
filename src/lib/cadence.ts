@@ -157,17 +157,41 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 // the entries that count.
 export type CadenceStatus = { state: 'due' } | { state: 'upcoming'; dueInDays: number } | { state: 'done' };
 
+// The days each entry that counts toward today covers, and today, as civil dates
+function countingToday(
+  cadence: Cadence,
+  logDates: Date[],
+  user: { timeZone: string; bedtime: string; weekStartsOn: string },
+  now: Date,
+) {
+  const offset = parseBedtimeOffsetMinutes(user.bedtime);
+  const today = toCivilDate(now, user.timeZone, offset);
+  const counting = logDates
+    .map(date => cadenceCovers(cadence, toCivilDate(date, user.timeZone, offset), user))
+    .filter(({ from, to }) => from <= today && today <= to);
+  return { today, counting };
+}
+
+// How far along a habit is toward being done for now, e.g. 3 of 4 times today, for a cadence that
+// takes more than one entry; null for one that takes a single entry (or never gets done)
+export function cadenceProgress(
+  cadence: Cadence,
+  logDates: Date[],
+  user: { timeZone: string; bedtime: string; weekStartsOn: string },
+  now = new Date(),
+): { done: number; needed: number } | null {
+  const needed = entriesNeeded(cadence);
+  if (needed <= 1 || !Number.isFinite(needed)) return null;
+  return { done: Math.min(countingToday(cadence, logDates, user, now).counting.length, needed), needed };
+}
+
 export function cadenceStatus(
   cadence: Cadence,
   logDates: Date[],
   user: { timeZone: string; bedtime: string; weekStartsOn: string },
   now = new Date(),
 ): CadenceStatus {
-  const offset = parseBedtimeOffsetMinutes(user.bedtime);
-  const today = toCivilDate(now, user.timeZone, offset);
-  const counting = logDates
-    .map(date => cadenceCovers(cadence, toCivilDate(date, user.timeZone, offset), user))
-    .filter(({ from, to }) => from <= today && today <= to);
+  const { today, counting } = countingToday(cadence, logDates, user, now);
   if (counting.length < entriesNeeded(cadence)) return { state: 'due' };
 
   // Due again the day after the last day today's entries count for

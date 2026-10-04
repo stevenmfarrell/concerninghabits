@@ -88,7 +88,7 @@ export default async function AgendaPage() {
     getPeople(),
   ]);
 
-  const { dueHabits, upcomingHabits, doneHabits, dueCategories, upcomingCategories, doneCategories } = buildDueList(categories, uncategorized, latestLogDates, user);
+  const { dueHabits, upcomingHabits, doneHabits, dueCategories, upcomingCategories, doneCategories, progress } = buildDueList(categories, uncategorized, latestLogDates, user);
   const anyDue = dueHabits.length > 0 || dueCategories.length > 0;
   const anyUpcoming = upcomingHabits.length > 0 || upcomingCategories.length > 0;
   const anyDone = doneHabits.length > 0 || doneCategories.length > 0;
@@ -123,7 +123,7 @@ export default async function AgendaPage() {
             <section className="space-y-4">
               <SectionHeading>Due Now</SectionHeading>
               {dueHabits.length > 0 && (
-                <SortableHabitList items={dueHabits} user={user} people={people} dndContextId="due-habits" />
+                <SortableHabitList items={dueHabits} progress={progress} user={user} people={people} dndContextId="due-habits" />
               )}
               {dueCategories.length > 0 && (
                 <CategoryList categories={dueCategories.map(category => ({ category }))} user={user} />

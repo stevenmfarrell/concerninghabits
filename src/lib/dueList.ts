@@ -1,4 +1,4 @@
-import { cadenceStatus, NO_CADENCE, parseCadence, type Cadence } from './cadence';
+import { cadenceProgress, cadenceStatus, NO_CADENCE, parseCadence, type Cadence } from './cadence';
 import type { HabitListItem } from './types';
 
 // A category as the Agenda page needs it: its cadence, and its habits with their recent entries
@@ -36,6 +36,8 @@ export interface DueList {
   dueCategories: DueCategory[];
   upcomingCategories: Upcoming<DueCategory>[];
   doneCategories: DueCategory[];
+  // How far along each due habit that takes more than one entry is, by habit id, e.g. 3 of 4 today
+  progress: Record<string, { done: number; needed: number }>;
 }
 
 // What the Agenda page shows: every habit and category with a cadence, split into those due, those
@@ -59,13 +61,18 @@ export function buildDueList(
     return dates;
   };
 
-  const list: DueList = { dueHabits: [], upcomingHabits: [], doneHabits: [], dueCategories: [], upcomingCategories: [], doneCategories: [] };
+  const list: DueList = { dueHabits: [], upcomingHabits: [], doneHabits: [], dueCategories: [], upcomingCategories: [], doneCategories: [], progress: {} };
 
   const addHabit = (habit: HabitListItem) => {
     const cadence = parseCadence(habit.cadence);
     if (cadence.type === 'none') return;
-    const status = cadenceStatus(cadence, entryDates(habit), user, now);
-    if (status.state === 'due') list.dueHabits.push(habit);
+    const dates = entryDates(habit);
+    const status = cadenceStatus(cadence, dates, user, now);
+    if (status.state === 'due') {
+      list.dueHabits.push(habit);
+      const progress = cadenceProgress(cadence, dates, user, now);
+      if (progress) list.progress[habit.id] = progress;
+    }
     else if (status.state === 'upcoming') list.upcomingHabits.push({ item: habit, dueInDays: status.dueInDays });
     else list.doneHabits.push(habit);
   };

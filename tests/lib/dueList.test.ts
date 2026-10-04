@@ -56,6 +56,19 @@ describe('buildDueList', () => {
     expect(ids(list.dueHabits)).toEqual(['run']);
   });
 
+  it('gives how far along a due habit that takes several entries a day is, counting only today\'s', () => {
+    const yesterday = new Date('2026-10-02T09:00:00Z');
+    const water = habit('water', { type: 'daily', timesPerDay: 4 }, [today, today, yesterday].map(createdAt => ({ createdAt, userId: 'me' })));
+    const list = buildDueList([], [water, habit('run', daily)], {}, user, now);
+    expect(ids(list.dueHabits)).toEqual(['water', 'run']);
+    expect(list.progress).toEqual({ water: { done: 2, needed: 4 } });
+  });
+
+  it('leaves out the progress of a habit once it\'s done', () => {
+    const water = habit('water', { type: 'daily', timesPerDay: 2 }, [today, today].map(createdAt => ({ createdAt, userId: 'me' })));
+    expect(buildDueList([], [water], {}, user, now).progress).toEqual({});
+  });
+
   it('uses a habit\'s latest entry when it\'s older than its recent entries reach', () => {
     const everySixtyDays = habit('dentist floss', { type: 'everyNDays', days: 60 });
     const longAgo = new Date('2026-08-20T09:00:00Z');
