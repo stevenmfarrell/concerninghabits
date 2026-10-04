@@ -41,11 +41,11 @@ export function RecordPageSkeleton({ cards = 2 }: { cards?: number }) {
 
 // The bottom nav's tabs as a full-width white pane under the sticky header (no back button), with
 // placeholder rows running edge to edge
-export function TabPageSkeleton({ rows = 5 }: { rows?: number }) {
+export function TabPageSkeleton({ rows = 5, width = 'max-w-4xl' }: { rows?: number; width?: string }) {
   return (
     <main className="flex-1 pb-24 sm:pb-28 -mb-20 bg-white font-sans">
       <PageHeader title={<SkeletonBar className="h-8 w-36" />} showBack={false} />
-      <div className="max-w-4xl mx-auto pt-4 sm:pt-8 divide-y divide-stone-100">
+      <div className={`${width} mx-auto pt-4 sm:pt-8 divide-y divide-stone-100`}>
         {Array.from({ length: rows }, (_, i) => (
           <div key={i} className="flex items-center gap-3 py-3 px-4 sm:px-6">
             <SkeletonBar className="w-10 h-10 rounded-full shrink-0" />
@@ -61,7 +61,7 @@ export function TabPageSkeleton({ rows = 5 }: { rows?: number }) {
   );
 }
 
-// Root-level pages that scroll under a plain <h1> (habits, history, settings)
+// Pages that scroll under a plain <h1> (edit)
 export function TopLevelPageSkeleton({ width = 'max-w-4xl' }: { width?: string }) {
   return (
     <main className="flex-1 p-4 sm:p-8 bg-stone-50 font-sans">

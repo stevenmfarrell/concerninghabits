@@ -1,5 +1,5 @@
-import { TopLevelPageSkeleton } from '@/components/Skeleton';
+import { TabPageSkeleton } from '@/components/Skeleton';
 
 export default function Loading() {
-  return <TopLevelPageSkeleton width="max-w-3xl" />;
+  return <TabPageSkeleton width="max-w-3xl" />;
 }

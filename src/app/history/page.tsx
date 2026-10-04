@@ -2,6 +2,8 @@ import Link from 'next/link';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { getCategoriesWithHierarchy, getDayEntries, getDefaultUser, getUncategorizedHabits } from '../actions/db';
 import Icon from '@/components/Icon';
+import PageHeader from '@/components/PageHeader';
+import { PANE_INSET, PanePage, PaneSection } from '@/components/Pane';
 import EmptyState from '@/components/EmptyState';
 import { IconLinkButton } from '@/components/ui/IconButton';
 import { LinkButton } from '@/components/ui/Button';
@@ -94,72 +96,76 @@ export default async function HistoryPage(props: { searchParams: Promise<{ day?:
 
   const daysAgo = Math.round((today.getTime() - day.getTime()) / (24 * 60 * 60 * 1000));
   const dayLabel = daysAgo === 0 ? 'Today' : daysAgo === 1 ? 'Yesterday' : day.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' });
-  const dateLabel = day.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC' });
+  const dateLabel = day.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
 
   return (
-    <main className="flex-1 p-4 sm:p-8 bg-stone-50 font-sans">
-      <div className="max-w-3xl mx-auto space-y-6 sm:space-y-8">
-        <div className="flex items-end justify-between gap-4">
-          <div>
-            <p className="text-stone-500 font-semibold text-sm uppercase tracking-wider mb-1">{dateLabel}</p>
-            <h1 className="text-3xl sm:text-4xl font-extrabold text-stone-900 tracking-tight">{dayLabel}</h1>
-            <p className="text-sm text-stone-500 mt-1">
-              {habitCount} {habitCount === 1 ? 'habit' : 'habits'} done
-              {entries.length > habitCount && ` · ${entries.length} entries`}
-            </p>
-          </div>
-          <div className="flex items-center gap-1">
-            <IconLinkButton href={dayHref(shiftDay(day, -1), today)} title="Previous day" aria-label="Previous day">
-              <ChevronLeft className="w-6 h-6" />
-            </IconLinkButton>
-            {isToday ? (
-              <span className="p-2 -mr-2 text-stone-200" aria-hidden="true">
-                <ChevronRight className="w-6 h-6" />
-              </span>
-            ) : (
-              <IconLinkButton href={dayHref(shiftDay(day, 1), today)} title="Next day" aria-label="Next day" edge="right">
-                <ChevronRight className="w-6 h-6" />
+    <PanePage
+      width="max-w-3xl"
+      header={
+        <PageHeader
+          title={dayLabel}
+          subtitle={dateLabel}
+          showBack={false}
+          actions={
+            <>
+              <IconLinkButton href={dayHref(shiftDay(day, -1), today)} title="Previous day" aria-label="Previous day">
+                <ChevronLeft className="w-6 h-6" />
               </IconLinkButton>
-            )}
-          </div>
-        </div>
-
-        {!anyHabits ? (
-          <EmptyState title="No habits here yet" action={<LinkButton href="/create" variant="outline">New Habit</LinkButton>}>
-            Once you have habits, what you log each day shows up here.
-          </EmptyState>
-        ) : groups.length === 0 ? (
-          <EmptyState title={isToday ? 'Nothing logged yet today' : 'Nothing logged on this day'}>
-            {isToday ? 'Log a habit from the Agenda or Habits page and it shows up here.' : 'Use the arrows above to look at another day.'}
-          </EmptyState>
-        ) : (
-          <div className="space-y-4">
-            {groups.map(group => (
-              <section key={group.id} className="bg-white rounded-2xl shadow-sm border border-stone-100 overflow-hidden">
-                <div className="flex items-center gap-3 px-4 sm:px-6 py-3 bg-blue-50/50 border-b border-stone-100">
-                  <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center shrink-0">
-                    <Icon name={group.icon} className="w-4 h-4" />
-                  </div>
-                  <h2 className="text-lg font-semibold text-stone-800">{group.name}</h2>
+              {isToday ? (
+                <span className="p-2 -mr-2 text-stone-200" aria-hidden="true">
+                  <ChevronRight className="w-6 h-6" />
+                </span>
+              ) : (
+                <IconLinkButton href={dayHref(shiftDay(day, 1), today)} title="Next day" aria-label="Next day" edge="right">
+                  <ChevronRight className="w-6 h-6" />
+                </IconLinkButton>
+              )}
+            </>
+          }
+        />
+      }
+    >
+      {!anyHabits ? (
+        <EmptyState title="No habits here yet" action={<LinkButton href="/create" variant="outline">New Habit</LinkButton>}>
+          Once you have habits, what you log each day shows up here.
+        </EmptyState>
+      ) : groups.length === 0 ? (
+        <EmptyState title={isToday ? 'Nothing logged yet today' : 'Nothing logged on this day'}>
+          {isToday ? 'Log a habit from the Agenda or Habits page and it shows up here.' : 'Use the arrows at the top to look at another day.'}
+        </EmptyState>
+      ) : (
+        <>
+          <p className={`${PANE_INSET} text-sm text-stone-500`}>
+            {habitCount} {habitCount === 1 ? 'habit' : 'habits'} done
+            {entries.length > habitCount && ` · ${entries.length} entries`}
+          </p>
+          {groups.map(group => (
+            <PaneSection
+              key={group.id}
+              title={
+                <>
+                  <Icon name={group.icon} className="w-4 h-4 text-blue-700 shrink-0" />
+                  <span className="truncate">{group.name}</span>
+                </>
+              }
+            >
+              {group.sections.map(section => (
+                <div key={section.id}>
+                  {section.name && (
+                    <p className={`${PANE_INSET} pt-3 text-sm font-semibold text-stone-500`}>{section.name}</p>
+                  )}
+                  <ul className="divide-y divide-stone-100">
+                    {section.habits.map(habit => (
+                      <HabitDay key={habit.id} habit={habit} entries={entriesByHabit.get(habit.id)!} timeZone={user.timeZone} />
+                    ))}
+                  </ul>
                 </div>
-                {group.sections.map(section => (
-                  <div key={section.id}>
-                    {section.name && (
-                      <p className="px-4 sm:px-6 pt-3 text-xs font-semibold uppercase tracking-wider text-stone-500">{section.name}</p>
-                    )}
-                    <ul className="divide-y divide-stone-100">
-                      {section.habits.map(habit => (
-                        <HabitDay key={habit.id} habit={habit} entries={entriesByHabit.get(habit.id)!} timeZone={user.timeZone} />
-                      ))}
-                    </ul>
-                  </div>
-                ))}
-              </section>
-            ))}
-          </div>
-        )}
-      </div>
-    </main>
+              ))}
+            </PaneSection>
+          ))}
+        </>
+      )}
+    </PanePage>
   );
 }
 

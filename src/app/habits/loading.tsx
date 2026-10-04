@@ -1,5 +1,5 @@
-import { TopLevelPageSkeleton } from '@/components/Skeleton';
+import { TabPageSkeleton } from '@/components/Skeleton';
 
 export default function Loading() {
-  return <TopLevelPageSkeleton />;
+  return <TabPageSkeleton />;
 }

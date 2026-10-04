@@ -43,7 +43,7 @@ Settings that are rarely changed go in a `<CollapsibleSection title="…" summar
 
 ## Page headers
 
-Every page gets the sticky `<PageHeader>` (`src/components/PageHeader.tsx`), a frosted bar with an optional actions slot on the right. Pages are being moved to it one at a time; Agenda (`src/app/page.tsx`) is the reference.
+Every page gets the sticky `<PageHeader>` (`src/components/PageHeader.tsx`), a frosted bar with an optional actions slot on the right. The bottom nav's four tabs use it; drill-in pages already did.
 
 **Bottom nav tabs** (Agenda, Habits, History, Settings) have nothing to go back to, so they pass `showBack={false}`. That also switches the title to the tab style: large, bold, left-aligned on one row, with an optional lighter `subtitle` after it (e.g. today's date as `Oct 4`):
 
@@ -71,7 +71,25 @@ Every page gets the sticky `<PageHeader>` (`src/components/PageHeader.tsx`), a f
 - Keep the subtitle short; it doesn't shrink, the title truncates instead.
 - Anything `fixed` (a modal, a full-screen panel) rendered from inside the bar should be portaled to `<body>`, as `SmartEntry` and `SpeakOrType` do.
 
-**Legacy, being phased out:** the in-flow `<h1>` on the other tabs, and `<BackLink>` (`src/components/BackLink.tsx`) on settings sub-pages and wizards (create/refine). Don't use either on a new page; move a page to `<PageHeader>` when you rework it.
+**Legacy, being phased out:** `<BackLink>` (`src/components/BackLink.tsx`) on settings sub-pages and wizards (create/refine). Don't use either on a new page; move a page to `<PageHeader>` when you rework it.
+
+## Panes, not cards
+
+A page is one full-width white pane, not cards on a stone background, so lists run edge to edge with only hairlines between rows. Build it from `src/components/Pane.tsx`:
+
+```tsx
+<PanePage header={<PageHeader title="Habits" showBack={false} />}>
+  <PaneSection title="Categories" action={<IconLinkButton ... className="-my-2" />}>
+    {rows}
+  </PaneSection>
+</PanePage>
+```
+
+- `PanePage` is the `<main>`: the header, then a centered column (`width`, default `max-w-4xl`) with `space-y-8` between sections. It also fills the band behind the bottom nav.
+- `PaneSection` is a small uppercase heading over rows divided by hairlines. Use `PaneHeading` alone when the content isn't rows (e.g. Agenda's Done chips).
+- Anything that isn't a full-width row (a line of text, chips, a profile block) gets `PANE_INSET` as its horizontal padding, so it lines up with the rows' contents.
+- Rows are `py-3` with `PANE_INSET` padding. Don't put rows in a `rounded-2xl` card.
+- Tabs (Agenda, Habits, History, Settings) are converted. Drill-in pages, settings sub-pages and forms still use cards; move each one over when you rework it.
 
 ## Dropdown / popover menus
 
