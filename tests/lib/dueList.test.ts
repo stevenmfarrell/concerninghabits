@@ -84,7 +84,7 @@ describe('buildDueList', () => {
     expect(buildDueList([], [water], {}, user, now).statuses).toEqual({});
   });
 
-  it('counts down to when an every-N-days habit is due: before, on the day, once overdue, and before its first entry', () => {
+  it('counts down to when an every-N-days habit is due: before, on the day, and once overdue, but not before its first entry', () => {
     const everyThreeDays: Cadence = { type: 'everyNDays', days: 3 };
     const loggedOn = (iso: string) => [{ createdAt: new Date(iso), userId: 'me' }];
     // Saturday's habit was last done Wednesday, so it's due today; the other one was due Thursday
@@ -93,7 +93,7 @@ describe('buildDueList', () => {
       habit('overdue', everyThreeDays, loggedOn('2026-09-28T09:00:00Z')),
       habit('never', everyThreeDays),
     ], {}, user, now);
-    expect(list.statuses).toEqual({ 'due today': { kind: 'dueIn', days: 0 }, overdue: { kind: 'dueIn', days: -2 }, never: { kind: 'neverDone' } });
+    expect(list.statuses).toEqual({ 'due today': { kind: 'dueIn', days: 0 }, overdue: { kind: 'dueIn', days: -2 } });
 
     const everyTenDays = habit('soon', { type: 'everyNDays', days: 10 }, loggedOn('2026-09-25T09:00:00Z'));
     const soon = buildDueList([], [everyTenDays], {}, user, now);

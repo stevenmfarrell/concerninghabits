@@ -1,4 +1,4 @@
-import { cadenceCountsDown, cadencePeriod, cadenceProgress, cadenceStatus, daysUntilDue, NO_CADENCE, parseCadence, type Cadence, type CadenceProgress, type ProgressPeriod } from './cadence';
+import { cadencePeriod, cadenceProgress, cadenceStatus, daysUntilDue, NO_CADENCE, parseCadence, type Cadence, type CadenceProgress, type ProgressPeriod } from './cadence';
 import type { HabitListItem } from './types';
 
 // A category as the Agenda page needs it: its cadence, and its habits with their recent entries
@@ -17,13 +17,12 @@ export interface CategoryTree extends CategoryWithHabits {
 // What a due or upcoming row shows beside its calendar (see RowStatus): how far along it is toward
 // done, for a cadence that takes several entries (e.g. 2 of 3 this week); the period, for one done
 // with a single entry a day, week, or month (e.g. "weekly"); or how many days until it's due, for
-// one that counts down (every N days): positive before then, 0 on the day, negative once overdue,
-// or `neverDone` before its first entry
+// one that counts down (every N days) and has been done before: positive before then, 0 on the
+// day, negative once overdue
 export type RowStatus =
   | ({ kind: 'progress' } & CadenceProgress)
   | { kind: 'period'; period: ProgressPeriod }
-  | { kind: 'dueIn'; days: number }
-  | { kind: 'neverDone' };
+  | { kind: 'dueIn'; days: number };
 
 // A category with a cadence on the Agenda page, with every habit counting toward it (a top-level
 // category's subcategories' habits included), for its calendar
@@ -79,9 +78,8 @@ export function buildDueList(
     if (progress) return { kind: 'progress', ...progress };
     const period = cadencePeriod(cadence);
     if (period) return { kind: 'period', period };
-    if (!cadenceCountsDown(cadence)) return undefined;
     const days = daysUntilDue(cadence, dates, user, now);
-    return days === null ? { kind: 'neverDone' } : { kind: 'dueIn', days };
+    return days === null ? undefined : { kind: 'dueIn', days };
   };
 
   const addHabit = (habit: HabitListItem) => {

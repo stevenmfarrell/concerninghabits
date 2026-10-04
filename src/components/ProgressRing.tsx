@@ -2,10 +2,11 @@ import type { CadenceProgress } from '@/lib/cadence';
 
 const FILL = { emerald: 'stroke-emerald-500', blue: 'stroke-blue-500' } as const;
 
-// How far along something is, as a ring filling up around its count, e.g. "2/3", for a habit (or,
-// in blue, a category) that takes several entries a day, week, or month. The period it's counted
-// over is labeled under it, and it's described for screen readers, by RowStatus.
-export default function ProgressRing({ progress, size = 36, color = 'emerald' }: { progress: CadenceProgress; size?: number; color?: keyof typeof FILL }) {
+// How far along something is, as a ring filling up around its count, e.g. "2/3", and an optional
+// short `sublabel` under the count, e.g. "W" for the period it's counted over, for a habit (or, in
+// blue, a category) that takes several entries a day, week, or month. It's described for screen
+// readers by RowStatus.
+export default function ProgressRing({ progress, sublabel, size = 40, color = 'emerald' }: { progress: CadenceProgress; sublabel?: string; size?: number; color?: keyof typeof FILL }) {
   const { done, needed } = progress;
   const stroke = 4;
   const radius = (size - stroke) / 2;
@@ -31,9 +32,10 @@ export default function ProgressRing({ progress, size = 36, color = 'emerald' }:
           visibility={done > 0 ? 'visible' : 'hidden'}
         />
       </svg>
-      <span className="absolute text-[11px] font-semibold text-stone-700 tabular-nums">
-        {done}/{needed}
-      </span>
+      {/* With a sublabel, the count sits just above the center and the sublabel low in the ring, apart
+          from it: centered together as a pair, a single letter under the wider count looked high */}
+      <span className={`absolute text-[11px] leading-none font-semibold text-stone-700 tabular-nums ${sublabel ? '-translate-y-[3px]' : ''}`}>{done}/{needed}</span>
+      {sublabel && <span className="absolute bottom-[6px] text-[10px] leading-none font-medium text-stone-500">{sublabel}</span>}
     </div>
   );
 }

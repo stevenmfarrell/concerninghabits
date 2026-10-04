@@ -226,9 +226,6 @@ export function cadenceProgress(
 // The period a cadence's entries are counted over (see CadenceRule.period), e.g. "weekly"
 export const cadencePeriod = (cadence: Cadence) => ruleFor(cadence).period;
 
-// Whether a cadence is shown counting down to when it's next due (see CadenceRule.countsDown)
-export const cadenceCountsDown = (cadence: Cadence) => ruleFor(cadence).countsDown;
-
 // For a cadence that counts down (see countsDown), how many days until it's next due: positive
 // before then, 0 on the day, negative once overdue. Null for other cadences, or with no entries yet.
 export function daysUntilDue(
