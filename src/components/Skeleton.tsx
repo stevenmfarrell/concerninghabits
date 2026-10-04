@@ -47,7 +47,7 @@ export function PanePageSkeleton({ rows = 5, width = '4xl', drillIn = false }: {
       {drillIn
         ? <PageHeader title={<SkeletonBar className="h-6 w-40" />} />
         : <PageHeader title={<SkeletonBar className="h-8 w-36" />} showBack={false} />}
-      <div className="mt-9 bg-white divide-y divide-stone-100">
+      <div className="mt-13 bg-white border-y border-stone-200 divide-y divide-stone-100">
         {Array.from({ length: rows }, (_, i) => (
           <div key={i} className="flex items-center gap-3 py-3 pane-inset">
             <SkeletonBar className="w-10 h-10 rounded-full shrink-0" />

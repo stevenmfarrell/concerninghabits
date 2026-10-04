@@ -10,8 +10,9 @@ import { BELOW_HEADER } from '@/components/PageHeader';
 // lined up with the rows' (see pane-inset in globals.css)
 export const PANE_INSET = 'pane-inset';
 
-// The white a section's content sits on, for a section built by hand around a PaneHeading
-export const PANE_SURFACE = 'bg-white';
+// The white a section's content sits on, for a section built by hand around a PaneHeading, with a
+// hairline along its top and bottom so it reads as a block against the stone
+export const PANE_SURFACE = 'bg-white border-y border-stone-200';
 
 // The column a page's content lines up in, by `width`
 const PANE_WIDTHS = {
@@ -32,14 +33,19 @@ export function PanePage({ header, width = '4xl', children }: { header: ReactNod
 }
 
 // A small uppercase heading over a section, with an optional control at its right end, on the stone
-// background. It pins under the page header while its section scrolls by, until the next section's
-// heading takes its place.
+// background. It sits well below whatever's above it and close to its own content, so it reads as
+// belonging to the section below. It pins under the page header while its section scrolls by, until
+// the next section's heading takes its place; the space above it is a separate spacer, which scrolls
+// away, so the pinned heading stays slim.
 export function PaneHeading({ children, action }: { children: ReactNode; action?: ReactNode }) {
   return (
-    <div className={`sticky ${BELOW_HEADER} z-20 ${PANE_INSET} py-2 min-h-9 flex items-center justify-between gap-4 bg-stone-50`}>
-      <h2 className="flex items-center gap-2 min-w-0 text-xs font-semibold uppercase tracking-wider text-stone-500">{children}</h2>
-      {action}
-    </div>
+    <>
+      <div className="h-4" aria-hidden="true" />
+      <div className={`sticky ${BELOW_HEADER} z-20 ${PANE_INSET} pt-2 pb-1.5 min-h-9 flex items-end justify-between gap-4 bg-stone-50`}>
+        <h2 className="flex items-center gap-2 min-w-0 text-xs font-semibold uppercase tracking-wider text-stone-500">{children}</h2>
+        {action}
+      </div>
+    </>
   );
 }
 
