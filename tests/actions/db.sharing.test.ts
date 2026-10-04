@@ -16,6 +16,7 @@ import {
   setHabitCategory,
   setHabitSharing,
   updateHabit,
+  updateHabitLog,
 } from '@/app/actions/db';
 import { deleteUser } from '@/app/actions/auth';
 import { UNCATEGORIZED_ID } from '@/lib/constants';
@@ -105,13 +106,30 @@ describe('habit sharing', () => {
     const memberLog = await logHabitEvent(habitId, {});
 
     const asSeenByMember = await getHabitLogs(habitId);
-    expect(asSeenByMember.find(l => l.id === ownerLog.id)?.canDelete).toBe(false);
-    expect(asSeenByMember.find(l => l.id === memberLog.id)?.canDelete).toBe(true);
+    expect(asSeenByMember.find(l => l.id === ownerLog.id)?.canChange).toBe(false);
+    expect(asSeenByMember.find(l => l.id === memberLog.id)?.canChange).toBe(true);
     await expect(deleteHabitLog(ownerLog.id, habitId)).rejects.toThrow('Unauthorized');
 
     asOwner();
     await deleteHabitLog(memberLog.id, habitId);
     expect(await prisma.habitLog.findUnique({ where: { id: memberLog.id } })).toBeNull();
+  });
+
+  it('lets members edit only their own entries, and the owner edit anyone\'s', async () => {
+    asOwner();
+    const ownerLog = await logHabitEvent(habitId, {});
+    asMember();
+    const memberLog = await logHabitEvent(habitId, {});
+    const earlier = new Date('2026-01-02T03:04:00Z');
+
+    await expect(updateHabitLog(ownerLog.id, habitId, {}, earlier)).rejects.toThrow('Unauthorized');
+    await updateHabitLog(memberLog.id, habitId, {}, earlier);
+    expect((await prisma.habitLog.findUnique({ where: { id: memberLog.id } }))?.createdAt).toEqual(earlier);
+
+    asOwner();
+    await updateHabitLog(memberLog.id, habitId, {});
+    asOutsider();
+    await expect(updateHabitLog(memberLog.id, habitId, {})).rejects.toThrow('Unauthorized');
   });
 
   it('rejects deleting an entry through a different habit id than the one it belongs to', async () => {

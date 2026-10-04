@@ -17,6 +17,12 @@ export function parseHabitSchema(rawSchema: string): HabitSchema {
   }
 }
 
+// A field's name for people: its schema title, or else its key spelled out ("totalMinutes" ->
+// "Total Minutes"), so every view of an entry names a field the same way
+export function fieldTitle(key: string, properties: HabitFormProperties | undefined) {
+  return properties?.[key]?.title || key.replace(/([A-Z])/g, ' $1').trim().replace(/^./, c => c.toUpperCase());
+}
+
 // Picks each field's widget from its `x-` extensions: a duration picker, or a number with its unit
 export function habitFormUiSchema(properties: HabitFormProperties | undefined): UiSchema {
   const uiSchema: UiSchema = {};

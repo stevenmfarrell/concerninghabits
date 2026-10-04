@@ -335,19 +335,7 @@ export async function logHabitEvent(habitId: string, payload: Record<string, unk
   const user = await getDefaultUser();
   const { habit } = await getMembership(user.id, habitId);
 
-  const schema: HabitSchema = { type: 'object', ...parseHabitSchema(habit) };
-  const properties = (schema.properties || {}) as Record<string, SchemaProperty>;
-
-  // Drop any keys the habit's own schema doesn't define, then validate the rest against it,
-  // same as the client-side rjsf Form would. The browser only enforces this in the UI.
-  const sanitizedPayload = Object.fromEntries(
-    Object.entries(payload).filter(([key]) => key in properties)
-  );
-
-  const { errors } = rjsfValidator.validateFormData(sanitizedPayload, schema);
-  if (errors.length > 0) {
-    throw new Error(`Invalid log data: ${errors.map(e => e.stack).join('; ')}`);
-  }
+  const sanitizedPayload = sanitizeLogPayload(habit, payload);
 
   const log = await prisma.habitLog.create({
     data: {
@@ -373,15 +361,57 @@ export async function logHabitEvent(habitId: string, payload: Record<string, unk
   return log;
 }
 
-// Anyone can delete an entry they logged; a habit's owner can also delete anyone's entry on it
-function canDeleteLog(userId: string, log: { userId: string }, habit: { userId: string }) {
+// An entry's values with any keys the habit's own schema doesn't define dropped, validated against
+// the schema the same as the client-side rjsf Form would. The browser only enforces this in the UI.
+function sanitizeLogPayload(habit: { schema: string }, payload: Record<string, unknown>) {
+  const schema: HabitSchema = { type: 'object', ...parseHabitSchema(habit) };
+  const properties = (schema.properties || {}) as Record<string, SchemaProperty>;
+  const sanitizedPayload = Object.fromEntries(
+    Object.entries(payload).filter(([key]) => key in properties)
+  );
+
+  const { errors } = rjsfValidator.validateFormData(sanitizedPayload, schema);
+  if (errors.length > 0) {
+    throw new Error(`Invalid log data: ${errors.map(e => e.stack).join('; ')}`);
+  }
+  return sanitizedPayload;
+}
+
+// Anyone can edit or delete an entry they logged; a habit's owner can also edit or delete anyone's
+// entry on it
+function canChangeLog(userId: string, log: { userId: string }, habit: { userId: string }) {
   return log.userId === userId || habit.userId === userId;
+}
+
+// An entry the user may edit or delete, checked to belong to `habitId`
+async function getChangeableLog(userId: string, logId: string, habitId: string) {
+  const log = await prisma.habitLog.findUnique({ where: { id: logId }, include: { habit: { select: { userId: true, schema: true } } } });
+  if (!log || log.habitId !== habitId || !canChangeLog(userId, log, log.habit)) throw new Error("Unauthorized");
+  return log;
+}
+
+// Corrects an entry's values, and its time when `createdAt` is given. Not republished to MQTT,
+// which announces new entries.
+export async function updateHabitLog(logId: string, habitId: string, payload: Record<string, unknown>, createdAt?: Date) {
+  const user = await getDefaultUser();
+  const log = await getChangeableLog(user.id, logId, habitId);
+  if (createdAt && Number.isNaN(createdAt.getTime())) throw new Error('Invalid date');
+
+  await prisma.habitLog.update({
+    where: { id: logId },
+    data: {
+      payload: JSON.stringify(sanitizeLogPayload(log.habit, payload)),
+      ...(createdAt ? { createdAt } : {}),
+    },
+  });
+  revalidatePath(`/log/${habitId}`);
+  revalidateLists();
+  revalidatePath('/history');
 }
 
 export async function deleteHabitLog(logId: string, habitId: string) {
   const user = await getDefaultUser();
-  const log = await prisma.habitLog.findUnique({ where: { id: logId }, include: { habit: { select: { userId: true } } } });
-  if (!log || log.habitId !== habitId || !canDeleteLog(user.id, log, log.habit)) throw new Error("Unauthorized");
+  await getChangeableLog(user.id, logId, habitId);
 
   await prisma.habitLog.delete({
     where: { id: logId }
@@ -421,8 +451,8 @@ export async function getDayEntries(dayKey: string) {
     });
 }
 
-// Every entry on a habit the user can see, whoever logged it, newest first. `canDelete` says
-// whether the current user may delete that entry.
+// Every entry on a habit the user can see, whoever logged it, newest first. `canChange` says
+// whether the current user may edit or delete that entry.
 // A habit's logs, newest first, going back far enough for a calendar of `weeks` weeks (see
 // getRecentLogsCutoff). Pass the widest horizon the caller might display.
 export async function getHabitLogs(habitId: string, weeks: number = MAX_HISTORY_WEEKS) {
@@ -432,7 +462,7 @@ export async function getHabitLogs(habitId: string, weeks: number = MAX_HISTORY_
     where: { habitId, createdAt: { gte: getRecentLogsCutoff(weeks) } },
     orderBy: { createdAt: 'desc' }
   });
-  return logs.map(log => ({ ...log, canDelete: canDeleteLog(user.id, log, habit) }));
+  return logs.map(log => ({ ...log, canChange: canChangeLog(user.id, log, habit) }));
 }
 
 // What the habit page's history needs to know about a habit's logs beyond getHabitLogs' window: whether it

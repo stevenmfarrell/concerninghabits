@@ -5,7 +5,7 @@ import Icon from '@/components/Icon';
 import EmptyState from '@/components/EmptyState';
 import { IconLinkButton } from '@/components/ui/IconButton';
 import { LinkButton } from '@/components/ui/Button';
-import { parseHabitSchema, type HabitFormProperties } from '@/components/widgets/habitForm';
+import { fieldTitle, parseHabitSchema, type HabitFormProperties } from '@/components/widgets/habitForm';
 import { civilDayKey, parseBedtimeOffsetMinutes, parseCivilDayKey, toCivilDate } from '@/lib/timezone';
 import { formatLogValue } from '@/lib/format';
 import { UNCATEGORIZED_ID, UNCATEGORIZED_ICON } from '@/lib/constants';
@@ -28,7 +28,7 @@ function dayHref(day: Date, today: Date) {
 function summarize(payload: Record<string, unknown>, properties: HabitFormProperties | undefined) {
   const parts = Object.entries(payload)
     .filter(([, val]) => val !== undefined && val !== null && val !== '')
-    .map(([key, val]) => `${properties?.[key]?.title || key} ${formatLogValue(val, properties?.[key])}`);
+    .map(([key, val]) => `${fieldTitle(key, properties)} ${formatLogValue(val, properties?.[key])}`);
   return parts.length > 0 ? parts.join(' · ') : null;
 }
 

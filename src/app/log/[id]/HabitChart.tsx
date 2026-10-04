@@ -7,6 +7,7 @@ import { BarChart2, LineChart as LineChartIcon } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { formatLogValue, formatDuration } from '../../../lib/format';
 import type { HabitSchema } from '@/lib/types';
+import { fieldTitle, type HabitFormProperties } from '@/components/widgets/habitForm';
 
 const CHART_COLOR = '#059669'; // emerald-600
 
@@ -40,7 +41,7 @@ export default function HabitChart({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const schemaProperties = schemaObj?.properties as Record<string, { 'x-widget'?: string; 'x-unit'?: string }> | undefined;
+  const schemaProperties = schemaObj?.properties as HabitFormProperties | undefined;
   const [selectedField, setSelectedField] = useState<string>(defaultSelectedField);
   const [chartTypes, setChartTypes] = useState<Record<string, 'line' | 'bar'>>(defaultChartTypes);
   const [isOpen, setIsOpen] = useState(false);
@@ -89,6 +90,21 @@ export default function HabitChart({
       .filter(p => p.value !== null)
       .sort((a, b) => a.date - b.date);
   }, [logs, selectedField, timeZone, people]);
+
+  // The bar chart is one bar per entry, evenly spaced, so a day with several entries has several
+  // bars. Bars are keyed by entry, and only each day's first bar gets a date tick.
+  const dayTicks = useMemo(
+    () => data.filter((point, i) => i === 0 || point.dateStr !== data[i - 1].dateStr).map(point => point.logId),
+    [data],
+  );
+  const tickDate = (logId: unknown) => data.find(point => point.logId === logId)?.dateStr ?? '';
+
+  // The tooltip's heading: when the hovered entry was logged, read from the entry itself rather than
+  // the axis label (a bar's label is its entry's id). With the time, so same-day entries can be told apart.
+  const tooltipDate = (_label: unknown, payload: ReadonlyArray<{ payload?: { date?: number } }>) => {
+    const date = payload?.[0]?.payload?.date;
+    return date === undefined ? '' : new Date(date).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone });
+  };
 
   if (numericFields.length === 0) return null;
 
@@ -139,13 +155,23 @@ export default function HabitChart({
     }, 150);
   };
 
+  // A field's name with its unit, e.g. "Distance (miles)". A duration's "unit" is the format its
+  // values are shown in, which gains an hours place once any entry reaches an hour.
   const getFieldLabel = (field: string) => {
-    let label = field.replace(/([A-Z])/g, ' $1').trim().replace(/^./, str => str.toUpperCase());
-    const fieldUnit = schemaProperties?.[field]?.['x-unit'];
-    if (fieldUnit) {
-      label += ` (${fieldUnit})`;
+    const label = fieldTitle(field, schemaProperties);
+    if (schemaProperties?.[field]?.['x-widget'] === 'duration') {
+      const hasHours = logs.some(log => {
+        try {
+          const val = JSON.parse(log.payload)[field];
+          return typeof val === 'number' && val >= 60;
+        } catch {
+          return false;
+        }
+      });
+      return `${label} (${hasHours ? 'h:mm:ss' : 'm:ss'})`;
     }
-    return label;
+    const fieldUnit = schemaProperties?.[field]?.['x-unit'];
+    return fieldUnit ? `${label} (${fieldUnit})` : label;
   };
 
   return (
@@ -190,7 +216,7 @@ export default function HabitChart({
           )}
           {numericFields.length === 1 && (
             <span className="text-sm font-medium text-stone-500 bg-stone-100 px-3 py-1 rounded-lg">
-              {selectedField.replace(/([A-Z])/g, ' $1').trim().replace(/^./, str => str.toUpperCase())}
+              {getFieldLabel(selectedField)}
             </span>
           )}
 
@@ -221,7 +247,11 @@ export default function HabitChart({
               <BarChart data={data} margin={{ top: 5, right: 10, left: -20, bottom: 5 }} onClick={handleChartClick} style={{ cursor: 'pointer', WebkitTapHighlightColor: 'transparent', userSelect: 'none', outline: 'none' }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f5f5f4" />
                 <XAxis 
-                  dataKey="dateStr" 
+                  dataKey="logId" 
+                  ticks={dayTicks}
+                  tickFormatter={tickDate}
+                  interval="preserveStartEnd"
+                  minTickGap={12}
                   axisLine={false}
                   tickLine={false}
                   tick={{ fill: '#78716c', fontSize: 12 }}
@@ -239,8 +269,8 @@ export default function HabitChart({
                   contentStyle={{ borderRadius: '12px', border: '1px solid #e7e5e4', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                   labelStyle={{ color: '#57534e', fontWeight: 600, marginBottom: '4px' }}
                   itemStyle={{ color: '#047857', fontWeight: 700 }}
-                  labelFormatter={(label: unknown) => new Date(label as string | number).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone })}
-                  formatter={(value: unknown, _name: unknown, item: unknown) => [formatLogValue(value, schemaProperties?.[selectedField]), tooltipLabel(selectedField.replace(/([A-Z])/g, ' $1').trim().replace(/^./, str => str.toUpperCase()), item)]}
+                  labelFormatter={tooltipDate}
+                  formatter={(value: unknown, _name: unknown, item: unknown) => [formatLogValue(value, schemaProperties?.[selectedField]), tooltipLabel(fieldTitle(selectedField, schemaProperties), item)]}
                 />
                 <Bar
                   dataKey="value"
@@ -278,8 +308,8 @@ export default function HabitChart({
                   contentStyle={{ borderRadius: '12px', border: '1px solid #e7e5e4', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                   labelStyle={{ color: '#57534e', fontWeight: 600, marginBottom: '4px' }}
                   itemStyle={{ color: '#047857', fontWeight: 700 }}
-                  labelFormatter={(label: unknown) => new Date(label as string | number).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone })}
-                  formatter={(value: unknown, _name: unknown, item: unknown) => [formatLogValue(value, schemaProperties?.[selectedField]), tooltipLabel(selectedField.replace(/([A-Z])/g, ' $1').trim().replace(/^./, str => str.toUpperCase()), item)]}
+                  labelFormatter={tooltipDate}
+                  formatter={(value: unknown, _name: unknown, item: unknown) => [formatLogValue(value, schemaProperties?.[selectedField]), tooltipLabel(fieldTitle(selectedField, schemaProperties), item)]}
                 />
                 {/* On a shared habit the line goes neutral so each point's person color stands out */}
                 <Line

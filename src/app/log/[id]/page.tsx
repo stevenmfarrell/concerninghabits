@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { cookies } from 'next/headers';
 import LogClient from './LogClient';
 import EmptyState from '@/components/EmptyState';
-import DeleteButton from './DeleteButton';
+import EntryMenu from './EntryMenu';
 import InteractiveCalendar from './InteractiveCalendar';
 import HabitChart from './HabitChart';
 import ExportCsvButton from './ExportCsvButton';
@@ -15,6 +15,7 @@ import { formatLogValue } from '../../../lib/format';
 import { parseBedtimeOffsetMinutes, toCivilDate } from '../../../lib/timezone';
 import { parseCadence } from '@/lib/cadence';
 import type { HabitSchema } from '@/lib/types';
+import { fieldTitle, type HabitFormProperties } from '@/components/widgets/habitForm';
 
 // A habit's page: the Log Habit button (see LogClient), then its history: an activity calendar over
 // the chosen horizon, a chart of its numeric fields, and its entries, a page at a time.
@@ -103,7 +104,7 @@ export default async function HabitPage(props: { params: Promise<{ id: string }>
   } catch {
     // Ignore JSON parse errors
   }
-  const schemaProperties = schemaObj.properties as Record<string, { 'x-widget'?: string; 'x-unit'?: string }> | undefined;
+  const schemaProperties = schemaObj.properties as HabitFormProperties | undefined;
 
   return (
     <main className="flex-1 bg-stone-50 font-sans flex flex-col h-full">
@@ -207,8 +208,8 @@ export default async function HabitPage(props: { params: Promise<{ id: string }>
                           <div className="space-y-1">
                             {Object.entries(payload).map(([key, value]) => (
                               <div key={key} className="text-sm">
-                                <span className="font-medium text-stone-700 capitalize">
-                                  {key.replace(/([A-Z])/g, ' $1').trim()}:
+                                <span className="font-medium text-stone-700">
+                                  {fieldTitle(key, schemaProperties)}:
                                 </span>{' '}
                                 {formatLogValue(value, schemaProperties?.[key])}
                               </div>
@@ -219,7 +220,13 @@ export default async function HabitPage(props: { params: Promise<{ id: string }>
                         )}
                       </td>
                       <td className="p-4 align-top text-right">
-                        {log.canDelete && <DeleteButton action={deleteAction} />}
+                        {log.canChange && (
+                          <EntryMenu
+                            habit={{ id: habit.id, name: habit.name, schema: habit.schema }}
+                            entry={{ id: log.id, payload, createdAt: log.createdAt }}
+                            deleteAction={deleteAction}
+                          />
+                        )}
                       </td>
                     </tr>
                   );
