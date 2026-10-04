@@ -31,3 +31,15 @@ export function formatLogValue(val: unknown, propSchema?: { 'x-widget'?: string;
   
   return strVal;
 }
+
+const DAYS_PER_MONTH = 365.25 / 12;
+
+// A span of days the way people say it, fuzzier the longer it is: days up to 10, then weeks up to
+// 6, then months, rounded, e.g. 4 -> "4 days", 12 -> "2 weeks", 60 -> "2 months"
+export function fuzzyDays(days: number) {
+  const [count, unit] =
+    days < 11 ? [days, 'day']
+    : days < 7 * 7 ? [Math.round(days / 7), 'week']
+    : [Math.round(days / DAYS_PER_MONTH), 'month'];
+  return { count, unit: count === 1 ? unit : `${unit}s` };
+}
