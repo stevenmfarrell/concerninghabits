@@ -208,7 +208,7 @@ export default async function HabitPage(props: { params: Promise<{ id: string }>
                         {hasDetails ? (
                           <div className="space-y-1">
                             {Object.entries(payload).map(([key, value]) => (
-                              <div key={key} className="text-sm">
+                              <div key={key} className="text-sm whitespace-pre-line break-words">
                                 <span className="font-medium text-stone-700">
                                   {fieldTitle(key, schemaProperties)}:
                                 </span>{' '}

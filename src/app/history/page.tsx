@@ -24,11 +24,19 @@ function dayHref(day: Date, today: Date) {
   return civilDayKey(day) === civilDayKey(today) ? '/history' : `/history?day=${civilDayKey(day)}`;
 }
 
-// An entry's values as a line, e.g. "Distance 3 miles · Time 25:00", or null when it has none
+// A value's first line, marked as cut short when there's more
+function firstLine(text: string) {
+  const lines = text.trim().split(/\r?\n/);
+  return lines.length > 1 ? `${lines[0].trimEnd()}…` : text;
+}
+
+// An entry's values as a line, e.g. "Distance 3 miles · Time 25:00", or null when it has none. A
+// value written over several lines (e.g. notes) shows only its first, the whole of it being on the
+// habit's page.
 function summarize(payload: Record<string, unknown>, properties: HabitFormProperties | undefined) {
   const parts = Object.entries(payload)
     .filter(([, val]) => val !== undefined && val !== null && val !== '')
-    .map(([key, val]) => `${fieldTitle(key, properties)} ${formatLogValue(val, properties?.[key])}`);
+    .map(([key, val]) => `${fieldTitle(key, properties)} ${firstLine(formatLogValue(val, properties?.[key]))}`);
   return parts.length > 0 ? parts.join(' · ') : null;
 }
 

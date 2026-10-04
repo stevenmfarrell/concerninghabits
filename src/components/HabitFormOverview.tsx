@@ -16,6 +16,7 @@ type FieldSchema = HabitFormProperties[string] & { enum?: unknown[]; format?: st
 function describeField(field: FieldSchema) {
   const unit = field['x-unit'] ? ` (${field['x-unit']})` : '';
   if (field['x-widget'] === 'duration') return 'Duration';
+  if (field['x-widget'] === 'textarea') return 'Long text';
   if (Array.isArray(field.enum) && field.enum.length > 0) return `One of: ${field.enum.join(', ')}`;
   switch (field.type) {
     case 'integer': return `Whole number${unit}`;

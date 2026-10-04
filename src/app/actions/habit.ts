@@ -48,7 +48,7 @@ export async function generateHabitSchema(prompt: string, currentSchema?: HabitS
           days: z.number().int().optional().describe("For 'everyNDays': how many days apart, 2 or more"),
         }).optional().describe("The suggested cadence. Leave it out, or use type 'none', unless the user clearly wants this to recur."),
         type: z.literal('object'),
-        properties: z.record(z.string(), z.any()).describe(`The fields required. Keep it simple. Use empty {} for simple boolean tasks. CRITICAL: For time durations, set 'type': 'number' AND 'x-widget': 'duration'. For other numeric fields, include an 'x-unit' key specifying the unit of measurement (e.g., 'miles', 'lbs', 'oz', 'pages'). The user prefers the ${user.unitSystem} measurement system.`),
+        properties: z.record(z.string(), z.any()).describe(`The fields required. Keep it simple. Use empty {} for simple boolean tasks. CRITICAL: For time durations, set 'type': 'number' AND 'x-widget': 'duration'. For free-form writing that may run to several sentences or lines (e.g. notes, a journal entry, a reflection, what went well), set 'type': 'string' AND 'x-widget': 'textarea'; leave short text like a name or a place as a plain string. For other numeric fields, include an 'x-unit' key specifying the unit of measurement (e.g., 'miles', 'lbs', 'oz', 'pages'). The user prefers the ${user.unitSystem} measurement system.`),
         required: z.array(z.string()).optional().describe("Array of required property keys"),
       }),
     });

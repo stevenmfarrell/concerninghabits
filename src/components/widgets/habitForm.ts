@@ -23,11 +23,13 @@ export function fieldTitle(key: string, properties: HabitFormProperties | undefi
   return properties?.[key]?.title || key.replace(/([A-Z])/g, ' $1').trim().replace(/^./, c => c.toUpperCase());
 }
 
-// Picks each field's widget from its `x-` extensions: a duration picker, or a number with its unit
+// Picks each field's widget from its `x-` extensions: a duration picker, a multi-line text box for
+// free-form writing (e.g. notes), or a number with its unit
 export function habitFormUiSchema(properties: HabitFormProperties | undefined): UiSchema {
   const uiSchema: UiSchema = {};
   for (const [key, prop] of Object.entries(properties ?? {})) {
     if (prop['x-widget'] === 'duration') uiSchema[key] = { 'ui:widget': 'duration' };
+    else if (prop['x-widget'] === 'textarea') uiSchema[key] = { 'ui:widget': 'textarea', 'ui:options': { rows: 4 } };
     else if (prop['x-unit']) uiSchema[key] = { 'ui:widget': 'unit' };
   }
   return uiSchema;
