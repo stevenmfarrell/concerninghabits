@@ -7,6 +7,7 @@ import SmartEntry from './SmartEntry';
 import EmptyState from '@/components/EmptyState';
 import CategoryRow from '@/components/CategoryRow';
 import { LinkButton } from '@/components/ui/Button';
+import PageHeader from '@/components/PageHeader';
 import { buildDueList, type DueCategory } from '@/lib/dueList';
 import { parseBedtimeOffsetMinutes, toCivilDate } from '@/lib/timezone';
 import type { HabitListItem, SessionUser } from '@/lib/types';
@@ -102,21 +103,17 @@ export default async function AgendaPage() {
     // One full-width white pane rather than cards, so lists run edge to edge with only the lines
     // between rows. It reaches down under the bottom nav's spacer (5rem, see BottomNav), which would
     // otherwise show the body's stone background as a band above the nav.
-    <main className="flex-1 pt-4 sm:pt-8 pb-24 sm:pb-28 -mb-20 bg-white font-sans">
-      <div className="max-w-4xl mx-auto space-y-6 sm:space-y-8">
-        <div className={`${INSET} flex items-center justify-between`}>
-          <div>
-            <p className="text-stone-500 font-semibold text-sm uppercase tracking-wider mb-1">
-              {today.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC' })}
-            </p>
-            <h1 className="text-3xl sm:text-4xl font-extrabold text-stone-900 tracking-tight">Agenda</h1>
-          </div>
-          <SmartEntry />
-        </div>
-
+    <main className="flex-1 pb-24 sm:pb-28 -mb-20 bg-white font-sans">
+      <PageHeader
+        title="Agenda"
+        subtitle={today.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })}
+        showBack={false}
+        actions={<SmartEntry size="md" />}
+      />
+      <div className="max-w-4xl mx-auto pt-4 sm:pt-8 space-y-6 sm:space-y-8">
         {!anyHabits ? (
           <EmptyState title="No habits here yet">
-            Tap the quill above and tell it something you did, or a habit you&apos;d like to start.
+            Tap the quill at the top and tell it something you did, or a habit you&apos;d like to start.
           </EmptyState>
         ) : !anyDue && !anyUpcoming && !anyDone ? (
           <EmptyState title="Nothing on the agenda" action={<LinkButton href="/habits" variant="outline">Go to Habits</LinkButton>}>

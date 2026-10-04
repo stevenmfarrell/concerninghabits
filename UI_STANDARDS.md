@@ -43,9 +43,20 @@ Settings that are rarely changed go in a `<CollapsibleSection title="…" summar
 
 ## Page headers
 
-Two patterns only. Don't invent a third.
+Every page gets the sticky `<PageHeader>` (`src/components/PageHeader.tsx`), a frosted bar with an optional actions slot on the right. Pages are being moved to it one at a time; Agenda (`src/app/page.tsx`) is the reference.
 
-**Sticky header** — any page reached by drilling into a record (category, habit history, habit log). Use `<PageHeader>` (`src/components/PageHeader.tsx`):
+**Bottom nav tabs** (Agenda, Habits, History, Settings) have nothing to go back to, so they pass `showBack={false}`. That also switches the title to the tab style: large, bold, left-aligned on one row, with an optional lighter `subtitle` after it (e.g. today's date as `Oct 4`):
+
+```tsx
+<PageHeader
+  title="Agenda"
+  subtitle="Oct 4"
+  showBack={false}
+  actions={<SmartEntry size="md" />}
+/>
+```
+
+**Drill-in pages** (category, habit history, habit log) keep the back control, with a smaller title centered against the bar:
 
 ```tsx
 <PageHeader
@@ -55,9 +66,12 @@ Two patterns only. Don't invent a third.
 />
 ```
 
-If the right-side slot needs more horizontal clearance than one icon (e.g. two icon buttons), pass `titleInsetClassName="px-24"` so the centered title doesn't collide with it.
+- Keep tap targets in the bar at least 44px tall: icon buttons, or `md` buttons. `sm` buttons are too small here, and `lg` makes the bar too tall.
+- On drill-in pages, `titleInsetClassName` reserves space on each side so the centered title doesn't run under the back control or actions. The default `px-14` clears one icon button; pass `px-24` for two.
+- Keep the subtitle short; it doesn't shrink, the title truncates instead.
+- Anything `fixed` (a modal, a full-screen panel) rendered from inside the bar should be portaled to `<body>`, as `SmartEntry` and `SpeakOrType` do.
 
-**In-flow back link** — root-level or wizard-style pages that scroll under a plain `<h1>` (settings sub-pages, create/refine). Use `<BackLink href="/settings">Settings</BackLink>` (`src/components/BackLink.tsx`), not a hand-written `<Link>` with an `ArrowLeft` icon.
+**Legacy, being phased out:** the in-flow `<h1>` on the other tabs, and `<BackLink>` (`src/components/BackLink.tsx`) on settings sub-pages and wizards (create/refine). Don't use either on a new page; move a page to `<PageHeader>` when you rework it.
 
 ## Dropdown / popover menus
 

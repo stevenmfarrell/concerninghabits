@@ -12,7 +12,7 @@ export function SkeletonCard({ rows = 3 }: { rows?: number }) {
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-stone-100 divide-y divide-stone-100">
       {Array.from({ length: rows }, (_, i) => (
-        <div key={i} className="flex items-center gap-3 py-4 px-4 sm:px-6">
+        <div key={i} className="flex items-center gap-3 py-3 px-4 sm:px-6">
           <SkeletonBar className="w-10 h-10 rounded-full shrink-0" />
           <div className="flex-1 space-y-2">
             <SkeletonBar className="h-4 w-1/2" />
@@ -39,7 +39,29 @@ export function RecordPageSkeleton({ cards = 2 }: { cards?: number }) {
   );
 }
 
-// Root-level pages that scroll under a plain <h1> (dashboard, settings)
+// The bottom nav's tabs as a full-width white pane under the sticky header (no back button), with
+// placeholder rows running edge to edge
+export function TabPageSkeleton({ rows = 5 }: { rows?: number }) {
+  return (
+    <main className="flex-1 pb-24 sm:pb-28 -mb-20 bg-white font-sans">
+      <PageHeader title={<SkeletonBar className="h-8 w-36" />} showBack={false} />
+      <div className="max-w-4xl mx-auto pt-4 sm:pt-8 divide-y divide-stone-100">
+        {Array.from({ length: rows }, (_, i) => (
+          <div key={i} className="flex items-center gap-3 py-3 px-4 sm:px-6">
+            <SkeletonBar className="w-10 h-10 rounded-full shrink-0" />
+            <div className="flex-1 space-y-2">
+              <SkeletonBar className="h-4 w-1/2" />
+              <SkeletonBar className="h-3 w-1/4" />
+            </div>
+            <SkeletonBar className="h-8 w-20 shrink-0" />
+          </div>
+        ))}
+      </div>
+    </main>
+  );
+}
+
+// Root-level pages that scroll under a plain <h1> (habits, history, settings)
 export function TopLevelPageSkeleton({ width = 'max-w-4xl' }: { width?: string }) {
   return (
     <main className="flex-1 p-4 sm:p-8 bg-stone-50 font-sans">

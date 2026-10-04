@@ -1,11 +1,12 @@
 'use client';
 
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { SquarePen, Sparkles } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { Button } from '@/components/ui/Button';
+import { Button, type ButtonSize } from '@/components/ui/Button';
 import QuillIconWavy from '@/components/QuillIconWavy';
 import SpeakOrType, { type SpeakOrTypeStatus } from '@/components/SpeakOrType';
 import { generateHabitSchema, interpretSmartEntry, logSmartEntry, prefillSmartEntry, type HabitCandidate } from './actions/habit';
@@ -26,7 +27,7 @@ function prefillHref(habitId: string, data: Record<string, unknown>) {
 // existing habit is filled in and logged right here (or finished on the habit's page if it needs
 // more than was said); a new habit is drafted by Gemini for the user to review, with the input as
 // its first entry when it was something done. When Jev isn't sure which habit, the user picks from its top candidates instead.
-export default function SmartEntry() {
+export default function SmartEntry({ size }: { size?: ButtonSize }) {
   const router = useRouter();
   // While the input is being matched or a new habit drafted: what's happening, and the input
   const [status, setStatus] = useState<SpeakOrTypeStatus>(null);
@@ -122,6 +123,7 @@ export default function SmartEntry() {
     <>
       <SpeakOrType
         icon={<QuillIconWavy className="w-6 h-6" strokeWidth={2.5} />}
+        size={size}
         ariaLabel={{ speak: 'Say what you did', type: 'Type what you did' }}
         menuExtras={
           <Link
@@ -143,7 +145,9 @@ export default function SmartEntry() {
         onInput={handleInput}
       />
 
-      {picker && (
+      {/* Portaled to <body>, like SpeakOrType's panel, so an ancestor (e.g. a transformed one) can't
+          make `fixed` relative to it rather than the screen */}
+      {picker && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/40 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="p-6 sm:p-8 space-y-4">
@@ -172,7 +176,8 @@ export default function SmartEntry() {
               </Button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );
