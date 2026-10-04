@@ -1,5 +1,5 @@
 import { getCategoriesWithHierarchy, getDefaultUser, getUncategorizedHabits } from '../actions/db';
-import { Plus, Settings2 } from 'lucide-react';
+import { Plus, FolderTree } from 'lucide-react';
 import CategoryRow from '@/components/CategoryRow';
 import { LinkButton } from '@/components/ui/Button';
 import EmptyState from '@/components/EmptyState';
@@ -8,6 +8,7 @@ import { PanePage, PaneSection } from '@/components/Pane';
 import { IconLinkButton } from '@/components/ui/IconButton';
 import { UNCATEGORIZED_ID, UNCATEGORIZED_ICON } from '@/lib/constants';
 import { describeCadence, NO_CADENCE, parseCadence } from '@/lib/cadence';
+import { DEFAULT_CATEGORY_ICON } from '@/lib/constants';
 
 // Habits: every category (and uncategorized habits) to browse, with recent activity. What's due
 // lives on the Agenda page; this is where everything else is found.
@@ -22,7 +23,7 @@ export default async function HabitsPage() {
       return {
         id: cat.id,
         name: cat.name,
-        icon: cat.icon || 'Folder',
+        icon: cat.icon || DEFAULT_CATEGORY_ICON,
         cadence: parseCadence(cat.cadence, NO_CADENCE),
         habitCount: habits.length,
         dates: habits.flatMap(h => h.logs.map(l => l.createdAt)),
@@ -54,7 +55,7 @@ export default async function HabitsPage() {
         )}
         action={
           <IconLinkButton href="/settings/categories" size="sm" edge="right" title="Manage Categories" aria-label="Manage Categories">
-            <Settings2 className="w-5 h-5" />
+            <FolderTree className="w-5 h-5" />
           </IconLinkButton>
         }
       >

@@ -190,7 +190,7 @@ export async function createCategory(name: string, icon?: string, parentId?: str
   return category;
 }
 
-export async function updateCategory(id: string, name: string, icon: string, parentId?: string | null) {
+export async function updateCategory(id: string, name: string, icon: string | null, parentId?: string | null) {
   const user = await getDefaultUser();
   const existing = await prisma.category.findUnique({ where: { id } });
   if (!existing || existing.userId !== user.id) throw new Error("Unauthorized");

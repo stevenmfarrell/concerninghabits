@@ -7,7 +7,7 @@ import NewCategoryInline from './NewCategoryInline';
 import QuickEditDialog from './QuickEditDialog';
 import Icon from './Icon';
 import { PILL } from './CadenceQuickEdit';
-import { UNCATEGORIZED_ICON } from '@/lib/constants';
+import { DEFAULT_CATEGORY_ICON, UNCATEGORIZED_ICON } from '@/lib/constants';
 import type { CategoryOption } from '@/lib/types';
 
 // A habit's category as a pill (e.g. "Fitness › Cardio") that opens a dialog to change it, or to
@@ -35,7 +35,7 @@ export default function CategoryQuickEdit({ categoryId, categories, onSave, onCr
         className={`${PILL} bg-category-soft border-category-line text-category-ink-strong hover:bg-category-soft-strong`}
         title="Change category"
       >
-        <Icon name={category?.icon || (categoryId ? 'List' : UNCATEGORIZED_ICON)} className="w-4 h-4 shrink-0" />
+        <Icon name={category?.icon || (categoryId ? DEFAULT_CATEGORY_ICON : UNCATEGORIZED_ICON)} className="w-4 h-4 shrink-0" />
         <span className="truncate max-w-[14rem]">{label}</span>
       </button>
       {editing && (

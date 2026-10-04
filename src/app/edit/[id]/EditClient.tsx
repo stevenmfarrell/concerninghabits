@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
-import { LogOut, Trash2 } from 'lucide-react';
+import { UserMinus, Trash2 } from 'lucide-react';
 import { deleteHabit, leaveHabit, setHabitAiContext, setHabitCategory, updateHabit } from '../../actions/db';
 import HabitEditor, { type HabitDraft, type RemoveAction } from '@/components/HabitEditor';
 import { parseHabitSchema } from '@/components/widgets/habitForm';
@@ -54,7 +54,7 @@ export default function EditClient({ habit, owner, categories }: { habit: HabitD
       }
     : {
         label: 'Remove from My Habits',
-        icon: <LogOut className="w-4 h-4" />,
+        icon: <UserMinus className="w-4 h-4" />,
         confirmTitle: 'Remove Shared Habit',
         confirmMessage: `Remove "${habit.name}" from your habits? You'll stop seeing it, but the entries you logged stay in its history. ${owner?.name ?? 'The owner'} can share it with you again.`,
         confirmText: 'Remove',

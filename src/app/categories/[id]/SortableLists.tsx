@@ -18,7 +18,9 @@ import { useReorderableList } from './useReorderableList';
 import LogHabitButton from '@/components/logging/LogHabitButton';
 import RowStatus from '@/components/RowStatus';
 
-import { ChevronDown, ExternalLink, Users } from 'lucide-react';
+import { ArrowRight, Users } from 'lucide-react';
+import { IconLinkButton } from '@/components/ui/IconButton';
+import { DEFAULT_CATEGORY_ICON } from '@/lib/constants';
 
 interface SortableRowProps {
   user: SessionUser;
@@ -53,28 +55,28 @@ const SortableSubcategoryItem = ({ sub, user, people, isOverlay, isReordering }:
           <button onClick={() => setIsOpen(!isOpen)} className="flex-1 flex flex-wrap sm:flex-nowrap items-center justify-between min-w-0 text-left gap-3 sm:gap-6">
             <div className="flex items-center gap-3 min-w-0 flex-1">
               <div className="w-8 h-8 rounded-lg bg-category-soft-strong flex items-center justify-center text-category-ink-strong shrink-0">
-                <Icon name={sub.icon || 'Folder'} className="w-4 h-4" />
+                <Icon name={sub.icon || DEFAULT_CATEGORY_ICON} className="w-4 h-4" />
               </div>
               <div className="min-w-0 flex flex-col">
                 <div className="flex items-center gap-2">
                   <h3 className="font-semibold text-ink truncate">{sub.name}</h3>
-                  <Link
+                  <IconLinkButton
                     href={`/categories/${sub.id}`}
                     onClick={(e) => e.stopPropagation()}
-                    className="p-1.5 text-ink-subtle hover:text-category-ink hover:bg-category-soft-strong rounded-lg transition-colors shrink-0"
+                    size="sm"
                     title="Open Subcategory Page"
+                    aria-label={`Open ${sub.name}`}
                   >
-                    <ExternalLink className="w-3.5 h-3.5" />
-                  </Link>
+                    <ArrowRight className="w-4 h-4" />
+                  </IconLinkButton>
                 </div>
                 <p className="text-xs text-ink-muted truncate mt-0.5">{subHabits.length} habits</p>
               </div>
             </div>
 
             <div className="flex items-center gap-3 sm:gap-6 shrink-0">
-              <div className="shrink-0 text-ink-faint hover:text-ink-secondary transition-colors w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center">
-                {isOpen ? <ChevronDown className="w-5 h-5 sm:w-6 sm:h-6" /> : <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />}
-              </div>
+              {/* Turns to point down while open, like CollapsibleSection's */}
+              <ChevronRight className={`w-5 h-5 shrink-0 text-ink-subtle transition-transform ${isOpen ? 'rotate-90' : ''}`} />
             </div>
           </button>
         </div>

@@ -63,6 +63,34 @@ import { INPUT, INPUT_SM, TEXTAREA } from '@/components/ui/Input';
 - `Select` takes the same `size`, so a select next to a text input matches it. A trigger that opens a picker (e.g. `IconPicker`) uses `INPUT_SM` too.
 - The exceptions are inputs that aren't boxes at all: the habit editor's underlined inline title, `AiTweakInput`'s pill-shaped bar, and the textarea on the emerald voice panel.
 
+## Icons
+
+Icons are lucide's (`lucide-react`). One meaning gets one icon everywhere, so a user who's learned it once recognizes it:
+
+| Meaning | Icon | Not |
+|---|---|---|
+| Add something new (a habit, field, category, user) | `Plus` | |
+| Edit something that exists | `Pencil` | `Edit2`, `SquarePen` |
+| Write a habit from scratch, by hand | `SquarePen` | |
+| Delete | `Trash2` | |
+| Remove yourself from something shared | `UserMinus` | `LogOut` (that's signing out) |
+| Share, or shared | `Users` | |
+| Manage Categories | `FolderTree` | `Settings`, `Settings2` (too like Preferences' `Sliders`) |
+| AI does it (generate, change, suggest) | `Sparkles` | `Wand2` |
+| Speak or type what you did (smart entry) | the quill (`QuillIconWavy`) | |
+| Log at another date and time (backdate) | `CalendarClock` | `History` (reads as the History tab) |
+| Copy a link | `Link2` | |
+| Automation (submit URL, Home Assistant) | `Zap` | |
+| Back | `ArrowLeft` | |
+| Drill into a row | `ChevronRight` at the row's end | |
+| Open a page from inside a row that does something else on tap (e.g. a subcategory that expands) | `ArrowRight` | `ExternalLink` (that means leaving the app) |
+| Expand or collapse | `ChevronRight`, turning `rotate-90` while open | swapping in a `ChevronDown` |
+| More actions | `MoreVertical` | |
+| Confirm, cancel inline | `Check`, `X` in `IconButton`s, with a `title` and `aria-label` | |
+
+- A category with no icon of its own shows `DEFAULT_CATEGORY_ICON` (`src/lib/constants.ts`). Don't write a fallback name inline, and don't save the default into a category that has none. Uncategorized is `UNCATEGORIZED_ICON`.
+- A page's or sheet's main submit button gets an icon (`Save`, or `Check` for a sheet's Done). A dialog's buttons don't.
+
 ## Toggles and folded settings
 
 An on/off setting is a `<Toggle>` row (`src/components/ui/Toggle.tsx`): icon, title, description, and a switch, with the whole row tappable. Don't hand-roll the `w-12 h-6 rounded-full` switch markup again. In a pane's list, pass `bare` so it's a plain row divided by the list's hairlines; without it, it's a boxed row, for a sheet or dialog.

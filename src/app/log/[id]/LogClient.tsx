@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { parseVoiceLog } from '../../actions/habit';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { History, Loader2, Link2, MoreVertical, Edit2, Upload, Users, FolderInput, Zap } from 'lucide-react';
+import { CalendarClock, Loader2, Link2, MoreVertical, Pencil, Upload, Users, FolderInput, Zap } from 'lucide-react';
 import Link from 'next/link';
 import PageHeader from '@/components/PageHeader';
 import { PANE_INSET, PanePage } from '@/components/Pane';
@@ -154,7 +154,7 @@ export default function LogClient({ habit, user, people, categories, children }:
                     href={`/edit/${habit.id}`}
                     className={MENU_ITEM}
                   >
-                    {habit.isOwner ? <Edit2 className="w-4 h-4" /> : <FolderInput className="w-4 h-4" />}
+                    {habit.isOwner ? <Pencil className="w-4 h-4" /> : <FolderInput className="w-4 h-4" />}
                     {habit.isOwner ? 'Edit Habit' : 'Move or Remove'}
                   </Link>
                   {habit.isOwner && (
@@ -260,7 +260,7 @@ export default function LogClient({ habit, user, people, categories, children }:
             aria-label="Backdate log"
             className="rounded-l-none px-5! border-l border-accent-hover"
           >
-            <History className="w-6 h-6" strokeWidth={2.5} />
+            <CalendarClock className="w-6 h-6" strokeWidth={2.5} />
           </Button>
         </div>
       </div>

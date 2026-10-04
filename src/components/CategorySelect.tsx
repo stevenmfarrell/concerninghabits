@@ -5,7 +5,7 @@ import Icon from './Icon';
 import { Plus } from 'lucide-react';
 import { orderCategoryTree } from '@/lib/categoryChoices';
 import type { CategoryOption } from '@/lib/types';
-import { UNCATEGORIZED_ICON } from '@/lib/constants';
+import { DEFAULT_CATEGORY_ICON, UNCATEGORIZED_ICON } from '@/lib/constants';
 
 interface CategorySelectProps {
   categories: CategoryOption[];
@@ -23,7 +23,7 @@ export default function CategorySelect({ categories, value, onChange, onNew, dis
     label: category.name,
     selectedLabel: parent ? `${parent.name} › ${category.name}` : category.name,
     depth,
-    icon: <Icon name={category.icon || 'List'} className="w-4 h-4" />
+    icon: <Icon name={category.icon || DEFAULT_CATEGORY_ICON} className="w-4 h-4" />
   }))];
 
   const footer = (

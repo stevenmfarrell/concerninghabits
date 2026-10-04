@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { MoreVertical, Link2, Settings } from 'lucide-react';
+import { MoreVertical, Link2, FolderTree } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
 import { IconButton } from '@/components/ui/IconButton';
@@ -47,7 +47,7 @@ export default function CategoryMenu({ categoryId }: { categoryId?: string }) {
               href={`/settings/categories`}
               className={MENU_ITEM}
             >
-              <Settings className="w-4 h-4" />
+              <FolderTree className="w-4 h-4" />
               Manage Categories
             </Link>
             <button

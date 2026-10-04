@@ -13,6 +13,7 @@ import EmptyState from '@/components/EmptyState';
 import { NO_CADENCE, parseCadence } from '@/lib/cadence';
 import { UNCATEGORIZED_ID } from '@/lib/constants';
 import { SortableCategoryItemList } from './SortableLists';
+import { DEFAULT_CATEGORY_ICON } from '@/lib/constants';
 
 // A category's page: its cadence, its habits and subcategories, and an activity calendar of all
 // their entries over the chosen horizon, like a habit's page.
@@ -59,7 +60,7 @@ export default async function CategoryLogPage(props: { params: Promise<{ id: str
         <PageHeader
           title={
             <>
-              <Icon name={category.icon || 'Folder'} className="w-5 h-5 sm:w-6 sm:h-6 text-ink-muted shrink-0" />
+              <Icon name={category.icon || DEFAULT_CATEGORY_ICON} className="w-5 h-5 sm:w-6 sm:h-6 text-ink-muted shrink-0" />
               <span className="truncate">{category.name}</span>
             </>
           }

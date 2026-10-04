@@ -12,6 +12,7 @@ import { PANE_INSET, PaneHeading, PanePage, PaneSection } from '@/components/Pan
 import { buildDueList, type DueCategory } from '@/lib/dueList';
 import { parseBedtimeOffsetMinutes, toCivilDate } from '@/lib/timezone';
 import type { HabitListItem, SessionUser } from '@/lib/types';
+import { DEFAULT_CATEGORY_ICON } from '@/lib/constants';
 
 // Categories with a cadence that are due or upcoming, as rows linking to their pages (where their
 // habits are, to log one), each with a calendar of its recent entries like a habit's
@@ -23,7 +24,7 @@ function CategoryList({ categories, user }: { categories: DueCategory[]; user: S
           key={category.id}
           href={`/categories/${category.id}`}
           name={category.name}
-          icon={category.icon || 'Folder'}
+          icon={category.icon || DEFAULT_CATEGORY_ICON}
           dates={category.habits.flatMap(h => (h.logs ?? []).map(l => l.createdAt))}
           habitCount={category.habits.length}
           cadence={category.cadence}
@@ -52,7 +53,7 @@ function DoneChips({ habits, categories }: { habits: HabitListItem[]; categories
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface border border-category-line text-sm font-medium text-ink-secondary hover:bg-surface-subtle transition-colors"
           >
             <Check className="w-3.5 h-3.5 shrink-0 text-category-ink" strokeWidth={3} />
-            <Icon name={category.icon || 'Folder'} className="w-3.5 h-3.5 shrink-0 text-category-ink" />
+            <Icon name={category.icon || DEFAULT_CATEGORY_ICON} className="w-3.5 h-3.5 shrink-0 text-category-ink" />
             <span className="truncate max-w-[14rem]">{category.name}</span>
           </Link>
         </li>

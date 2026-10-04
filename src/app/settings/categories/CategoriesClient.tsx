@@ -4,13 +4,13 @@ import { useState } from 'react';
 import { createCategory, updateCategory, deleteCategory, reorderCategories } from '../../actions/db';
 import Icon from '../../../components/Icon';
 import IconPicker from '../../../components/IconPicker';
-import { Plus, Trash2, Edit2, Check, X, Loader2, GripVertical } from 'lucide-react';
+import { Plus, Trash2, Pencil, Check, X, Loader2, GripVertical } from 'lucide-react';
 import { Fragment } from 'react';
 import ConfirmDialog from '../../../components/ConfirmDialog';
 import { IconButton } from '../../../components/ui/IconButton';
 import { INPUT_SM } from '../../../components/ui/Input';
 import { PANE_SURFACE, PaneHeading } from '../../../components/Pane';
-import { UNCATEGORIZED_ICON } from '@/lib/constants';
+import { DEFAULT_CATEGORY_ICON, UNCATEGORIZED_ICON } from '@/lib/constants';
 import toast from 'react-hot-toast';
 import { DropResult, computeDrop, applyDrop, getDropPosition, sameDropResult } from './categoryDrop';
 import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors, MeasuringStrategy, DragOverlay, defaultDropAnimationSideEffects, CollisionDetection, DragStartEvent, DragMoveEvent, DragEndEvent, DraggableAttributes, DraggableSyntheticListeners } from '@dnd-kit/core';
@@ -88,7 +88,7 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
   // New Category State
   const [addingParentId, setAddingParentId] = useState<string | null>(null);
   const [newName, setNewName] = useState('');
-  const [newIcon, setNewIcon] = useState('List');
+  const [newIcon, setNewIcon] = useState(DEFAULT_CATEGORY_ICON);
 
   // Drag State
   const sensors = useSensors(
@@ -100,7 +100,7 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
   // Edit Category State
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
-  const [editIcon, setEditIcon] = useState('List');
+  const [editIcon, setEditIcon] = useState(DEFAULT_CATEGORY_ICON);
   const [editParentId, setEditParentId] = useState<string>('');
 
   const handleCreateInline = async () => {
@@ -110,7 +110,7 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
     setCategories([...categories, cat]);
     setAddingParentId(null);
     setNewName('');
-    setNewIcon('List');
+    setNewIcon(DEFAULT_CATEGORY_ICON);
     setLoading('');
   };
 
@@ -119,7 +119,9 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
   const handleUpdate = async (id: string) => {
     if (!editName.trim()) return;
     setLoading(id);
-    const updated = await updateCategory(id, editName.trim(), editIcon, editParentId || null);
+    // A category that had no icon and still shows the default keeps having none, rather than saving it
+    const unset = !categories.find(c => c.id === id)?.icon && editIcon === DEFAULT_CATEGORY_ICON;
+    const updated = await updateCategory(id, editName.trim(), unset ? null : editIcon, editParentId || null);
     setCategories(categories.map(c => c.id === id ? updated : c));
     setEditingId(null);
     setLoading('');
@@ -173,7 +175,7 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
 
     try {
       if ((source.parentId ?? null) !== drop.parentId) {
-        await updateCategory(source.id, source.name, source.icon || 'List', drop.parentId);
+        await updateCategory(source.id, source.name, source.icon ?? null, drop.parentId);
       }
       await reorderCategories(next.map(c => ({ id: c.id, order: c.order })));
     } catch (err) {
@@ -186,7 +188,7 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
   const startEdit = (cat: CategoryOption) => {
     setEditingId(cat.id);
     setEditName(cat.name);
-    setEditIcon(cat.icon || 'List');
+    setEditIcon(cat.icon || DEFAULT_CATEGORY_ICON);
     setEditParentId(cat.parentId || '');
   };
 
@@ -246,7 +248,7 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
         ) : (
           <>
             <div className={`w-10 h-10 rounded-xl bg-category-soft-strong text-category-ink-strong flex items-center justify-center shrink-0 ${cat.parentId ? 'scale-90' : ''}`}>
-              <Icon name={cat.icon || 'List'} className="w-5 h-5" />
+              <Icon name={cat.icon || DEFAULT_CATEGORY_ICON} className="w-5 h-5" />
             </div>
             <div className="flex-1 font-medium text-ink flex items-center gap-2">
               {cat.name}
@@ -254,7 +256,7 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
             <div className="flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
 
               <IconButton onClick={() => startEdit(cat)} title="Edit">
-                <Edit2 className="w-4 h-4" />
+                <Pencil className="w-4 h-4" />
               </IconButton>
               <IconButton onClick={() => setDeleteConfirmId(cat.id)} disabled={loading === cat.id} edge="right" title="Delete">
                 {loading === cat.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
@@ -396,7 +398,7 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
             <li>
               <button
                 type="button"
-                onClick={() => { setAddingParentId(''); setNewName(''); setNewIcon('List'); }}
+                onClick={() => { setAddingParentId(''); setNewName(''); setNewIcon(DEFAULT_CATEGORY_ICON); }}
                 disabled={addingParentId !== null}
                 className="w-full flex items-center gap-2 pane-inset py-3 text-left text-sm font-medium text-category-ink-strong hover:bg-surface-subtle transition-colors disabled:opacity-50"
               >

@@ -11,9 +11,9 @@ const VARIANT_CLASSES: Record<IconButtonVariant, string> = {
   accent: 'text-accent-ink hover:text-accent-ink-strong hover:bg-accent-soft',
   // Pale emerald, for an action repeated down a list, e.g. each row's Log button, so a column of
   // them doesn't outweigh the rows themselves
-  soft: 'bg-accent-soft text-accent-ink-strong border border-accent-line hover:bg-accent-soft-strong hover:border-accent-line-strong disabled:opacity-60',
+  soft: 'bg-accent-soft text-accent-ink-strong border border-accent-line hover:bg-accent-soft-strong hover:border-accent-line-strong',
   // Filled emerald, for a primary action, e.g. sending something typed
-  solid: 'bg-accent text-on-accent hover:bg-accent-hover shadow-sm disabled:opacity-60',
+  solid: 'bg-accent text-on-accent hover:bg-accent-hover shadow-sm',
   danger: 'text-danger-ink hover:text-danger-ink-strong hover:bg-danger-soft',
 };
 
@@ -25,7 +25,7 @@ const EDGE_CLASSES: Record<IconButtonSize, Record<IconButtonEdge, string>> = {
 
 const SIZE_CLASSES: Record<IconButtonSize, string> = { md: 'p-2', sm: 'p-1.5' };
 
-const BASE = 'rounded-full transition-colors shrink-0 inline-flex items-center justify-center';
+const BASE = 'rounded-full transition-colors shrink-0 inline-flex items-center justify-center disabled:opacity-50 disabled:pointer-events-none';
 
 function classes(variant: IconButtonVariant, edge: IconButtonEdge, size: IconButtonSize, className: string) {
   return [BASE, SIZE_CLASSES[size], EDGE_CLASSES[size][edge], VARIANT_CLASSES[variant], className].filter(Boolean).join(' ');

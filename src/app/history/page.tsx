@@ -11,6 +11,7 @@ import { fieldTitle, parseHabitSchema, type HabitFormProperties } from '@/compon
 import { civilDayKey, parseBedtimeOffsetMinutes, parseCivilDayKey, toCivilDate } from '@/lib/timezone';
 import { formatLogValue } from '@/lib/format';
 import { UNCATEGORIZED_ID, UNCATEGORIZED_ICON } from '@/lib/constants';
+import { DEFAULT_CATEGORY_ICON } from '@/lib/constants';
 
 type DayEntry = Awaited<ReturnType<typeof getDayEntries>>[number];
 type DayHabit = { id: string; name: string; schema: string };
@@ -53,7 +54,7 @@ function groupByCategory(
   const groups = categories.map(category => ({
     id: category.id,
     name: category.name,
-    icon: category.icon || 'Folder',
+    icon: category.icon || DEFAULT_CATEGORY_ICON,
     sections: [
       { id: category.id, name: null as string | null, habits: done(category.habits) },
       ...category.children.map(child => ({ id: child.id, name: child.name as string | null, habits: done(child.habits) })),

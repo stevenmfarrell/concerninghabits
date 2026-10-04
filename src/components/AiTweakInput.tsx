@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ArrowUp, Loader2, Mic, Wand2 } from 'lucide-react';
+import { ArrowUp, Loader2, Mic, Sparkles } from 'lucide-react';
 import { IconButton } from '@/components/ui/IconButton';
 import { useSpeechRecognition } from '@/lib/useSpeechRecognition';
 
@@ -30,7 +30,7 @@ export default function AiTweakInput({ onApply, applying, disabled }: {
 
   return (
     <div className="flex items-center gap-2 pl-3 pr-1.5 py-1.5 bg-surface-subtle border border-line rounded-xl focus-within:ring-2 focus-within:ring-focus focus-within:border-focus">
-      {applying ? <Loader2 className="w-4 h-4 text-accent-ink animate-spin shrink-0" /> : <Wand2 className="w-4 h-4 text-ink-subtle shrink-0" />}
+      {applying ? <Loader2 className="w-4 h-4 text-accent-ink animate-spin shrink-0" /> : <Sparkles className="w-4 h-4 text-ink-subtle shrink-0" />}
       <input
         type="text"
         className="flex-1 min-w-0 bg-transparent py-1.5 text-sm focus:outline-none placeholder-ink-subtle"

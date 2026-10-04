@@ -3,7 +3,9 @@
 import { useState } from 'react';
 import { Check, X, Loader2 } from 'lucide-react';
 import IconPicker from './IconPicker';
+import { IconButton } from '@/components/ui/IconButton';
 import { INPUT_SM } from '@/components/ui/Input';
+import { DEFAULT_CATEGORY_ICON } from '@/lib/constants';
 
 interface Props {
   onSave: (name: string, icon: string) => Promise<void>;
@@ -11,7 +13,7 @@ interface Props {
   defaultIcon?: string;
 }
 
-export default function NewCategoryInline({ onSave, onCancel, defaultIcon = 'List' }: Props) {
+export default function NewCategoryInline({ onSave, onCancel, defaultIcon = DEFAULT_CATEGORY_ICON }: Props) {
   const [name, setName] = useState('');
   const [icon, setIcon] = useState(defaultIcon);
   const [loading, setLoading] = useState(false);
@@ -42,22 +44,12 @@ export default function NewCategoryInline({ onSave, onCancel, defaultIcon = 'Lis
         disabled={loading}
       />
       <div className="flex items-center gap-1 shrink-0">
-        <button 
-          type="button"
-          onClick={handleSave}
-          disabled={loading || !name.trim()}
-          className="p-1.5 text-accent-ink hover:bg-accent-soft rounded-lg transition-colors disabled:opacity-50"
-        >
-          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-        </button>
-        <button 
-          type="button"
-          onClick={onCancel}
-          disabled={loading}
-          className="p-1.5 text-ink-subtle hover:text-ink-secondary hover:bg-surface-muted rounded-lg transition-colors"
-        >
-          <X className="w-4 h-4" />
-        </button>
+        <IconButton type="button" variant="accent" size="sm" onClick={handleSave} disabled={loading || !name.trim()} title="Add category" aria-label="Add category">
+          {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Check className="w-5 h-5" />}
+        </IconButton>
+        <IconButton type="button" size="sm" edge="right" onClick={onCancel} disabled={loading} title="Cancel" aria-label="Cancel">
+          <X className="w-5 h-5" />
+        </IconButton>
       </div>
     </div>
   );

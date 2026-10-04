@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useMemo } from 'react';
 import * as LucideIcons from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { INPUT_SM } from '@/components/ui/Input';
+import { DEFAULT_CATEGORY_ICON } from '@/lib/constants';
 
 const iconsByName = LucideIcons as unknown as Record<string, LucideIcon>;
 
@@ -40,7 +41,7 @@ export default function IconPicker({ value, onChange, disabled }: IconPickerProp
     return allIconNames.filter(name => name.toLowerCase().includes(term)).slice(0, 150);
   }, [search]);
 
-  const CurrentIcon = iconsByName[value] || LucideIcons.List;
+  const CurrentIcon = iconsByName[value] || iconsByName[DEFAULT_CATEGORY_ICON];
 
   return (
     <div className="relative shrink-0" ref={containerRef}>

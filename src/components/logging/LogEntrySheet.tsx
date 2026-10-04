@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Form from '@rjsf/core';
 import validator from '@rjsf/validator-ajv8';
-import { Camera, History, Loader2, Mic } from 'lucide-react';
+import { Camera, CalendarClock, Loader2, Mic } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import BottomSheet from '@/components/BottomSheet';
 import QuillIconWavy from '@/components/QuillIconWavy';
@@ -52,7 +52,7 @@ export default function LogEntrySheet({ logger }: { logger: HabitLogger }) {
         aria-pressed={showBackdate}
         className={`rounded-l-none px-5! border-l border-accent-hover ${showBackdate ? 'bg-accent-pressed!' : ''}`}
       >
-        <History className="w-6 h-6" strokeWidth={2.5} />
+        <CalendarClock className="w-6 h-6" strokeWidth={2.5} />
       </Button>
     </div>
   );

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Camera, Loader2, Mic, Save, SquarePen, Zap } from 'lucide-react';
+import { Camera, Loader2, Mic, Save, Pencil, Zap } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { generateHabitSchema } from '../app/actions/habit';
 import { getCategories, isMqttConfigured } from '../app/actions/db';
@@ -237,7 +237,7 @@ export default function HabitEditor({ mode, initial, owner, onSave, remove, save
                   }}
                   disabled={busy}
                 />
-                <SquarePen className="w-5 h-5 text-ink-faint absolute right-1 top-2 pointer-events-none" />
+                <Pencil className="w-5 h-5 text-ink-faint absolute right-1 top-2 pointer-events-none" />
               </div>
               {titleMissing && <p className="text-sm text-danger-ink">Give your habit a title to save it.</p>}
               <input

@@ -1,5 +1,8 @@
 export const UNCATEGORIZED_ID = 'uncategorized';
 export const UNCATEGORIZED_ICON = 'Inbox';
+// What a category with no icon of its own shows, everywhere. Left unset in the database, rather than
+// saved into it, so changing this changes them all.
+export const DEFAULT_CATEGORY_ICON = 'Folder';
 export const MIN_PASSWORD_LENGTH = 8;
 // The longest activity-heatmap horizon offered (HorizonToggle's "1Y"), in weeks.
 export const MAX_HISTORY_WEEKS = 52;
