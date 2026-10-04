@@ -7,6 +7,7 @@ import { Button } from './ui/Button';
 import { Toggle } from './ui/Toggle';
 import { FIELD_TYPES, settingsProblem, type FieldSettings } from '@/lib/formFields';
 import { INPUT_SM, TEXTAREA_SM } from '@/components/ui/Input';
+import Select from './Select';
 
 
 const NEW_FIELD: FieldSettings = { title: '', type: 'text', unit: '', choices: [], required: false };
@@ -17,9 +18,13 @@ const NEW_FIELD: FieldSettings = { title: '', type: 'text', unit: '', choices: [
 //
 // `loggedBefore` marks a field the habit already had when the editor opened (so entries may have
 // values for it), which changing its type or removing it doesn't touch.
-export default function FieldEditorSheet({ initial, loggedBefore, onDone, onRemove, onClose }: {
+//
+// `usedBy` names the calculated fields whose formulas use this field, which changing its type or
+// removing it would leave needing fixing.
+export default function FieldEditorSheet({ initial, loggedBefore, usedBy = [], onDone, onRemove, onClose }: {
   initial?: FieldSettings;
   loggedBefore: boolean;
+  usedBy?: string[];
   onDone: (settings: FieldSettings) => void;
   onRemove?: () => void;
   onClose: () => void;
@@ -59,18 +64,14 @@ export default function FieldEditorSheet({ initial, loggedBefore, onDone, onRemo
         </label>
 
         <div className="space-y-1.5">
-          <label htmlFor="field-type" className="block text-sm font-medium text-ink-secondary">Type</label>
-          {/* Native, unlike the app's Select: in a sheet at the bottom of the screen a dropdown would open
-              off it, while a phone shows its own picker for this */}
-          <select
-            id="field-type"
-            className={INPUT_SM}
+          <span className="block text-sm font-medium text-ink-secondary">Type</span>
+          <Select
+            size="sm"
             value={settings.type}
-            onChange={e => set({ type: e.target.value as FieldSettings['type'] })}
+            onChange={type => set({ type: type as FieldSettings['type'] })}
+            options={types.map(t => ({ id: t.id, label: t.label }))}
             disabled={settings.type === 'other'}
-          >
-            {types.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
-          </select>
+          />
           {typeChanged && loggedBefore && (
             <p className="text-xs text-warning-ink-strong">
               Entries already logged keep the values they have. One that doesn&apos;t fit the new type shows as it was, and needs fixing if you edit that entry.
@@ -128,6 +129,11 @@ export default function FieldEditorSheet({ initial, loggedBefore, onDone, onRemo
             Done
           </Button>
         </div>
+        {usedBy.length > 0 && (
+          <p className="text-xs text-warning-ink-strong -mt-2">
+            Used by {usedBy.join(', ')}. Removing it, or making it something other than a number or yes or no, leaves {usedBy.length === 1 ? 'that' : 'those'} needing a new formula.
+          </p>
+        )}
         {loggedBefore && onRemove && (
           <p className="text-xs text-ink-muted -mt-2">Removing a field hides it from the form; values already logged for it are kept.</p>
         )}

@@ -12,6 +12,8 @@ import { getDefaultUser, getCategories, getHabit, getLoggableHabits, logHabitEve
 import { buildCategoryChoices } from '@/lib/categoryChoices';
 import type { HabitSchema } from '@/lib/types';
 import { CADENCE_TYPES, cadenceFromSuggestion } from '@/lib/cadence';
+import { calculatedFieldProblem, isFormulaInput, type CalculatedField } from '@/lib/calculatedFields';
+import { fieldsOf } from '@/lib/formFields';
 
 export async function generateHabitSchema(prompt: string, currentSchema?: HabitSchema) {
   const user = await getDefaultUser();
@@ -307,4 +309,72 @@ async function fillFromInput(habitId: string, input: string): Promise<
 export async function prefillSmartEntry(habitId: string, input: string): Promise<Record<string, unknown>> {
   const filled = await fillFromInput(habitId, input);
   return filled.success ? filled.data : {};
+}
+
+// A calculated field drafted from what the user asked for (e.g. "pace per mile"), for them to check
+// before it's saved. `current` is the field being changed, for a follow-up like "make it km/h".
+// The formula is checked against `schema` (the form as it is in the editor, which may not be saved
+// yet), and the AI is asked once more with the problem if it doesn't work.
+export async function generateCalculatedField(request: string, schema: HabitSchema, current?: Omit<CalculatedField, 'key'>): Promise<
+  { success: true; field: Omit<CalculatedField, 'key'> } | { success: false; error: string }
+> {
+  const user = await getDefaultUser();
+
+  const inputs = Object.entries(fieldsOf(schema))
+    .filter(([, field]) => isFormulaInput(field))
+    .map(([key, field]) => ({
+      key,
+      title: field.title || key,
+      type: field['x-widget'] === 'duration' ? 'duration, in minutes' : field.type === 'boolean' ? 'yes or no, as 1 or 0' : field.type === 'integer' ? 'whole number' : 'number',
+      ...(field['x-unit'] ? { unit: field['x-unit'] } : {}),
+    }));
+  if (inputs.length === 0) return { success: false, error: 'This habit has no number fields to calculate from.' };
+
+  const system = `You define a calculated field for a habit-tracking app: a value worked out from the numbers in each single entry the user logs, which is then charted over time.
+The habit's form has these fields (use the keys in formulas):
+${JSON.stringify(inputs, null, 2)}
+
+Write the formula using only those keys, numbers, + - * / and parentheses. No functions, no other names.
+Durations are stored as total minutes, so e.g. a pace in minutes per mile is \`duration / distance\`, and a speed in miles per hour is \`distance / (duration / 60)\`.
+Set format to 'duration' only when the result is itself a length of time in minutes (e.g. a pace in minutes per mile), so it's shown as m:ss; otherwise 'number'.
+Give the unit the result is in, e.g. "min/mile", "mph", "lbs". The user prefers the ${user.unitSystem} measurement system when converting.
+A calculated field works on one entry at a time. If the user asks for something across several entries (a total or average per week, a count, a streak, a change since last time), or something the fields can't give, set possible to false and say why in reason, briefly, in plain words to the user.
+${current ? `The user is changing this existing calculated field: ${JSON.stringify(current)}. Keep its title unless they ask for a different value.` : ''}`;
+
+  const outputSchema = z.object({
+    possible: z.boolean().describe('Whether a value from each single entry can give what the user asked for'),
+    reason: z.string().optional().describe("When not possible: why, in a short sentence to the user"),
+    title: z.string().describe('A short name for the value, e.g. "Pace", "Speed", "Total volume"'),
+    expression: z.string().describe('The formula, e.g. "duration / distance"'),
+    unit: z.string().describe('The unit of the result, e.g. "min/mile", or "" for none'),
+    format: z.enum(['number', 'duration']),
+  });
+
+  let feedback = '';
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const { object } = await generateObject({
+        model: google('gemini-flash-lite-latest'),
+        maxRetries: 0,
+        system,
+        prompt: `User request: ${request}${feedback}`,
+        schema: outputSchema,
+      });
+      if (!object.possible) return { success: false, error: object.reason || "That can't be worked out from a single entry." };
+
+      const field = {
+        title: object.title.trim(),
+        expression: object.expression.trim(),
+        unit: object.unit.trim() || undefined,
+        format: object.format,
+      };
+      const problem = field.title ? calculatedFieldProblem(field, schema) : 'The field needs a name';
+      if (!problem) return { success: true, field };
+      feedback = `\n\nYour last answer was ${JSON.stringify(field)}, which doesn't work: ${problem}. Fix it.`;
+    } catch (error) {
+      console.error('Error generating calculated field:', error);
+      return { success: false, error: 'Failed to make that calculated field.' };
+    }
+  }
+  return { success: false, error: "Couldn't make a formula for that from this habit's fields." };
 }

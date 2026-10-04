@@ -1,17 +1,38 @@
 'use client';
 
 import { useState } from 'react';
-import { ArrowUp, Loader2, Mic, Sparkles } from 'lucide-react';
+import { ArrowDown, ArrowUp, Loader2, Mic, Sparkles } from 'lucide-react';
 import { IconButton } from '@/components/ui/IconButton';
 import { useSpeechRecognition } from '@/lib/useSpeechRecognition';
 
-// A one-line box for describing a change to a habit's form for AI to make, typed (Enter applies it)
-// or spoken (the mic applies what was heard). `applying` while the change is being made; `onApply`
-// resolves true once it's made, which clears the box.
-export default function AiTweakInput({ onApply, applying, disabled }: {
+// A one-line box for describing a change for AI to make (by default, to a habit's form), typed
+// (Enter applies it) or spoken (the mic applies what was heard). `applying` while the change is
+// being made; `onApply` resolves true once it's made, which clears the box. `placeholder`,
+// `applyingPlaceholder` and `label` word it for something other than the form.
+//
+// `fills` is where what AI makes appears, which the send arrow points to: the form `above` it (the
+// editor's box, under the form's fields), or the fields `below` it (a sheet's box, at its top).
+export default function AiTweakInput({
+  onApply,
+  applying,
+  disabled,
+  placeholder = 'Ask AI to change the form',
+  applyingPlaceholder = 'Updating the form...',
+  label = 'Describe a change to the form for AI to make',
+  fills = 'above',
+  submitLabel = 'Apply change',
+  speakLabel = 'Say a change',
+}: {
   onApply: (change: string) => Promise<boolean>;
   applying: boolean;
   disabled?: boolean;
+  placeholder?: string;
+  applyingPlaceholder?: string;
+  label?: string;
+  fills?: 'above' | 'below';
+  // The send and mic buttons' tooltips and accessible names
+  submitLabel?: string;
+  speakLabel?: string;
 }) {
   const [text, setText] = useState('');
   const apply = async (change: string) => {
@@ -34,7 +55,7 @@ export default function AiTweakInput({ onApply, applying, disabled }: {
       <input
         type="text"
         className="flex-1 min-w-0 bg-transparent py-1.5 text-sm focus:outline-none placeholder-ink-subtle"
-        placeholder={isListening ? 'Listening...' : applying ? 'Updating the form...' : 'Ask AI to change the form'}
+        placeholder={isListening ? 'Listening...' : applying ? applyingPlaceholder : placeholder}
         value={isListening ? liveTranscript : text}
         onChange={e => setText(e.target.value)}
         onKeyDown={e => {
@@ -44,7 +65,7 @@ export default function AiTweakInput({ onApply, applying, disabled }: {
           }
         }}
         disabled={busy || isListening}
-        aria-label="Describe a change to the form for AI to make"
+        aria-label={label}
         autoComplete="off"
         data-1p-ignore
         enterKeyHint="send"
@@ -52,14 +73,14 @@ export default function AiTweakInput({ onApply, applying, disabled }: {
       <IconButton
         onClick={isListening ? stop : start}
         disabled={busy}
-        title={isListening ? 'Stop listening' : 'Say a change'}
-        aria-label={isListening ? 'Stop listening' : 'Say a change'}
+        title={isListening ? 'Stop listening' : speakLabel}
+        aria-label={isListening ? 'Stop listening' : speakLabel}
         className={isListening ? 'text-danger-ink bg-danger-soft animate-pulse' : ''}
       >
         <Mic className="w-4 h-4" />
       </IconButton>
-      <IconButton variant="solid" onClick={submit} disabled={busy || isListening || !text.trim()} title="Apply change" aria-label="Apply change">
-        <ArrowUp className="w-4 h-4" />
+      <IconButton variant="solid" onClick={submit} disabled={busy || isListening || !text.trim()} title={submitLabel} aria-label={submitLabel}>
+        {fills === 'below' ? <ArrowDown className="w-4 h-4" /> : <ArrowUp className="w-4 h-4" />}
       </IconButton>
     </div>
   );

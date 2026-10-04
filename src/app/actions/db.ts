@@ -18,6 +18,8 @@ import { assignUserColors } from '@/lib/userColors';
 import { cookies, headers } from 'next/headers';
 import { RETURN_TO_HEADER, withReturnTo } from '@/lib/returnTo';
 import type { HabitSchema } from '@/lib/types';
+import { calculatedFieldProblem, calculatedFieldSchema, calculatedFieldsSchema, MAX_CALCULATED_FIELDS, parseCalculatedFields, type CalculatedField } from '@/lib/calculatedFields';
+import { keyFor } from '@/lib/formFields';
 
 type SchemaProperty = { type?: string; title?: string };
 
@@ -235,11 +237,12 @@ export async function deleteCategory(id: string) {
   revalidateLists();
 }
 
-export async function saveHabit(name: string, description: string, schema: HabitSchema, categoryId?: string, cadence: Cadence = DEFAULT_CADENCE, publishToMqtt: boolean = false, aiContext?: string) {
+export async function saveHabit(name: string, description: string, schema: HabitSchema, categoryId?: string, cadence: Cadence = DEFAULT_CADENCE, publishToMqtt: boolean = false, aiContext?: string, calculatedFields: CalculatedField[] = []) {
   const user = await getDefaultUser();
   if (!name.trim()) throw new Error('Give your habit a title');
   if (categoryId) await getOwnedCategory(user.id, categoryId);
   const normalizedAiContext = normalizeAiContext(aiContext);
+  const checkedCalculatedFields = checkCalculatedFields(calculatedFields, schema);
 
   try {
     const habit = await prisma.habit.create({
@@ -249,6 +252,7 @@ export async function saveHabit(name: string, description: string, schema: Habit
         schema: JSON.stringify(schema),
         // Checked here as well as typed, since it comes from the browser
         cadence: JSON.stringify(cadenceSchema.parse(cadence)),
+        calculatedFields: JSON.stringify(checkedCalculatedFields),
         publishToMqtt,
         userId: user.id,
         members: { create: { userId: user.id, categoryId: categoryId || null, order: END_OF_LIST_ORDER, aiContext: normalizedAiContext } },
@@ -615,13 +619,15 @@ export async function importHabitLogsCsv(habitId: string, csvText: string) {
   return { imported: toCreate.length, skipped: dataRows.length - toCreate.length, errors };
 }
 
-// Changes the habit's definition (owner only) and which of the owner's categories it's filed in
-export async function updateHabit(id: string, name: string, description: string, schema: HabitSchema, categoryId?: string, cadence: Cadence = DEFAULT_CADENCE, publishToMqtt: boolean = false, aiContext?: string) {
+// Changes the habit's definition (owner only) and which of the owner's categories it's filed in.
+// Its calculated fields are left as they are unless `calculatedFields` is given.
+export async function updateHabit(id: string, name: string, description: string, schema: HabitSchema, categoryId?: string, cadence: Cadence = DEFAULT_CADENCE, publishToMqtt: boolean = false, aiContext?: string, calculatedFields?: CalculatedField[]) {
   const user = await getDefaultUser();
   if (!name.trim()) throw new Error('Give your habit a title');
   await getOwnedHabit(user.id, id);
   if (categoryId) await getOwnedCategory(user.id, categoryId);
   const normalizedAiContext = normalizeAiContext(aiContext);
+  const checkedCalculatedFields = calculatedFields && checkCalculatedFields(calculatedFields, schema);
 
   try {
     const habit = await prisma.habit.update({
@@ -632,6 +638,7 @@ export async function updateHabit(id: string, name: string, description: string,
         schema: JSON.stringify(schema),
         // Checked here as well as typed, since it comes from the browser
         cadence: JSON.stringify(cadenceSchema.parse(cadence)),
+        ...(checkedCalculatedFields ? { calculatedFields: JSON.stringify(checkedCalculatedFields) } : {}),
         publishToMqtt,
       }
     });
@@ -682,6 +689,50 @@ async function fileHabit(userId: string, habitId: string, categoryId: string | n
     where: { habitId_userId: { habitId, userId } },
     data: { categoryId, order: END_OF_LIST_ORDER }
   });
+}
+
+// A habit's calculated fields as saved with its form, checked here as well as typed since they come
+// from the browser. One whose formula uses a field the form no longer has is kept (the editor shows
+// it as needing fixing, and charts leave it out), but a key can't clash with a form field's.
+function checkCalculatedFields(fields: CalculatedField[], schema: HabitSchema) {
+  const checked = calculatedFieldsSchema.parse(fields);
+  const formKeys = Object.keys(schema.properties ?? {});
+  const clash = checked.find(field => formKeys.includes(field.key));
+  if (clash) throw new Error(`"${clash.title}" has the same key as a form field`);
+  return checked;
+}
+
+// Adds a calculated field to a habit (`key` null), or changes one, saving straight away, e.g. from
+// the habit page's Trends. Owner only, like the rest of the habit's definition. Unlike saving the
+// whole habit, the formula has to work with the form as it is. Returns the field as saved, with its
+// key: a new one's is made from its title.
+export async function saveCalculatedField(habitId: string, key: string | null, field: Omit<CalculatedField, 'key'>) {
+  const user = await getDefaultUser();
+  const habit = await getOwnedHabit(user.id, habitId);
+  const schema = parseHabitSchema(habit);
+  const existing = parseCalculatedFields(habit.calculatedFields);
+  if (key !== null && !existing.some(f => f.key === key)) throw new Error('That calculated field no longer exists');
+  if (key === null && existing.length >= MAX_CALCULATED_FIELDS) throw new Error(`A habit can have at most ${MAX_CALCULATED_FIELDS} calculated fields`);
+
+  const fieldKey = key ?? keyFor(field.title, [...Object.keys(schema.properties ?? {}), ...existing.map(f => f.key)]);
+  const saved = calculatedFieldSchema.parse({ ...field, key: fieldKey });
+  const problem = calculatedFieldProblem(saved, schema);
+  if (problem) throw new Error(problem);
+
+  const next = key === null ? [...existing, saved] : existing.map(f => (f.key === key ? saved : f));
+  await prisma.habit.update({ where: { id: habitId }, data: { calculatedFields: JSON.stringify(checkCalculatedFields(next, schema)) } });
+  revalidatePath(`/log/${habitId}`);
+  return saved;
+}
+
+// Removes a calculated field from a habit. Owner only. Nothing logged changes, since a calculated
+// field's values are worked out rather than stored.
+export async function deleteCalculatedField(habitId: string, key: string) {
+  const user = await getDefaultUser();
+  const habit = await getOwnedHabit(user.id, habitId);
+  const remaining = parseCalculatedFields(habit.calculatedFields).filter(f => f.key !== key);
+  await prisma.habit.update({ where: { id: habitId }, data: { calculatedFields: JSON.stringify(remaining) } });
+  revalidatePath(`/log/${habitId}`);
 }
 
 // Changes how often the habit is meant to be done. Owner only: unlike where it's filed, the cadence

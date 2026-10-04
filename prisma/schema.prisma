@@ -38,21 +38,24 @@ model Session {
 }
 
 model Habit {
-  publishToMqtt Boolean       @default(false)
-  id            String        @id @default(uuid())
-  name          String
-  description   String?
-  schema        String
+  publishToMqtt    Boolean       @default(false)
+  id               String        @id @default(uuid())
+  name             String
+  description      String?
+  schema           String
   // Superseded by `cadence` and no longer read or written; kept until a later migration drops it
-  frequency     String        @default("daily")
+  frequency        String        @default("daily")
   // How often the habit is meant to be done, as JSON (see src/lib/cadence.ts)
-  cadence       String        @default("{\"type\":\"daily\",\"timesPerDay\":1}")
+  cadence          String        @default("{\"type\":\"daily\",\"timesPerDay\":1}")
+  // Values worked out from each entry's fields (e.g. pace from duration and distance), as a JSON
+  // array (see src/lib/calculatedFields.ts)
+  calculatedFields String        @default("[]")
   // The habit's owner: the only user who can edit, share, or delete it
-  userId        String
-  user          User          @relation(fields: [userId], references: [id])
-  members       HabitMember[]
-  logs          HabitLog[]
-  createdAt     DateTime      @default(now())
+  userId           String
+  user             User          @relation(fields: [userId], references: [id])
+  members          HabitMember[]
+  logs             HabitLog[]
+  createdAt        DateTime      @default(now())
 
   @@index([userId])
 }

@@ -77,6 +77,7 @@ Icons are lucide's (`lucide-react`). One meaning gets one icon everywhere, so a 
 | Share, or shared | `Users` | |
 | Manage Categories | `FolderTree` | `Settings`, `Settings2` (too like Preferences' `Sliders`) |
 | AI does it (generate, change, suggest) | `Sparkles` | `Wand2` |
+| A calculated field (worked out from an entry's other fields) | `Calculator` | `Sparkles` (that's AI, and a formula can be written by hand) |
 | Speak or type what you did (smart entry) | the quill (`QuillIconWavy`) | |
 | Log at another date and time (backdate) | `CalendarClock` | `History` (reads as the History tab) |
 | Copy a link | `Link2` | |
@@ -163,7 +164,7 @@ A page's background is always the body's `stone-50`. Lists sit on white running 
 
 A `PaneHeading` (or `PaneSection`'s `action`) can carry controls at its right end, e.g. the Activity time range, the Trends field and chart type, Export CSV, Preview form. They're all 32px tall. `PaneHeading` lets them overhang its padding, so a heading with controls is exactly as tall as one without, and pinned headings don't jump in height as they replace each other. Pass them as siblings: `PaneHeading` lays them out in a row with `gap-2`.
 
-- **A choice between a few options**: `SegmentedControl` (`src/components/ui/SegmentedControl.tsx`). It has no track or outline: its options sit on the background like a ghost button's label, and the chosen one is filled with `surface-strong`. Give each option an `icon` for an icon-only segment (e.g. Bar | Line), and its `label` becomes the tooltip and accessible name. It shows the current state, so don't use a single button that flips between two.
+- **A choice between a few options**: `SegmentedControl` (`src/components/ui/SegmentedControl.tsx`). It has no track or outline: its options sit on the background like a ghost button's label, and the chosen one is filled with `surface-strong`. Give each option an `icon` for an icon-only segment (e.g. Bar | Line), and its `label` becomes the tooltip and accessible name. It shows the current state, so don't use a single button that flips between two. In a form (e.g. a sheet's settings), pass `size="md"` for a 40px control on a subtle track that lines up with an `INPUT_SM`; prefer it to a `<select>` when there are only two or three options.
 - **An action with an icon**: `IconButton` / `IconLinkButton` with `size="sm"`, a `w-5 h-5` icon, and `edge="right"` when it's last.
 - **An action or picker with text**: `Button variant="ghost" size="xs"`, with `-mr-3` when it's last. A picker adds a `ChevronDown` after its label and opens a `MENU_PANEL`.
 - **Plain information** (e.g. the one field there is to chart) is plain `text-sm text-ink-muted` text, not a pill that looks like a disabled control.
@@ -182,6 +183,8 @@ Any menu anchored to a trigger button (kebab menu, chart field picker, etc.) mus
 ```
 
 Style the panel and its items with `MENU_PANEL`, `MENU_ITEM` (`MENU_ITEM_DANGER` for a destructive action), `MENU_SEPARATOR` and `menuOptionClasses(selected)` from `src/components/ui/Menu.tsx`, with a `<MenuBackdrop>` behind it so a tap outside closes it. Position the panel yourself, as above.
+
+A picker for a form field is `Select` (`src/components/Select.tsx`), not a native `<select>`, including in a sheet or dialog. Its list is portaled to `<body>` and fixed to the screen, opening below the field or above it when there's more room there, so a sheet that scrolls can't clip it and the `top-full` rule below doesn't apply to it. For two or three options, use a `SegmentedControl` with `size="md"` instead.
 
 Omitting `top-full` is a real bug we hit, not just a style nit: if the trigger's parent is a flex container with `items-center` (headers are), the browser falls back to vertically centering the absolutely-positioned menu against the trigger's box instead of placing it below — which pushes part of the menu above the viewport. Always pair `absolute` + `right-0`/`left-0` with an explicit `top-full` (or `bottom-full`) when anchoring to a trigger.
 

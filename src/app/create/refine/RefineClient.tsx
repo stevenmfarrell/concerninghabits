@@ -40,8 +40,8 @@ export default function RefineClient() {
     if (!draft) router.replace('/create');
   }, [draft, router]);
 
-  const handleSave = async ({ title, description, schema, categoryId, cadence, publishToMqtt, aiContext }: EditorDraft) => {
-    const habit = await saveHabit(title, description, schema, categoryId, cadence, publishToMqtt, aiContext);
+  const handleSave = async ({ title, description, schema, categoryId, cadence, publishToMqtt, aiContext, calculatedFields }: EditorDraft) => {
+    const habit = await saveHabit(title, description, schema, categoryId, cadence, publishToMqtt, aiContext, calculatedFields);
     sessionStorage.removeItem('draftHabit');
 
     // Hand what the user said to the new habit's log page, which fills the entry in against the
@@ -81,6 +81,7 @@ export default function RefineClient() {
           categoryId: draft.categoryId || '',
           publishToMqtt: false,
           aiContext: '',
+          calculatedFields: [],
         }}
         onSave={handleSave}
         onChangeTitle={handleTitleChange}

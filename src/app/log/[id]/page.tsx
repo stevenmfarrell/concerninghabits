@@ -18,9 +18,12 @@ import { parseCadence } from '@/lib/cadence';
 import { calendarStart } from '@/lib/calendarRange';
 import type { HabitSchema } from '@/lib/types';
 import { fieldTitle, type HabitFormProperties } from '@/components/widgets/habitForm';
+import { isFormulaInput, parseCalculatedFields } from '@/lib/calculatedFields';
+import { defaultCharts, plottableFields } from '@/lib/charts';
+import { fieldsOf } from '@/lib/formFields';
 
 // A habit's page: the Log Habit button (see LogClient), then its history: an activity calendar over
-// the chosen horizon, a chart of its numeric fields, and its entries, a page at a time.
+// the chosen horizon, charts of its number and calculated fields, and its entries, a page at a time.
 export default async function HabitPage(props: { params: Promise<{ id: string }>, searchParams: Promise<{ horizon?: string, page?: string, highlight?: string, t?: string }> }) {
   const params = await props.params;
   const searchParams = await props.searchParams;
@@ -80,25 +83,26 @@ export default async function HabitPage(props: { params: Promise<{ id: string }>
   const totalPages = Math.ceil(filteredLogs.length / pageSize);
   const paginatedLogs = filteredLogs.slice((page - 1) * pageSize, page * pageSize);
   
-  // Extract numeric fields for plotting
-  let numericFields: string[] = [];
-  const defaultChartTypes: Record<string, 'line' | 'bar'> = {};
-  
   let schemaObj: HabitSchema = { type: 'object', properties: {} };
   try {
     schemaObj = JSON.parse(habit.schema || '{}');
-    const properties = (schemaObj.properties || {}) as Record<string, { type?: string }>;
-    numericFields = Object.keys(properties).filter(
-      key => properties[key].type === 'number' || properties[key].type === 'integer'
-    );
-    numericFields.forEach(field => {
-      const savedType = cookieStore.get(`chartType_${habit.id}_${field}`)?.value;
-      defaultChartTypes[field] = (savedType === 'bar') ? 'bar' : 'line';
-    });
   } catch {
     // Ignore JSON parse errors
   }
   const schemaProperties = schemaObj.properties as HabitFormProperties | undefined;
+
+  // What can be charted: the form's number fields and the habit's calculated fields, a chart each
+  const calculatedFields = parseCalculatedFields(habit.calculatedFields);
+  const chartFields = plottableFields(schemaObj, calculatedFields);
+  const charts = defaultCharts(chartFields);
+  const defaultChartTypes: Record<string, 'line' | 'bar'> = {};
+  charts.forEach(chart => {
+    const savedType = cookieStore.get(`chartType_${habit.id}_${chart.id}`)?.value;
+    defaultChartTypes[chart.id] = (savedType === 'bar') ? 'bar' : 'line';
+  });
+  // The owner gets Trends even with nothing to chart yet, when the form has fields a calculated
+  // field could be worked out from
+  const canAddCalculated = habit.isOwner && Object.values(fieldsOf(schemaObj)).some(isFormulaInput);
 
   return (
     <LogClient habit={habit} user={user} people={allPeople} categories={categories}>
@@ -132,17 +136,18 @@ export default async function HabitPage(props: { params: Promise<{ id: string }>
             </div>
           </section>
 
-          {numericFields.length > 0 && (
+          {(charts.length > 0 || canAddCalculated) && (
             <HabitChart
               logs={filteredLogs.map(l => ({ id: l.id, createdAt: l.createdAt, payload: l.payload, userId: l.userId }))}
               people={people}
-              numericFields={numericFields}
+              fields={chartFields}
+              charts={charts}
               pageSize={pageSize}
               habitId={habit.id}
-              defaultSelectedField={savedChartField && numericFields.includes(savedChartField) ? savedChartField : numericFields[0]}
+              defaultSelectedChart={savedChartField && charts.some(c => c.id === savedChartField) ? savedChartField : charts[0]?.id}
               defaultChartTypes={defaultChartTypes}
-              schemaObj={schemaObj}
               timeZone={user.timeZone}
+              owner={habit.isOwner ? { schema: schemaObj, calculatedFields } : undefined}
             />
           )}
 

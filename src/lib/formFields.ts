@@ -122,10 +122,11 @@ export function keyFor(title: string, existingKeys: string[]) {
   return unique;
 }
 
-// The schema with a field added (`key` null) or changed, in place in the form's order
-export function withField(schema: HabitSchema, key: string | null, settings: FieldSettings): { schema: HabitSchema; key: string } {
+// The schema with a field added (`key` null) or changed, in place in the form's order. A new field's
+// key also avoids `reservedKeys`, e.g. the habit's calculated fields' keys.
+export function withField(schema: HabitSchema, key: string | null, settings: FieldSettings, reservedKeys: string[] = []): { schema: HabitSchema; key: string } {
   const fields = fieldsOf(schema);
-  const fieldKey = key ?? keyFor(settings.title, Object.keys(fields));
+  const fieldKey = key ?? keyFor(settings.title, [...Object.keys(fields), ...reservedKeys]);
   const properties = { ...fields, [fieldKey]: propertyFor(settings, key ? fields[key] : undefined) };
   const required = (schema.required ?? []).filter(k => k !== fieldKey);
   if (settings.required) required.push(fieldKey);

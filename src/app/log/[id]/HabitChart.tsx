@@ -3,14 +3,20 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import type { Person } from '@/lib/userColors';
-import { BarChart2, ChevronDown, LineChart as LineChartIcon } from 'lucide-react';
+import { BarChart2, Calculator, ChevronDown, LineChart as LineChartIcon, Pencil, Plus } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { formatLogValue, formatDuration } from '../../../lib/format';
+import toast from 'react-hot-toast';
+import { formatDuration } from '../../../lib/format';
 import type { HabitSchema } from '@/lib/types';
-import { fieldTitle, type HabitFormProperties } from '@/components/widgets/habitForm';
+import { formatPlotted, seriesPoints, type ChartEntry, type ChartSpec, type PlottableField } from '@/lib/charts';
+import type { CalculatedField } from '@/lib/calculatedFields';
+import { deleteCalculatedField, saveCalculatedField } from '@/app/actions/db';
+import CalculatedFieldSheet from '@/components/CalculatedFieldSheet';
+import ConfirmDialog from '@/components/ConfirmDialog';
 import { PANE_INSET, PANE_SURFACE, PaneHeading } from '@/components/Pane';
-import { MENU_PANEL, MenuBackdrop, menuOptionClasses } from '@/components/ui/Menu';
+import { MENU_ITEM, MENU_PANEL, MENU_SEPARATOR, MenuBackdrop, menuOptionClasses } from '@/components/ui/Menu';
 import { Button } from '@/components/ui/Button';
+import { IconButton } from '@/components/ui/IconButton';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 
 // The theme's colors (see globals.css), as CSS variables so the chart follows light and dark mode
@@ -26,41 +32,72 @@ const CHART_TYPE_OPTIONS = [
   { value: 'line' as const, label: 'Line chart', icon: <LineChartIcon className="w-4 h-4" /> },
 ];
 
+// Saves which chart the habit's page shows, in a cookie for 10 years, so the server renders it next time
+function rememberChart(habitId: string, chartId: string) {
+  document.cookie = `chartField_${habitId}=${chartId}; path=/; max-age=315360000`;
+}
+
 // The tooltip's label for a value: the field name, plus who logged it on a shared habit
 function tooltipLabel(fieldLabel: string, item: unknown) {
   const personName = (item as { payload?: { personName?: string } } | undefined)?.payload?.personName;
   return personName ? `${fieldLabel} · ${personName}` : fieldLabel;
 }
 
+// The habit's form and calculated fields, for its owner, who can add and change calculated fields
+// from here
+export interface ChartOwnerTools {
+  schema: HabitSchema;
+  calculatedFields: CalculatedField[];
+}
+
+// The habit page's Trends: one of the habit's charts (see charts.ts) at a time, picked from a menu,
+// as a line or bars. Clicking a point shows its entry in the list below.
 export default function HabitChart({
   logs,
-  numericFields,
+  fields,
+  charts,
   pageSize,
   habitId,
-  defaultSelectedField,
+  defaultSelectedChart,
   defaultChartTypes,
-  schemaObj,
   timeZone,
-  people
+  people,
+  owner,
 }: {
-  logs: { id: string, createdAt: Date, payload: string, userId: string }[],
+  logs: ChartEntry[],
   // Set for a shared habit, to color each point by who logged it
   people?: Record<string, Person>,
-  numericFields: string[],
+  fields: PlottableField[],
+  charts: ChartSpec[],
   pageSize: number,
   habitId: string,
-  defaultSelectedField: string,
+  defaultSelectedChart: string | undefined,
   defaultChartTypes: Record<string, 'line' | 'bar'>,
-  schemaObj?: HabitSchema,
-  timeZone: string
+  timeZone: string,
+  owner?: ChartOwnerTools,
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const schemaProperties = schemaObj?.properties as HabitFormProperties | undefined;
-  const [selectedField, setSelectedField] = useState<string>(defaultSelectedField);
+  const [selectedChart, setSelectedChart] = useState<string | undefined>(defaultSelectedChart);
   const [chartTypes, setChartTypes] = useState<Record<string, 'line' | 'bar'>>(defaultChartTypes);
   const [isOpen, setIsOpen] = useState(false);
+  // The calculated field being added (key null) or changed, by the owner
+  const [editingCalculated, setEditingCalculated] = useState<{ key: string | null } | null>(null);
+  const [confirmingRemove, setConfirmingRemove] = useState<string | null>(null);
+  const [removing, setRemoving] = useState(false);
   const chartWrapperRef = useRef<HTMLDivElement>(null);
+
+  // A chart picked that's gone (e.g. its calculated field was removed), or one just added before
+  // the page has it, falls back to the first
+  const chart = charts.find(c => c.id === selectedChart) ?? charts[0];
+  const chartId = chart?.id ?? '';
+  const field = chart && fields.find(f => f.key === chart.series[0].field);
+  const calculatedField = field?.expression !== undefined ? owner?.calculatedFields.find(f => f.key === field.key) : undefined;
+
+  const selectChart = (id: string) => {
+    setSelectedChart(id);
+    rememberChart(habitId, id);
+  };
 
   // Recharts tooltips can get stuck on mobile/touch devices.
   // This listener forces a mouseleave event on the chart when touching outside it, which clears the tooltip.
@@ -76,35 +113,25 @@ export default function HabitChart({
     return () => document.removeEventListener('touchstart', handleTouchOutside);
   }, []);
 
-  const yDomain: [number | string, number | string] = chartTypes[selectedField] === 'bar' ? [0, 'auto'] : ['auto', 'auto'];
+  const yDomain: [number | string, number | string] = chartTypes[chartId] === 'bar' ? [0, 'auto'] : ['auto', 'auto'];
 
+  // A point per entry with a value, oldest first
   const data = useMemo(() => {
-    // Parse payloads and extract the selected field
-    const points = logs.map(log => {
-      const person = people?.[log.userId];
+    if (!field) return [];
+    return seriesPoints(logs, field).map(({ entry, date, value }) => {
+      const person = people?.[entry.userId];
       // Who logged the point, when the chart is colored by person. Bars take `fill` straight from
       // their data point; line dots read it in the custom dot below.
       const loggedBy = people ? { fill: person?.color ?? 'var(--ink-subtle)', personName: person?.name ?? 'Former member' } : { fill: CHART_COLOR, personName: undefined };
-      try {
-        const payload = JSON.parse(log.payload);
-        const val = payload[selectedField];
-        return {
-          logId: log.id,
-          date: new Date(log.createdAt).getTime(), // Sort by time
-          dateStr: new Date(log.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone }),
-          value: typeof val === 'number' ? val : null,
-          ...loggedBy
-        };
-      } catch {
-        return { logId: log.id, date: new Date(log.createdAt).getTime(), dateStr: '', value: null, ...loggedBy };
-      }
+      return {
+        logId: entry.id,
+        date,
+        dateStr: new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone }),
+        value,
+        ...loggedBy
+      };
     });
-
-    // Filter out nulls and sort chronologically (oldest to newest)
-    return points
-      .filter(p => p.value !== null)
-      .sort((a, b) => a.date - b.date);
-  }, [logs, selectedField, timeZone, people]);
+  }, [logs, field, timeZone, people]);
 
   // The bar chart is one bar per entry, evenly spaced, so a day with several entries has several
   // bars. Bars are keyed by entry, and only each day's first bar gets a date tick.
@@ -121,11 +148,11 @@ export default function HabitChart({
     return date === undefined ? '' : new Date(date).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone });
   };
 
-  if (numericFields.length === 0) return null;
+  if (charts.length === 0 && !owner) return null;
 
   const hasData = data.length > 0;
 
-  const isDuration = schemaProperties?.[selectedField]?.['x-widget'] === 'duration';
+  const isDuration = field?.format === 'duration';
 
   const yAxisTickFormatter = (tick: unknown) => {
     if (isDuration) return formatDuration(Number(tick));
@@ -172,70 +199,114 @@ export default function HabitChart({
 
   // A field's name with its unit, e.g. "Distance (miles)". A duration's "unit" is the format its
   // values are shown in, which gains an hours place once any entry reaches an hour.
-  const getFieldLabel = (field: string) => {
-    const label = fieldTitle(field, schemaProperties);
-    if (schemaProperties?.[field]?.['x-widget'] === 'duration') {
-      const hasHours = logs.some(log => {
-        try {
-          const val = JSON.parse(log.payload)[field];
-          return typeof val === 'number' && val >= 60;
-        } catch {
-          return false;
-        }
-      });
-      return `${label} (${hasHours ? 'h:mm:ss' : 'm:ss'})`;
+  const getFieldLabel = (plotted: PlottableField | undefined) => {
+    if (!plotted) return '';
+    if (plotted.format === 'duration') {
+      const hasHours = seriesPoints(logs, plotted).some(point => point.value >= 60);
+      return `${plotted.title} (${hasHours ? 'h:mm:ss' : 'm:ss'})`;
     }
-    const fieldUnit = schemaProperties?.[field]?.['x-unit'];
-    return fieldUnit ? `${label} (${fieldUnit})` : label;
+    return plotted.unit ? `${plotted.title} (${plotted.unit})` : plotted.title;
   };
+  const chartLabel = (spec: ChartSpec) => getFieldLabel(fields.find(f => f.key === spec.series[0].field));
+
+  const tooltipFormatter = (value: unknown, _name: unknown, item: unknown) => [formatPlotted(value, field), tooltipLabel(field?.title ?? '', item)];
+
+  const saveCalculated = async (calculated: Omit<CalculatedField, 'key'>) => {
+    const key = editingCalculated?.key ?? null;
+    const saved = await saveCalculatedField(habitId, key, calculated);
+    toast.success(key ? 'Calculated field saved' : `${saved.title} added to Trends`);
+    selectChart(saved.key);
+    setEditingCalculated(null);
+    router.refresh();
+  };
+
+  const removeCalculated = async (key: string) => {
+    setRemoving(true);
+    try {
+      await deleteCalculatedField(habitId, key);
+      toast.success('Calculated field removed');
+      setConfirmingRemove(null);
+      router.refresh();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Something went wrong');
+    } finally {
+      setRemoving(false);
+    }
+  };
+  // The owner picks from a menu even with one chart, since it also adds calculated fields
+  const showPicker = charts.length > 1 || (!!owner && charts.length > 0);
 
   return (
     <section>
       <PaneHeading action={
         <>
-          {numericFields.length > 1 && (
+          {calculatedField && (
+            <IconButton size="sm" onClick={() => setEditingCalculated({ key: calculatedField.key })} title={`Edit ${calculatedField.title}`} aria-label={`Edit ${calculatedField.title}`}>
+              <Pencil className="w-5 h-5" />
+            </IconButton>
+          )}
+          {showPicker && (
             <div className="relative">
               <Button variant="ghost" size="xs" onClick={() => setIsOpen(!isOpen)} aria-expanded={isOpen}>
-                {getFieldLabel(selectedField)}
+                {chart && chartLabel(chart)}
                 <ChevronDown className="w-4 h-4" />
               </Button>
               {isOpen && (
                 <>
                   <MenuBackdrop onClose={() => setIsOpen(false)} />
-                  <div className={`${MENU_PANEL} absolute right-0 top-full mt-1 w-48 overflow-hidden`}>
-                    {numericFields.map(field => (
-                      <button
-                        key={field}
-                        onClick={() => {
-                          setSelectedField(field);
-                          setIsOpen(false);
-                          // Save to cookie for 10 years
-                          document.cookie = `chartField_${habitId}=${field}; path=/; max-age=315360000`;
-                        }}
-                        className={`${menuOptionClasses(selectedField === field)} px-4`}
-                      >
-                        {getFieldLabel(field)}
-                      </button>
-                    ))}
+                  <div className={`${MENU_PANEL} absolute right-0 top-full mt-1 w-56 overflow-hidden`}>
+                    {charts.map(spec => {
+                      const calculated = fields.find(f => f.key === spec.series[0].field)?.expression !== undefined;
+                      return (
+                        <button
+                          key={spec.id}
+                          onClick={() => {
+                            selectChart(spec.id);
+                            setIsOpen(false);
+                          }}
+                          className={`${menuOptionClasses(chartId === spec.id)} px-4`}
+                        >
+                          <span className="flex-1 min-w-0 truncate">{chartLabel(spec)}</span>
+                          {calculated && <Calculator className="w-3.5 h-3.5 shrink-0 text-ink-subtle" aria-label="Calculated" />}
+                        </button>
+                      );
+                    })}
+                    {owner && (
+                      <>
+                        <div className={MENU_SEPARATOR} />
+                        <button
+                          className={MENU_ITEM}
+                          onClick={() => {
+                            setIsOpen(false);
+                            setEditingCalculated({ key: null });
+                          }}
+                        >
+                          <Plus className="w-4 h-4" />
+                          New calculated field
+                        </button>
+                      </>
+                    )}
                   </div>
                 </>
               )}
             </div>
           )}
           {/* With only one field to chart, just its name, in place of the picker */}
-          {numericFields.length === 1 && (
-            <span className="text-sm font-medium text-ink-muted">{getFieldLabel(selectedField)}</span>
+          {!showPicker && chart && (
+            <span className="text-sm font-medium text-ink-muted">{chartLabel(chart)}</span>
           )}
 
-          <SegmentedControl
-            label="Chart type"
-            options={CHART_TYPE_OPTIONS}
-            value={chartTypes[selectedField] ?? 'line'}
-            onChange={type => {
-              setChartTypes(prev => ({ ...prev, [selectedField]: type }));
-              document.cookie = `chartType_${habitId}_${selectedField}=${type}; path=/; max-age=315360000`;
-            }}
-          />
+          {chart && (
+            <SegmentedControl
+              label="Chart type"
+              options={CHART_TYPE_OPTIONS}
+              value={chartTypes[chartId] ?? 'line'}
+              onChange={type => {
+                setChartTypes(prev => ({ ...prev, [chartId]: type }));
+                document.cookie = `chartType_${habitId}_${chartId}=${type}; path=/; max-age=315360000`;
+              }}
+            />
+          )}
         </>
       }>
         Trends
@@ -243,13 +314,22 @@ export default function HabitChart({
 
       <div className={`${PANE_SURFACE} ${PANE_INSET} py-4`}>
         <div ref={chartWrapperRef} className="w-full h-64">
-          {!hasData ? (
+          {!chart ? (
+            // Only the owner gets here: a habit with nothing to chart yet, but fields to work one out from
+            <div className="w-full h-full flex flex-col items-center justify-center gap-3 text-center">
+              <p className="text-ink-subtle text-sm">Nothing to chart yet. Work out a number from each entry&apos;s values to chart it here.</p>
+              <Button variant="outline" size="sm" onClick={() => setEditingCalculated({ key: null })}>
+                <Plus className="w-4 h-4" />
+                New calculated field
+              </Button>
+            </div>
+          ) : !hasData ? (
             <div className="w-full h-full flex items-center justify-center text-ink-subtle text-sm italic">
               No data recorded for this metric yet.
             </div>
           ) : (
             <ResponsiveContainer width="100%" height="100%">
-              {chartTypes[selectedField] === 'bar' ? (
+              {chartTypes[chartId] === 'bar' ? (
                 <BarChart data={data} margin={{ top: 5, right: 10, left: -20, bottom: 5 }} onClick={handleChartClick} style={{ cursor: 'pointer', WebkitTapHighlightColor: 'transparent', userSelect: 'none', outline: 'none' }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={CHART_GRID} />
                   <XAxis 
@@ -276,7 +356,7 @@ export default function HabitChart({
                     labelStyle={TOOLTIP_LABEL_STYLE}
                     itemStyle={TOOLTIP_ITEM_STYLE}
                     labelFormatter={tooltipDate}
-                    formatter={(value: unknown, _name: unknown, item: unknown) => [formatLogValue(value, schemaProperties?.[selectedField]), tooltipLabel(fieldTitle(selectedField, schemaProperties), item)]}
+                    formatter={tooltipFormatter}
                   />
                   <Bar
                     dataKey="value"
@@ -315,7 +395,7 @@ export default function HabitChart({
                     labelStyle={TOOLTIP_LABEL_STYLE}
                     itemStyle={TOOLTIP_ITEM_STYLE}
                     labelFormatter={tooltipDate}
-                    formatter={(value: unknown, _name: unknown, item: unknown) => [formatLogValue(value, schemaProperties?.[selectedField]), tooltipLabel(fieldTitle(selectedField, schemaProperties), item)]}
+                    formatter={tooltipFormatter}
                   />
                   {/* On a shared habit the line goes neutral so each point's person color stands out */}
                   <Line
@@ -341,6 +421,31 @@ export default function HabitChart({
           )}
         </div>
       </div>
+
+      {owner && editingCalculated && (
+        <CalculatedFieldSheet
+          schema={owner.schema}
+          initial={editingCalculated.key ? owner.calculatedFields.find(f => f.key === editingCalculated.key) : undefined}
+          entries={logs}
+          doneLabel={editingCalculated.key ? 'Save' : 'Add to Trends'}
+          onDone={saveCalculated}
+          onRemove={editingCalculated.key ? () => {
+            setConfirmingRemove(editingCalculated.key);
+            setEditingCalculated(null);
+          } : undefined}
+          onClose={() => setEditingCalculated(null)}
+        />
+      )}
+
+      <ConfirmDialog
+        isOpen={confirmingRemove !== null}
+        title="Remove Calculated Field"
+        message={`Remove "${owner?.calculatedFields.find(f => f.key === confirmingRemove)?.title ?? 'this field'}"? It's worked out from each entry, so nothing you've logged changes.`}
+        confirmText="Remove"
+        isProcessing={removing}
+        onConfirm={() => confirmingRemove && removeCalculated(confirmingRemove)}
+        onCancel={() => setConfirmingRemove(null)}
+      />
     </section>
   );
 }

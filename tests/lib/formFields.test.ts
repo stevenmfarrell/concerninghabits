@@ -66,4 +66,9 @@ describe('form fields', () => {
     expect(settingsProblem(settings({ type: 'choice', choices: [''] }))).toBe('Add at least one choice');
     expect(settingsProblem(settings({}))).toBeNull();
   });
+
+  it("gives a new field a key unlike the habit's calculated fields' keys", () => {
+    const { key } = withField(runSchema, null, settings({ title: 'Pace', type: 'number' }), ['pace']);
+    expect(key).toBe('pace2');
+  });
 });

@@ -7,12 +7,15 @@ import { deleteHabit, leaveHabit, setHabitAiContext, setHabitCategory, updateHab
 import HabitEditor, { type HabitDraft, type RemoveAction } from '@/components/HabitEditor';
 import { parseHabitSchema } from '@/components/widgets/habitForm';
 import { parseCadence } from '@/lib/cadence';
+import { parseCalculatedFields } from '@/lib/calculatedFields';
+import type { ChartEntry } from '@/lib/charts';
 import type { CategoryOption, HabitDetail } from '@/lib/types';
 import type { Person } from '@/lib/userColors';
 
 // A habit's edit page, below its header: the full editor for its owner, or for someone it's shared
 // with, just their own category and notes for AI. Saving goes back to the habit's page.
-export default function EditClient({ habit, owner, categories }: { habit: HabitDetail; owner: Person | undefined; categories: CategoryOption[] }) {
+// `entries` are the habit's recent entries, to preview a calculated field's values with.
+export default function EditClient({ habit, owner, categories, entries }: { habit: HabitDetail; owner: Person | undefined; categories: CategoryOption[]; entries: ChartEntry[] }) {
   const router = useRouter();
   const habitHref = `/log/${habit.id}`;
 
@@ -24,11 +27,12 @@ export default function EditClient({ habit, owner, categories }: { habit: HabitD
     categoryId: habit.categoryId || '',
     publishToMqtt: habit.publishToMqtt,
     aiContext: habit.aiContext || '',
+    calculatedFields: parseCalculatedFields(habit.calculatedFields),
   };
 
   const handleSave = async (draft: HabitDraft) => {
     if (habit.isOwner) {
-      await updateHabit(habit.id, draft.title, draft.description, draft.schema, draft.categoryId, draft.cadence, draft.publishToMqtt, draft.aiContext);
+      await updateHabit(habit.id, draft.title, draft.description, draft.schema, draft.categoryId, draft.cadence, draft.publishToMqtt, draft.aiContext, draft.calculatedFields);
     } else {
       // All someone it's shared with can change
       if (draft.categoryId !== initial.categoryId) await setHabitCategory(habit.id, draft.categoryId || null);
@@ -65,6 +69,6 @@ export default function EditClient({ habit, owner, categories }: { habit: HabitD
       };
 
   return (
-    <HabitEditor mode={habit.isOwner ? 'edit' : 'shared'} initial={initial} owner={owner} onSave={handleSave} remove={remove} categories={categories} />
+    <HabitEditor mode={habit.isOwner ? 'edit' : 'shared'} initial={initial} owner={owner} onSave={handleSave} remove={remove} categories={categories} entries={entries} />
   );
 }

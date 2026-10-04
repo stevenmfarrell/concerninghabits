@@ -11,14 +11,17 @@ import AiContextField from './AiContextField';
 import AiTweakInput from './AiTweakInput';
 import CollapsibleSection from './CollapsibleSection';
 import ConfirmDialog from './ConfirmDialog';
-import HabitFormOverview, { FormPreviewButton } from './HabitFormOverview';
+import HabitFormOverview, { CalculatedFieldsOverview, FormPreviewButton } from './HabitFormOverview';
 import FieldEditorSheet from './FieldEditorSheet';
+import CalculatedFieldSheet from './CalculatedFieldSheet';
 import PersonLabel from './PersonLabel';
 import { Button } from './ui/Button';
 import { Toggle } from './ui/Toggle';
 import { PANE_INSET, PANE_SURFACE, PaneHeading, PaneSection } from './Pane';
 import type { Cadence } from '@/lib/cadence';
-import { settingsOf, withField, withoutField } from '@/lib/formFields';
+import { fieldsOf, keyFor, settingsOf, withField, withoutField } from '@/lib/formFields';
+import { fieldsUsed, isFormulaInput, parseExpression, type CalculatedField } from '@/lib/calculatedFields';
+import type { ChartEntry } from '@/lib/charts';
 import type { CategoryOption, HabitSchema } from '@/lib/types';
 import type { Person } from '@/lib/userColors';
 
@@ -32,6 +35,8 @@ export interface HabitDraft {
   categoryId: string;
   publishToMqtt: boolean;
   aiContext: string;
+  // Values worked out from each entry's fields (see calculatedFields.ts)
+  calculatedFields: CalculatedField[];
 }
 
 // - create: a new habit, before it's saved (the refine page)
@@ -62,6 +67,8 @@ interface HabitEditorProps {
   // straight away; otherwise they're fetched
   categories?: CategoryOption[];
   onChangeTitle?: (title: string) => void;
+  // The habit's recent entries, to preview a calculated field's values with
+  entries?: ChartEntry[];
 }
 
 // Whether the form's voice and photo logging are on: on unless the schema turns them off
@@ -83,7 +90,7 @@ function comparable(draft: HabitDraft) {
 // The habit editor, for creating, editing, and a shared habit's own settings, as sections of a pane
 // page (see Pane): where it's filed and how often it's due as pills at the top, then the habit's
 // name, what its form records, then settings rarely touched, folded away with a summary. Changes are saved from a bar above the bottom nav, which shows once there's something to save.
-export default function HabitEditor({ mode, initial, owner, onSave, remove, saveBarExtra, onChangeTitle, categories: initialCategories }: HabitEditorProps) {
+export default function HabitEditor({ mode, initial, owner, onSave, remove, saveBarExtra, onChangeTitle, categories: initialCategories, entries }: HabitEditorProps) {
   const isOwner = mode !== 'shared';
 
   const [title, setTitle] = useState(initial.title);
@@ -95,6 +102,7 @@ export default function HabitEditor({ mode, initial, owner, onSave, remove, save
   const [categoryId, setCategoryId] = useState(initial.categoryId);
   const [publishToMqtt, setPublishToMqtt] = useState(initial.publishToMqtt);
   const [aiContext, setAiContext] = useState(initial.aiContext);
+  const [calculatedFields, setCalculatedFields] = useState<CalculatedField[]>(initial.calculatedFields);
   // Bumped by Discard, to remount fields that keep their own state (e.g. a cadence's typed number)
   const [resetKey, setResetKey] = useState(0);
 
@@ -106,6 +114,8 @@ export default function HabitEditor({ mode, initial, owner, onSave, remove, save
   const [confirmRemove, setConfirmRemove] = useState(false);
   // The field being added (key null) or changed in the field sheet
   const [editingField, setEditingField] = useState<{ key: string | null } | null>(null);
+  // The calculated field being added (key null) or changed
+  const [editingCalculated, setEditingCalculated] = useState<{ key: string | null } | null>(null);
   // Set when saving is tried without a title, until one is typed
   const [titleMissing, setTitleMissing] = useState(false);
   const titleRef = useRef<HTMLInputElement>(null);
@@ -125,6 +135,7 @@ export default function HabitEditor({ mode, initial, owner, onSave, remove, save
     categoryId,
     publishToMqtt,
     aiContext,
+    calculatedFields,
   };
   const dirty = comparable(draft) !== comparable(initial);
   const busy = saving || removing;
@@ -132,6 +143,18 @@ export default function HabitEditor({ mode, initial, owner, onSave, remove, save
   const showSaveBar = mode === 'create' || dirty || saving;
   // Fields the habit had when the editor opened, which entries may already have values for
   const savedFieldKeys = mode === 'create' ? [] : Object.keys(initial.schema.properties ?? {});
+  const calculatedKeys = calculatedFields.map(f => f.key);
+  // Calculated fields can be made once the form has something to work them out from
+  const canCalculate = Object.values(fieldsOf(schema)).some(isFormulaInput);
+  const editingCalculatedField = editingCalculated?.key ? calculatedFields.find(f => f.key === editingCalculated.key) : undefined;
+  // The calculated fields whose formula uses a form field, to warn before that field is changed or removed
+  const calculatedUsing = (fieldKey: string) => calculatedFields.filter(field => {
+    try {
+      return fieldsUsed(parseExpression(field.expression)).includes(fieldKey);
+    } catch {
+      return false;
+    }
+  }).map(field => field.title);
 
   const handleTweak = async (change: string) => {
     setTweaking(true);
@@ -172,6 +195,7 @@ export default function HabitEditor({ mode, initial, owner, onSave, remove, save
     setCategoryId(initial.categoryId);
     setPublishToMqtt(initial.publishToMqtt);
     setAiContext(initial.aiContext);
+    setCalculatedFields(initial.calculatedFields);
     setResetKey(k => k + 1);
   };
 
@@ -279,6 +303,21 @@ export default function HabitEditor({ mode, initial, owner, onSave, remove, save
         </div>
       </section>
 
+      {/* Values worked out from each entry's fields, for charting */}
+      {(calculatedFields.length > 0 || (isOwner && canCalculate)) && (
+        <section>
+          <PaneHeading>Calculated</PaneHeading>
+          <div className={PANE_SURFACE}>
+            <CalculatedFieldsOverview
+              fields={calculatedFields}
+              schema={schema}
+              onEdit={isOwner && !busy && !tweaking ? key => setEditingCalculated({ key }) : undefined}
+              onAdd={isOwner && canCalculate && !busy && !tweaking ? () => setEditingCalculated({ key: null }) : undefined}
+            />
+          </div>
+        </section>
+      )}
+
       {/* Settings rarely touched, folded away with a summary */}
       <PaneSection title="More settings">
         <CollapsibleSection title="AI logging" summary={aiSummary} defaultOpen={mode === 'shared'}>
@@ -360,8 +399,9 @@ export default function HabitEditor({ mode, initial, owner, onSave, remove, save
         <FieldEditorSheet
           initial={editingField.key ? settingsOf(schema, editingField.key) : undefined}
           loggedBefore={!!editingField.key && savedFieldKeys.includes(editingField.key)}
+          usedBy={editingField.key ? calculatedUsing(editingField.key) : []}
           onDone={settings => {
-            setSchema(withField(schema, editingField.key, settings).schema);
+            setSchema(withField(schema, editingField.key, settings, calculatedKeys).schema);
             setEditingField(null);
           }}
           onRemove={editingField.key ? () => {
@@ -369,6 +409,25 @@ export default function HabitEditor({ mode, initial, owner, onSave, remove, save
             setEditingField(null);
           } : undefined}
           onClose={() => setEditingField(null)}
+        />
+      )}
+
+      {editingCalculated && (
+        <CalculatedFieldSheet
+          schema={schema}
+          initial={editingCalculatedField}
+          entries={entries}
+          onDone={field => {
+            setCalculatedFields(prev => editingCalculated.key
+              ? prev.map(f => (f.key === editingCalculated.key ? { ...field, key: f.key } : f))
+              : [...prev, { ...field, key: keyFor(field.title, [...Object.keys(fieldsOf(schema)), ...calculatedKeys]) }]);
+            setEditingCalculated(null);
+          }}
+          onRemove={editingCalculated.key ? () => {
+            setCalculatedFields(prev => prev.filter(f => f.key !== editingCalculated.key));
+            setEditingCalculated(null);
+          } : undefined}
+          onClose={() => setEditingCalculated(null)}
         />
       )}
 

@@ -10,6 +10,7 @@ import { Button } from './ui/Button';
 import { HABIT_FORM_WIDGETS, habitFormUiSchema, type HabitFormProperties } from './widgets/habitForm';
 import type { HabitSchema } from '@/lib/types';
 import { describeField, fieldsOf } from '@/lib/formFields';
+import { calculatedFieldProblem, describeExpression, type CalculatedField } from '@/lib/calculatedFields';
 
 // The habit's form in the editor: its fields as rows of plain text, in a pane's list (see Pane). With
 // `onEditField`, each field is a button to change it, and `onAddField` adds a last row for a new one.
@@ -110,5 +111,64 @@ export function FormPreviewButton({ schema, title }: { schema: HabitSchema; titl
         </BottomSheet>
       )}
     </>
+  );
+}
+
+// The habit's calculated fields in the editor, as rows like the form's fields: each one's formula
+// in words, or what it needs fixing for when it doesn't work with the form as it is (e.g. a field
+// it uses was removed). With `onEdit`, each is a button to change it, and `onAdd` adds a last row.
+export function CalculatedFieldsOverview({ fields, schema, onEdit, onAdd }: {
+  fields: CalculatedField[];
+  schema: HabitSchema;
+  onEdit?: (key: string) => void;
+  onAdd?: () => void;
+}) {
+  return (
+    <ul className="divide-y divide-line-subtle">
+      {fields.map(field => {
+        const problem = calculatedFieldProblem(field, schema);
+        const row = (
+          <>
+            <span className="font-medium text-ink min-w-0 truncate">{field.title}</span>
+            {problem ? (
+              <span className="flex-1 min-w-0 text-sm text-danger-ink truncate" title={problem}>{problem}</span>
+            ) : (
+              <span className="flex-1 min-w-0 text-sm text-ink-muted truncate">
+                = {describeExpression(field.expression, schema)}{field.unit ? ` · ${field.unit}` : ''}
+              </span>
+            )}
+          </>
+        );
+        return (
+          <li key={field.key}>
+            {onEdit ? (
+              <button
+                type="button"
+                onClick={() => onEdit(field.key)}
+                className="w-full flex items-center gap-3 pane-inset py-3 text-left hover:bg-surface-subtle transition-colors"
+                aria-label={`Edit calculated field ${field.title}`}
+              >
+                {row}
+                <ChevronRight className="w-4 h-4 text-ink-faint shrink-0" />
+              </button>
+            ) : (
+              <div className="flex items-baseline gap-3 pane-inset py-3">{row}</div>
+            )}
+          </li>
+        );
+      })}
+      {onAdd && (
+        <li>
+          <button
+            type="button"
+            onClick={onAdd}
+            className="w-full flex items-center gap-2 pane-inset py-3 text-left text-sm font-medium text-accent-ink-strong hover:bg-surface-subtle transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Add calculated field
+          </button>
+        </li>
+      )}
+    </ul>
   );
 }
