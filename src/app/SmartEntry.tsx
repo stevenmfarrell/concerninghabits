@@ -8,7 +8,7 @@ import toast from 'react-hot-toast';
 import { Button } from '@/components/ui/Button';
 import QuillIconWavy from '@/components/QuillIconWavy';
 import SpeakOrType, { type SpeakOrTypeStatus } from '@/components/SpeakOrType';
-import { generateHabitSchema, interpretSmartEntry, logSmartEntry, type HabitCandidate } from './actions/habit';
+import { generateHabitSchema, interpretSmartEntry, logSmartEntry, prefillSmartEntry, type HabitCandidate } from './actions/habit';
 import { showLoggedToast } from '@/components/LoggedToast';
 import type { HabitFormProperties } from '@/components/widgets/habitForm';
 
@@ -65,10 +65,18 @@ export default function SmartEntry() {
     }
 
     if (candidate.habitId) {
-      // e.g. "I want to run more" when they already track running: show the habit, log nothing
-      toast(`You already track ${candidate.name}`, { icon: '👍' });
+      // e.g. "I want to run more" when they already track running: show the habit, log nothing. If
+      // the input names values for its form, though, it may have been something done after all, so
+      // they're filled in on the habit's entry sheet, to log with a tap if it was.
       setStatus({ message: `Opening ${candidate.name}...`, input });
-      router.push(`/log/${candidate.habitId}`);
+      const data = await prefillSmartEntry(candidate.habitId, input);
+      if (Object.keys(data).length > 0) {
+        toast(`Check the details for ${candidate.name}, then log it`, { icon: '✏️' });
+        router.push(prefillHref(candidate.habitId, data));
+      } else {
+        toast(`You already track ${candidate.name}`, { icon: '👍' });
+        router.push(`/log/${candidate.habitId}`);
+      }
       return;
     }
 

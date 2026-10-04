@@ -151,10 +151,11 @@ const MAX_HABIT_OPTIONS = 254;
 // Practice) and clear new habits ("20 minutes of yoga") came back at 0.87-0.99, while a vague
 // "I played some music" (piano? ukulele? new?) varied 0.61-0.71 across calls. 0.8 sits in that gap.
 const MATCH_CONFIDENCE_THRESHOLD = 0.8;
-// At or above this, the input counts as reporting something the user did, so it becomes an entry.
-// Measured on jev-1.13: intentions ("I want to run more", "track my water intake") came back at
-// 0.02-0.04, reports ("I ran 3 miles", "took my vitamins") at 0.83-0.98, and bare nouns ("yoga",
-// "water") at 0.40-0.49. The bar is kept low so a bare noun counts as done: that's the likelier
+// At or above this, the input counts as reporting something the user did (or measured), so it
+// becomes an entry. Measured on jev-1.13: intentions ("I want to run more", "track my water
+// intake", "I want to track my weight") came back at 0.02-0.04, reports ("I ran 3 miles", "took my
+// vitamins") and readings ("I weigh 155 pounds", "blood pressure 120 over 80", "slept 7 hours") at
+// 0.83-0.98, and bare nouns ("yoga", "water") at 0.40-0.49. The bar is kept low so a bare noun counts as done: that's the likelier
 // meaning for an existing habit, an entry can be undone, and a new habit's draft page can switch
 // its first entry off.
 const DID_IT_THRESHOLD = 0.25;
@@ -203,10 +204,12 @@ export async function interpretSmartEntry(input: string): Promise<
   }
 
   const didItQuestion = noul(
-    'Is `user_input` the user reporting something they actually did, rather than only describing something they want to start tracking or doing?',
+    // Measurements are named alongside things done: asked only about things done, a reading like
+    // "I weigh 155 pounds" scored 0.21 and went unlogged
+    'Is `user_input` the user reporting something to record right now — something they did, or a measurement or reading they took — rather than only describing something they want to start tracking or doing?',
     {
-      true: 'Reports an activity that happened, e.g. "I ran 3 miles", "took my vitamins", "20 minutes of yoga"',
-      false: 'Only describes a habit to set up or an intention, e.g. "track my water intake", "I want to start running more"',
+      true: 'Reports something that happened or was measured, e.g. "I ran 3 miles", "took my vitamins", "20 minutes of yoga", "I weigh 155 pounds", "blood pressure 120 over 80"',
+      false: 'Only describes a habit to set up or an intention, e.g. "track my water intake", "I want to start running more", "I want to track my weight"',
     },
   );
 
@@ -261,21 +264,9 @@ export async function logSmartEntry(habitId: string, input: string): Promise<
   | { success: true; logged: false; data: Record<string, unknown> }
   | { success: false; error: string }
 > {
-  const habit = await getHabit(habitId);
-  if (!habit) return { success: false, error: 'Habit not found.' };
-
-  let schema: HabitSchema = {};
-  try {
-    schema = JSON.parse(habit.schema);
-  } catch {}
-
-  let data: Record<string, unknown> = {};
-  if (Object.keys(schema.properties ?? {}).length > 0) {
-    const parsed = await parseVoiceLog(habit.schema, input, habit.aiContext);
-    if (!parsed.success || !parsed.data) return { success: false, error: parsed.error || 'AI could not understand' };
-    // Only the habit's own fields, as logging keeps
-    data = Object.fromEntries(Object.entries(parsed.data).filter(([key]) => key in schema.properties!));
-  }
+  const filled = await fillFromInput(habitId, input);
+  if (!filled.success) return filled;
+  const { data, schema } = filled;
 
   const isComplete = (schema.required ?? []).every(field => data[field] !== undefined && data[field] !== null && data[field] !== '');
   if (!isComplete) return { success: true, logged: false, data };
@@ -287,4 +278,32 @@ export async function logSmartEntry(habitId: string, input: string): Promise<
     // e.g. a value the AI filled in that the form doesn't accept: let the user fix it on the form
     return { success: true, logged: false, data };
   }
+}
+
+// A habit's form filled in from something the user said or typed, the same way as voice logging:
+// only the habit's own fields, as logging keeps. Nothing to fill in for a habit with no form.
+async function fillFromInput(habitId: string, input: string): Promise<
+  { success: true; data: Record<string, unknown>; schema: HabitSchema } | { success: false; error: string }
+> {
+  const habit = await getHabit(habitId);
+  if (!habit) return { success: false, error: 'Habit not found.' };
+
+  let schema: HabitSchema = {};
+  try {
+    schema = JSON.parse(habit.schema);
+  } catch {}
+
+  if (Object.keys(schema.properties ?? {}).length === 0) return { success: true, data: {}, schema };
+  const parsed = await parseVoiceLog(habit.schema, input, habit.aiContext);
+  if (!parsed.success || !parsed.data) return { success: false, error: parsed.error || 'AI could not understand' };
+  return { success: true, data: Object.fromEntries(Object.entries(parsed.data).filter(([key]) => key in schema.properties!)), schema };
+}
+
+// What could be filled in on a habit's form from input that matched the habit but didn't read as
+// something done (see SmartEntry), for the user to check and log themselves if it was. Empty when
+// nothing could be: an intention like "I want to track my weight" names no values. Best effort, so
+// a failure is just nothing filled in.
+export async function prefillSmartEntry(habitId: string, input: string): Promise<Record<string, unknown>> {
+  const filled = await fillFromInput(habitId, input);
+  return filled.success ? filled.data : {};
 }

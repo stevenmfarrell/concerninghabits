@@ -4,6 +4,8 @@ import SWUnregister from "../components/SWUnregister";
 import TimeZoneSync from "../components/TimeZoneSync";
 import { Toaster } from "react-hot-toast";
 import ToastLimit from "../components/ToastLimit";
+import ToastTouchResume from "../components/ToastTouchResume";
+import { TOAST_OPTIONS } from "../components/toastOptions";
 import BottomNav from "../components/BottomNav";
 import "./globals.css";
 
@@ -40,25 +42,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full flex flex-col bg-stone-50">
         {children}
-        <Toaster 
-          position="bottom-center" 
-          containerStyle={{ bottom: 100 }} 
-          toastOptions={{ 
-            duration: 4000,
-            success: {
-              style: {
-                background: '#1c1917', // stone-900
-                color: '#fff',
-                fontWeight: '500',
-              },
-              iconTheme: {
-                primary: '#10b981', // emerald-500
-                secondary: '#fff',
-              }
-            }
-          }} 
-        />
+        <Toaster position="bottom-center" containerStyle={{ bottom: 100 }} toastOptions={TOAST_OPTIONS} />
         <ToastLimit />
+        <ToastTouchResume />
         <BottomNav />
         <SWUnregister />
         <TimeZoneSync />

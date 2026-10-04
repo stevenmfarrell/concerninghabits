@@ -43,10 +43,10 @@ export function showLoggedToast(entry: LoggedEntry, { onUndone, toastId }: { onU
 
   const fields = Object.entries(entry.data).filter(([, val]) => val !== undefined && val !== null && val !== '');
   const listed = fields.slice(0, MAX_LISTED_FIELDS);
-  const values = listed.length > 0
-    ? listed.map(([key, val]) => `${entry.schemaProperties?.[key]?.title || key} ${formatLogValue(val, entry.schemaProperties?.[key])}`).join(' · ')
-      + (fields.length > listed.length ? ` · +${fields.length - listed.length} more` : '')
-    : null;
+  // One line per field, so a long value (e.g. a note) is cut short on its own line rather than
+  // pushing the fields after it out of the toast
+  const values = listed.map(([key, val]) => `${entry.schemaProperties?.[key]?.title || key} ${formatLogValue(val, entry.schemaProperties?.[key])}`);
+  if (fields.length > listed.length) values.push(`+${fields.length - listed.length} more`);
 
   toast.custom(t => (
     <ToastCard
@@ -70,7 +70,7 @@ function ToastCard({ t, icon, iconClassName, title, detail, values, onUndo }: {
   iconClassName: string;
   title: string;
   detail?: string;
-  values?: string | null;
+  values?: string[];
   onUndo: () => void;
 }) {
   return (
@@ -84,7 +84,7 @@ function ToastCard({ t, icon, iconClassName, title, detail, values, onUndo }: {
       <div className="flex-1 min-w-0 space-y-1 self-center">
         <p className="font-semibold truncate">{title}</p>
         {detail && <p className="text-sm text-stone-400 truncate">{detail}</p>}
-        {values && <p className="text-sm text-stone-200">{values}</p>}
+        {values?.map((line, i) => <p key={i} className="text-sm text-stone-200 truncate">{line}</p>)}
       </div>
       <div className="flex items-center gap-1 shrink-0">
         <Button variant="inverse" size="sm" onClick={onUndo}>
