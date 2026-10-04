@@ -36,7 +36,7 @@ export default async function SettingsPage() {
   const user = await getDefaultUser();
 
   return (
-    <PanePage width="max-w-3xl" header={<PageHeader title="Settings" showBack={false} />}>
+    <PanePage width="3xl" header={<PageHeader title="Settings" showBack={false} />}>
       <div className={`${PANE_INSET} py-4 flex items-center gap-4`}>
         <div className="w-16 h-16 bg-stone-100 rounded-full flex items-center justify-center shrink-0 border border-stone-200">
           <Icon name="User" className="w-8 h-8 text-stone-400" />

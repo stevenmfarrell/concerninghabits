@@ -27,6 +27,35 @@
   50% { transform: scaleY(1); }
 }
 
+/* Pane pages (see src/components/Pane.tsx) run their white sections and headings the full width of
+   the screen, while what's in them lines up with a centered column, --pane-width wide (set by
+   PanePage). These pad an element that spans the screen so its contents sit in that column, with a
+   gutter inside it; with no --pane-width (e.g. a row in a card), they're just the gutter. Each
+   computes the edge itself, since a percentage padding is of the element's own containing block. */
+:root {
+  --pane-gutter: 1rem;
+}
+@media (width >= 40rem) {
+  :root {
+    --pane-gutter: 1.5rem;
+  }
+}
+@utility pane-inset {
+  padding-inline: max(var(--pane-gutter), calc((100% - var(--pane-width, 100%)) / 2 + var(--pane-gutter)));
+}
+@utility pane-inset-l {
+  padding-left: max(var(--pane-gutter), calc((100% - var(--pane-width, 100%)) / 2 + var(--pane-gutter)));
+}
+@utility pane-inset-r {
+  padding-right: max(var(--pane-gutter), calc((100% - var(--pane-width, 100%)) / 2 + var(--pane-gutter)));
+}
+/* A row indented under a subcategory's header, its name lined up with the subcategory's (past its 2rem
+   icon and 0.75rem gap) */
+@utility pane-inset-nested {
+  padding-left: calc(max(var(--pane-gutter), calc((100% - var(--pane-width, 100%)) / 2 + var(--pane-gutter))) + 2.75rem);
+  padding-right: max(var(--pane-gutter), calc((100% - var(--pane-width, 100%)) / 2 + var(--pane-gutter)));
+}
+
 body {
   background: var(--background);
   color: var(--foreground);

@@ -42,7 +42,7 @@ const SortableSubcategoryItem = ({ sub, user, people, isOverlay, isReordering }:
   const content = (
     <div className={`flex flex-col relative w-full ${isOverlay ? 'shadow-2xl scale-[1.02] z-50 rounded-2xl' : ''}`}>
       {/* Header */}
-      <div className={`py-3 px-4 sm:px-6 flex justify-between items-center group/header transition-colors ${isOpen && subHabits.length > 0 ? 'border-b border-stone-100' : ''} bg-blue-50/50 hover:bg-blue-50`}>
+      <div className={`py-3 pane-inset flex justify-between items-center group/header transition-colors ${isOpen && subHabits.length > 0 ? 'border-b border-stone-100' : ''} bg-blue-50/50 hover:bg-blue-50`}>
         <div className="flex items-center gap-2 sm:gap-4 w-full">
           {isReordering && (
             <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing text-stone-300 hover:text-stone-500 touch-none shrink-0 p-1 -ml-2">
@@ -144,7 +144,7 @@ const SortableHabitItem = ({ habit, status, user, people, isOverlay, isReorderin
 
   const content = (
     <div className={`flex items-stretch transition-colors group/row relative ${isDragging ? 'opacity-30 bg-stone-100' : 'bg-white hover:bg-stone-50'} ${isOverlay ? 'shadow-2xl scale-[1.02] z-50 rounded-xl' : ''}`}>
-      <div className={`flex-1 flex items-center py-3 ${nested ? 'pl-15 sm:pl-17 pr-4 sm:pr-6' : 'px-4 sm:px-6'} gap-2 sm:gap-4 min-w-0`}>
+      <div className={`flex-1 flex items-center py-3 ${nested ? 'pane-inset-nested' : 'pane-inset'} gap-2 sm:gap-4 min-w-0`}>
         {isReordering && (
           <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing text-stone-300 hover:text-stone-500 touch-none shrink-0 p-1 -ml-2">
             <GripVertical className="w-5 h-5" />

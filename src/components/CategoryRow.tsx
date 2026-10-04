@@ -35,7 +35,7 @@ export default function CategoryRow({ href, name, icon, subtitle, dates, habitCo
       href={href}
       className="flex items-stretch transition-colors bg-blue-50/50 hover:bg-blue-50 group/row"
     >
-      <div className="flex-1 flex items-center py-3 px-4 sm:px-6 gap-3 sm:gap-6 min-w-0">
+      <div className="flex-1 flex items-center py-3 pane-inset gap-3 sm:gap-6 min-w-0">
         <div className="flex items-center gap-3 flex-1 min-w-0">
           <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center text-blue-700 transition-colors shrink-0">
             <Icon name={icon} className="w-5 h-5" />

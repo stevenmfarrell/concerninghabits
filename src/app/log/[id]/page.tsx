@@ -156,73 +156,70 @@ export default async function HabitPage(props: { params: Promise<{ id: string }>
           <section id="logs-table" className="scroll-mt-24">
             <PaneHeading action={<ExportCsvButton habitId={habit.id} />}>Entries</PaneHeading>
             <div className={PANE_SURFACE}>
-              <table className="w-full text-left border-collapse">
-                <tbody className="divide-y divide-stone-100">
-                  {paginatedLogs.length === 0 ? (
-                    <tr>
-                      <td colSpan={3} className="p-8 text-center text-stone-500">
-                        No logs found in this period.
-                      </td>
-                    </tr>
-                  ) : (
-                    paginatedLogs.map((log) => {
-                      const payload = JSON.parse(log.payload);
-                      const hasDetails = Object.keys(payload).length > 0;
-                      const isHighlighted = searchParams?.highlight === log.id;
-                  
-                      // Server action bind to delete this specific log
-                      const deleteAction = deleteHabitLog.bind(null, log.id, habit.id);
-                  
-                      return (
-                        <tr 
-                          id={`log-${log.id}`}
-                          key={isHighlighted ? `${log.id}-${searchParams?.t || '1'}` : log.id} 
-                          className={`group transition-colors ${
-                            isHighlighted ? 'animate-highlight-fade' : 'hover:bg-stone-50/50'
-                          }`}
-                        >
-                          <td className="py-3 pl-4 sm:pl-6 pr-4 text-stone-800 whitespace-nowrap align-top w-px">
-                            <div className="inline-flex flex-col">
-                              <span className="font-medium">
-                                {new Date(log.createdAt).toLocaleDateString('en-US', { dateStyle: 'medium', timeZone: user.timeZone })}
-                              </span>
-                              <span className="text-sm text-stone-500 text-right">
-                                {new Date(log.createdAt).toLocaleTimeString('en-US', { timeStyle: 'short', timeZone: user.timeZone })}
-                              </span>
-                              {people && <PersonLabel person={people[log.userId]} className="mt-1.5 justify-end" />}
+              {/* Rows of when, values and a menu, each row spanning the screen (for its dividers and
+                  highlight) with its contents in the page's column. The when is a fixed width, wide
+                  enough for any date, so the values line up down the list. */}
+              {paginatedLogs.length === 0 ? (
+                <p className="p-8 text-center text-stone-500">No logs found in this period.</p>
+              ) : (
+                <ul className="divide-y divide-stone-100">
+                  {paginatedLogs.map((log) => {
+                    const payload = JSON.parse(log.payload);
+                    const hasDetails = Object.keys(payload).length > 0;
+                    const isHighlighted = searchParams?.highlight === log.id;
+
+                    // Server action bind to delete this specific log
+                    const deleteAction = deleteHabitLog.bind(null, log.id, habit.id);
+
+                    return (
+                      <li
+                        id={`log-${log.id}`}
+                        key={isHighlighted ? `${log.id}-${searchParams?.t || '1'}` : log.id}
+                        className={`flex items-start gap-4 pane-inset py-3 group transition-colors ${
+                          isHighlighted ? 'animate-highlight-fade' : 'hover:bg-stone-50/50'
+                        }`}
+                      >
+                        <div className="w-30 shrink-0">
+                          <div className="inline-flex flex-col text-stone-800 whitespace-nowrap">
+                            <span className="font-medium">
+                              {new Date(log.createdAt).toLocaleDateString('en-US', { dateStyle: 'medium', timeZone: user.timeZone })}
+                            </span>
+                            <span className="text-sm text-stone-500 text-right">
+                              {new Date(log.createdAt).toLocaleTimeString('en-US', { timeStyle: 'short', timeZone: user.timeZone })}
+                            </span>
+                            {people && <PersonLabel person={people[log.userId]} className="mt-1.5 justify-end" />}
+                          </div>
+                        </div>
+                        <div className="flex-1 text-stone-600 min-w-0">
+                          {hasDetails ? (
+                            <div className="space-y-1">
+                              {Object.entries(payload).map(([key, value]) => (
+                                <div key={key} className="text-sm whitespace-pre-line break-words">
+                                  <span className="font-medium text-stone-700">
+                                    {fieldTitle(key, schemaProperties)}:
+                                  </span>{' '}
+                                  {formatLogValue(value, schemaProperties?.[key])}
+                                </div>
+                              ))}
                             </div>
-                          </td>
-                          <td className="py-3 pr-4 text-stone-600 align-top">
-                            {hasDetails ? (
-                              <div className="space-y-1">
-                                {Object.entries(payload).map(([key, value]) => (
-                                  <div key={key} className="text-sm whitespace-pre-line break-words">
-                                    <span className="font-medium text-stone-700">
-                                      {fieldTitle(key, schemaProperties)}:
-                                    </span>{' '}
-                                    {formatLogValue(value, schemaProperties?.[key])}
-                                  </div>
-                                ))}
-                              </div>
-                            ) : (
-                              <span className="text-stone-400 italic text-sm">Completed</span>
-                            )}
-                          </td>
-                          <td className="py-2 pr-4 sm:pr-6 align-top text-right w-px">
-                            {log.canChange && (
-                              <EntryMenu
-                                habit={{ id: habit.id, name: habit.name, schema: habit.schema }}
-                                entry={{ id: log.id, payload, createdAt: log.createdAt }}
-                                deleteAction={deleteAction}
-                              />
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
+                          ) : (
+                            <span className="text-stone-400 italic text-sm">Completed</span>
+                          )}
+                        </div>
+                        <div className="-my-1.5 -mr-2">
+                          {log.canChange && (
+                            <EntryMenu
+                              habit={{ id: habit.id, name: habit.name, schema: habit.schema }}
+                              entry={{ id: log.id, payload, createdAt: log.createdAt }}
+                              deleteAction={deleteAction}
+                            />
+                          )}
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
 
               {totalPages > 1 && (
                 <div className={`${PANE_INSET} flex items-center justify-between gap-4 py-3 border-t border-stone-100`}>

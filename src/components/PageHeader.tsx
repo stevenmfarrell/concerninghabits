@@ -22,9 +22,10 @@ interface PageHeaderProps {
   titleInsetClassName?: string;
 }
 
+// Its contents line up with the page's column on a pane page (see pane-inset in globals.css)
 export default function PageHeader({ title, subtitle, backHref, showBack = true, actions, titleInsetClassName = 'px-14' }: PageHeaderProps) {
   return (
-    <div className="sticky top-0 z-30 h-17 sm:h-19 border-b border-stone-200 px-4 sm:px-8 flex items-center justify-between shadow-sm">
+    <div className="sticky top-0 z-30 h-17 sm:h-19 border-b border-stone-200 pane-inset flex items-center justify-between shadow-sm">
       {/* The frosted background is its own layer: a backdrop blur on the header itself would make it
           the containing block for `fixed` descendants, confining a menu's tap-outside-to-close
           overlay to the header */}

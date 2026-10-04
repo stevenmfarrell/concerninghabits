@@ -100,7 +100,7 @@ export default async function HistoryPage(props: { searchParams: Promise<{ day?:
 
   return (
     <PanePage
-      width="max-w-3xl"
+      width="3xl"
       header={
         <PageHeader
           title={dayLabel}
@@ -176,7 +176,7 @@ function HabitDay({ habit, entries, timeZone }: { habit: DayHabit; entries: DayE
 
   return (
     <li>
-      <Link href={`/log/${habit.id}`} className="flex items-start gap-3 px-4 sm:px-6 py-3 hover:bg-stone-50 transition-colors group/row">
+      <Link href={`/log/${habit.id}`} className="flex items-start gap-3 pane-inset py-3 hover:bg-stone-50 transition-colors group/row">
         <div className="flex-1 min-w-0 space-y-1">
           <h3 className="font-semibold text-stone-800 group-hover/row:text-emerald-600 transition-colors truncate">
             {habit.name}

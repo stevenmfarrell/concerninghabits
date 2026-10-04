@@ -75,7 +75,7 @@ Every page gets the sticky `<PageHeader>` (`src/components/PageHeader.tsx`), a f
 
 ## Panes, not cards
 
-A page's background is always the body's `stone-50`. Lists sit on white running the full width of the content column, with only hairlines between rows, instead of in cards. Everything that isn't a list stays on the stone: text, buttons, chips, empty states, and whatever space is left below the content. Build it from `src/components/Pane.tsx`:
+A page's background is always the body's `stone-50`. Lists sit on white running the full width of the screen, with only hairlines between rows, instead of in cards. Everything that isn't a list stays on the stone: text, buttons, chips, empty states, and whatever space is left below the content. Build it from `src/components/Pane.tsx`:
 
 ```tsx
 <PanePage header={<PageHeader title="Habits" showBack={false} />}>
@@ -85,12 +85,13 @@ A page's background is always the body's `stone-50`. Lists sit on white running 
 </PanePage>
 ```
 
-- `PanePage` is the `<main>`: the header, then a centered column (`width`, default `max-w-4xl`). Sections follow each other with no gap, since their headings separate them. Anything else in the column (a line of text, a profile, a button) brings its own vertical padding, usually `py-3` or `py-4`.
+- `PanePage` is the `<main>`: the header, then the sections. Each section spans the screen, while its contents line up in a centered column (`width`: `'4xl'`, the default, or `'3xl'`). Sections follow each other with no gap, since their headings separate them. Anything else in the column (a line of text, a profile, a button) brings its own vertical padding, usually `py-3` or `py-4`.
 - `PaneSection` is a heading over its rows on white, divided by hairlines. Pass `empty` (text or an `<EmptyState>`) for a section with nothing in it; that is shown on the stone instead of an empty white block.
 - A section whose content isn't rows (a calendar, a chart) is built by hand: a `<section>` holding a `PaneHeading` with the controls in its `action`, then the content in a `PANE_SURFACE` div with `PANE_INSET` and `py-4`, as the habit log page's Activity and Trends do.
 - Content that isn't a list doesn't go on white, even inside a section. For example, Agenda's Done chips sit on the stone under their heading.
 - A `PaneHeading` is small uppercase text on the stone. It pins just under the page header (`BELOW_HEADER`, from `PageHeader`'s fixed height) while its section scrolls by, until the next section's heading pushes it out. It only sticks within its section, so keep each heading as the first child of the `<section>` holding its content.
-- Anything that isn't a full-width row gets `PANE_INSET` as its horizontal padding, so it lines up with the rows' contents.
+- `PANE_INSET` (the `pane-inset` utility in `globals.css`) is the horizontal padding for anything that spans the screen. It pads the element so its contents sit in the page's column, with a 1rem gutter (1.5rem from `sm`). Use it on rows, text blocks and section bodies, never a fixed `px-4 sm:px-6`, or the contents drift to the screen's edges on desktop. `pane-inset-l`, `pane-inset-r` and `pane-inset-nested` cover one side, or a row indented under a subcategory.
+- Don't use `pane-inset` on table cells, because percentage padding doesn't size reliably there. A list with columns is flex rows with a fixed-width first column, as the log page's Entries are.
 - Rows are `py-3` with `PANE_INSET` padding. Don't put rows in a `rounded-2xl` card.
 - Without cards to group them, nesting is shown by indenting: a subcategory's habits (`SortableHabitList nested`) line up under the subcategory's name.
 - Converted: the four tabs, the category page and the habit log page. The category history page, settings sub-pages and forms still use cards; move each one over when you rework it.

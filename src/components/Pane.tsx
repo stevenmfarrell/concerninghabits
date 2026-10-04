@@ -2,24 +2,31 @@ import type { ReactNode } from 'react';
 import { BELOW_HEADER } from '@/components/PageHeader';
 
 // Pages are the body's stone background, with their lists on white running the full width of the
-// column (rather than in cards), with only the lines between rows. Anything that isn't a list (a
+// screen (rather than in cards), with only the lines between rows. Anything that isn't a list (a
 // line of text, a button, chips, an empty state) sits on the stone, as does whatever space is left
 // below. Agenda (src/app/page.tsx) is the reference.
 
-// Lined up with the rows' contents, which run the full width of the page
-export const PANE_INSET = 'px-4 sm:px-6';
+// For anything that spans the screen: pads it so its contents sit in the page's centered column,
+// lined up with the rows' (see pane-inset in globals.css)
+export const PANE_INSET = 'pane-inset';
 
 // The white a section's content sits on, for a section built by hand around a PaneHeading
 export const PANE_SURFACE = 'bg-white';
 
-// The page itself: its sticky header, then its content in a centered column. Sections follow each
-// other directly, their headings keeping them apart; anything else in the column brings its own
-// vertical padding.
-export function PanePage({ header, width = 'max-w-4xl', children }: { header: ReactNode; width?: string; children: ReactNode }) {
+// The column a page's content lines up in, by `width`
+const PANE_WIDTHS = {
+  '3xl': '[--pane-width:48rem]',
+  '4xl': '[--pane-width:56rem]',
+};
+
+// The page itself: its sticky header, then its sections, each spanning the screen with its contents
+// in a centered column (PANE_INSET). Sections follow each other directly, their headings keeping them
+// apart; anything else on the page brings its own vertical padding.
+export function PanePage({ header, width = '4xl', children }: { header: ReactNode; width?: keyof typeof PANE_WIDTHS; children: ReactNode }) {
   return (
-    <main className="flex-1 pb-8 bg-stone-50 font-sans">
+    <main className={`flex-1 pb-8 bg-stone-50 font-sans ${PANE_WIDTHS[width]}`}>
       {header}
-      <div className={`${width} mx-auto`}>{children}</div>
+      {children}
     </main>
   );
 }
