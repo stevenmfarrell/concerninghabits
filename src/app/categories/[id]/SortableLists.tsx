@@ -42,7 +42,7 @@ const SortableSubcategoryItem = ({ sub, user, people, isOverlay, isReordering }:
   const content = (
     <div className={`flex flex-col relative w-full ${isOverlay ? 'shadow-2xl scale-[1.02] z-50 rounded-2xl' : ''}`}>
       {/* Header */}
-      <div className={`py-3 pane-inset flex justify-between items-center group/header transition-colors ${isOpen && subHabits.length > 0 ? 'border-b border-stone-100' : ''} bg-blue-50/50 hover:bg-blue-50`}>
+      <div className={`py-3 pane-inset flex justify-between items-center group/header transition-colors ${isOpen && subHabits.length > 0 ? 'border-b border-stone-100' : ''} hover:bg-stone-50`}>
         <div className="flex items-center gap-2 sm:gap-4 w-full">
           {isReordering && (
             <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing text-stone-300 hover:text-stone-500 touch-none shrink-0 p-1 -ml-2">

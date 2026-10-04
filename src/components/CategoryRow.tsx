@@ -33,7 +33,7 @@ export default function CategoryRow({ href, name, icon, subtitle, dates, habitCo
   return (
     <Link
       href={href}
-      className="flex items-stretch transition-colors bg-blue-50/50 hover:bg-blue-50 group/row"
+      className="flex items-stretch transition-colors bg-white hover:bg-stone-50 group/row"
     >
       <div className="flex-1 flex items-center py-3 pane-inset gap-3 sm:gap-6 min-w-0">
         <div className="flex items-center gap-3 flex-1 min-w-0">

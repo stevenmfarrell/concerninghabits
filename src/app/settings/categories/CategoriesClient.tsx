@@ -49,7 +49,7 @@ const customCollisionDetection: CollisionDetection = (args) => {
 const SubcategoryDropZone = ({ isProjected }: { isProjected: boolean }) => {
   return (
     <div
-      className={`absolute right-[max(1rem,calc((100%-var(--pane-width,100%))/2+1rem))] top-1/2 -translate-y-1/2 h-10 px-4 rounded-lg border-2 flex items-center justify-center transition-colors z-50 shadow-sm ${isProjected ? 'border-emerald-500 bg-emerald-50 text-emerald-700 font-bold scale-110' : 'border-dashed border-stone-200 bg-white/80 text-stone-400 font-medium'}`}
+      className={`absolute right-[max(1rem,calc((100%-var(--pane-width,100%))/2+1rem))] top-1/2 -translate-y-1/2 h-10 px-4 rounded-lg border-2 flex items-center justify-center transition-colors z-50 shadow-sm ${isProjected ? 'border-blue-500 bg-blue-50 text-blue-700 font-bold scale-110' : 'border-dashed border-stone-200 bg-white/80 text-stone-400 font-medium'}`}
     >
       <span className="text-xs whitespace-nowrap pointer-events-none">{isProjected ? 'Release to Nest' : 'Drag Right to Nest'}</span>
     </div>
@@ -245,7 +245,7 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
           </>
         ) : (
           <>
-            <div className={`w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 ${cat.parentId ? 'scale-90' : ''}`}>
+            <div className={`w-10 h-10 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center shrink-0 ${cat.parentId ? 'scale-90' : ''}`}>
               <Icon name={cat.icon || 'List'} className="w-5 h-5" />
             </div>
             <div className="flex-1 font-medium text-stone-800 flex items-center gap-2">
@@ -268,7 +268,7 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
         </div>
         {childrenNode}
         {dropPreview && dropPreview.mode !== 'reorder' && dropPreview.anchorId === cat.id && !dndProps?.isOverlay && (
-          <div className={`absolute left-2 right-2 h-0.5 bg-emerald-500 rounded-full z-50 pointer-events-none ${dropPreview.position === 'after' ? '-bottom-px' : '-top-px'}`} />
+          <div className={`absolute left-2 right-2 h-0.5 bg-blue-500 rounded-full z-50 pointer-events-none ${dropPreview.position === 'after' ? '-bottom-px' : '-top-px'}`} />
         )}
       </li>
     );
@@ -398,7 +398,7 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
                 type="button"
                 onClick={() => { setAddingParentId(''); setNewName(''); setNewIcon('List'); }}
                 disabled={addingParentId !== null}
-                className="w-full flex items-center gap-2 pane-inset py-3 text-left text-sm font-medium text-emerald-700 hover:bg-stone-50 transition-colors disabled:opacity-50"
+                className="w-full flex items-center gap-2 pane-inset py-3 text-left text-sm font-medium text-blue-700 hover:bg-stone-50 transition-colors disabled:opacity-50"
               >
                 <Plus className="w-4 h-4" /> New Category
               </button>
