@@ -30,8 +30,8 @@ export default function ExportCsvButton({ habitId }: { habitId: string }) {
   };
 
   return (
-    <IconButton onClick={handleExport} disabled={loading} title="Export CSV">
-      {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : <Download className="w-6 h-6" strokeWidth={2.5} />}
+    <IconButton onClick={handleExport} disabled={loading} size="sm" edge="right" title="Export CSV" aria-label="Export CSV">
+      {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Download className="w-5 h-5" />}
     </IconButton>
   );
 }

@@ -53,7 +53,7 @@ export default async function HabitsPage() {
           </EmptyState>
         )}
         action={
-          <IconLinkButton href="/settings/categories" edge="right" title="Manage Categories" aria-label="Manage Categories" className="-my-2">
+          <IconLinkButton href="/settings/categories" size="sm" edge="right" title="Manage Categories" aria-label="Manage Categories">
             <Settings2 className="w-5 h-5" />
           </IconLinkButton>
         }

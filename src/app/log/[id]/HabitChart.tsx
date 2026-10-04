@@ -3,13 +3,15 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import type { Person } from '@/lib/userColors';
-import { BarChart2, LineChart as LineChartIcon } from 'lucide-react';
+import { BarChart2, ChevronDown, LineChart as LineChartIcon } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { formatLogValue, formatDuration } from '../../../lib/format';
 import type { HabitSchema } from '@/lib/types';
 import { fieldTitle, type HabitFormProperties } from '@/components/widgets/habitForm';
 import { PANE_INSET, PANE_SURFACE, PaneHeading } from '@/components/Pane';
 import { MENU_PANEL, MenuBackdrop, menuOptionClasses } from '@/components/ui/Menu';
+import { Button } from '@/components/ui/Button';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
 
 // The theme's colors (see globals.css), as CSS variables so the chart follows light and dark mode
 const CHART_COLOR = 'var(--accent)';
@@ -18,6 +20,11 @@ const CHART_TICK = { fill: 'var(--ink-muted)', fontSize: 12 };
 const TOOLTIP_STYLE = { backgroundColor: 'var(--surface)', borderRadius: '12px', border: '1px solid var(--line)', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' };
 const TOOLTIP_LABEL_STYLE = { color: 'var(--ink-secondary)', fontWeight: 600, marginBottom: '4px' };
 const TOOLTIP_ITEM_STYLE = { color: 'var(--accent-ink-strong)', fontWeight: 700 };
+
+const CHART_TYPE_OPTIONS = [
+  { value: 'bar' as const, label: 'Bar chart', icon: <BarChart2 className="w-4 h-4" /> },
+  { value: 'line' as const, label: 'Line chart', icon: <LineChartIcon className="w-4 h-4" /> },
+];
 
 // The tooltip's label for a value: the field name, plus who logged it on a shared habit
 function tooltipLabel(fieldLabel: string, item: unknown) {
@@ -185,16 +192,13 @@ export default function HabitChart({
   return (
     <section>
       <PaneHeading action={
-        <div className="flex items-center gap-2">
+        <>
           {numericFields.length > 1 && (
             <div className="relative">
-              <button 
-                onClick={() => setIsOpen(!isOpen)}
-                className="flex items-center gap-2 px-3 py-1.5 bg-surface-subtle hover:bg-surface-muted border border-line rounded-lg text-sm font-medium text-ink-secondary transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
-              >
+              <Button variant="ghost" size="xs" onClick={() => setIsOpen(!isOpen)} aria-expanded={isOpen}>
                 {getFieldLabel(selectedField)}
-                <svg className="w-4 h-4 text-ink-subtle" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-              </button>
+                <ChevronDown className="w-4 h-4" />
+              </Button>
               {isOpen && (
                 <>
                   <MenuBackdrop onClose={() => setIsOpen(false)} />
@@ -218,26 +222,21 @@ export default function HabitChart({
               )}
             </div>
           )}
+          {/* With only one field to chart, just its name, in place of the picker */}
           {numericFields.length === 1 && (
-            <span className="text-sm font-medium text-ink-muted bg-surface-muted px-3 py-1 rounded-lg">
-              {getFieldLabel(selectedField)}
-            </span>
+            <span className="text-sm font-medium text-ink-muted">{getFieldLabel(selectedField)}</span>
           )}
 
-          <div className="flex bg-surface-subtle border border-line rounded-lg overflow-hidden">
-            <button
-              onClick={() => {
-                const newType = chartTypes[selectedField] === 'bar' ? 'line' : 'bar';
-                setChartTypes(prev => ({ ...prev, [selectedField]: newType }));
-                document.cookie = `chartType_${habitId}_${selectedField}=${newType}; path=/; max-age=315360000`;
-              }}
-              className="flex items-center justify-center p-1.5 hover:bg-surface-muted text-ink-muted hover:text-accent-ink transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
-              title={`Switch to ${chartTypes[selectedField] === 'bar' ? 'Line' : 'Bar'} Chart`}
-            >
-              {chartTypes[selectedField] === 'bar' ? <LineChartIcon className="w-4 h-4" /> : <BarChart2 className="w-4 h-4" />}
-            </button>
-          </div>
-        </div>
+          <SegmentedControl
+            label="Chart type"
+            options={CHART_TYPE_OPTIONS}
+            value={chartTypes[selectedField] ?? 'line'}
+            onChange={type => {
+              setChartTypes(prev => ({ ...prev, [selectedField]: type }));
+              document.cookie = `chartType_${habitId}_${selectedField}=${type}; path=/; max-age=315360000`;
+            }}
+          />
+        </>
       }>
         Trends
       </PaneHeading>

@@ -79,7 +79,7 @@ export function FormPreviewButton({ schema, title }: { schema: HabitSchema; titl
 
   return (
     <>
-      <Button variant="ghost" size="sm" onClick={() => setPreviewOpen(true)} className="-mr-2 -my-2">
+      <Button variant="ghost" size="xs" onClick={() => setPreviewOpen(true)} className="-mr-3">
         <Eye className="w-4 h-4" />
         Preview form
       </Button>

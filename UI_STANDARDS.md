@@ -26,8 +26,8 @@ import { Button, LinkButton } from '@/components/ui/Button';
 ```
 
 - **variant**: `primary` (emerald, main CTA) · `secondary` (stone-900, non-destructive secondary action) · `outline` (neutral bordered) · `ghost` (text-only, e.g. Cancel/Log Out) · `danger` (red filled, destructive confirm) · `danger-ghost` (red text, e.g. "Delete Habit" trigger before the confirm dialog) · `inverse` / `inverse-ghost` (white button / light text, for dark emerald surfaces like the smart entry panel)
-- **size**: `sm` (rounded-lg, compact controls like inline toggles) · `md` (default, most form buttons) · `lg` · `xl` (rounded-xl, big CTAs)
-- Only `sm` uses `rounded-lg`. Every other size is `rounded-xl` — don't introduce a third radius.
+- **size**: `xs` (32px, only for a section heading's controls, see below) · `sm` (rounded-lg, compact controls like inline toggles) · `md` (default, most form buttons) · `lg` · `xl` (rounded-xl, big CTAs)
+- Only `xs` and `sm` use `rounded-lg`. Every other size is `rounded-xl` — don't introduce a third radius.
 - For destructive confirmations, use `<ConfirmDialog>` (`src/components/ConfirmDialog.tsx`) rather than building a custom modal — it already wires up the danger/ghost button pair.
 
 ## Icon-only buttons
@@ -40,7 +40,8 @@ import { IconButton, IconLinkButton } from '@/components/ui/IconButton';
 ```
 
 - `variant`: `default` (stone, most icon buttons) · `accent` (emerald, e.g. link-outs to history/overview) · `soft` (pale emerald, an action repeated down a list, e.g. each row's Log button) · `solid` (filled emerald, a primary action, e.g. sending typed input) · `danger`.
-- `edge`: `left` or `right` when the button sits at the edge of a header/toolbar (adds the `-ml-2`/`-mr-2` optical alignment) — `none` otherwise.
+- `edge`: `left` or `right` when the button sits at the edge of a header/toolbar (pulls it out by its padding, so the icon lines up with the edge) — `none` otherwise.
+- `size`: `md` (default, `p-2`) or `sm` (`p-1.5` with a `w-5` icon, 32px, for a section heading's controls).
 - Don't write a bespoke `p-2 rounded-full hover:bg-stone-100` button; that's what this component is for. A button with genuinely state-dependent styling (e.g. a favorite toggle that turns solid amber) is a legitimate exception — leave it custom rather than forcing a fake variant into the shared component.
 
 ## Text inputs
@@ -129,6 +130,16 @@ A page's background is always the body's `stone-50`. Lists sit on white running 
 - A habit's category and cadence are pills (`CategoryQuickEdit`, `CadenceQuickEdit`), centered on the stone under the header, each opening a small dialog to change it. That holds wherever they appear: the habit's page and the category page save on the spot, while the editor passes `saveLabel="Done"` and only changes its draft. Toasts about a saved change belong to the caller, not the dialog.
 - A form field is a `PaneField` row (label, optional description, then the control), and a text input uses the classes from `src/components/ui/Input.tsx` (see Text inputs below). Something added to a list (a field, a category, a user) is a last row with a `+` and emerald text, not a `Button`.
 - Every page uses panes now. Don't add a page made of `rounded-2xl` cards.
+
+## Section heading controls
+
+A `PaneHeading` (or `PaneSection`'s `action`) can carry controls at its right end, e.g. the Activity time range, the Trends field and chart type, Export CSV, Preview form. They're all 32px tall. `PaneHeading` lets them overhang its padding, so a heading with controls is exactly as tall as one without, and pinned headings don't jump in height as they replace each other. Pass them as siblings: `PaneHeading` lays them out in a row with `gap-2`.
+
+- **A choice between a few options**: `SegmentedControl` (`src/components/ui/SegmentedControl.tsx`). It has no track or outline: its options sit on the background like a ghost button's label, and the chosen one is filled with `surface-strong`. Give each option an `icon` for an icon-only segment (e.g. Bar | Line), and its `label` becomes the tooltip and accessible name. It shows the current state, so don't use a single button that flips between two.
+- **An action with an icon**: `IconButton` / `IconLinkButton` with `size="sm"`, a `w-5 h-5` icon, and `edge="right"` when it's last.
+- **An action or picker with text**: `Button variant="ghost" size="xs"`, with `-mr-3` when it's last. A picker adds a `ChevronDown` after its label and opens a `MENU_PANEL`.
+- **Plain information** (e.g. the one field there is to chart) is plain `text-sm text-ink-muted` text, not a pill that looks like a disabled control.
+- Don't use `-my-2` or other margins to squeeze a bigger control in. Use these sizes.
 
 ## Dialogs
 

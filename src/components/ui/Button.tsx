@@ -2,7 +2,7 @@ import Link from 'next/link';
 import type { ButtonHTMLAttributes, ComponentProps } from 'react';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger' | 'danger-ghost' | 'inverse' | 'inverse-ghost';
-export type ButtonSize = 'sm' | 'md' | 'lg' | 'xl';
+export type ButtonSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
 
 const VARIANT_CLASSES: Record<ButtonVariant, string> = {
   primary: 'bg-accent text-on-accent hover:bg-accent-hover shadow-sm',
@@ -18,6 +18,8 @@ const VARIANT_CLASSES: Record<ButtonVariant, string> = {
 };
 
 const SIZE_CLASSES: Record<ButtonSize, string> = {
+  // For a section heading's controls (see PaneHeading), all 32px tall
+  xs: 'h-8 px-3 text-sm rounded-lg gap-1.5',
   sm: 'px-4 py-2 text-sm rounded-lg gap-1.5',
   md: 'px-5 py-2.5 text-sm rounded-xl gap-2',
   lg: 'px-6 py-3 rounded-xl gap-2',

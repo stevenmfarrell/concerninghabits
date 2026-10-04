@@ -35,18 +35,20 @@ export function PanePage({ header, width = '4xl', centered = false, children }: 
   );
 }
 
-// A small uppercase heading over a section, with an optional control at its right end, on the stone
+// A small uppercase heading over a section, with optional controls at its right end, on the stone
 // background. It sits well below whatever's above it and close to its own content, so it reads as
 // belonging to the section below. It pins under the page header while its section scrolls by, until
 // the next section's heading takes its place; the space above it is a separate spacer, which scrolls
-// away, so the pinned heading stays slim.
+// away, so the pinned heading stays slim. Its controls are all 32px tall, so every heading is the same
+// height when pinned: SegmentedControl, IconButton size="sm", Button size="xs" (see UI_STANDARDS.md).
 export function PaneHeading({ children, action }: { children: ReactNode; action?: ReactNode }) {
   return (
     <>
       <div className="h-4" aria-hidden="true" />
       <div className={`sticky ${BELOW_HEADER} z-20 ${PANE_INSET} pt-2 pb-1.5 min-h-9 flex items-end justify-between gap-4 bg-canvas`}>
         <h2 className="flex items-center gap-2 min-w-0 text-xs font-semibold uppercase tracking-wider text-ink-muted">{children}</h2>
-        {action}
+        {/* The controls overhang the row's padding, so a heading is as slim with them as without */}
+        {action && <div className="shrink-0 -my-1.5 flex items-center gap-2">{action}</div>}
       </div>
     </>
   );
