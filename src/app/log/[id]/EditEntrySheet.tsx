@@ -9,6 +9,7 @@ import { updateHabitLog } from '@/app/actions/db';
 import { Button } from '@/components/ui/Button';
 import BottomSheet from '@/components/BottomSheet';
 import { HABIT_FORM_WIDGETS, habitFormUiSchema, parseHabitSchema, type HabitFormProperties } from '@/components/widgets/habitForm';
+import { INPUT } from '@/components/ui/Input';
 
 export interface EditableEntry {
   id: string;
@@ -70,7 +71,7 @@ export default function EditEntrySheet({ habit, entry, onClose }: {
         <input
           id={`entry-time-${entry.id}`}
           type="datetime-local"
-          className="w-full px-4 py-2 bg-surface border border-line rounded-lg focus:outline-none focus:ring-2 focus:ring-focus text-ink-secondary text-sm"
+          className={INPUT}
           value={time}
           onChange={e => setTime(e.target.value)}
           disabled={saving}

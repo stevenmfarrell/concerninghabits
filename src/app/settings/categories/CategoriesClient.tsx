@@ -8,7 +8,7 @@ import { Plus, Trash2, Edit2, Check, X, Loader2, GripVertical } from 'lucide-rea
 import { Fragment } from 'react';
 import ConfirmDialog from '../../../components/ConfirmDialog';
 import { IconButton } from '../../../components/ui/IconButton';
-import { INPUT } from '../../../components/ui/Input';
+import { INPUT_SM } from '../../../components/ui/Input';
 import { PANE_SURFACE, PaneHeading } from '../../../components/Pane';
 import { UNCATEGORIZED_ICON } from '@/lib/constants';
 import toast from 'react-hot-toast';
@@ -223,7 +223,7 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
               type="text"
               autoFocus
               aria-label="Category name"
-              className={`${INPUT} flex-1 min-w-[120px] bg-surface`}
+              className={`${INPUT_SM} w-auto flex-1 min-w-[120px]`}
               value={editName}
               onChange={(e) => setEditName(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleUpdate(cat.id)}
@@ -287,7 +287,7 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
         autoFocus
         placeholder={nested ? 'Subcategory Name' : 'Category Name'}
         aria-label={nested ? 'Subcategory name' : 'Category name'}
-        className={`${INPUT} flex-1 min-w-[120px] bg-surface`}
+        className={`${INPUT_SM} w-auto flex-1 min-w-[120px]`}
         value={newName}
         onChange={(e) => setNewName(e.target.value)}
         onKeyDown={(e) => e.key === 'Enter' && handleCreateInline()}

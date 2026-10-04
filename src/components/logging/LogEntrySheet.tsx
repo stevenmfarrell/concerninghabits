@@ -11,6 +11,7 @@ import { HABIT_FORM_WIDGETS, habitFormUiSchema } from '@/components/widgets/habi
 import type { HabitLogger } from './useHabitLogger';
 import { useVoiceLogging } from './useVoiceLogging';
 import { useImageLogging } from './useImageLogging';
+import { INPUT } from '@/components/ui/Input';
 
 // A habit's entry form in a pane that slides up from the bottom, over whatever page the Log button
 // was on: its fields (fillable by voice or photo), an optional custom date, and the submit button.
@@ -96,7 +97,7 @@ export default function LogEntrySheet({ logger }: { logger: HabitLogger }) {
       }
     >
       {showBackdate && (
-        <div className="p-4 bg-surface-subtle border border-line rounded-xl">
+        <div className="p-4 border border-line rounded-xl">
           <div className="flex justify-between items-center mb-2">
             <label htmlFor="log-date" className="block text-sm font-medium text-ink-secondary">Custom Date & Time</label>
             <button
@@ -113,7 +114,7 @@ export default function LogEntrySheet({ logger }: { logger: HabitLogger }) {
           <input
             id="log-date"
             type="datetime-local"
-            className="w-full px-4 py-2 bg-surface border border-line rounded-lg focus:outline-none focus:ring-2 focus:ring-focus text-ink-secondary text-sm"
+            className={INPUT}
             value={logDate}
             onChange={e => setLogDate(e.target.value)}
             disabled={busy}

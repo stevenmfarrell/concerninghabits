@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Select from './Select';
 import { CADENCE_TYPES, withTimes, type Cadence, type CadenceType } from '@/lib/cadence';
+import { INPUT_SM } from '@/components/ui/Input';
 
 // Each cadence as the editor offers it: its name in the picker, and what it starts as when picked.
 // Keyed by every cadence type, so a new one doesn't build until it's given a place here.
@@ -14,8 +15,6 @@ const CADENCE_OPTIONS: { [T in CadenceType]: { label: string; initial: () => Ext
   none: { label: 'No set cadence', initial: () => ({ type: 'none' }) },
 };
 
-const NUMBER_INPUT_CLASS = 'w-full sm:w-32 h-[42px] px-3 py-2 bg-surface border border-line rounded-lg focus:outline-none focus:ring-2 focus:ring-focus text-sm shadow-sm';
-
 // The cadence picker. The setting the chosen cadence needs, if any, is CadenceSettings, which
 // HabitEditor shows below its row of pickers.
 export function CadencePicker({ value, onChange, disabled }: { value: Cadence; onChange: (cadence: Cadence) => void; disabled?: boolean }) {
@@ -25,6 +24,7 @@ export function CadencePicker({ value, onChange, disabled }: { value: Cadence; o
       onChange={type => onChange(type === value.type ? value : CADENCE_OPTIONS[type as CadenceType].initial())}
       options={CADENCE_TYPES.map(type => ({ id: type, label: CADENCE_OPTIONS[type].label }))}
       disabled={disabled}
+      size="sm"
     />
   );
 }
@@ -107,7 +107,7 @@ function CadenceNumber({ label, help, value, min, max, onChange, disabled }: { l
           inputMode="numeric"
           min={min}
           max={max}
-          className={`${NUMBER_INPUT_CLASS} block mt-2 font-normal`}
+          className={`${INPUT_SM} sm:w-32 block mt-2 font-normal`}
           value={typed}
           onChange={e => {
             setTyped(e.target.value);

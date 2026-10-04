@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import * as LucideIcons from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
+import { INPUT_SM } from '@/components/ui/Input';
 
 const iconsByName = LucideIcons as unknown as Record<string, LucideIcon>;
 
@@ -47,18 +48,18 @@ export default function IconPicker({ value, onChange, disabled }: IconPickerProp
         type="button"
         disabled={disabled}
         onClick={() => setIsOpen(!isOpen)}
-        className="h-[38px] px-3 bg-surface border border-line rounded-lg flex items-center justify-center text-ink-secondary hover:bg-surface-subtle focus:outline-none focus:ring-2 focus:ring-focus disabled:opacity-50 transition-colors"
+        className={`${INPUT_SM} w-auto flex items-center justify-center text-ink-secondary hover:bg-surface-muted`}
         title="Choose Icon"
       >
         <CurrentIcon className="w-4 h-4" />
       </button>
 
       {isOpen && (
-        <div className="absolute z-[100] left-0 mt-1 w-64 bg-surface border border-line rounded-xl shadow-xl p-2">
+        <div className="absolute z-[100] left-0 top-full mt-1 w-64 bg-surface border border-line rounded-xl shadow-xl p-2">
           <input
             type="text"
             placeholder="Search icons..."
-            className="w-full px-3 py-2 bg-surface-subtle border border-line rounded-lg text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-focus"
+            className={`${INPUT_SM} mb-2`}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             autoFocus

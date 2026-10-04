@@ -1,4 +1,5 @@
 import { MAX_AI_CONTEXT_LENGTH } from '@/lib/constants';
+import { TEXTAREA } from '@/components/ui/Input';
 
 // A user's own context for AI on a habit (see HabitMember.aiContext). Editable by everyone with the
 // habit in the habit editor, owner or not, since each member keeps their own.
@@ -11,7 +12,7 @@ export default function AiContextField({ value, onChange, disabled }: { value: s
       </p>
       <textarea
         id="ai-context"
-        className="w-full px-3 py-2 bg-surface-subtle border border-line rounded-xl focus:outline-none focus:ring-2 focus:ring-focus min-h-[88px] resize-y text-sm"
+        className={`${TEXTAREA} min-h-[88px]`}
         placeholder={'e.g. "My bike commute is 4 miles and takes about 30 minutes."'}
         value={value}
         onChange={(e) => onChange(e.target.value)}

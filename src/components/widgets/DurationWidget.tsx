@@ -1,5 +1,6 @@
 import React from 'react';
 import { WidgetProps } from '@rjsf/utils';
+import { INPUT } from '@/components/ui/Input';
 
 export default function DurationWidget(props: WidgetProps) {
   const { value, onChange, disabled, readonly, id } = props;
@@ -60,7 +61,7 @@ export default function DurationWidget(props: WidgetProps) {
           type="number"
           min="0"
           placeholder="0"
-          className="w-16 sm:w-20 px-3 py-2.5 bg-surface border border-line rounded-xl focus:outline-none focus:ring-2 focus:ring-focus text-ink text-center font-medium"
+          className={`${INPUT} w-16 sm:w-20 text-center font-medium`}
           value={hrs}
           onChange={handleHrsChange}
           disabled={disabled || readonly}
@@ -74,7 +75,7 @@ export default function DurationWidget(props: WidgetProps) {
           type="number"
           min="0"
           placeholder="0"
-          className="w-16 sm:w-20 px-3 py-2.5 bg-surface border border-line rounded-xl focus:outline-none focus:ring-2 focus:ring-focus text-ink text-center font-medium"
+          className={`${INPUT} w-16 sm:w-20 text-center font-medium`}
           value={mins}
           onChange={handleMinsChange}
           disabled={disabled || readonly}
@@ -89,7 +90,7 @@ export default function DurationWidget(props: WidgetProps) {
           min="0"
           max="59"
           placeholder="0"
-          className="w-16 sm:w-20 px-3 py-2.5 bg-surface border border-line rounded-xl focus:outline-none focus:ring-2 focus:ring-focus text-ink text-center font-medium"
+          className={`${INPUT} w-16 sm:w-20 text-center font-medium`}
           value={secs}
           onChange={handleSecsChange}
           disabled={disabled || readonly}

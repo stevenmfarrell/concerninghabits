@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, ReactNode } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { MENU_PANEL, MENU_SEPARATOR, menuOptionClasses } from '@/components/ui/Menu';
+import { INPUT, INPUT_SM } from '@/components/ui/Input';
 
 export interface SelectOption {
   id: string;
@@ -19,6 +20,8 @@ export interface SelectProps {
   placeholder?: string;
   disabled?: boolean;
   footer?: ReactNode;
+  // Matches the text inputs beside it: `md` for a form's fields, `sm` in a dialog or sheet (see Input)
+  size?: 'sm' | 'md';
 }
 
 export default function Select({
@@ -28,6 +31,7 @@ export default function Select({
   placeholder = 'Select an option',
   disabled,
   footer,
+  size = 'md',
 }: SelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -50,7 +54,7 @@ export default function Select({
         type="button"
         disabled={disabled}
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full h-[42px] flex items-center justify-between px-3 py-2 bg-surface border border-line rounded-lg focus:outline-none focus:ring-2 focus:ring-focus text-left text-sm text-ink shadow-sm disabled:opacity-50 transition-colors"
+        className={`${size === 'sm' ? INPUT_SM : INPUT} flex items-center justify-between text-left`}
       >
         <div className="flex items-center gap-2 overflow-hidden">
           {selectedOption ? (

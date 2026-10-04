@@ -43,6 +43,25 @@ import { IconButton, IconLinkButton } from '@/components/ui/IconButton';
 - `edge`: `left` or `right` when the button sits at the edge of a header/toolbar (adds the `-ml-2`/`-mr-2` optical alignment) — `none` otherwise.
 - Don't write a bespoke `p-2 rounded-full hover:bg-stone-100` button; that's what this component is for. A button with genuinely state-dependent styling (e.g. a favorite toggle that turns solid amber) is a legitimate exception — leave it custom rather than forcing a fake variant into the shared component.
 
+## Text inputs
+
+Every text input, native `<select>` and textarea uses the classes from `src/components/ui/Input.tsx`. Don't hand-roll `px-3 py-2 border rounded-lg focus:ring-2 …` again.
+
+```tsx
+import { INPUT, INPUT_SM, TEXTAREA } from '@/components/ui/Input';
+
+<input className={INPUT} />                    // a form's field
+<input className={`${INPUT_SM} sm:w-32`} />    // compact, plus a width
+<textarea className={`${TEXTAREA} min-h-24`} />
+```
+
+- **`INPUT` / `TEXTAREA`** are for a form's fields: a `PaneField`'s control, sign-in, an entry's values in the log sheet. The rjsf `.form-control` rule in `globals.css` shares this style.
+- **`INPUT_SM` / `TEXTAREA_SM`** are compact, for a dialog, a sheet's settings (e.g. the field editor) or an inline row (e.g. a new category). A single-line `INPUT_SM` is 40px tall, the same as an `md` Button.
+- Both sizes have the subtle fill, a hairline border and the focus ring, with no shadow. `sm` is `rounded-lg` and `text-sm`, and the default is `rounded-xl`, the same split as buttons.
+- Add a width, extra padding (e.g. `pr-16` for a unit suffix) or a `min-h-*` for a textarea's starting height. These override the shared classes, since those sit in Tailwind's components layer.
+- `Select` takes the same `size`, so a select next to a text input matches it. A trigger that opens a picker (e.g. `IconPicker`) uses `INPUT_SM` too.
+- The exceptions are inputs that aren't boxes at all: the habit editor's underlined inline title, `AiTweakInput`'s pill-shaped bar, and the textarea on the emerald voice panel.
+
 ## Toggles and folded settings
 
 An on/off setting is a `<Toggle>` row (`src/components/ui/Toggle.tsx`): icon, title, description, and a switch, with the whole row tappable. Don't hand-roll the `w-12 h-6 rounded-full` switch markup again. In a pane's list, pass `bare` so it's a plain row divided by the list's hairlines; without it, it's a boxed row, for a sheet or dialog.
@@ -108,7 +127,7 @@ A page's background is always the body's `stone-50`. Lists sit on white running 
 - Without cards to group them, nesting is shown by indenting: a subcategory's habits (`SortableHabitList nested`) line up under the subcategory's name.
 - A form is sections like any other page: settings as rows (`pane-inset py-3`), text inputs in a `PANE_SURFACE` block, and its buttons on the stone below. The habit editor (`src/components/HabitEditor.tsx`) and the New Habit page are the examples.
 - A habit's category and cadence are pills (`CategoryQuickEdit`, `CadenceQuickEdit`), centered on the stone under the header, each opening a small dialog to change it. That holds wherever they appear: the habit's page and the category page save on the spot, while the editor passes `saveLabel="Done"` and only changes its draft. Toasts about a saved change belong to the caller, not the dialog.
-- A form field is a `PaneField` row (label, optional description, then the control), and a text input uses the `INPUT` classes from `src/components/ui/Input.tsx`. Something added to a list (a field, a category, a user) is a last row with a `+` and emerald text, not a `Button`.
+- A form field is a `PaneField` row (label, optional description, then the control), and a text input uses the classes from `src/components/ui/Input.tsx` (see Text inputs below). Something added to a list (a field, a category, a user) is a last row with a `+` and emerald text, not a `Button`.
 - Every page uses panes now. Don't add a page made of `rounded-2xl` cards.
 
 ## Dialogs

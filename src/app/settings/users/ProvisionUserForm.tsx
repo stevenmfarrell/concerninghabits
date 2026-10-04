@@ -64,7 +64,7 @@ export default function ProvisionUserForm() {
                   type="text" 
                   name="name"
                   required
-                  className={`${INPUT} text-sm`}
+                  className={INPUT}
                   placeholder="Member Name"
                 />
               </div>
@@ -75,7 +75,7 @@ export default function ProvisionUserForm() {
                   type="email" 
                   name="email"
                   required
-                  className={`${INPUT} text-sm`}
+                  className={INPUT}
                   placeholder="email@example.com"
                 />
               </div>
@@ -86,7 +86,7 @@ export default function ProvisionUserForm() {
                   type="password" 
                   name="password"
                   required
-                  className={`${INPUT} text-sm`}
+                  className={INPUT}
                   placeholder="••••••••"
                   minLength={MIN_PASSWORD_LENGTH}
                 />

@@ -45,6 +45,7 @@ export default function CategorySelect({ categories, value, onChange, onNew, dis
       placeholder="Select Category"
       disabled={disabled}
       footer={footer}
+      size="sm"
     />
   );
 }

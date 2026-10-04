@@ -1,5 +1,6 @@
 import React from 'react';
 import { WidgetProps } from '@rjsf/utils';
+import { INPUT } from '@/components/ui/Input';
 
 export default function UnitWidget(props: WidgetProps) {
   const { value, onChange, disabled, readonly, id, schema } = props;
@@ -21,7 +22,7 @@ export default function UnitWidget(props: WidgetProps) {
         id={id}
         type="number"
         step="any"
-        className="w-full px-4 py-3 bg-surface border border-line rounded-xl focus:outline-none focus:ring-2 focus:ring-focus text-ink transition-shadow pr-16"
+        className={`${INPUT} pr-16`}
         value={value ?? ''}
         onChange={handleChange}
         disabled={disabled || readonly}

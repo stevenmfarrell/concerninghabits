@@ -8,6 +8,7 @@ import toast from 'react-hot-toast';
 import PageHeader from '@/components/PageHeader';
 import { PANE_INSET, PANE_SURFACE, PaneHeading, PanePage } from '@/components/Pane';
 import { Button } from '@/components/ui/Button';
+import { INPUT } from '@/components/ui/Input';
 
 // `?category=<id>` starts the new habit in that category (e.g. from an empty category's page),
 // instead of the one the AI suggests
@@ -51,7 +52,7 @@ export default function CreateHabit({ searchParams }: { searchParams: Promise<{ 
           <div className={`${PANE_SURFACE} ${PANE_INSET} py-4`}>
             <textarea
               id="habit-prompt"
-              className="w-full px-4 py-3 bg-surface-subtle border border-line rounded-xl focus:outline-none focus:ring-2 focus:ring-focus min-h-[120px] resize-none"
+              className={`${INPUT} min-h-[120px] resize-none`}
               placeholder="e.g., Read 20 pages a day, track my morning run with distance and time, or drink 8 glasses of water..."
               value={initialPrompt}
               onChange={(e) => setInitialPrompt(e.target.value)}

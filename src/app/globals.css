@@ -281,6 +281,21 @@ input, textarea, select {
   @apply text-ink;
 }
 
+/* Text inputs, selects and textareas, in two sizes (see src/components/ui/Input.tsx): `input` for a
+   form's fields, `input-sm` for compact ones in a dialog, a sheet's settings or an inline row. In the
+   components layer, so a utility on the element (a width, extra padding) always wins over them. */
+@layer components {
+  .input, .input-sm, .rjsf .form-control {
+    @apply w-full bg-surface-subtle border border-line text-ink placeholder-ink-subtle transition-shadow focus:outline-none focus:ring-2 focus:ring-focus disabled:opacity-60;
+  }
+  .input, .rjsf .form-control {
+    @apply px-3 py-2.5 rounded-xl;
+  }
+  .input-sm {
+    @apply px-3 py-2 text-sm rounded-lg;
+  }
+}
+
 /* react-jsonschema-form styling overrides */
 .rjsf .form-group {
   @apply mb-5 flex flex-col;
@@ -304,11 +319,7 @@ input, textarea, select {
   @apply block text-sm font-medium text-ink-secondary mb-1.5 capitalize;
 }
 
-.rjsf .form-control {
-  @apply block w-full px-4 py-2.5 bg-surface border border-line rounded-xl text-ink focus:outline-none focus:ring-2 focus:ring-focus focus:border-focus transition-shadow;
-}
-
-/* A free-form text field (x-widget: textarea) */
+/* An entry form's fields are styled as `.input`, above. A free-form text field (x-widget: textarea): */
 .rjsf textarea.form-control {
   @apply resize-y min-h-24;
 }

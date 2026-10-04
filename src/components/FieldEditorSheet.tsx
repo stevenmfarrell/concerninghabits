@@ -6,8 +6,8 @@ import BottomSheet from './BottomSheet';
 import { Button } from './ui/Button';
 import { Toggle } from './ui/Toggle';
 import { FIELD_TYPES, settingsProblem, type FieldSettings } from '@/lib/formFields';
+import { INPUT_SM, TEXTAREA_SM } from '@/components/ui/Input';
 
-const INPUT_CLASS = 'w-full px-3 py-2 bg-surface border border-line rounded-lg focus:outline-none focus:ring-2 focus:ring-focus text-sm shadow-sm';
 
 const NEW_FIELD: FieldSettings = { title: '', type: 'text', unit: '', choices: [], required: false };
 
@@ -48,7 +48,7 @@ export default function FieldEditorSheet({ initial, loggedBefore, onDone, onRemo
           <span className="block text-sm font-medium text-ink-secondary">Name</span>
           <input
             type="text"
-            className={INPUT_CLASS}
+            className={INPUT_SM}
             value={settings.title}
             onChange={e => set({ title: e.target.value })}
             placeholder='e.g. "Pages read"'
@@ -64,7 +64,7 @@ export default function FieldEditorSheet({ initial, loggedBefore, onDone, onRemo
               off it, while a phone shows its own picker for this */}
           <select
             id="field-type"
-            className={`${INPUT_CLASS} h-[42px] disabled:opacity-60`}
+            className={INPUT_SM}
             value={settings.type}
             onChange={e => set({ type: e.target.value as FieldSettings['type'] })}
             disabled={settings.type === 'other'}
@@ -83,7 +83,7 @@ export default function FieldEditorSheet({ initial, loggedBefore, onDone, onRemo
             <span className="block text-sm font-medium text-ink-secondary">Unit <span className="font-normal text-ink-subtle">(optional)</span></span>
             <input
               type="text"
-              className={INPUT_CLASS}
+              className={INPUT_SM}
               value={settings.unit}
               onChange={e => set({ unit: e.target.value })}
               placeholder='e.g. "miles", "pages", "lbs"'
@@ -97,7 +97,7 @@ export default function FieldEditorSheet({ initial, loggedBefore, onDone, onRemo
           <label className="block space-y-1.5">
             <span className="block text-sm font-medium text-ink-secondary">Choices</span>
             <textarea
-              className={`${INPUT_CLASS} min-h-28 resize-y`}
+              className={`${TEXTAREA_SM} min-h-28`}
               value={choicesText}
               onChange={e => {
                 setChoicesText(e.target.value);
