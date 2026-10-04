@@ -118,7 +118,7 @@ function withHabits<C extends { habitMembers: HabitListMembership[] }>({ habitMe
 
 export async function getCategoriesWithHierarchy() {
   const user = await getDefaultUser();
-  // Only the dashboard's 3-week calendars read this, but the cutoff is generous so it stays
+  // Only the 4-week row calendars read this, but the cutoff is generous so it stays
   // correct if a caller ever asks for a longer view.
   const logsCutoff = getRecentLogsCutoff(5);
   const categories = await prisma.category.findMany({

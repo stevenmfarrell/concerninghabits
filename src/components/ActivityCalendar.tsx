@@ -23,7 +23,8 @@ interface ActivityCalendarProps {
   // Instead of a cadence, for a calendar combining several habits (e.g. a category's): shade each
   // day by its number of entries out of this many
   density?: number;
-  size?: 'sm' | 'md';
+  // xs: a list row's mini calendar, small and plain, with no month dividers or today marker
+  size?: 'xs' | 'sm' | 'md';
   monthsPerColumn?: number;
   emptyColor?: string;
   futureColor?: string;
@@ -221,12 +222,14 @@ export default function ActivityCalendar({ dates, timeZone, weeks = 5, cadence =
     return { background: personFill(loggers, people), opacity };
   };
 
-  const CELL_SIZE = size === 'sm' ? 8 : 14;
-  const GAP = size === 'sm' ? 3 : 4; 
+  const CELL_SIZE = { xs: 6, sm: 8, md: 14 }[size];
+  const GAP = { xs: 2, sm: 3, md: 4 }[size];
   const STEP = CELL_SIZE + GAP;
-  
-  const cellClass = size === 'sm' ? 'w-2 h-2 rounded-[1px]' : 'w-3.5 h-3.5 rounded-[2px]';
-  const gapClass = size === 'sm' ? 'gap-[3px]' : 'gap-1';
+
+  const cellClass = { xs: 'w-1.5 h-1.5 rounded-[1px]', sm: 'w-2 h-2 rounded-[1px]', md: 'w-3.5 h-3.5 rounded-[2px]' }[size];
+  const gapClass = { xs: 'gap-[2px]', sm: 'gap-[3px]', md: 'gap-1' }[size];
+  // No today marker in a row's plain mini calendar (xs)
+  const todayDotClass = { xs: null, sm: 'w-[4px] h-[4px]', md: 'w-[6px] h-[6px]' }[size];
 
   return (
     <div className="flex justify-start gap-6">
@@ -314,16 +317,16 @@ export default function ActivityCalendar({ dates, timeZone, weeks = 5, cadence =
                       style={personStyle}
                       className={`${cellClass} transition-colors relative z-10 flex items-center justify-center ${personStyle ? '' : getBackgroundColor(cell.count, cell.counting, cell.isFuture, cell.isPeriodCompleted)} ${onDateClick && !cell.isFuture ? 'cursor-pointer hover:opacity-80' : ''}`}
                     >
-                      {cell.isToday && (
-                        <div className={`rounded-full ${cell.count > 0 ? 'bg-white' : 'bg-stone-500'} ${size === 'sm' ? 'w-[4px] h-[4px]' : 'w-[6px] h-[6px]'}`} />
+                      {cell.isToday && todayDotClass && (
+                        <div className={`rounded-full ${cell.count > 0 ? 'bg-white' : 'bg-stone-500'} ${todayDotClass}`} />
                       )}
                     </div>
                   );
                 })}
               </div>
               
-              {/* Month Dividers */}
-              <div className="absolute inset-0 z-20 pointer-events-none">
+              {/* Month Dividers, left out of a row's plain mini calendar */}
+              {size !== 'xs' && <div className="absolute inset-0 z-20 pointer-events-none">
                 {grid.map((cell, i) => {
                   if (cell.isNull) return null;
                   return (
@@ -375,7 +378,7 @@ export default function ActivityCalendar({ dates, timeZone, weeks = 5, cadence =
                     </div>
                   );
                 })}
-              </div>
+              </div>}
             </div>
           </div>
         );

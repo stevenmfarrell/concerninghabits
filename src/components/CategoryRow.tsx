@@ -54,14 +54,15 @@ export default function CategoryRow({ href, name, icon, subtitle, dates, habitCo
           <div className="opacity-80 group-hover/row:opacity-100 transition-opacity">
             <ActivityCalendar
               dates={dates}
-              weeks={3}
+              weeks={4}
+              size="xs"
               {...(cadence.type === 'none' ? { density: habitCount } : { cadence })}
               bedtime={bedtime}
               weekStartsOn={weekStartsOn}
               timeZone={timeZone}
               color="blue"
               emptyColor="bg-stone-200/70"
-              futureColor="bg-transparent border border-stone-200"
+              futureColor="bg-transparent"
             />
           </div>
         </div>

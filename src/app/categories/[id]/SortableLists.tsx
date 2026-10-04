@@ -179,7 +179,9 @@ const SortableHabitItem = ({ habit, status, user, people, isOverlay, isReorderin
                 dates={logs.map(l => l.createdAt)}
                 loggedBy={isShared ? logs.map(l => l.userId) : undefined}
                 people={isShared ? people : undefined}
-                weeks={3}
+                weeks={4}
+                size="xs"
+                futureColor="bg-transparent"
                 cadence={parseCadence(habit.cadence)}
                 bedtime={user.bedtime} 
                 weekStartsOn={user.weekStartsOn}

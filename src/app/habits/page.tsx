@@ -11,7 +11,7 @@ import { describeCadence, NO_CADENCE, parseCadence } from '@/lib/cadence';
 // lives on the Agenda page; this is where everything else is found.
 export default async function HabitsPage() {
   const user = await getDefaultUser();
-  // Only the 3-week calendars read entries here
+  // Only the 4-week calendars read entries here
   const [categories, uncategorized] = await Promise.all([getCategoriesWithHierarchy(), getUncategorizedHabits(5)]);
 
   const categoryRows = categories
