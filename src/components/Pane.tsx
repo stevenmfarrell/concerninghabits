@@ -1,39 +1,50 @@
 import type { ReactNode } from 'react';
+import { BELOW_HEADER } from '@/components/PageHeader';
 
-// Pages are one full-width white pane rather than cards on a stone background, so lists run edge
-// to edge with only the lines between rows. Agenda (src/app/page.tsx) is the reference.
+// Pages are the body's stone background, with their lists on white running the full width of the
+// column (rather than in cards), with only the lines between rows. Anything that isn't a list (a
+// line of text, a button, chips, an empty state) sits on the stone, as does whatever space is left
+// below. Agenda (src/app/page.tsx) is the reference.
 
 // Lined up with the rows' contents, which run the full width of the page
 export const PANE_INSET = 'px-4 sm:px-6';
 
-// The page itself: its sticky header, then its content in a centered column. The pane reaches down
-// under the bottom nav's spacer (5rem, see BottomNav), which would otherwise show the body's stone
-// background as a band above the nav.
+// The white a section's content sits on, for a section built by hand around a PaneHeading
+export const PANE_SURFACE = 'bg-white';
+
+// The page itself: its sticky header, then its content in a centered column. Sections follow each
+// other directly, their headings keeping them apart; anything else in the column brings its own
+// vertical padding.
 export function PanePage({ header, width = 'max-w-4xl', children }: { header: ReactNode; width?: string; children: ReactNode }) {
   return (
-    <main className="flex-1 pb-24 sm:pb-28 -mb-20 bg-white font-sans">
+    <main className="flex-1 pb-8 bg-stone-50 font-sans">
       {header}
-      <div className={`${width} mx-auto pt-4 sm:pt-8 space-y-8`}>{children}</div>
+      <div className={`${width} mx-auto`}>{children}</div>
     </main>
   );
 }
 
-// A small uppercase heading over a section's rows, with an optional control at its right end
+// A small uppercase heading over a section, with an optional control at its right end, on the stone
+// background. It pins under the page header while its section scrolls by, until the next section's
+// heading takes its place.
 export function PaneHeading({ children, action }: { children: ReactNode; action?: ReactNode }) {
   return (
-    <div className={`${PANE_INSET} pb-2 flex items-center justify-between gap-4`}>
+    <div className={`sticky ${BELOW_HEADER} z-20 ${PANE_INSET} py-2 min-h-9 flex items-center justify-between gap-4 bg-stone-50`}>
       <h2 className="flex items-center gap-2 min-w-0 text-xs font-semibold uppercase tracking-wider text-stone-500">{children}</h2>
       {action}
     </div>
   );
 }
 
-// A titled group of rows, divided by hairlines
-export function PaneSection({ title, action, children }: { title: ReactNode; action?: ReactNode; children: ReactNode }) {
+// A titled group of rows on white, divided by hairlines. With `empty` set, that text is shown on the
+// stone instead, for a section with nothing in it.
+export function PaneSection({ title, action, empty, children }: { title: ReactNode; action?: ReactNode; empty?: ReactNode; children?: ReactNode }) {
   return (
     <section>
       <PaneHeading action={action}>{title}</PaneHeading>
-      <div className="divide-y divide-stone-100">{children}</div>
+      {empty
+        ? <div className={`${PANE_INSET} py-3 text-stone-500`}>{empty}</div>
+        : <div className={`${PANE_SURFACE} divide-y divide-stone-100`}>{children}</div>}
     </section>
   );
 }

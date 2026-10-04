@@ -135,7 +135,7 @@ export default async function HistoryPage(props: { searchParams: Promise<{ day?:
         </EmptyState>
       ) : (
         <>
-          <p className={`${PANE_INSET} text-sm text-stone-500`}>
+          <p className={`${PANE_INSET} py-3 text-sm text-stone-500`}>
             {habitCount} {habitCount === 1 ? 'habit' : 'habits'} done
             {entries.length > habitCount && ` · ${entries.length} entries`}
           </p>

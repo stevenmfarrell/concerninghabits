@@ -6,6 +6,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { History, Loader2, Link2, MoreVertical, Edit2, Upload, Users, FolderInput, Zap } from 'lucide-react';
 import Link from 'next/link';
 import PageHeader from '@/components/PageHeader';
+import { PANE_INSET, PanePage } from '@/components/Pane';
 import { Button } from '@/components/ui/Button';
 import { IconButton } from '@/components/ui/IconButton';
 import toast from 'react-hot-toast';
@@ -37,7 +38,7 @@ function prefillFrom(searchParams: URLSearchParams, properties: HabitFormPropert
 
 // The top of a habit's page: its header and menu, and the Log Habit button, which logs a habit with
 // no form on the tap or opens the entry sheet for one with a form (see useHabitLogger). The habit's
-// history comes in as `children`, below the button.
+// history comes in as `children`, below the button: sections of the page's pane.
 export default function LogClient({ habit, user, people, categories, children }: { habit: HabitDetail, user: SessionUser, people: Record<string, Person>, categories: CategoryOption[], children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -134,7 +135,7 @@ export default function LogClient({ habit, user, people, categories, children }:
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <PanePage header={
       <PageHeader
         title={<span className="truncate">{habit.name}</span>}
         actions={
@@ -211,7 +212,7 @@ export default function LogClient({ habit, user, people, categories, children }:
           </>
         }
       />
-
+    }>
       {shareOpen && (
         <ShareDialog
           habitId={habit.id}
@@ -226,7 +227,7 @@ export default function LogClient({ habit, user, people, categories, children }:
         />
       )}
 
-      <div className="p-4 sm:p-8 max-w-4xl mx-auto w-full space-y-6 sm:space-y-8">
+      <div className={`${PANE_INSET} py-4 space-y-6`}>
         {habit.description && <p className="text-stone-600 text-center">{habit.description}</p>}
 
         <HabitDetails habit={habit} categories={categories} />
@@ -261,11 +262,11 @@ export default function LogClient({ habit, user, people, categories, children }:
             <History className="w-6 h-6" strokeWidth={2.5} />
           </Button>
         </div>
-
-        {children}
       </div>
 
+      {children}
+
       {logger.sheetOpen && <LogEntrySheet logger={logger} />}
-    </div>
+    </PanePage>
   );
 }

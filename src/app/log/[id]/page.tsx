@@ -3,7 +3,8 @@ import PersonLabel from '@/components/PersonLabel';
 import HorizonToggle from '@/components/HorizonToggle';
 import { isSharedHabit } from '@/lib/userColors';
 import { notFound } from 'next/navigation';
-import Link from 'next/link';
+import { LinkButton } from '@/components/ui/Button';
+import { PANE_INSET, PANE_SURFACE, PaneHeading } from '@/components/Pane';
 import { cookies } from 'next/headers';
 import LogClient from './LogClient';
 import EmptyState from '@/components/EmptyState';
@@ -107,163 +108,153 @@ export default async function HabitPage(props: { params: Promise<{ id: string }>
   const schemaProperties = schemaObj.properties as HabitFormProperties | undefined;
 
   return (
-    <main className="flex-1 bg-stone-50 font-sans flex flex-col h-full">
-      <LogClient habit={habit} user={user} people={allPeople} categories={categories}>
-        {!presence.hasLogs ? (
-          <EmptyState title="No logs here yet">
-            Time to step out your front door and start an adventure. Log your first entry!
-          </EmptyState>
-        ) : (
-          <>
-            {/* Activity Graphic */}
-            <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-stone-100 flex flex-col items-start overflow-x-auto">
-              <div className="flex items-center justify-between gap-2 w-full mb-4">
-                <h2 className="text-lg font-semibold text-stone-800">Activity Overview</h2>
-                <HorizonToggle habitId={habit.id} currentWeeks={weeks} />
-              </div>
-          <InteractiveCalendar
-            logs={filteredLogs.map(l => ({ id: l.id, createdAt: l.createdAt, userId: l.userId }))}
-            people={people}
-            weeks={weeks} 
-            cadence={parseCadence(habit.cadence)}
-            mobileMonthsPerColumn={mobileMonthsPerColumn} 
-            desktopMonthsPerColumn={desktopMonthsPerColumn} 
-            bedtime={user.bedtime} 
-            weekStartsOn={user.weekStartsOn} 
-            timeZone={user.timeZone}
-            pageSize={pageSize}
-            habitId={habit.id}
-          />
-          {legend.length > 0 && (
-            <div className="flex flex-wrap gap-x-4 gap-y-2 mt-4">
-              {legend.map(person => <PersonLabel key={person.id} person={person} />)}
+    <LogClient habit={habit} user={user} people={allPeople} categories={categories}>
+      {!presence.hasLogs ? (
+        <EmptyState title="No logs here yet">
+          Time to step out your front door and start an adventure. Log your first entry!
+        </EmptyState>
+      ) : (
+        <>
+          <section>
+            <PaneHeading action={<HorizonToggle habitId={habit.id} currentWeeks={weeks} />}>Activity</PaneHeading>
+            <div className={`${PANE_SURFACE} ${PANE_INSET} py-4 overflow-x-auto`}>
+              <InteractiveCalendar
+                logs={filteredLogs.map(l => ({ id: l.id, createdAt: l.createdAt, userId: l.userId }))}
+                people={people}
+                weeks={weeks}
+                cadence={parseCadence(habit.cadence)}
+                mobileMonthsPerColumn={mobileMonthsPerColumn}
+                desktopMonthsPerColumn={desktopMonthsPerColumn}
+                bedtime={user.bedtime}
+                weekStartsOn={user.weekStartsOn}
+                timeZone={user.timeZone}
+                pageSize={pageSize}
+                habitId={habit.id}
+              />
+              {legend.length > 0 && (
+                <div className="flex flex-wrap gap-x-4 gap-y-2 mt-4">
+                  {legend.map(person => <PersonLabel key={person.id} person={person} />)}
+                </div>
+              )}
             </div>
-          )}
-        </div>
-        {numericFields.length > 0 && (
-          <HabitChart 
-            logs={filteredLogs.map(l => ({ id: l.id, createdAt: l.createdAt, payload: l.payload, userId: l.userId }))}
-            people={people}
-            numericFields={numericFields}
-            pageSize={pageSize}
-            habitId={habit.id}
-            defaultSelectedField={savedChartField && numericFields.includes(savedChartField) ? savedChartField : numericFields[0]}
-            defaultChartTypes={defaultChartTypes}
-            schemaObj={schemaObj}
-            timeZone={user.timeZone}
-          />
-        )}
+          </section>
 
-        {/* Log Entries Table. Not overflow-hidden, which would clip an entry's menu at the card's
-            bottom edge; the last row and the pagination bar round their own corners instead. */}
-        <div id="logs-table" className="bg-white rounded-2xl shadow-sm border border-stone-100 scroll-mt-24">
-          <div className="flex items-center justify-between p-4 border-b border-stone-100">
-            <h2 className="text-lg font-semibold text-stone-800">Log Entries</h2>
-            <ExportCsvButton habitId={habit.id} />
-          </div>
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-stone-50 border-b border-stone-100">
-                <th className="p-4 font-semibold text-stone-700">Date & Time</th>
-                <th className="p-4 font-semibold text-stone-700">Details</th>
-                <th className="p-4 font-semibold text-stone-700 w-16"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {paginatedLogs.length === 0 ? (
-                <tr>
-                  <td colSpan={3} className="p-8 text-center text-stone-500">
-                    No logs found in this period.
-                  </td>
-                </tr>
-              ) : (
-                paginatedLogs.map((log) => {
-                  const payload = JSON.parse(log.payload);
-                  const hasDetails = Object.keys(payload).length > 0;
-                  const isHighlighted = searchParams?.highlight === log.id;
-                  
-                  // Server action bind to delete this specific log
-                  const deleteAction = deleteHabitLog.bind(null, log.id, habit.id);
-                  
-                  return (
-                    <tr 
-                      id={`log-${log.id}`}
-                      key={isHighlighted ? `${log.id}-${searchParams?.t || '1'}` : log.id} 
-                      className={`border-b border-stone-50 last:border-0 group transition-colors [&:last-child>td:first-child]:rounded-bl-2xl [&:last-child>td:last-child]:rounded-br-2xl ${
-                        isHighlighted ? 'animate-highlight-fade' : 'hover:bg-stone-50/50'
-                      }`}
-                    >
-                      <td className="p-4 text-stone-800 whitespace-nowrap align-top w-px">
-                        <div className="inline-flex flex-col">
-                          <span className="font-medium">
-                            {new Date(log.createdAt).toLocaleDateString('en-US', { dateStyle: 'medium', timeZone: user.timeZone })}
-                          </span>
-                          <span className="text-sm text-stone-500 text-right">
-                            {new Date(log.createdAt).toLocaleTimeString('en-US', { timeStyle: 'short', timeZone: user.timeZone })}
-                          </span>
-                          {people && <PersonLabel person={people[log.userId]} className="mt-1.5 justify-end" />}
-                        </div>
-                      </td>
-                      <td className="p-4 text-stone-600">
-                        {hasDetails ? (
-                          <div className="space-y-1">
-                            {Object.entries(payload).map(([key, value]) => (
-                              <div key={key} className="text-sm whitespace-pre-line break-words">
-                                <span className="font-medium text-stone-700">
-                                  {fieldTitle(key, schemaProperties)}:
-                                </span>{' '}
-                                {formatLogValue(value, schemaProperties?.[key])}
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <span className="text-stone-400 italic text-sm">Completed</span>
-                        )}
-                      </td>
-                      <td className="p-4 align-top text-right">
-                        {log.canChange && (
-                          <EntryMenu
-                            habit={{ id: habit.id, name: habit.name, schema: habit.schema }}
-                            entry={{ id: log.id, payload, createdAt: log.createdAt }}
-                            deleteAction={deleteAction}
-                          />
-                        )}
+          {numericFields.length > 0 && (
+            <HabitChart
+              logs={filteredLogs.map(l => ({ id: l.id, createdAt: l.createdAt, payload: l.payload, userId: l.userId }))}
+              people={people}
+              numericFields={numericFields}
+              pageSize={pageSize}
+              habitId={habit.id}
+              defaultSelectedField={savedChartField && numericFields.includes(savedChartField) ? savedChartField : numericFields[0]}
+              defaultChartTypes={defaultChartTypes}
+              schemaObj={schemaObj}
+              timeZone={user.timeZone}
+            />
+          )}
+
+          <section id="logs-table" className="scroll-mt-24">
+            <PaneHeading action={<ExportCsvButton habitId={habit.id} />}>Entries</PaneHeading>
+            <div className={PANE_SURFACE}>
+              <table className="w-full text-left border-collapse">
+                <tbody className="divide-y divide-stone-100">
+                  {paginatedLogs.length === 0 ? (
+                    <tr>
+                      <td colSpan={3} className="p-8 text-center text-stone-500">
+                        No logs found in this period.
                       </td>
                     </tr>
-                  );
-                })
+                  ) : (
+                    paginatedLogs.map((log) => {
+                      const payload = JSON.parse(log.payload);
+                      const hasDetails = Object.keys(payload).length > 0;
+                      const isHighlighted = searchParams?.highlight === log.id;
+                  
+                      // Server action bind to delete this specific log
+                      const deleteAction = deleteHabitLog.bind(null, log.id, habit.id);
+                  
+                      return (
+                        <tr 
+                          id={`log-${log.id}`}
+                          key={isHighlighted ? `${log.id}-${searchParams?.t || '1'}` : log.id} 
+                          className={`group transition-colors ${
+                            isHighlighted ? 'animate-highlight-fade' : 'hover:bg-stone-50/50'
+                          }`}
+                        >
+                          <td className="py-3 pl-4 sm:pl-6 pr-4 text-stone-800 whitespace-nowrap align-top w-px">
+                            <div className="inline-flex flex-col">
+                              <span className="font-medium">
+                                {new Date(log.createdAt).toLocaleDateString('en-US', { dateStyle: 'medium', timeZone: user.timeZone })}
+                              </span>
+                              <span className="text-sm text-stone-500 text-right">
+                                {new Date(log.createdAt).toLocaleTimeString('en-US', { timeStyle: 'short', timeZone: user.timeZone })}
+                              </span>
+                              {people && <PersonLabel person={people[log.userId]} className="mt-1.5 justify-end" />}
+                            </div>
+                          </td>
+                          <td className="py-3 pr-4 text-stone-600 align-top">
+                            {hasDetails ? (
+                              <div className="space-y-1">
+                                {Object.entries(payload).map(([key, value]) => (
+                                  <div key={key} className="text-sm whitespace-pre-line break-words">
+                                    <span className="font-medium text-stone-700">
+                                      {fieldTitle(key, schemaProperties)}:
+                                    </span>{' '}
+                                    {formatLogValue(value, schemaProperties?.[key])}
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="text-stone-400 italic text-sm">Completed</span>
+                            )}
+                          </td>
+                          <td className="py-2 pr-4 sm:pr-6 align-top text-right w-px">
+                            {log.canChange && (
+                              <EntryMenu
+                                habit={{ id: habit.id, name: habit.name, schema: habit.schema }}
+                                entry={{ id: log.id, payload, createdAt: log.createdAt }}
+                                deleteAction={deleteAction}
+                              />
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+
+              {totalPages > 1 && (
+                <div className={`${PANE_INSET} flex items-center justify-between gap-4 py-3 border-t border-stone-100`}>
+                  <span className="text-sm text-stone-500 font-medium">
+                    {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, filteredLogs.length)} of {filteredLogs.length}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <LinkButton
+                      href={`/log/${habit.id}?horizon=${weeks}&page=${page > 1 ? page - 1 : 1}`}
+                      scroll={false} replace
+                      variant="outline" size="sm"
+                      aria-disabled={page === 1}
+                      className={page === 1 ? 'opacity-50 pointer-events-none' : ''}
+                    >
+                      Previous
+                    </LinkButton>
+                    <LinkButton
+                      href={`/log/${habit.id}?horizon=${weeks}&page=${page < totalPages ? page + 1 : totalPages}`}
+                      scroll={false} replace
+                      variant="outline" size="sm"
+                      aria-disabled={page === totalPages}
+                      className={page === totalPages ? 'opacity-50 pointer-events-none' : ''}
+                    >
+                      Next
+                    </LinkButton>
+                  </div>
+                </div>
               )}
-            </tbody>
-          </table>
-          
-          {/* Pagination Controls */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between px-4 py-3 border-t border-stone-100 bg-stone-50/50 rounded-b-2xl">
-              <span className="text-sm text-stone-500 font-medium">
-                Showing {(page - 1) * pageSize + 1} to {Math.min(page * pageSize, filteredLogs.length)} of {filteredLogs.length}
-              </span>
-              <div className="flex items-center gap-2">
-                <Link
-                  href={`/log/${habit.id}?horizon=${weeks}&page=${page > 1 ? page - 1 : 1}`}
-                  scroll={false} replace
-                  className={`px-3 py-1 text-sm font-semibold rounded-lg border transition-colors ${page === 1 ? 'border-stone-200 text-stone-400 pointer-events-none' : 'border-stone-300 text-stone-700 hover:bg-stone-100'}`}
-                >
-                  Previous
-                </Link>
-                <Link
-                  href={`/log/${habit.id}?horizon=${weeks}&page=${page < totalPages ? page + 1 : totalPages}`}
-                  scroll={false} replace
-                  className={`px-3 py-1 text-sm font-semibold rounded-lg border transition-colors ${page === totalPages ? 'border-stone-200 text-stone-400 pointer-events-none' : 'border-stone-300 text-stone-700 hover:bg-stone-100'}`}
-                >
-                  Next
-                </Link>
-              </div>
             </div>
-          )}
-        </div>
-          </>
-        )}
-      </LogClient>
-    </main>
+          </section>
+        </>
+      )}
+    </LogClient>
   );
 }

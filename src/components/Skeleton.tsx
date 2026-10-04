@@ -25,7 +25,7 @@ export function SkeletonCard({ rows = 3 }: { rows?: number }) {
   );
 }
 
-// Pages reached by drilling into a record: the sticky header (with a working back button) over cards
+// Pages reached by drilling into a record that still use cards: the sticky header (with a working back button) over cards
 export function RecordPageSkeleton({ cards = 2 }: { cards?: number }) {
   return (
     <main className="flex-1 bg-stone-50 font-sans flex flex-col h-full">
@@ -39,13 +39,15 @@ export function RecordPageSkeleton({ cards = 2 }: { cards?: number }) {
   );
 }
 
-// The bottom nav's tabs as a full-width white pane under the sticky header (no back button), with
-// placeholder rows running edge to edge
-export function TabPageSkeleton({ rows = 5, width = 'max-w-4xl' }: { rows?: number; width?: string }) {
+// A pane page (see Pane): the sticky header, then placeholder rows running edge to edge. A tab's
+// header has its large title and no back button; a drill-in page's (`drillIn`) has a working one.
+export function PanePageSkeleton({ rows = 5, width = 'max-w-4xl', drillIn = false }: { rows?: number; width?: string; drillIn?: boolean }) {
   return (
-    <main className="flex-1 pb-24 sm:pb-28 -mb-20 bg-white font-sans">
-      <PageHeader title={<SkeletonBar className="h-8 w-36" />} showBack={false} />
-      <div className={`${width} mx-auto pt-4 sm:pt-8 divide-y divide-stone-100`}>
+    <main className="flex-1 pb-8 bg-stone-50 font-sans">
+      {drillIn
+        ? <PageHeader title={<SkeletonBar className="h-6 w-40" />} />
+        : <PageHeader title={<SkeletonBar className="h-8 w-36" />} showBack={false} />}
+      <div className={`${width} mx-auto mt-9 bg-white divide-y divide-stone-100`}>
         {Array.from({ length: rows }, (_, i) => (
           <div key={i} className="flex items-center gap-3 py-3 px-4 sm:px-6">
             <SkeletonBar className="w-10 h-10 rounded-full shrink-0" />

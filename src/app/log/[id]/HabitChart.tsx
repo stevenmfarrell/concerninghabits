@@ -8,6 +8,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { formatLogValue, formatDuration } from '../../../lib/format';
 import type { HabitSchema } from '@/lib/types';
 import { fieldTitle, type HabitFormProperties } from '@/components/widgets/habitForm';
+import { PANE_INSET, PANE_SURFACE, PaneHeading } from '@/components/Pane';
 
 const CHART_COLOR = '#059669'; // emerald-600
 
@@ -175,10 +176,8 @@ export default function HabitChart({
   };
 
   return (
-    <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-stone-100 flex flex-col mt-6">
-      <div className="flex w-full items-center justify-between mb-6">
-        <h2 className="text-lg font-semibold text-stone-800">Trends</h2>
-        
+    <section>
+      <PaneHeading action={
         <div className="flex items-center gap-2">
           {numericFields.length > 1 && (
             <div className="relative">
@@ -234,106 +233,110 @@ export default function HabitChart({
             </button>
           </div>
         </div>
-      </div>
+      }>
+        Trends
+      </PaneHeading>
 
-      <div ref={chartWrapperRef} className="w-full h-64">
-        {!hasData ? (
-          <div className="w-full h-full flex items-center justify-center text-stone-400 text-sm italic">
-            No data recorded for this metric yet.
-          </div>
-        ) : (
-          <ResponsiveContainer width="100%" height="100%">
-            {chartTypes[selectedField] === 'bar' ? (
-              <BarChart data={data} margin={{ top: 5, right: 10, left: -20, bottom: 5 }} onClick={handleChartClick} style={{ cursor: 'pointer', WebkitTapHighlightColor: 'transparent', userSelect: 'none', outline: 'none' }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f5f5f4" />
-                <XAxis 
-                  dataKey="logId" 
-                  ticks={dayTicks}
-                  tickFormatter={tickDate}
-                  interval="preserveStartEnd"
-                  minTickGap={12}
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fill: '#78716c', fontSize: 12 }}
-                  dy={10}
-                />
-                <YAxis 
-                  domain={yDomain}
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fill: '#78716c', fontSize: 12 }}
-                  tickFormatter={yAxisTickFormatter}
-                />
-                <Tooltip 
-                  cursor={{ fill: '#f5f5f4' }}
-                  contentStyle={{ borderRadius: '12px', border: '1px solid #e7e5e4', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                  labelStyle={{ color: '#57534e', fontWeight: 600, marginBottom: '4px' }}
-                  itemStyle={{ color: '#047857', fontWeight: 700 }}
-                  labelFormatter={tooltipDate}
-                  formatter={(value: unknown, _name: unknown, item: unknown) => [formatLogValue(value, schemaProperties?.[selectedField]), tooltipLabel(fieldTitle(selectedField, schemaProperties), item)]}
-                />
-                <Bar
-                  dataKey="value"
-                  name="Value"
-                  fill={CHART_COLOR}
-                  radius={[4, 4, 0, 0]}
-                  maxBarSize={60}
-                  onClick={handleDotClick}
-                />
-              </BarChart>
-            ) : (
-              <LineChart data={data} margin={{ top: 5, right: 10, left: -20, bottom: 5 }} onClick={handleChartClick} style={{ cursor: 'pointer', WebkitTapHighlightColor: 'transparent', userSelect: 'none', outline: 'none' }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f5f5f4" />
-                <XAxis 
-                  dataKey="date" 
-                  type="number"
-                  scale="time"
-                  domain={['dataMin', 'dataMax']}
-                  padding={{ left: 20, right: 20 }}
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fill: '#78716c', fontSize: 12 }}
-                  tickFormatter={(tick) => new Date(tick).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone })}
-                  dy={10}
-                />
-                <YAxis 
-                  domain={yDomain}
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fill: '#78716c', fontSize: 12 }}
-                  tickFormatter={yAxisTickFormatter}
-                />
-                <Tooltip 
-                  cursor={false}
-                  contentStyle={{ borderRadius: '12px', border: '1px solid #e7e5e4', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                  labelStyle={{ color: '#57534e', fontWeight: 600, marginBottom: '4px' }}
-                  itemStyle={{ color: '#047857', fontWeight: 700 }}
-                  labelFormatter={tooltipDate}
-                  formatter={(value: unknown, _name: unknown, item: unknown) => [formatLogValue(value, schemaProperties?.[selectedField]), tooltipLabel(fieldTitle(selectedField, schemaProperties), item)]}
-                />
-                {/* On a shared habit the line goes neutral so each point's person color stands out */}
-                <Line
-                  type="monotone"
-                  dataKey="value"
-                  name="Value"
-                  stroke={people ? '#d6d3d1' : CHART_COLOR}
-                  strokeWidth={3}
-                  dot={people
-                    ? ({ cx, cy, index, payload }) => (
-                        <circle key={index} cx={cx} cy={cy} r={4} fill={payload.fill} onClick={() => triggerHighlight(payload.logId)} />
-                      )
-                    : { r: 4, fill: CHART_COLOR, strokeWidth: 0, onClick: handleDotClick }}
-                  activeDot={people
-                    ? ({ cx, cy, payload }) => (
-                        <circle cx={cx} cy={cy} r={6} fill={payload.fill} stroke="#fff" strokeWidth={2} onClick={() => triggerHighlight(payload.logId)} />
-                      )
-                    : { r: 6, fill: '#047857', stroke: '#fff', strokeWidth: 2, onClick: handleDotClick }}
-                />
-              </LineChart>
-            )}
-          </ResponsiveContainer>
-        )}
+      <div className={`${PANE_SURFACE} ${PANE_INSET} py-4`}>
+        <div ref={chartWrapperRef} className="w-full h-64">
+          {!hasData ? (
+            <div className="w-full h-full flex items-center justify-center text-stone-400 text-sm italic">
+              No data recorded for this metric yet.
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height="100%">
+              {chartTypes[selectedField] === 'bar' ? (
+                <BarChart data={data} margin={{ top: 5, right: 10, left: -20, bottom: 5 }} onClick={handleChartClick} style={{ cursor: 'pointer', WebkitTapHighlightColor: 'transparent', userSelect: 'none', outline: 'none' }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f5f5f4" />
+                  <XAxis 
+                    dataKey="logId" 
+                    ticks={dayTicks}
+                    tickFormatter={tickDate}
+                    interval="preserveStartEnd"
+                    minTickGap={12}
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: '#78716c', fontSize: 12 }}
+                    dy={10}
+                  />
+                  <YAxis 
+                    domain={yDomain}
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: '#78716c', fontSize: 12 }}
+                    tickFormatter={yAxisTickFormatter}
+                  />
+                  <Tooltip 
+                    cursor={{ fill: '#f5f5f4' }}
+                    contentStyle={{ borderRadius: '12px', border: '1px solid #e7e5e4', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                    labelStyle={{ color: '#57534e', fontWeight: 600, marginBottom: '4px' }}
+                    itemStyle={{ color: '#047857', fontWeight: 700 }}
+                    labelFormatter={tooltipDate}
+                    formatter={(value: unknown, _name: unknown, item: unknown) => [formatLogValue(value, schemaProperties?.[selectedField]), tooltipLabel(fieldTitle(selectedField, schemaProperties), item)]}
+                  />
+                  <Bar
+                    dataKey="value"
+                    name="Value"
+                    fill={CHART_COLOR}
+                    radius={[4, 4, 0, 0]}
+                    maxBarSize={60}
+                    onClick={handleDotClick}
+                  />
+                </BarChart>
+              ) : (
+                <LineChart data={data} margin={{ top: 5, right: 10, left: -20, bottom: 5 }} onClick={handleChartClick} style={{ cursor: 'pointer', WebkitTapHighlightColor: 'transparent', userSelect: 'none', outline: 'none' }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f5f5f4" />
+                  <XAxis 
+                    dataKey="date" 
+                    type="number"
+                    scale="time"
+                    domain={['dataMin', 'dataMax']}
+                    padding={{ left: 20, right: 20 }}
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: '#78716c', fontSize: 12 }}
+                    tickFormatter={(tick) => new Date(tick).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone })}
+                    dy={10}
+                  />
+                  <YAxis 
+                    domain={yDomain}
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: '#78716c', fontSize: 12 }}
+                    tickFormatter={yAxisTickFormatter}
+                  />
+                  <Tooltip 
+                    cursor={false}
+                    contentStyle={{ borderRadius: '12px', border: '1px solid #e7e5e4', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                    labelStyle={{ color: '#57534e', fontWeight: 600, marginBottom: '4px' }}
+                    itemStyle={{ color: '#047857', fontWeight: 700 }}
+                    labelFormatter={tooltipDate}
+                    formatter={(value: unknown, _name: unknown, item: unknown) => [formatLogValue(value, schemaProperties?.[selectedField]), tooltipLabel(fieldTitle(selectedField, schemaProperties), item)]}
+                  />
+                  {/* On a shared habit the line goes neutral so each point's person color stands out */}
+                  <Line
+                    type="monotone"
+                    dataKey="value"
+                    name="Value"
+                    stroke={people ? '#d6d3d1' : CHART_COLOR}
+                    strokeWidth={3}
+                    dot={people
+                      ? ({ cx, cy, index, payload }) => (
+                          <circle key={index} cx={cx} cy={cy} r={4} fill={payload.fill} onClick={() => triggerHighlight(payload.logId)} />
+                        )
+                      : { r: 4, fill: CHART_COLOR, strokeWidth: 0, onClick: handleDotClick }}
+                    activeDot={people
+                      ? ({ cx, cy, payload }) => (
+                          <circle cx={cx} cy={cy} r={6} fill={payload.fill} stroke="#fff" strokeWidth={2} onClick={() => triggerHighlight(payload.logId)} />
+                        )
+                      : { r: 6, fill: '#047857', stroke: '#fff', strokeWidth: 2, onClick: handleDotClick }}
+                  />
+                </LineChart>
+              )}
+            </ResponsiveContainer>
+          )}
+        </div>
       </div>
-    </div>
+    </section>
   );
 }

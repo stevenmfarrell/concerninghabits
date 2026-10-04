@@ -1,5 +1,5 @@
-import { RecordPageSkeleton } from '@/components/Skeleton';
+import { PanePageSkeleton } from '@/components/Skeleton';
 
 export default function Loading() {
-  return <RecordPageSkeleton />;
+  return <PanePageSkeleton drillIn />;
 }

@@ -47,49 +47,46 @@ export default async function HabitsPage() {
       {/* Shown even with no categories yet, for its Manage Categories link */}
       <PaneSection
         title="Categories"
+        empty={categoryRows.length === 0 && uncategorized.length === 0 && (
+          <EmptyState title="No habits here yet" action={<LinkButton href="/create" variant="outline">New Habit</LinkButton>}>
+            Add a habit, or tap the quill on the Agenda page and tell it something you did.
+          </EmptyState>
+        )}
         action={
           <IconLinkButton href="/settings/categories" edge="right" title="Manage Categories" aria-label="Manage Categories" className="-my-2">
             <Settings2 className="w-5 h-5" />
           </IconLinkButton>
         }
       >
-        {categoryRows.length === 0 && uncategorized.length === 0 ? (
-          <EmptyState title="No habits here yet" action={<LinkButton href="/create" variant="outline">New Habit</LinkButton>}>
-            Add a habit, or tap the quill on the Agenda page and tell it something you did.
-          </EmptyState>
-        ) : (
-          <>
-            {/* Empty categories too, so they can be found and given habits */}
-            {categoryRows.map(cat => (
-              <CategoryRow
-                key={cat.id}
-                href={`/categories/${cat.id}`}
-                name={cat.name}
-                icon={cat.icon}
-                dates={cat.dates}
-                habitCount={cat.habitCount}
-                subtitle={`${cat.habitCount} ${cat.habitCount === 1 ? 'habit' : 'habits'}${cat.cadence.type !== 'none' ? ` · ${describeCadence(cat.cadence)}` : ''}`}
-                cadence={cat.cadence}
-                bedtime={user.bedtime}
-                weekStartsOn={user.weekStartsOn}
-                timeZone={user.timeZone}
-              />
-            ))}
-            {uncategorized.length > 0 && (
-              <CategoryRow
-                href={`/categories/${UNCATEGORIZED_ID}`}
-                name="Uncategorized"
-                icon={UNCATEGORIZED_ICON}
-                dates={uncategorized.flatMap(h => h.logs.map(l => l.createdAt))}
-                habitCount={uncategorized.length}
-                subtitle={`${uncategorized.length} ${uncategorized.length === 1 ? 'habit' : 'habits'}`}
-                cadence={NO_CADENCE}
-                bedtime={user.bedtime}
-                weekStartsOn={user.weekStartsOn}
-                timeZone={user.timeZone}
-              />
-            )}
-          </>
+        {/* Empty categories too, so they can be found and given habits */}
+        {categoryRows.map(cat => (
+          <CategoryRow
+            key={cat.id}
+            href={`/categories/${cat.id}`}
+            name={cat.name}
+            icon={cat.icon}
+            dates={cat.dates}
+            habitCount={cat.habitCount}
+            subtitle={`${cat.habitCount} ${cat.habitCount === 1 ? 'habit' : 'habits'}${cat.cadence.type !== 'none' ? ` · ${describeCadence(cat.cadence)}` : ''}`}
+            cadence={cat.cadence}
+            bedtime={user.bedtime}
+            weekStartsOn={user.weekStartsOn}
+            timeZone={user.timeZone}
+          />
+        ))}
+        {uncategorized.length > 0 && (
+          <CategoryRow
+            href={`/categories/${UNCATEGORIZED_ID}`}
+            name="Uncategorized"
+            icon={UNCATEGORIZED_ICON}
+            dates={uncategorized.flatMap(h => h.logs.map(l => l.createdAt))}
+            habitCount={uncategorized.length}
+            subtitle={`${uncategorized.length} ${uncategorized.length === 1 ? 'habit' : 'habits'}`}
+            cadence={NO_CADENCE}
+            bedtime={user.bedtime}
+            weekStartsOn={user.weekStartsOn}
+            timeZone={user.timeZone}
+          />
         )}
       </PaneSection>
     </PanePage>

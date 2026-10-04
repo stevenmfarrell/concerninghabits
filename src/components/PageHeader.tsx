@@ -3,6 +3,10 @@ import type { ReactNode } from 'react';
 import BackButton from '@/components/BackButton';
 import { IconLinkButton } from '@/components/ui/IconButton';
 
+// Where something pinned under the header sticks, e.g. a pane's section headings (see Pane). The
+// header has a fixed height so this stays true.
+export const BELOW_HEADER = 'top-17 sm:top-19';
+
 interface PageHeaderProps {
   title: ReactNode;
   /** Lighter text after the title, e.g. today's date. Only on the bottom nav's tabs (`showBack={false}`). */
@@ -20,7 +24,7 @@ interface PageHeaderProps {
 
 export default function PageHeader({ title, subtitle, backHref, showBack = true, actions, titleInsetClassName = 'px-14' }: PageHeaderProps) {
   return (
-    <div className="sticky top-0 z-30 border-b border-stone-200 px-4 py-3 sm:px-8 sm:py-4 flex items-center justify-between shadow-sm">
+    <div className="sticky top-0 z-30 h-17 sm:h-19 border-b border-stone-200 px-4 sm:px-8 flex items-center justify-between shadow-sm">
       {/* The frosted background is its own layer: a backdrop blur on the header itself would make it
           the containing block for `fixed` descendants, confining a menu's tap-outside-to-close
           overlay to the header */}

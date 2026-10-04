@@ -60,10 +60,11 @@ export default function InteractiveCalendar(props: {
 
   return (
     <>
-      <div className={`hidden sm:flex w-full ${props.weeks === 5 ? 'justify-center' : 'justify-center sm:justify-start'}`}>
+      {/* Centered, but from the start when wider than the page, so its overflow scrolls rather than being cut off */}
+      <div className="hidden sm:flex w-full justify-center-safe">
         <ActivityCalendar dates={dates} loggedBy={loggedBy} people={props.people} weeks={props.weeks} cadence={props.cadence} size="md" monthsPerColumn={props.desktopMonthsPerColumn} bedtime={props.bedtime} weekStartsOn={props.weekStartsOn} timeZone={props.timeZone} onDateClick={handleDateClick} />
       </div>
-      <div className={`flex sm:hidden w-full ${props.weeks === 5 ? 'justify-center' : 'justify-start'}`}>
+      <div className="flex sm:hidden w-full justify-center-safe">
         <ActivityCalendar dates={dates} loggedBy={loggedBy} people={props.people} weeks={props.weeks} cadence={props.cadence} size="md" monthsPerColumn={props.mobileMonthsPerColumn} bedtime={props.bedtime} weekStartsOn={props.weekStartsOn} timeZone={props.timeZone} onDateClick={handleDateClick} />
       </div>
     </>

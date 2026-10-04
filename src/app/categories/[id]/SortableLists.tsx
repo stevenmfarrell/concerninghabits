@@ -26,10 +26,9 @@ interface SortableRowProps {
   people: Record<string, Person>;
   isOverlay?: boolean;
   isReordering?: boolean;
-  className?: string;
 }
 
-const SortableSubcategoryItem = ({ sub, user, people, isOverlay, isReordering, className = '' }: SortableRowProps & { sub: SubcategoryListItem }) => {
+const SortableSubcategoryItem = ({ sub, user, people, isOverlay, isReordering }: SortableRowProps & { sub: SubcategoryListItem }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: sub.id });
   const [isOpen, setIsOpen] = useState(true);
   
@@ -43,7 +42,7 @@ const SortableSubcategoryItem = ({ sub, user, people, isOverlay, isReordering, c
   const content = (
     <div className={`flex flex-col relative w-full ${isOverlay ? 'shadow-2xl scale-[1.02] z-50 rounded-2xl' : ''}`}>
       {/* Header */}
-      <div className={`py-4 px-4 sm:px-6 flex justify-between items-center group/header transition-colors ${isOpen && subHabits.length > 0 ? 'border-b border-stone-100' : ''} bg-blue-50/50 hover:bg-blue-50`}>
+      <div className={`py-3 px-4 sm:px-6 flex justify-between items-center group/header transition-colors ${isOpen && subHabits.length > 0 ? 'border-b border-stone-100' : ''} bg-blue-50/50 hover:bg-blue-50`}>
         <div className="flex items-center gap-2 sm:gap-4 w-full">
           {isReordering && (
             <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing text-stone-300 hover:text-stone-500 touch-none shrink-0 p-1 -ml-2">
@@ -83,21 +82,21 @@ const SortableSubcategoryItem = ({ sub, user, people, isOverlay, isReordering, c
       
       {/* Habits */}
       {isOpen && !isOverlay && subHabits.length > 0 && (
-        <SortableHabitList items={subHabits} user={user} people={people} isReordering={isReordering} dndContextId={`habits-dnd-${sub.id}`} bare />
+        <SortableHabitList items={subHabits} user={user} people={people} isReordering={isReordering} dndContextId={`habits-dnd-${sub.id}`} bare nested />
       )}
     </div>
   );
 
   if (isOverlay) return <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">{content}</div>;
-  return <div ref={setNodeRef} style={style} className={`bg-white rounded-2xl shadow-sm border border-stone-200 overflow-hidden ${isDragging ? 'opacity-40' : ''} ${className}`}>{content}</div>;
+  return <div ref={setNodeRef} style={style} className={`bg-white ${isDragging ? 'opacity-40' : ''}`}>{content}</div>;
 };
 
 type CategoryItem =
   | { type: 'habit', id: string, data: HabitListItem }
   | { type: 'subcategory', id: string, data: SubcategoryListItem };
 
-// A category's direct habits and subcategories, sorted together so either can be placed above the other.
-// Consecutive habits render as one joined card; each subcategory is its own card.
+// A category's direct habits and subcategories, sorted together so either can be placed above the other,
+// as one list of rows: each subcategory is a tinted header row with its habits under it.
 export function SortableCategoryItemList({ items: initialItems, user, people, isReordering }: { items: CategoryItem[], user: SessionUser, people: Record<string, Person>, isReordering?: boolean }) {
   const { items, activeId, sensors, handleDragStart, handleDragCancel, handleDragEnd } = useReorderableList(initialItems, async (newItems) => {
     // Habits and subcategories share one order sequence within this category
@@ -112,23 +111,13 @@ export function SortableCategoryItemList({ items: initialItems, user, people, is
 
   const activeItem = items.find(i => i.id === activeId);
 
-  const getHabitClassName = (index: number) => {
-    const prevIsHabit = items[index - 1]?.type === 'habit';
-    const nextIsHabit = items[index + 1]?.type === 'habit';
-    return [
-      'border-x border-stone-100 shadow-sm',
-      prevIsHabit ? 'border-t' : `border-t rounded-t-2xl overflow-hidden ${index > 0 ? 'mt-6' : ''}`,
-      nextIsHabit ? '' : 'border-b rounded-b-2xl overflow-hidden',
-    ].join(' ');
-  };
-
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col divide-y divide-stone-100">
       <DndContext id="category-items-dnd-context" sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={handleDragCancel}>
         <SortableContext items={items.map(i => i.id)} strategy={verticalListSortingStrategy}>
-          {items.map((item, index) => item.type === 'habit'
-            ? <SortableHabitItem key={item.id} habit={item.data} user={user} people={people} isReordering={isReordering} className={getHabitClassName(index)} />
-            : <SortableSubcategoryItem key={item.id} sub={item.data} user={user} people={people} isReordering={isReordering} className={index > 0 ? 'mt-6' : ''} />
+          {items.map(item => item.type === 'habit'
+            ? <SortableHabitItem key={item.id} habit={item.data} user={user} people={people} isReordering={isReordering} />
+            : <SortableSubcategoryItem key={item.id} sub={item.data} user={user} people={people} isReordering={isReordering} />
           )}
         </SortableContext>
         <DragOverlay>
@@ -141,7 +130,8 @@ export function SortableCategoryItemList({ items: initialItems, user, people, is
 }
 
 // `status` is what the Agenda page shows beside its calendar, e.g. a progress ring (see RowStatus)
-const SortableHabitItem = ({ habit, status, user, people, isOverlay, isReordering, className = '' }: SortableRowProps & { habit: HabitListItem; status?: Status }) => {
+// `nested` indents the row under its subcategory's header, its name lined up with the subcategory's
+const SortableHabitItem = ({ habit, status, user, people, isOverlay, isReordering, nested }: SortableRowProps & { habit: HabitListItem; status?: Status; nested?: boolean }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: habit.id });
 
   const style = {
@@ -154,7 +144,7 @@ const SortableHabitItem = ({ habit, status, user, people, isOverlay, isReorderin
 
   const content = (
     <div className={`flex items-stretch transition-colors group/row relative ${isDragging ? 'opacity-30 bg-stone-100' : 'bg-white hover:bg-stone-50'} ${isOverlay ? 'shadow-2xl scale-[1.02] z-50 rounded-xl' : ''}`}>
-      <div className="flex-1 flex items-center py-3 px-4 sm:px-6 gap-2 sm:gap-4 min-w-0">
+      <div className={`flex-1 flex items-center py-3 ${nested ? 'pl-15 sm:pl-17 pr-4 sm:pr-6' : 'px-4 sm:px-6'} gap-2 sm:gap-4 min-w-0`}>
         {isReordering && (
           <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing text-stone-300 hover:text-stone-500 touch-none shrink-0 p-1 -ml-2">
             <GripVertical className="w-5 h-5" />
@@ -197,13 +187,13 @@ const SortableHabitItem = ({ habit, status, user, people, isOverlay, isReorderin
   );
 
   if (isOverlay) return content;
-  return <div ref={setNodeRef} style={style} className={`relative bg-white ${className}`}>{content}</div>;
+  return <div ref={setNodeRef} style={style} className="relative bg-white">{content}</div>;
 };
 
 // `statuses` are what some habits' rows show beside their calendars, by habit id (see SortableHabitItem).
-// `bare` leaves out the list's own card, for a list inside something else (a subcategory's card) or
-// laid straight on the page (the Agenda's full-width pane).
-export function SortableHabitList({ items: initialItems, statuses, user, people, isReordering, dndContextId = "habits-dnd-context", bare = false }: { items: HabitListItem[], statuses?: Record<string, Status>, user: SessionUser, people: Record<string, Person>, isReordering?: boolean, dndContextId?: string, bare?: boolean }) {
+// `bare` leaves out the list's own card, for a list laid straight on a page's pane; `nested` indents
+// its rows under a subcategory's header.
+export function SortableHabitList({ items: initialItems, statuses, user, people, isReordering, dndContextId = "habits-dnd-context", bare = false, nested = false }: { items: HabitListItem[], statuses?: Record<string, Status>, user: SessionUser, people: Record<string, Person>, isReordering?: boolean, dndContextId?: string, bare?: boolean, nested?: boolean }) {
   const { items, activeId, sensors, handleDragStart, handleDragCancel, handleDragEnd } = useReorderableList(initialItems, async (newItems) => {
     const updates = newItems.map((item, index) => ({ id: item.id, order: index }));
     await reorderHabits(updates);
@@ -215,10 +205,10 @@ export function SortableHabitList({ items: initialItems, statuses, user, people,
     <div className={bare ? "divide-y divide-stone-100 flex flex-col w-full" : "bg-white rounded-2xl shadow-sm border border-stone-100 overflow-hidden divide-y divide-stone-100 flex flex-col"}>
       <DndContext id={dndContextId} sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={handleDragCancel}>
         <SortableContext items={items.map(i => i.id)} strategy={verticalListSortingStrategy}>
-          {items.map(habit => <SortableHabitItem key={habit.id} habit={habit} status={statuses?.[habit.id]} user={user} people={people} isReordering={isReordering} />)}
+          {items.map(habit => <SortableHabitItem key={habit.id} habit={habit} status={statuses?.[habit.id]} user={user} people={people} isReordering={isReordering} nested={nested} />)}
         </SortableContext>
         <DragOverlay>
-          {activeItem ? <SortableHabitItem habit={activeItem} user={user} people={people} isOverlay isReordering={isReordering} /> : null}
+          {activeItem ? <SortableHabitItem habit={activeItem} user={user} people={people} isOverlay isReordering={isReordering} nested={nested} /> : null}
         </DragOverlay>
       </DndContext>
     </div>

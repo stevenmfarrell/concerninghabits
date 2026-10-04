@@ -1,5 +1,5 @@
-import { TabPageSkeleton } from '@/components/Skeleton';
+import { PanePageSkeleton } from '@/components/Skeleton';
 
 export default function Loading() {
-  return <TabPageSkeleton />;
+  return <PanePageSkeleton />;
 }

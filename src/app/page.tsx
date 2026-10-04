@@ -114,14 +114,13 @@ export default async function AgendaPage() {
         </EmptyState>
       ) : (
         <>
-          <PaneSection title="Due Now">
+          <PaneSection title="Due Now" empty={!anyDue && 'Nothing due right now.'}>
             {dueHabits.length > 0 && (
               <SortableHabitList items={dueHabits} statuses={statuses} user={user} people={people} dndContextId="due-habits" bare />
             )}
             {dueCategories.length > 0 && (
               <CategoryList categories={dueCategories} user={user} />
             )}
-            {!anyDue && <p className={`${PANE_INSET} text-stone-500`}>Nothing due right now.</p>}
           </PaneSection>
 
           {anyUpcoming && (
@@ -145,7 +144,8 @@ export default async function AgendaPage() {
           {anyDone && (
             <section>
               <PaneHeading>Done</PaneHeading>
-              <div className={PANE_INSET}>
+              {/* On the stone rather than white, since they aren't a list */}
+              <div className={`${PANE_INSET} py-3`}>
                 <DoneChips habits={doneHabits} categories={doneCategories} />
               </div>
             </section>
