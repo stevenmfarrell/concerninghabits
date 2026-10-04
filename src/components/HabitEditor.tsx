@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Camera, Loader2, Lock, Mic, Save, SquarePen, Zap } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { generateHabitSchema } from '../app/actions/habit';
@@ -12,12 +12,14 @@ import AiTweakInput from './AiTweakInput';
 import CollapsibleSection from './CollapsibleSection';
 import ConfirmDialog from './ConfirmDialog';
 import HabitFormOverview, { FormPreviewButton } from './HabitFormOverview';
+import FieldEditorSheet from './FieldEditorSheet';
 import PersonLabel from './PersonLabel';
 import { Button } from './ui/Button';
 import { Toggle } from './ui/Toggle';
 import { CadencePicker, CadenceSettings } from './CadenceField';
 import { orderCategoryTree } from '@/lib/categoryChoices';
 import { describeCadence, type Cadence } from '@/lib/cadence';
+import { settingsOf, withField, withoutField } from '@/lib/formFields';
 import type { CategoryOption, HabitSchema } from '@/lib/types';
 import type { Person } from '@/lib/userColors';
 
@@ -102,6 +104,11 @@ export default function HabitEditor({ mode, initial, owner, onSave, remove, save
   const [saving, setSaving] = useState(false);
   const [removing, setRemoving] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState(false);
+  // The field being added (key null) or changed in the field sheet
+  const [editingField, setEditingField] = useState<{ key: string | null } | null>(null);
+  // Set when saving is tried without a title, until one is typed
+  const [titleMissing, setTitleMissing] = useState(false);
+  const titleRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     getCategories().then(cats => {
@@ -130,6 +137,8 @@ export default function HabitEditor({ mode, initial, owner, onSave, remove, save
   const busy = saving || removing;
   const hasFields = Object.keys(schema.properties ?? {}).length > 0;
   const showSaveBar = mode === 'create' || dirty || saving;
+  // Fields the habit had when the editor opened, which entries may already have values for
+  const savedFieldKeys = mode === 'create' ? [] : Object.keys(initial.schema.properties ?? {});
 
   const handleTweak = async (change: string) => {
     setTweaking(true);
@@ -145,7 +154,12 @@ export default function HabitEditor({ mode, initial, owner, onSave, remove, save
   };
 
   const handleSave = async () => {
-    if (!draft.title) return;
+    if (!draft.title) {
+      setTitleMissing(true);
+      titleRef.current?.focus();
+      toast.error('Give your habit a title');
+      return;
+    }
     setSaving(true);
     try {
       await onSave(draft);
@@ -193,20 +207,27 @@ export default function HabitEditor({ mode, initial, owner, onSave, remove, save
         {isOwner ? (
           <>
             <div className="relative">
+              {/* Underlined while empty, so a new habit's blank title reads as something to fill in */}
               <input
+                ref={titleRef}
                 type="text"
-                className="w-full text-2xl font-bold text-stone-900 bg-transparent border-b border-transparent hover:border-stone-200 focus:border-emerald-500 focus:outline-none placeholder-stone-300 pb-1 pr-8 transition-colors"
+                className={`w-full text-2xl font-bold text-stone-900 bg-transparent border-b focus:outline-none placeholder-stone-400 pb-1 pr-8 transition-colors ${
+                  titleMissing ? 'border-red-500' : title ? 'border-transparent hover:border-stone-200 focus:border-emerald-500' : 'border-stone-300 focus:border-emerald-500'
+                }`}
                 value={title}
-                placeholder="Name your habit"
-                aria-label="Habit name"
+                placeholder="Habit title"
+                aria-label="Habit title"
+                aria-invalid={titleMissing}
                 onChange={e => {
                   setTitle(e.target.value);
+                  if (e.target.value.trim()) setTitleMissing(false);
                   onChangeTitle?.(e.target.value);
                 }}
                 disabled={busy}
               />
               <SquarePen className="w-5 h-5 text-stone-300 absolute right-1 top-2 pointer-events-none" />
             </div>
+            {titleMissing && <p className="text-sm text-red-600">Give your habit a title to save it.</p>}
             <input
               type="text"
               className="w-full text-stone-600 bg-transparent border-b border-transparent hover:border-stone-200 focus:border-emerald-500 focus:outline-none placeholder-stone-400 pb-0.5 transition-colors"
@@ -274,7 +295,11 @@ export default function HabitEditor({ mode, initial, owner, onSave, remove, save
           <h2 className="font-semibold text-stone-800">What you record</h2>
           <FormPreviewButton schema={schema} title={title} />
         </div>
-        <HabitFormOverview schema={schema} />
+        <HabitFormOverview
+          schema={schema}
+          onEditField={isOwner && !busy && !tweaking ? key => setEditingField({ key }) : undefined}
+          onAddField={isOwner && !busy && !tweaking ? () => setEditingField({ key: null }) : undefined}
+        />
         {isOwner && <AiTweakInput onApply={handleTweak} applying={tweaking} disabled={busy} />}
       </section>
 
@@ -339,12 +364,28 @@ export default function HabitEditor({ mode, initial, owner, onSave, remove, save
                 Discard
               </Button>
             )}
-            <Button onClick={handleSave} disabled={busy || showNewCat || tweaking || !draft.title}>
+            <Button onClick={handleSave} disabled={busy || showNewCat || tweaking}>
               {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
               {mode === 'create' ? 'Create Habit' : 'Save Changes'}
             </Button>
           </div>
         </div>
+      )}
+
+      {editingField && (
+        <FieldEditorSheet
+          initial={editingField.key ? settingsOf(schema, editingField.key) : undefined}
+          loggedBefore={!!editingField.key && savedFieldKeys.includes(editingField.key)}
+          onDone={settings => {
+            setSchema(withField(schema, editingField.key, settings).schema);
+            setEditingField(null);
+          }}
+          onRemove={editingField.key ? () => {
+            setSchema(withoutField(schema, editingField.key!));
+            setEditingField(null);
+          } : undefined}
+          onClose={() => setEditingField(null)}
+        />
       )}
 
       {remove && (

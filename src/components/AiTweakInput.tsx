@@ -34,7 +34,7 @@ export default function AiTweakInput({ onApply, applying, disabled }: {
       <input
         type="text"
         className="flex-1 min-w-0 bg-transparent py-1.5 text-sm focus:outline-none placeholder-stone-400"
-        placeholder={isListening ? 'Listening...' : applying ? 'Updating the form...' : 'Describe a change to the form'}
+        placeholder={isListening ? 'Listening...' : applying ? 'Updating the form...' : 'Ask AI to change the form'}
         value={isListening ? liveTranscript : text}
         onChange={e => setText(e.target.value)}
         onKeyDown={e => {

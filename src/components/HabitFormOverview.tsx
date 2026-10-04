@@ -3,72 +3,84 @@
 import { useState } from 'react';
 import Form from '@rjsf/core';
 import validator from '@rjsf/validator-ajv8';
-import { Eye } from 'lucide-react';
+import { ChevronRight, Eye, Plus } from 'lucide-react';
 import toast from 'react-hot-toast';
 import BottomSheet from './BottomSheet';
 import { Button } from './ui/Button';
-import { IconButton } from './ui/IconButton';
 import { HABIT_FORM_WIDGETS, habitFormUiSchema, type HabitFormProperties } from './widgets/habitForm';
 import type { HabitSchema } from '@/lib/types';
+import { describeField, fieldsOf } from '@/lib/formFields';
 
-type FieldSchema = HabitFormProperties[string] & { enum?: unknown[]; format?: string };
-
-// What kind of answer a field takes, in words, e.g. "Number (miles)", "Duration", "One of: Low, High"
-function describeField(field: FieldSchema) {
-  const unit = field['x-unit'] ? ` (${field['x-unit']})` : '';
-  if (field['x-widget'] === 'duration') return 'Duration';
-  if (field['x-widget'] === 'textarea') return 'Long text';
-  if (Array.isArray(field.enum) && field.enum.length > 0) return `One of: ${field.enum.join(', ')}`;
-  switch (field.type) {
-    case 'integer': return `Whole number${unit}`;
-    case 'number': return `Number${unit}`;
-    case 'boolean': return 'Yes or no';
-    case 'array': return 'List';
-    case 'string': return field.format === 'date' ? 'Date' : field.format === 'date-time' ? 'Date and time' : 'Text';
-    default: return 'Value';
-  }
-}
-
-// The habit's form in the editor: its fields listed as plain text
-export default function HabitFormOverview({ schema }: { schema: HabitSchema }) {
-  const properties = (schema.properties ?? {}) as Record<string, FieldSchema>;
-  const fields = Object.entries(properties);
+// The habit's form in the editor: its fields listed as plain text. With `onEditField`, each field
+// is a button to change it, and `onAddField` adds a button for a new one.
+export default function HabitFormOverview({ schema, onEditField, onAddField }: {
+  schema: HabitSchema;
+  onEditField?: (key: string) => void;
+  onAddField?: () => void;
+}) {
+  const fields = Object.entries(fieldsOf(schema));
   const required = new Set(schema.required ?? []);
 
-  if (fields.length === 0) {
-    return (
-      <p className="text-sm text-stone-500 p-4 bg-stone-50 border border-stone-100 rounded-xl">
-        No fields: logging it is a single tap.
-      </p>
-    );
-  }
-
   return (
-    <ul className="divide-y divide-stone-100 border border-stone-100 rounded-xl">
-      {fields.map(([key, field]) => (
-        <li key={key} className="flex items-baseline gap-3 px-4 py-3">
-          <span className="font-medium text-stone-800 min-w-0 truncate">{field.title || key}</span>
-          <span className="flex-1 min-w-0 text-sm text-stone-500 truncate">{describeField(field)}</span>
-          <span className={`text-xs font-medium shrink-0 ${required.has(key) ? 'text-emerald-700' : 'text-stone-400'}`}>
-            {required.has(key) ? 'Required' : 'Optional'}
-          </span>
-        </li>
-      ))}
-    </ul>
+    <div className="space-y-2">
+      {fields.length === 0 ? (
+        <p className="text-sm text-stone-500 p-4 bg-stone-50 border border-stone-100 rounded-xl">
+          No fields: logging it is a single tap.
+        </p>
+      ) : (
+        <ul className="divide-y divide-stone-100 border border-stone-100 rounded-xl overflow-hidden">
+          {fields.map(([key, field]) => {
+            const row = (
+              <>
+                <span className="font-medium text-stone-800 min-w-0 truncate">{field.title || key}</span>
+                <span className="flex-1 min-w-0 text-sm text-stone-500 truncate">{describeField(field)}</span>
+                <span className={`text-xs font-medium shrink-0 ${required.has(key) ? 'text-emerald-700' : 'text-stone-400'}`}>
+                  {required.has(key) ? 'Required' : 'Optional'}
+                </span>
+              </>
+            );
+            return (
+              <li key={key}>
+                {onEditField ? (
+                  <button
+                    type="button"
+                    onClick={() => onEditField(key)}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-stone-50 transition-colors"
+                    aria-label={`Edit field ${field.title || key}`}
+                  >
+                    {row}
+                    <ChevronRight className="w-4 h-4 text-stone-300 shrink-0" />
+                  </button>
+                ) : (
+                  <div className="flex items-baseline gap-3 px-4 py-3">{row}</div>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      {onAddField && (
+        <Button variant="outline" size="sm" onClick={onAddField}>
+          <Plus className="w-4 h-4" />
+          Add field
+        </Button>
+      )}
+    </div>
   );
 }
 
 // A button to try the habit's real form, in a pane like the one used to log it. Nothing is logged.
 export function FormPreviewButton({ schema, title }: { schema: HabitSchema; title: string }) {
   const [previewOpen, setPreviewOpen] = useState(false);
-  const properties = (schema.properties ?? {}) as Record<string, FieldSchema>;
+  const properties = fieldsOf(schema) as HabitFormProperties;
   const hasFields = Object.keys(properties).length > 0;
 
   return (
     <>
-      <IconButton variant="accent" edge="right" onClick={() => setPreviewOpen(true)} title="Preview form" aria-label="Preview form">
-        <Eye className="w-5 h-5" />
-      </IconButton>
+      <Button variant="ghost" size="sm" onClick={() => setPreviewOpen(true)} className="-mr-2">
+        <Eye className="w-4 h-4" />
+        Preview form
+      </Button>
 
       {previewOpen && (
         <BottomSheet title={title || 'New Habit'} ariaLabel="Form preview" onClose={() => setPreviewOpen(false)}>

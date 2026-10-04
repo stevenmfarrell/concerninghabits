@@ -237,6 +237,7 @@ export async function deleteCategory(id: string) {
 
 export async function saveHabit(name: string, description: string, schema: HabitSchema, categoryId?: string, cadence: Cadence = DEFAULT_CADENCE, publishToMqtt: boolean = false, aiContext?: string) {
   const user = await getDefaultUser();
+  if (!name.trim()) throw new Error('Give your habit a title');
   if (categoryId) await getOwnedCategory(user.id, categoryId);
   const normalizedAiContext = normalizeAiContext(aiContext);
 
@@ -617,6 +618,7 @@ export async function importHabitLogsCsv(habitId: string, csvText: string) {
 // Changes the habit's definition (owner only) and which of the owner's categories it's filed in
 export async function updateHabit(id: string, name: string, description: string, schema: HabitSchema, categoryId?: string, cadence: Cadence = DEFAULT_CADENCE, publishToMqtt: boolean = false, aiContext?: string) {
   const user = await getDefaultUser();
+  if (!name.trim()) throw new Error('Give your habit a title');
   await getOwnedHabit(user.id, id);
   if (categoryId) await getOwnedCategory(user.id, categoryId);
   const normalizedAiContext = normalizeAiContext(aiContext);

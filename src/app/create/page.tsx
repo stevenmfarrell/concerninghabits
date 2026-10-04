@@ -68,7 +68,7 @@ export default function CreateHabit({ searchParams }: { searchParams: Promise<{ 
               onClick={() => {
                 sessionStorage.setItem('draftHabit', JSON.stringify({
                   success: true,
-                  schema: { title: 'New Habit', type: 'object', properties: {} },
+                  schema: { title: '', type: 'object', properties: {} },
                   categoryId: category,
                 }));
                 router.push('/create/refine');
