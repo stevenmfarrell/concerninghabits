@@ -18,9 +18,8 @@ import { parseCadence } from '@/lib/cadence';
 import { calendarStart } from '@/lib/calendarRange';
 import type { HabitSchema } from '@/lib/types';
 import { fieldTitle, type HabitFormProperties } from '@/components/widgets/habitForm';
-import { isFormulaInput, parseCalculatedFields } from '@/lib/calculatedFields';
-import { defaultCharts, plottableFields } from '@/lib/charts';
-import { fieldsOf } from '@/lib/formFields';
+import { parseCalculatedFields } from '@/lib/calculatedFields';
+import { defaultCharts, parseCharts, plottableFields, type ChartSpec } from '@/lib/charts';
 
 // A habit's page: the Log Habit button (see LogClient), then its history: an activity calendar over
 // the chosen horizon, charts of its number and calculated fields, and its entries, a page at a time.
@@ -91,18 +90,26 @@ export default async function HabitPage(props: { params: Promise<{ id: string }>
   }
   const schemaProperties = schemaObj.properties as HabitFormProperties | undefined;
 
-  // What can be charted: the form's number fields and the habit's calculated fields, a chart each
+  // What can be charted: the owner's custom charts, then a chart of each of the form's number
+  // fields and the habit's calculated fields
   const calculatedFields = parseCalculatedFields(habit.calculatedFields);
   const chartFields = plottableFields(schemaObj, calculatedFields);
-  const charts = defaultCharts(chartFields);
+  const charts: ChartSpec[] = [
+    ...parseCharts(habit.charts).map(chart => ({ ...chart, custom: true as const })),
+    ...defaultCharts(chartFields),
+  ];
+  // Lines or bars, as the viewer last picked for each chart (otherwise as the chart was made)
   const defaultChartTypes: Record<string, 'line' | 'bar'> = {};
   charts.forEach(chart => {
     const savedType = cookieStore.get(`chartType_${habit.id}_${chart.id}`)?.value;
-    defaultChartTypes[chart.id] = (savedType === 'bar') ? 'bar' : 'line';
+    if (savedType === 'bar' || savedType === 'line') defaultChartTypes[chart.id] = savedType;
   });
-  // The owner gets Trends even with nothing to chart yet, when the form has fields a calculated
-  // field could be worked out from
-  const canAddCalculated = habit.isOwner && Object.values(fieldsOf(schemaObj)).some(isFormulaInput);
+  // And the period, for a custom chart the viewer switched to another one (see periodChoices)
+  const defaultChartPeriods: Record<string, string> = {};
+  charts.forEach(chart => {
+    const savedPeriod = chart.custom ? cookieStore.get(`chartPeriod_${habit.id}_${chart.id}`)?.value : undefined;
+    if (savedPeriod) defaultChartPeriods[chart.id] = savedPeriod;
+  });
 
   return (
     <LogClient habit={habit} user={user} people={allPeople} categories={categories}>
@@ -136,17 +143,23 @@ export default async function HabitPage(props: { params: Promise<{ id: string }>
             </div>
           </section>
 
-          {(charts.length > 0 || canAddCalculated) && (
+          {/* The owner always gets Trends, to add a chart (e.g. a count per week needs no fields) */}
+          {(charts.length > 0 || habit.isOwner) && (
             <HabitChart
-              logs={filteredLogs.map(l => ({ id: l.id, createdAt: l.createdAt, payload: l.payload, userId: l.userId }))}
+              // All the loaded entries, newest first, of which the listed ones come first: a chart
+              // rolled up by week or month counts its first period's entries from before the
+              // calendar's first day
+              entries={logs.map(l => ({ id: l.id, createdAt: l.createdAt, payload: l.payload, userId: l.userId }))}
+              listedCount={filteredLogs.length}
               people={people}
               fields={chartFields}
               charts={charts}
+              context={{ timeZone: user.timeZone, bedtimeOffsetMinutes, weekStartsOn: user.weekStartsOn, from: cutoffDate, to: today }}
               pageSize={pageSize}
               habitId={habit.id}
               defaultSelectedChart={savedChartField && charts.some(c => c.id === savedChartField) ? savedChartField : charts[0]?.id}
               defaultChartTypes={defaultChartTypes}
-              timeZone={user.timeZone}
+              defaultChartPeriods={defaultChartPeriods}
               owner={habit.isOwner ? { schema: schemaObj, calculatedFields } : undefined}
             />
           )}

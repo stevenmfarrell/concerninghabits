@@ -10,6 +10,7 @@ The app has light and dark themes, so components use the semantic colors defined
 - **Hues:** `accent` (emerald), `category` (blue), `danger` (red) and `warning` (amber), each with a fill (`bg-accent`, with `-hover`, and `-pressed` for a toggled-on button), text on the page (`text-accent-ink`, `-ink-strong`), pale fills (`-soft`, `-soft-strong`) and a matching border (`-line`). Use `text-on-accent` on an accent fill.
 - `dark:` is there for a genuine one-off. If you need a color that isn't a token, add the token to both themes in `globals.css`.
 - Activity calendars use their own shades, `accent-scale-1`…`4`, `-done` and `-period` (and the same for `category`), so more activity still reads as more in dark mode. They're set in `src/lib/activityShade.ts`.
+- Charts draw from `src/components/ChartView.tsx`. A chart's lines or bars take `--chart-1`, `--chart-2` and `--chart-3` in that order (never cycled; a chart has at most three, on one axis), a set checked for color blindness and contrast in both themes. A chart with more than one gets a legend.
 - Colors set from JavaScript (Recharts props, toast options, a person's fallback color) use the CSS variables directly, e.g. `'var(--ink-muted)'`.
 - The one exception is a surface that's the same in both themes, like the deep emerald voice-entry panel (`SpeakOrType`) and the `inverse` button variants made for it. Those keep raw palette classes.
 - The theme is per device, picked under Settings → Preferences (`src/lib/theme.ts`).

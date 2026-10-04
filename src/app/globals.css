@@ -42,6 +42,13 @@
   /* Each hue's family: a fill and its hover, text on the page (`-ink`), pale fills (`-soft`) and a
      border to go with them (`-line`). Emerald is the app's accent, blue is a category's, red is
      destructive, amber is a warning. */
+  /* A chart's series, in this fixed order (at most three a chart). Checked with the dataviz palette
+     validator against each theme's surface, all pairs, for color blindness and contrast. The first
+     is the accent, so a one-line chart looks as it always has. */
+  --chart-1: var(--color-emerald-600);
+  --chart-2: var(--color-blue-600);
+  --chart-3: var(--color-orange-600);
+
   --accent: var(--color-emerald-600);
   --accent-hover: var(--color-emerald-700);
   --accent-pressed: var(--color-emerald-800);
@@ -117,6 +124,10 @@
   --inverse-hover: var(--color-stone-600);
 
   --overlay: rgb(0 0 0 / 0.6);
+
+  --chart-1: var(--color-emerald-600);
+  --chart-2: var(--color-blue-500);
+  --chart-3: var(--color-orange-600);
 
   --accent: var(--color-emerald-600);
   --accent-hover: var(--color-emerald-500);

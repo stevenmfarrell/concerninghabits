@@ -50,6 +50,9 @@ model Habit {
   // Values worked out from each entry's fields (e.g. pace from duration and distance), as a JSON
   // array (see src/lib/calculatedFields.ts)
   calculatedFields String        @default("[]")
+  // Charts the owner made of its entries (several lines, rolled up by period), as a JSON array (see
+  // src/lib/charts.ts). Each field also gets a chart of its own, which isn't stored.
+  charts           String        @default("[]")
   // The habit's owner: the only user who can edit, share, or delete it
   userId           String
   user             User          @relation(fields: [userId], references: [id])

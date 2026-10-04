@@ -12,7 +12,8 @@ import { getDefaultUser, getCategories, getHabit, getLoggableHabits, logHabitEve
 import { buildCategoryChoices } from '@/lib/categoryChoices';
 import type { HabitSchema } from '@/lib/types';
 import { CADENCE_TYPES, cadenceFromSuggestion } from '@/lib/cadence';
-import { calculatedFieldProblem, isFormulaInput, type CalculatedField } from '@/lib/calculatedFields';
+import { calculatedFieldProblem, calculatedFieldSchema, isFormulaInput, parseCalculatedFields, type CalculatedField } from '@/lib/calculatedFields';
+import { AGGREGATES, chartProblem, MAX_ROLLING_DAYS, MAX_SERIES, plottableFields, type SavedChart } from '@/lib/charts';
 import { fieldsOf } from '@/lib/formFields';
 
 export async function generateHabitSchema(prompt: string, currentSchema?: HabitSchema) {
@@ -320,14 +321,7 @@ export async function generateCalculatedField(request: string, schema: HabitSche
 > {
   const user = await getDefaultUser();
 
-  const inputs = Object.entries(fieldsOf(schema))
-    .filter(([, field]) => isFormulaInput(field))
-    .map(([key, field]) => ({
-      key,
-      title: field.title || key,
-      type: field['x-widget'] === 'duration' ? 'duration, in minutes' : field.type === 'boolean' ? 'yes or no, as 1 or 0' : field.type === 'integer' ? 'whole number' : 'number',
-      ...(field['x-unit'] ? { unit: field['x-unit'] } : {}),
-    }));
+  const inputs = describeFormulaInputs(schema);
   if (inputs.length === 0) return { success: false, error: 'This habit has no number fields to calculate from.' };
 
   const system = `You define a calculated field for a habit-tracking app: a value worked out from the numbers in each single entry the user logs, which is then charted over time.
@@ -377,4 +371,160 @@ ${current ? `The user is changing this existing calculated field: ${JSON.stringi
     }
   }
   return { success: false, error: "Couldn't make a formula for that from this habit's fields." };
+}
+
+// The chart part of what generateChart drafts, without the id it gets when saved
+export type ChartDraft = Omit<SavedChart, 'id'>;
+
+// What a field is, for the AI writing a formula or a chart
+function describeFormulaInputs(schema: HabitSchema) {
+  return Object.entries(fieldsOf(schema))
+    .filter(([, field]) => isFormulaInput(field))
+    .map(([key, field]) => ({
+      key,
+      title: field.title || key,
+      type: field['x-widget'] === 'duration' ? 'duration, in minutes' : field.type === 'boolean' ? 'yes or no, as 1 or 0' : field.type === 'integer' ? 'whole number' : 'number',
+      ...(field['x-unit'] ? { unit: field['x-unit'] } : {}),
+    }));
+}
+
+// A chart drafted from what the habit's owner asked for (e.g. "miles per week", "my pace over
+// time"), with any calculated fields it needs that the habit doesn't have yet (e.g. a pace), for the
+// owner to check before it's saved (see saveChart, which gives new fields their final keys).
+// `current` is the chart being changed, for a follow-up like "make it monthly", with the calculated
+// fields drafted for it that aren't saved yet, which the new draft can use as if they were. The
+// returned fields are only those newly drafted. The draft is checked against the habit's fields, and
+// the AI is asked once more with the problem if it doesn't work.
+export async function generateChart(habitId: string, request: string, current?: { chart: ChartDraft; newCalculatedFields: CalculatedField[] }): Promise<
+  { success: true; chart: ChartDraft; newCalculatedFields: CalculatedField[] } | { success: false; error: string }
+> {
+  const user = await getDefaultUser();
+  const habit = await getHabit(habitId);
+  if (!habit?.isOwner) return { success: false, error: 'Only the habit\'s owner can add charts.' };
+
+  let schema: HabitSchema = {};
+  try {
+    schema = JSON.parse(habit.schema);
+  } catch {}
+  // Fields drafted earlier for this chart count as the habit's own
+  const existingCalculated = [...parseCalculatedFields(habit.calculatedFields), ...(current?.newCalculatedFields ?? [])];
+  const existingFields = plottableFields(schema, existingCalculated);
+  const inputs = describeFormulaInputs(schema);
+
+  const system = `You design a chart for a habit-tracking app, from what the user asks for. Each time the user does the habit they log an entry, with values for the habit's form fields.
+
+The habit: ${JSON.stringify(habit.name)}${habit.description ? ` (${JSON.stringify(habit.description)})` : ''}
+Every entry is one time the user did the habit, so "how many", "how often", "times per week", or a number per period of the thing the habit is about (e.g. glasses for a water habit, where each entry is a glass) is a count of entries, even when the form has no fields.
+
+The form's fields (keys are used in formulas):
+${JSON.stringify(inputs, null, 2)}
+
+Calculated fields the habit already has, worked out from each entry's form fields:
+${JSON.stringify(existingCalculated.map(({ key, title, expression, unit, format }) => ({ key, title, expression, unit, format })), null, 2)}
+
+A chart has:
+- period: what it's shown by at first. Anyone viewing it can switch it between entries, days, weeks and months, so pick the one that best fits the request. 'entry' is a point per entry, the entry's own value. 'day', 'week' or 'month' combine each calendar period's entries into one point. 'rolling' is a point per day combining the entries of the last rollingDays days (2 to ${MAX_ROLLING_DAYS}), e.g. a 7-day average.
+- series: 1 to ${MAX_SERIES} lines on the same axis. Each takes a field (a form field key or calculated field key that's a number, or 'entries' to count entries) and fn: how a period's entries combine (${AGGREGATES.join(', ')}), whichever period it's shown by, so give it even for period 'entry'. Amounts that add up, like a distance, a time spent or pages read, use sum; rates, ratios and readings, like a pace, a speed, a weight or a mood, use avg (or min or max when asked for the lowest or highest). 'count' counts the entries (with a value for the field). 'entries' can only use fn 'count'.
+- kind: 'bar' suits totals and counts per period; 'line' suits values over time, averages and rolling values.
+All series must be in the same unit, since they share one axis (a count's unit is entries). Don't put e.g. distance and time on one chart.
+
+When the chart needs a value worked out from each entry that isn't a form field or an existing calculated field (e.g. a pace or a speed), define it in newCalculatedFields: a new key (not one already used), a short title, a formula using only form field keys, numbers, + - * / and parentheses, its unit, and format 'duration' only when the result is a length of time in minutes (shown as m:ss). Durations are stored as total minutes, so a pace in minutes per mile is \`duration / distance\` and a speed in mph is \`distance / (duration / 60)\`. Reuse an existing calculated field when one fits. The user prefers the ${user.unitSystem} measurement system.
+Give the chart a short title naming what it shows, without the period, since the viewer can change that: e.g. "Miles run", "Pace", "Runs", "Distance and longest run". Never "per week", "weekly", "daily", "monthly", "each month" or the like in the title.
+If what the user asks for can't be charted from these fields, set possible to false and say why in reason, briefly, to the user.
+${current ? `The user is changing this chart: ${JSON.stringify(current.chart)}. Keep what they don't ask to change.` : ''}`;
+
+  const outputSchema = z.object({
+    possible: z.boolean(),
+    reason: z.string().optional().describe('When not possible: why, in a short sentence to the user'),
+    title: z.string(),
+    kind: z.enum(['line', 'bar']),
+    period: z.enum(['entry', 'day', 'week', 'month', 'rolling']),
+    rollingDays: z.number().int().optional().describe("For period 'rolling': how many days each point covers"),
+    series: z.array(z.object({
+      field: z.string().describe("A form field key, a calculated field key (existing or new), or 'entries'"),
+      fn: z.enum(AGGREGATES).describe("How a period's entries combine, whichever period the chart is shown by"),
+    })),
+    newCalculatedFields: z.array(z.object({
+      key: z.string(),
+      title: z.string(),
+      expression: z.string(),
+      unit: z.string().describe('The unit of the result, or "" for none'),
+      format: z.enum(['number', 'duration']),
+    })).describe('Values the chart needs that the habit has no field for yet; empty when none are needed'),
+  });
+
+  let feedback = '';
+  for (let attempt = 0; attempt < 2; attempt++) {
+    let object: z.infer<typeof outputSchema>;
+    try {
+      ({ object } = await generateObject({
+        model: google('gemini-flash-lite-latest'),
+        maxRetries: 0,
+        system,
+        prompt: `User request: ${request}${feedback}`,
+        schema: outputSchema,
+      }));
+    } catch (error) {
+      console.error('Error generating chart:', error);
+      return { success: false, error: 'Failed to make that chart.' };
+    }
+    if (!object.possible) return { success: false, error: object.reason || "That can't be charted from this habit's fields." };
+
+    const draft = toChartDraft(object);
+    const problem = draftProblem(draft, schema, existingCalculated, existingFields.map(f => f.key));
+    if (!problem) return { success: true, ...draft };
+    feedback = `\n\nYour last answer was ${JSON.stringify(object)}, which doesn't work: ${problem}. Fix it.`;
+  }
+  return { success: false, error: "Couldn't make a chart for that from this habit's fields." };
+}
+
+// The AI's answer as a chart and the calculated fields it adds
+function toChartDraft(object: {
+  title: string; kind: 'line' | 'bar'; period: 'entry' | 'day' | 'week' | 'month' | 'rolling'; rollingDays?: number;
+  series: { field: string; fn: (typeof AGGREGATES)[number] }[];
+  newCalculatedFields: { key: string; title: string; expression: string; unit: string; format: 'number' | 'duration' }[];
+}) {
+  const period = object.period === 'rolling' ? { rollingDays: Math.min(MAX_ROLLING_DAYS, Math.max(2, object.rollingDays ?? 7)) } : object.period;
+  const chart: ChartDraft = {
+    title: object.title.trim(),
+    kind: object.kind,
+    period,
+    series: object.series.slice(0, MAX_SERIES).map(s => ({
+      field: s.field === 'entries' ? null : s.field,
+      fn: s.field === 'entries' ? 'count' as const : s.fn,
+    })),
+  };
+  const newCalculatedFields = object.newCalculatedFields.map(f => ({
+    key: f.key.trim(),
+    title: f.title.trim(),
+    expression: f.expression.trim(),
+    unit: f.unit.trim() || undefined,
+    format: f.format,
+  }));
+  return { chart, newCalculatedFields };
+}
+
+// A period named in a chart's title, which it shouldn't have (see generateChart)
+const PERIOD_IN_TITLE = /\b(per|a|each|every)\s+(day|week|month)\b|\b(daily|weekly|monthly)\b|\b\d+-day\b/i;
+
+// Why a drafted chart doesn't work with the habit, or null when it does
+function draftProblem(
+  { chart, newCalculatedFields }: { chart: ChartDraft; newCalculatedFields: CalculatedField[] },
+  schema: HabitSchema,
+  existingCalculated: CalculatedField[],
+  existingKeys: string[],
+) {
+  if (!chart.title) return 'The chart needs a title';
+  if (PERIOD_IN_TITLE.test(chart.title)) return `The title "${chart.title}" names a period, but the viewer can switch the chart's period, so leave it out`;
+  if (chart.series.length === 0) return 'The chart needs at least one series';
+  const usedKeys = [...Object.keys(fieldsOf(schema)), ...existingKeys];
+  for (const field of newCalculatedFields) {
+    if (usedKeys.includes(field.key)) return `The new calculated field's key "${field.key}" is already used`;
+    usedKeys.push(field.key);
+    const parsed = calculatedFieldSchema.safeParse(field);
+    if (!parsed.success) return `The new calculated field "${field.title}" isn't valid`;
+    const problem = calculatedFieldProblem(field, schema);
+    if (problem) return `${field.title}: ${problem}`;
+  }
+  return chartProblem(chart, plottableFields(schema, [...existingCalculated, ...newCalculatedFields]));
 }

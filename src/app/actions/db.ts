@@ -20,6 +20,7 @@ import { RETURN_TO_HEADER, withReturnTo } from '@/lib/returnTo';
 import type { HabitSchema } from '@/lib/types';
 import { calculatedFieldProblem, calculatedFieldSchema, calculatedFieldsSchema, MAX_CALCULATED_FIELDS, parseCalculatedFields, type CalculatedField } from '@/lib/calculatedFields';
 import { keyFor } from '@/lib/formFields';
+import { chartProblem, chartSpecSchema, MAX_CHARTS, newChartId, parseCharts, plottableFields, type SavedChart } from '@/lib/charts';
 
 type SchemaProperty = { type?: string; title?: string };
 
@@ -732,6 +733,75 @@ export async function deleteCalculatedField(habitId: string, key: string) {
   const habit = await getOwnedHabit(user.id, habitId);
   const remaining = parseCalculatedFields(habit.calculatedFields).filter(f => f.key !== key);
   await prisma.habit.update({ where: { id: habitId }, data: { calculatedFields: JSON.stringify(remaining) } });
+  revalidatePath(`/log/${habitId}`);
+}
+
+// Adds a chart to a habit (`chart.id` null), or changes one, along with any calculated fields it
+// needs that the habit doesn't have yet (e.g. a pace, for a chart of weekly average pace), in one
+// save. Owner only. A new calculated field's `key` is only what the chart's series call it: it's
+// saved under a key made from its title, and the chart is changed to match.
+//
+// A new chart of one field with a point per entry is that field's own chart (see defaultCharts), so
+// only its calculated field, if it's new, is saved. Returns the chart as saved (null when it wasn't),
+// the id of the chart to show (a field's own chart's id is its key), and the calculated fields added.
+export async function saveChart(
+  habitId: string,
+  chart: Omit<SavedChart, 'id'> & { id: string | null },
+  newCalculatedFields: CalculatedField[] = [],
+) {
+  const user = await getDefaultUser();
+  const habit = await getOwnedHabit(user.id, habitId);
+  const schema = parseHabitSchema(habit);
+  const existingFields = parseCalculatedFields(habit.calculatedFields);
+  const existingCharts = parseCharts(habit.charts);
+  if (chart.id !== null && !existingCharts.some(c => c.id === chart.id)) throw new Error('That chart no longer exists');
+  if (chart.id === null && existingCharts.length >= MAX_CHARTS) throw new Error(`A habit can have at most ${MAX_CHARTS} charts`);
+
+  // Each new calculated field under a key of its own, checked against the form
+  const takenKeys = [...Object.keys(schema.properties ?? {}), ...existingFields.map(f => f.key)];
+  const renamed = new Map<string, string>();
+  const added: CalculatedField[] = [];
+  for (const field of newCalculatedFields) {
+    const key = keyFor(field.title, takenKeys);
+    takenKeys.push(key);
+    const saved = calculatedFieldSchema.parse({ ...field, key });
+    const problem = calculatedFieldProblem(saved, schema);
+    if (problem) throw new Error(`${saved.title}: ${problem}`);
+    renamed.set(field.key, key);
+    added.push(saved);
+  }
+  const calculatedFields = checkCalculatedFields([...existingFields, ...added], schema);
+
+  const saved = chartSpecSchema.parse({
+    ...chart,
+    id: chart.id ?? newChartId(),
+    series: chart.series.map(series => ({ ...series, field: series.field === null ? null : renamed.get(series.field) ?? series.field })),
+  });
+  const problem = chartProblem(saved, plottableFields(schema, calculatedFields));
+  if (problem) throw new Error(problem);
+
+  const [onlySeries] = saved.series;
+  if (chart.id === null && saved.period === 'entry' && saved.series.length === 1 && onlySeries.field !== null) {
+    if (added.length > 0) await prisma.habit.update({ where: { id: habitId }, data: { calculatedFields: JSON.stringify(calculatedFields) } });
+    revalidatePath(`/log/${habitId}`);
+    return { chart: null, showId: onlySeries.field, calculatedFields: added };
+  }
+
+  const charts = chart.id === null ? [...existingCharts, saved] : existingCharts.map(c => (c.id === chart.id ? saved : c));
+  await prisma.habit.update({
+    where: { id: habitId },
+    data: { charts: JSON.stringify(charts), calculatedFields: JSON.stringify(calculatedFields) },
+  });
+  revalidatePath(`/log/${habitId}`);
+  return { chart: saved, showId: saved.id, calculatedFields: added };
+}
+
+// Removes a chart from a habit. Owner only. Calculated fields made for it are kept.
+export async function deleteChart(habitId: string, chartId: string) {
+  const user = await getDefaultUser();
+  const habit = await getOwnedHabit(user.id, habitId);
+  const remaining = parseCharts(habit.charts).filter(c => c.id !== chartId);
+  await prisma.habit.update({ where: { id: habitId }, data: { charts: JSON.stringify(remaining) } });
   revalidatePath(`/log/${habitId}`);
 }
 
