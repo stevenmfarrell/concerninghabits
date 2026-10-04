@@ -17,7 +17,6 @@ import PersonLabel from './PersonLabel';
 import { Button } from './ui/Button';
 import { Toggle } from './ui/Toggle';
 import { CadencePicker, CadenceSettings } from './CadenceField';
-import { orderCategoryTree } from '@/lib/categoryChoices';
 import { describeCadence, type Cadence } from '@/lib/cadence';
 import { settingsOf, withField, withoutField } from '@/lib/formFields';
 import type { CategoryOption, HabitSchema } from '@/lib/types';
@@ -111,18 +110,11 @@ export default function HabitEditor({ mode, initial, owner, onSave, remove, save
   const titleRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    getCategories().then(cats => {
-      setCategories(cats);
-      // A new habit starts in the first category shown in the dropdown, unless one was picked for
-      // it. An existing habit stays where it is, uncategorized included.
-      if (mode === 'create') {
-        setCategoryId(current =>
-          cats.length > 0 && !cats.some(c => c.id === current) ? orderCategoryTree(cats)[0].category.id : current
-        );
-      }
-    });
+    // A habit is uncategorized unless it's put in a category (or, for a new one, AI or the page it
+    // was started from suggested one)
+    getCategories().then(setCategories);
     if (isOwner) isMqttConfigured().then(setMqttConfigured);
-  }, [mode, isOwner]);
+  }, [isOwner]);
 
   const draft: HabitDraft = {
     title: title.trim(),
@@ -268,7 +260,7 @@ export default function HabitEditor({ mode, initial, owner, onSave, remove, save
               value={categoryId}
               onChange={setCategoryId}
               onNew={() => setShowNewCat(true)}
-              disabled={busy || categories.length === 0}
+              disabled={busy}
             />
           )}
         </SettingRow>

@@ -5,6 +5,7 @@ import Icon from './Icon';
 import { Plus } from 'lucide-react';
 import { orderCategoryTree } from '@/lib/categoryChoices';
 import type { CategoryOption } from '@/lib/types';
+import { UNCATEGORIZED_ICON } from '@/lib/constants';
 
 interface CategorySelectProps {
   categories: CategoryOption[];
@@ -15,14 +16,15 @@ interface CategorySelectProps {
 }
 
 export default function CategorySelect({ categories, value, onChange, onNew, disabled }: CategorySelectProps) {
-  // Top-level categories in their saved order, each followed by its indented subcategories
-  const options: SelectOption[] = orderCategoryTree(categories).map(({ category, depth, parent }) => ({
+  // Uncategorized (value ''), then top-level categories in their saved order, each followed by its
+  // indented subcategories
+  const options: SelectOption[] = [{ id: '', label: 'Uncategorized', icon: <Icon name={UNCATEGORIZED_ICON} className="w-4 h-4" /> }, ...orderCategoryTree(categories).map(({ category, depth, parent }) => ({
     id: category.id,
     label: category.name,
     selectedLabel: parent ? `${parent.name} › ${category.name}` : category.name,
     depth,
     icon: <Icon name={category.icon || 'List'} className="w-4 h-4" />
-  }));
+  }))];
 
   const footer = (
     <button
