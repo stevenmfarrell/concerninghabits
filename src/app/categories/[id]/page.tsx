@@ -1,12 +1,12 @@
 import { getCategory, getDefaultUser, getPeople } from '../../actions/db';
 import { notFound } from 'next/navigation';
-import Link from 'next/link';
+import { cookies } from 'next/headers';
 import Icon from '../../../components/Icon';
 import ActivityCalendar from '../../../components/ActivityCalendar';
 import PageHeader from '@/components/PageHeader';
 import { PANE_INSET, PANE_SURFACE, PaneHeading, PanePage, PaneSection } from '@/components/Pane';
 import { LinkButton } from '@/components/ui/Button';
-import { ChevronRight, } from 'lucide-react';
+import HorizonToggle from '@/components/HorizonToggle';
 import CategoryMenu from './CategoryMenu';
 import CategoryCadence from './CategoryCadence';
 import EmptyState from '@/components/EmptyState';
@@ -14,13 +14,22 @@ import { NO_CADENCE, parseCadence } from '@/lib/cadence';
 import { UNCATEGORIZED_ID } from '@/lib/constants';
 import { SortableCategoryItemList } from './SortableLists';
 
-export default async function CategoryLogPage(props: { params: Promise<{ id: string }>, searchParams: Promise<{ reorder?: string }> }) {
+// A category's page: its cadence, its habits and subcategories, and an activity calendar of all
+// their entries over the chosen horizon, like a habit's page.
+export default async function CategoryLogPage(props: { params: Promise<{ id: string }>, searchParams: Promise<{ reorder?: string, horizon?: string }> }) {
   const params = await props.params;
   const searchParams = await props.searchParams;
   const isReordering = searchParams.reorder === 'true';
   const user = await getDefaultUser();
-  // Only the 5-week "Recent History" card is shown on this page
-  const [category, people] = await Promise.all([getCategory(params.id, 5), getPeople()]);
+
+  const cookieStore = await cookies();
+  const weeks = parseInt(searchParams.horizon || cookieStore.get(`horizon_${params.id}`)?.value || '26', 10);
+  // Use 7 and 5 to guarantee exactly 2 columns (mobile) and 3 columns (desktop)
+  // even when the 52-week window bleeds into a 13th calendar month.
+  const mobileMonthsPerColumn = weeks === 52 ? 7 : 4;
+  const desktopMonthsPerColumn = weeks === 52 ? 5 : 4;
+
+  const [category, people] = await Promise.all([getCategory(params.id, weeks), getPeople()]);
 
   if (!category) return notFound();
 
@@ -34,6 +43,9 @@ export default async function CategoryLogPage(props: { params: Promise<{ id: str
 
   const isTopLevel = category.parentId === null;
   const cadence = parseCadence(category.cadence, NO_CADENCE);
+  // Shaded by the category's cadence when it has one, otherwise by how many of its habits were logged
+  const calendarShading = cadence.type === 'none' ? { density: Math.max(habitCount, 1) } : { cadence };
+  const calendarProps = { dates, weeks, ...calendarShading, size: 'md' as const, bedtime: user.bedtime, weekStartsOn: user.weekStartsOn, timeZone: user.timeZone, color: 'blue' as const };
 
   // Direct habits and subcategories share one order sequence. On ties, habits come first.
   const items = [
@@ -81,34 +93,16 @@ export default async function CategoryLogPage(props: { params: Promise<{ id: str
       )}
 
       <section>
-        <PaneHeading
-          action={
-            <Link
-              href={`/categories/${category.id}/history`}
-              className="flex items-center text-sm font-medium text-stone-400 hover:text-blue-600 transition-colors"
-            >
-              View All <ChevronRight className="w-4 h-4 ml-1" />
-            </Link>
-          }
-        >
-          Recent History
-        </PaneHeading>
-        <Link
-          href={`/categories/${category.id}/history`}
-          className={`${PANE_SURFACE} ${PANE_INSET} py-4 flex justify-center w-full overflow-hidden opacity-80 hover:opacity-100 transition-opacity`}
-          aria-label="Category history"
-        >
-          <ActivityCalendar
-            dates={dates}
-            size="md"
-            weeks={5}
-            {...(cadence.type === 'none' ? { density: habitCount } : { cadence })}
-            bedtime={user.bedtime}
-            weekStartsOn={user.weekStartsOn}
-            timeZone={user.timeZone}
-            color="blue"
-          />
-        </Link>
+        <PaneHeading action={<HorizonToggle habitId={category.id} currentWeeks={weeks} />}>Activity</PaneHeading>
+        {/* Centered, but from the start when wider than the page, so its overflow scrolls rather than being cut off */}
+        <div className={`${PANE_SURFACE} ${PANE_INSET} py-4 overflow-x-auto`}>
+          <div className="hidden sm:flex w-full justify-center-safe">
+            <ActivityCalendar {...calendarProps} monthsPerColumn={desktopMonthsPerColumn} />
+          </div>
+          <div className="flex sm:hidden w-full justify-center-safe">
+            <ActivityCalendar {...calendarProps} monthsPerColumn={mobileMonthsPerColumn} />
+          </div>
+        </div>
       </section>
     </PanePage>
   );

@@ -94,7 +94,7 @@ A page's background is always the body's `stone-50`. Lists sit on white running 
 - Don't use `pane-inset` on table cells, because percentage padding doesn't size reliably there. A list with columns is flex rows with a fixed-width first column, as the log page's Entries are.
 - Rows are `py-3` with `PANE_INSET` padding. Don't put rows in a `rounded-2xl` card.
 - Without cards to group them, nesting is shown by indenting: a subcategory's habits (`SortableHabitList nested`) line up under the subcategory's name.
-- Converted: the four tabs, the category page and the habit log page. The category history page, settings sub-pages and forms still use cards; move each one over when you rework it.
+- Converted: the four tabs, the category page and the habit log page. Settings sub-pages and forms still use cards; move each one over when you rework it.
 
 ## Dropdown / popover menus
 
