@@ -42,37 +42,37 @@ const SortableSubcategoryItem = ({ sub, user, people, isOverlay, isReordering }:
   const content = (
     <div className={`flex flex-col relative w-full ${isOverlay ? 'shadow-2xl scale-[1.02] z-50 rounded-2xl' : ''}`}>
       {/* Header */}
-      <div className={`py-3 pane-inset flex justify-between items-center group/header transition-colors ${isOpen && subHabits.length > 0 ? 'border-b border-stone-100' : ''} hover:bg-stone-50`}>
+      <div className={`py-3 pane-inset flex justify-between items-center group/header transition-colors ${isOpen && subHabits.length > 0 ? 'border-b border-line-subtle' : ''} hover:bg-surface-subtle`}>
         <div className="flex items-center gap-2 sm:gap-4 w-full">
           {isReordering && (
-            <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing text-stone-300 hover:text-stone-500 touch-none shrink-0 p-1 -ml-2">
+            <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing text-ink-faint hover:text-ink-muted touch-none shrink-0 p-1 -ml-2">
               <GripVertical className="w-5 h-5" />
             </div>
           )}
 
           <button onClick={() => setIsOpen(!isOpen)} className="flex-1 flex flex-wrap sm:flex-nowrap items-center justify-between min-w-0 text-left gap-3 sm:gap-6">
             <div className="flex items-center gap-3 min-w-0 flex-1">
-              <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-blue-700 shrink-0">
+              <div className="w-8 h-8 rounded-lg bg-category-soft-strong flex items-center justify-center text-category-ink-strong shrink-0">
                 <Icon name={sub.icon || 'Folder'} className="w-4 h-4" />
               </div>
               <div className="min-w-0 flex flex-col">
                 <div className="flex items-center gap-2">
-                  <h3 className="font-semibold text-stone-800 truncate">{sub.name}</h3>
+                  <h3 className="font-semibold text-ink truncate">{sub.name}</h3>
                   <Link
                     href={`/categories/${sub.id}`}
                     onClick={(e) => e.stopPropagation()}
-                    className="p-1.5 text-stone-400 hover:text-blue-600 hover:bg-blue-100 rounded-lg transition-colors shrink-0"
+                    className="p-1.5 text-ink-subtle hover:text-category-ink hover:bg-category-soft-strong rounded-lg transition-colors shrink-0"
                     title="Open Subcategory Page"
                   >
                     <ExternalLink className="w-3.5 h-3.5" />
                   </Link>
                 </div>
-                <p className="text-xs text-stone-500 truncate mt-0.5">{subHabits.length} habits</p>
+                <p className="text-xs text-ink-muted truncate mt-0.5">{subHabits.length} habits</p>
               </div>
             </div>
 
             <div className="flex items-center gap-3 sm:gap-6 shrink-0">
-              <div className="shrink-0 text-stone-300 hover:text-stone-600 transition-colors w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center">
+              <div className="shrink-0 text-ink-faint hover:text-ink-secondary transition-colors w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center">
                 {isOpen ? <ChevronDown className="w-5 h-5 sm:w-6 sm:h-6" /> : <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />}
               </div>
             </div>
@@ -87,8 +87,8 @@ const SortableSubcategoryItem = ({ sub, user, people, isOverlay, isReordering }:
     </div>
   );
 
-  if (isOverlay) return <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">{content}</div>;
-  return <div ref={setNodeRef} style={style} className={`bg-white ${isDragging ? 'opacity-40' : ''}`}>{content}</div>;
+  if (isOverlay) return <div className="bg-surface rounded-2xl border border-line overflow-hidden">{content}</div>;
+  return <div ref={setNodeRef} style={style} className={`bg-surface ${isDragging ? 'opacity-40' : ''}`}>{content}</div>;
 };
 
 type CategoryItem =
@@ -112,7 +112,7 @@ export function SortableCategoryItemList({ items: initialItems, user, people, is
   const activeItem = items.find(i => i.id === activeId);
 
   return (
-    <div className="flex flex-col divide-y divide-stone-100">
+    <div className="flex flex-col divide-y divide-line-subtle">
       <DndContext id="category-items-dnd-context" sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={handleDragCancel}>
         <SortableContext items={items.map(i => i.id)} strategy={verticalListSortingStrategy}>
           {items.map(item => item.type === 'habit'
@@ -143,21 +143,21 @@ const SortableHabitItem = ({ habit, status, user, people, isOverlay, isReorderin
   const isShared = isSharedHabit(habit.userId, habit.memberCount ?? 1, logs);
 
   const content = (
-    <div className={`flex items-stretch transition-colors group/row relative ${isDragging ? 'opacity-30 bg-stone-100' : 'bg-white hover:bg-stone-50'} ${isOverlay ? 'shadow-2xl scale-[1.02] z-50 rounded-xl' : ''}`}>
+    <div className={`flex items-stretch transition-colors group/row relative ${isDragging ? 'opacity-30 bg-surface-muted' : 'bg-surface hover:bg-surface-subtle'} ${isOverlay ? 'shadow-2xl scale-[1.02] z-50 rounded-xl' : ''}`}>
       <div className={`flex-1 flex items-center py-3 ${nested ? 'pane-inset-nested' : 'pane-inset'} gap-2 sm:gap-4 min-w-0`}>
         {isReordering && (
-          <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing text-stone-300 hover:text-stone-500 touch-none shrink-0 p-1 -ml-2">
+          <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing text-ink-faint hover:text-ink-muted touch-none shrink-0 p-1 -ml-2">
             <GripVertical className="w-5 h-5" />
           </div>
         )}
         <Link href={`/log/${habit.id}`} className="flex-1 flex flex-wrap sm:flex-nowrap items-center gap-3 sm:gap-6 min-w-0 w-full justify-between">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <h3 className="text-base sm:text-lg font-semibold text-stone-800 group-hover/row:text-emerald-600 transition-colors truncate">
+              <h3 className="text-base sm:text-lg font-semibold text-ink group-hover/row:text-accent-ink transition-colors truncate">
                 {habit.name}
               </h3>
               {(habit.memberCount ?? 1) > 1 && (
-                <Users className="w-4 h-4 text-stone-400 shrink-0" aria-label="Shared" />
+                <Users className="w-4 h-4 text-ink-subtle shrink-0" aria-label="Shared" />
               )}
             </div>
           </div>
@@ -187,7 +187,7 @@ const SortableHabitItem = ({ habit, status, user, people, isOverlay, isReorderin
   );
 
   if (isOverlay) return content;
-  return <div ref={setNodeRef} style={style} className="relative bg-white">{content}</div>;
+  return <div ref={setNodeRef} style={style} className="relative bg-surface">{content}</div>;
 };
 
 // `statuses` are what some habits' rows show beside their calendars, by habit id (see SortableHabitItem).
@@ -202,7 +202,7 @@ export function SortableHabitList({ items: initialItems, statuses, user, people,
   const activeItem = items.find(i => i.id === activeId);
 
   return (
-    <div className={bare ? "divide-y divide-stone-100 flex flex-col w-full" : "bg-white rounded-2xl shadow-sm border border-stone-100 overflow-hidden divide-y divide-stone-100 flex flex-col"}>
+    <div className={bare ? "divide-y divide-line-subtle flex flex-col w-full" : "bg-surface rounded-2xl shadow-sm border border-line-subtle overflow-hidden divide-y divide-line-subtle flex flex-col"}>
       <DndContext id={dndContextId} sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={handleDragCancel}>
         <SortableContext items={items.map(i => i.id)} strategy={verticalListSortingStrategy}>
           {items.map(habit => <SortableHabitItem key={habit.id} habit={habit} status={statuses?.[habit.id]} user={user} people={people} isReordering={isReordering} nested={nested} />)}

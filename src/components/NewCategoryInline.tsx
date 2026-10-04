@@ -29,7 +29,7 @@ export default function NewCategoryInline({ onSave, onCancel, defaultIcon = 'Lis
         type="text"
         autoFocus
         placeholder="Category Name"
-        className="flex-1 min-w-[100px] px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
+        className="flex-1 min-w-[100px] px-3 py-2 bg-surface border border-line rounded-lg focus:outline-none focus:ring-2 focus:ring-focus text-sm"
         value={name}
         onChange={(e) => setName(e.target.value)}
         onKeyDown={(e) => {
@@ -45,7 +45,7 @@ export default function NewCategoryInline({ onSave, onCancel, defaultIcon = 'Lis
           type="button"
           onClick={handleSave}
           disabled={loading || !name.trim()}
-          className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors disabled:opacity-50"
+          className="p-1.5 text-accent-ink hover:bg-accent-soft rounded-lg transition-colors disabled:opacity-50"
         >
           {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
         </button>
@@ -53,7 +53,7 @@ export default function NewCategoryInline({ onSave, onCancel, defaultIcon = 'Lis
           type="button"
           onClick={onCancel}
           disabled={loading}
-          className="p-1.5 text-stone-400 hover:text-stone-600 hover:bg-stone-100 rounded-lg transition-colors"
+          className="p-1.5 text-ink-subtle hover:text-ink-secondary hover:bg-surface-muted rounded-lg transition-colors"
         >
           <X className="w-4 h-4" />
         </button>

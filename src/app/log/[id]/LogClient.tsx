@@ -21,6 +21,7 @@ import { useHabitLogger } from '@/components/logging/useHabitLogger';
 import ShareDialog from './ShareDialog';
 import HabitDetails from './HabitDetails';
 import { useCsvImport } from './useCsvImport';
+import { MENU_ITEM, MENU_PANEL, MenuBackdrop } from '@/components/ui/Menu';
 
 // Values for the habit's form from the address bar (e.g. a shortcut or automation), as their
 // fields' types. Read through useSearchParams rather than window.location, which still holds the
@@ -146,12 +147,12 @@ export default function LogClient({ habit, user, people, categories, children }:
 
             {menuOpen && (
               <>
-                <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
-                <div className="absolute right-0 top-full mt-1 w-56 bg-white rounded-xl shadow-lg border border-stone-100 py-2 z-50">
+                <MenuBackdrop onClose={() => setMenuOpen(false)} />
+                <div className={`${MENU_PANEL} absolute right-0 top-full mt-1 w-56`}>
                   {/* Someone a habit is shared with can't edit it, only file it or remove it from their lists */}
                   <Link
                     href={`/edit/${habit.id}`}
-                    className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-stone-700 hover:bg-stone-50 hover:text-emerald-600 transition-colors"
+                    className={MENU_ITEM}
                   >
                     {habit.isOwner ? <Edit2 className="w-4 h-4" /> : <FolderInput className="w-4 h-4" />}
                     {habit.isOwner ? 'Edit Habit' : 'Move or Remove'}
@@ -162,7 +163,7 @@ export default function LogClient({ habit, user, people, categories, children }:
                         setMenuOpen(false);
                         setShareOpen(true);
                       }}
-                      className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-stone-700 hover:bg-stone-50 hover:text-emerald-600 transition-colors text-left"
+                      className={MENU_ITEM}
                     >
                       <Users className="w-4 h-4" />
                       Share
@@ -173,7 +174,7 @@ export default function LogClient({ habit, user, people, categories, children }:
                       handleCopyUrl(false);
                       setMenuOpen(false);
                     }}
-                    className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-stone-700 hover:bg-stone-50 hover:text-emerald-600 transition-colors text-left"
+                    className={MENU_ITEM}
                   >
                     <Link2 className="w-4 h-4" />
                     Copy URL
@@ -183,7 +184,7 @@ export default function LogClient({ habit, user, people, categories, children }:
                       handleCopyUrl(true);
                       setMenuOpen(false);
                     }}
-                    className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-stone-700 hover:bg-stone-50 hover:text-emerald-600 transition-colors text-left"
+                    className={MENU_ITEM}
                   >
                     <Zap className="w-4 h-4" />
                     Copy Submit URL
@@ -194,7 +195,7 @@ export default function LogClient({ habit, user, people, categories, children }:
                       importInputRef.current?.click();
                     }}
                     disabled={importing}
-                    className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-stone-700 hover:bg-stone-50 hover:text-emerald-600 transition-colors text-left disabled:opacity-50"
+                    className={`${MENU_ITEM} disabled:opacity-50`}
                   >
                     {importing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
                     Import CSV
@@ -228,18 +229,18 @@ export default function LogClient({ habit, user, people, categories, children }:
       )}
 
       <div className={`${PANE_INSET} py-4 space-y-6`}>
-        {habit.description && <p className="text-stone-600 text-center">{habit.description}</p>}
+        {habit.description && <p className="text-ink-secondary text-center">{habit.description}</p>}
 
         <HabitDetails habit={habit} categories={categories} />
 
         {habit.isOwner && sharedWith.length > 0 && (
-          <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5 -mt-2 text-xs text-stone-500">
+          <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5 -mt-2 text-xs text-ink-muted">
             <span>Shared with</span>
             {sharedWith.map(id => <PersonLabel key={id} person={people[id]} />)}
           </div>
         )}
         {!habit.isOwner && (
-          <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5 -mt-2 text-xs text-stone-500">
+          <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5 -mt-2 text-xs text-ink-muted">
             <span>Shared by</span>
             <PersonLabel person={people[habit.userId]} />
           </div>
@@ -257,7 +258,7 @@ export default function LogClient({ habit, user, people, categories, children }:
             disabled={logger.busy}
             title="Backdate log"
             aria-label="Backdate log"
-            className="rounded-l-none px-5! border-l border-emerald-700"
+            className="rounded-l-none px-5! border-l border-accent-hover"
           >
             <History className="w-6 h-6" strokeWidth={2.5} />
           </Button>

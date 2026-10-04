@@ -34,13 +34,13 @@ export default function RowStatus({ status, color = 'emerald' }: { status: Statu
   let text: string, tone: string, label: string;
   if (status.kind === 'period') {
     if (status.period === 'daily') return null;
-    [text, tone, label] = [PERIOD_LETTERS[status.period], 'text-stone-500', `Due ${status.period}`];
+    [text, tone, label] = [PERIOD_LETTERS[status.period], 'text-ink-muted', `Due ${status.period}`];
   } else {
     if (status.days === 0) return null;
     const span = fuzzyDays(Math.abs(status.days));
     [text, tone, label] = status.days > 0
-      ? [span.short, 'text-stone-500', `Due in ${span.count} ${span.unit}`]
-      : [span.short, 'text-amber-700', `Due ${span.count} ${span.unit} ago`];
+      ? [span.short, 'text-ink-muted', `Due in ${span.count} ${span.unit}`]
+      : [span.short, 'text-warning-ink-strong', `Due ${span.count} ${span.unit} ago`];
   }
 
   return (

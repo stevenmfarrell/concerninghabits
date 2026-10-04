@@ -66,11 +66,11 @@ export default function EditEntrySheet({ habit, entry, onClose }: {
   return (
     <BottomSheet title={`Edit ${habit.name} entry`} onClose={onClose}>
       <div>
-        <label htmlFor={`entry-time-${entry.id}`} className="block text-sm font-medium text-stone-700 mb-2">Date & Time</label>
+        <label htmlFor={`entry-time-${entry.id}`} className="block text-sm font-medium text-ink-secondary mb-2">Date & Time</label>
         <input
           id={`entry-time-${entry.id}`}
           type="datetime-local"
-          className="w-full px-4 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-stone-700 text-sm"
+          className="w-full px-4 py-2 bg-surface border border-line rounded-lg focus:outline-none focus:ring-2 focus:ring-focus text-ink-secondary text-sm"
           value={time}
           onChange={e => setTime(e.target.value)}
           disabled={saving}

@@ -36,13 +36,13 @@ export default function SetupForm() {
         </PaneSection>
 
         <div className={`${PANE_INSET} py-4 space-y-3`}>
-          {state?.error && <p className="text-sm text-red-600" role="alert">{state.error}</p>}
+          {state?.error && <p className="text-sm text-danger-ink" role="alert">{state.error}</p>}
           <Button type="submit" size="lg" disabled={isPending} className="w-full">
             {isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Create Account'}
           </Button>
-          <p className="text-center text-sm text-stone-500">
+          <p className="text-center text-sm text-ink-muted">
             Already have an account?{' '}
-            <Link href="/login" className="font-medium text-emerald-600 hover:text-emerald-500 transition-colors">
+            <Link href="/login" className="font-medium text-accent-ink hover:text-accent-ink transition-colors">
               Sign in here
             </Link>
           </p>

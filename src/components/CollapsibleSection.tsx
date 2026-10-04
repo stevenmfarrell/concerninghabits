@@ -12,14 +12,14 @@ export default function CollapsibleSection({ title, summary, defaultOpen = false
 }) {
   return (
     <details open={defaultOpen} className="group">
-      <summary className="flex items-center gap-3 pane-inset py-3 cursor-pointer list-none [&::-webkit-details-marker]:hidden select-none hover:bg-stone-50 transition-colors">
-        <ChevronRight className="w-5 h-5 text-stone-400 shrink-0 transition-transform group-open:rotate-90" />
+      <summary className="flex items-center gap-3 pane-inset py-3 cursor-pointer list-none [&::-webkit-details-marker]:hidden select-none hover:bg-surface-subtle transition-colors">
+        <ChevronRight className="w-5 h-5 text-ink-subtle shrink-0 transition-transform group-open:rotate-90" />
         <div className="min-w-0 flex-1">
-          <h3 className="font-semibold text-stone-800">{title}</h3>
-          {summary && <p className="text-sm text-stone-500 truncate">{summary}</p>}
+          <h3 className="font-semibold text-ink">{title}</h3>
+          {summary && <p className="text-sm text-ink-muted truncate">{summary}</p>}
         </div>
       </summary>
-      <div className="border-t border-stone-100 divide-y divide-stone-100">{children}</div>
+      <div className="border-t border-line-subtle divide-y divide-line-subtle">{children}</div>
     </details>
   );
 }

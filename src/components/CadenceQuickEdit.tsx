@@ -22,7 +22,7 @@ export default function CadenceQuickEdit({ cadence, onSave, lockedTitle, saveLab
 
   if (!onSave) {
     return (
-      <span className={`${PILL} bg-stone-50 border-stone-100 text-stone-500`} title={lockedTitle}>
+      <span className={`${PILL} bg-surface-subtle border-line-subtle text-ink-muted`} title={lockedTitle}>
         <Repeat className="w-4 h-4 shrink-0" />
         {describeCadence(cadence)}
         <Lock className="w-3 h-3 shrink-0" aria-label={lockedTitle} />
@@ -35,7 +35,7 @@ export default function CadenceQuickEdit({ cadence, onSave, lockedTitle, saveLab
       <button
         type="button"
         onClick={() => setEditing(true)}
-        className={`${PILL} bg-white border-stone-200 text-stone-700 hover:bg-stone-50`}
+        className={`${PILL} bg-surface border-line text-ink-secondary hover:bg-surface-subtle`}
         title="Change cadence"
       >
         <Repeat className="w-4 h-4 shrink-0" />

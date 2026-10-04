@@ -223,8 +223,8 @@ export default function HabitEditor({ mode, initial, owner, onSave, remove, save
                 <input
                   ref={titleRef}
                   type="text"
-                  className={`w-full text-2xl font-bold text-stone-900 bg-transparent border-b focus:outline-none placeholder-stone-400 pb-1 pr-8 transition-colors ${
-                    titleMissing ? 'border-red-500' : title ? 'border-transparent hover:border-stone-200 focus:border-emerald-500' : 'border-stone-300 focus:border-emerald-500'
+                  className={`w-full text-2xl font-bold text-ink bg-transparent border-b focus:outline-none placeholder-ink-subtle pb-1 pr-8 transition-colors ${
+                    titleMissing ? 'border-danger' : title ? 'border-transparent hover:border-line focus:border-focus' : 'border-line-strong focus:border-focus'
                   }`}
                   value={title}
                   placeholder="Habit title"
@@ -237,12 +237,12 @@ export default function HabitEditor({ mode, initial, owner, onSave, remove, save
                   }}
                   disabled={busy}
                 />
-                <SquarePen className="w-5 h-5 text-stone-300 absolute right-1 top-2 pointer-events-none" />
+                <SquarePen className="w-5 h-5 text-ink-faint absolute right-1 top-2 pointer-events-none" />
               </div>
-              {titleMissing && <p className="text-sm text-red-600">Give your habit a title to save it.</p>}
+              {titleMissing && <p className="text-sm text-danger-ink">Give your habit a title to save it.</p>}
               <input
                 type="text"
-                className="w-full text-stone-600 bg-transparent border-b border-transparent hover:border-stone-200 focus:border-emerald-500 focus:outline-none placeholder-stone-400 pb-0.5 transition-colors"
+                className="w-full text-ink-secondary bg-transparent border-b border-transparent hover:border-line focus:border-focus focus:outline-none placeholder-ink-subtle pb-0.5 transition-colors"
                 placeholder="Add a description"
                 aria-label="Description"
                 value={description}
@@ -252,9 +252,9 @@ export default function HabitEditor({ mode, initial, owner, onSave, remove, save
             </>
           ) : (
             <>
-              <h2 className="text-2xl font-bold text-stone-900 break-words">{initial.title}</h2>
-              {initial.description && <p className="text-stone-600">{initial.description}</p>}
-              <p className="text-sm text-stone-500 pt-1">
+              <h2 className="text-2xl font-bold text-ink break-words">{initial.title}</h2>
+              {initial.description && <p className="text-ink-secondary">{initial.description}</p>}
+              <p className="text-sm text-ink-muted pt-1">
                 Shared with you by <PersonLabel person={owner} size="sm" className="align-middle" />. Only they can change its name, form, and cadence.
               </p>
             </>
@@ -272,7 +272,7 @@ export default function HabitEditor({ mode, initial, owner, onSave, remove, save
             onAddField={isOwner && !busy && !tweaking ? () => setEditingField({ key: null }) : undefined}
           />
           {isOwner && (
-            <div className={`${PANE_INSET} py-3 border-t border-stone-100`}>
+            <div className={`${PANE_INSET} py-3 border-t border-line-subtle`}>
               <AiTweakInput onApply={handleTweak} applying={tweaking} disabled={busy} />
             </div>
           )}
@@ -338,7 +338,7 @@ export default function HabitEditor({ mode, initial, owner, onSave, remove, save
       {showSaveBar && (
         // Above the bottom nav, which is 4rem tall plus the safe area
         <div
-          className="fixed inset-x-0 z-40 bg-white/90 backdrop-blur-md border-t border-stone-200 animate-in slide-in-from-bottom-2 duration-200"
+          className="fixed inset-x-0 z-40 bg-surface/90 backdrop-blur-md border-t border-line animate-in slide-in-from-bottom-2 duration-200"
           style={{ bottom: 'calc(4rem + env(safe-area-inset-bottom))' }}
         >
           <div className="pane-inset py-3 flex items-center gap-3">

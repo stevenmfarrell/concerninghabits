@@ -51,7 +51,7 @@ export default function UpdatePasswordForm({ needsUpdate }: { needsUpdate: boole
       </PaneSection>
 
       <div className={`${PANE_INSET} py-4 space-y-3`}>
-        {state?.error && <p className="text-sm text-red-600" role="alert">{state.error}</p>}
+        {state?.error && <p className="text-sm text-danger-ink" role="alert">{state.error}</p>}
         <Button type="submit" size="lg" disabled={isPending || state?.success} className="w-full">
           {isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : (needsUpdate ? 'Set Password & Continue' : 'Update Password')}
         </Button>

@@ -21,13 +21,13 @@ export default function UnitWidget(props: WidgetProps) {
         id={id}
         type="number"
         step="any"
-        className="w-full px-4 py-3 bg-white border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-stone-900 transition-shadow pr-16"
+        className="w-full px-4 py-3 bg-surface border border-line rounded-xl focus:outline-none focus:ring-2 focus:ring-focus text-ink transition-shadow pr-16"
         value={value ?? ''}
         onChange={handleChange}
         disabled={disabled || readonly}
       />
       {unit && (
-        <span className="absolute right-4 text-stone-400 font-medium pointer-events-none">
+        <span className="absolute right-4 text-ink-subtle font-medium pointer-events-none">
           {unit}
         </span>
       )}

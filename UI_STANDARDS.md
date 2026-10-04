@@ -2,6 +2,18 @@
 
 Read this before touching any page under `src/app/` or `src/components/`. It exists because the UI drifted into 3 different header styles and 2 different button roundings before being unified — don't recreate that drift by hand-rolling markup these primitives already cover.
 
+## Colors and the theme
+
+The app has light and dark themes, so components use the semantic colors defined in `src/app/globals.css`, not a palette's shades. Write `bg-surface text-ink border-line`, not `bg-white text-stone-900 border-stone-200`.
+
+- **Neutrals:** `canvas` (the page) · `surface` (lists, dialogs, menus) · `surface-subtle` / `surface-muted` / `surface-strong` (inputs, hovered rows, tracks, wells, in that order of strength) · `ink` / `ink-secondary` / `ink-muted` / `ink-subtle` / `ink-faint` (text and icons) · `line` / `line-subtle` / `line-strong` (borders and hairlines) · `inverse` / `on-inverse` (a dark fill like a secondary button) · `overlay` · `focus` (focus rings).
+- **Hues:** `accent` (emerald), `category` (blue), `danger` (red) and `warning` (amber), each with a fill (`bg-accent`, with `-hover`, and `-pressed` for a toggled-on button), text on the page (`text-accent-ink`, `-ink-strong`), pale fills (`-soft`, `-soft-strong`) and a matching border (`-line`). Use `text-on-accent` on an accent fill.
+- `dark:` is there for a genuine one-off. If you need a color that isn't a token, add the token to both themes in `globals.css`.
+- Activity calendars use their own shades, `accent-scale-1`…`4`, `-done` and `-period` (and the same for `category`), so more activity still reads as more in dark mode. They're set in `src/lib/activityShade.ts`.
+- Colors set from JavaScript (Recharts props, toast options, a person's fallback color) use the CSS variables directly, e.g. `'var(--ink-muted)'`.
+- The one exception is a surface that's the same in both themes, like the deep emerald voice-entry panel (`SpeakOrType`) and the `inverse` button variants made for it. Those keep raw palette classes.
+- The theme is per device, picked under Settings → Preferences (`src/lib/theme.ts`).
+
 ## Buttons
 
 Never write raw `<button className="bg-emerald-600 ...">` or `<Link className="px-4 py-2 ...">` for anything that behaves like a button. Use:
@@ -99,6 +111,10 @@ A page's background is always the body's `stone-50`. Lists sit on white running 
 - A form field is a `PaneField` row (label, optional description, then the control), and a text input uses the `INPUT` classes from `src/components/ui/Input.tsx`. Something added to a list (a field, a category, a user) is a last row with a `+` and emerald text, not a `Button`.
 - Every page uses panes now. Don't add a page made of `rounded-2xl` cards.
 
+## Dialogs
+
+A centered dialog is a `<Dialog>` (`src/components/ui/Dialog.tsx`), with its buttons in a `<DialogFooter>`. Don't hand-roll the `fixed inset-0` backdrop and white panel. Pass `onClose` to close it on a tap outside, `size="sm"` for a narrow one, and `clip={false}` when a dropdown inside needs to spill out. A sheet from the bottom is `BottomSheet`, and a confirmation is `ConfirmDialog`. Both are built on the same `OVERLAY`.
+
 ## Dropdown / popover menus
 
 Any menu anchored to a trigger button (kebab menu, chart field picker, etc.) must include `top-full` in its absolute positioning classes:
@@ -106,6 +122,8 @@ Any menu anchored to a trigger button (kebab menu, chart field picker, etc.) mus
 ```tsx
 <div className="absolute right-0 top-full mt-1 w-56 ...">
 ```
+
+Style the panel and its items with `MENU_PANEL`, `MENU_ITEM` (`MENU_ITEM_DANGER` for a destructive action), `MENU_SEPARATOR` and `menuOptionClasses(selected)` from `src/components/ui/Menu.tsx`, with a `<MenuBackdrop>` behind it so a tap outside closes it. Position the panel yourself, as above.
 
 Omitting `top-full` is a real bug we hit, not just a style nit: if the trigger's parent is a flex container with `items-center` (headers are), the browser falls back to vertically centering the absolutely-positioned menu against the trigger's box instead of placing it below — which pushes part of the menu above the viewport. Always pair `absolute` + `right-0`/`left-0` with an explicit `top-full` (or `bottom-full`) when anchoring to a trigger.
 

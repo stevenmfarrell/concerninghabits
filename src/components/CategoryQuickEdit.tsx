@@ -32,7 +32,7 @@ export default function CategoryQuickEdit({ categoryId, categories, onSave, onCr
       <button
         type="button"
         onClick={() => setEditing(true)}
-        className={`${PILL} bg-blue-50 border-blue-100 text-blue-800 hover:bg-blue-100`}
+        className={`${PILL} bg-category-soft border-category-line text-category-ink-strong hover:bg-category-soft-strong`}
         title="Change category"
       >
         <Icon name={category?.icon || (categoryId ? 'List' : UNCATEGORIZED_ICON)} className="w-4 h-4 shrink-0" />

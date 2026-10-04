@@ -49,7 +49,7 @@ const customCollisionDetection: CollisionDetection = (args) => {
 const SubcategoryDropZone = ({ isProjected }: { isProjected: boolean }) => {
   return (
     <div
-      className={`absolute right-[max(1rem,calc((100%-var(--pane-width,100%))/2+1rem))] top-1/2 -translate-y-1/2 h-10 px-4 rounded-lg border-2 flex items-center justify-center transition-colors z-50 shadow-sm ${isProjected ? 'border-blue-500 bg-blue-50 text-blue-700 font-bold scale-110' : 'border-dashed border-stone-200 bg-white/80 text-stone-400 font-medium'}`}
+      className={`absolute right-[max(1rem,calc((100%-var(--pane-width,100%))/2+1rem))] top-1/2 -translate-y-1/2 h-10 px-4 rounded-lg border-2 flex items-center justify-center transition-colors z-50 shadow-sm ${isProjected ? 'border-category bg-category-soft text-category-ink-strong font-bold scale-110' : 'border-dashed border-line bg-surface/80 text-ink-subtle font-medium'}`}
     >
       <span className="text-xs whitespace-nowrap pointer-events-none">{isProjected ? 'Release to Nest' : 'Drag Right to Nest'}</span>
     </div>
@@ -203,13 +203,13 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
       <li 
         ref={dndProps?.setNodeRef}
         style={dndProps?.style}
-        className={`transition-colors group relative ${dndProps?.isOverlay ? 'bg-white z-50 shadow-2xl cursor-grabbing scale-[1.02]' : dndProps?.isDragging ? 'opacity-30 bg-stone-100' : ''}`}
+        className={`transition-colors group relative ${dndProps?.isOverlay ? 'bg-surface z-50 shadow-2xl cursor-grabbing scale-[1.02]' : dndProps?.isDragging ? 'opacity-30 bg-surface-muted' : ''}`}
       >
-        <div className={`py-3 ${cat.parentId ? 'pane-inset-nested' : 'pane-inset'} flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-4 ${!dndProps?.isDragging && 'hover:bg-stone-50/50'} relative`}>
+        <div className={`py-3 ${cat.parentId ? 'pane-inset-nested' : 'pane-inset'} flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-4 ${!dndProps?.isDragging && 'hover:bg-surface-subtle/50'} relative`}>
         <div 
           {...dndProps?.attributes}
           {...dndProps?.listeners}
-          className={`cursor-grab active:cursor-grabbing text-stone-300 hover:text-stone-600 transition-colors shrink-0 touch-none`}
+          className={`cursor-grab active:cursor-grabbing text-ink-faint hover:text-ink-secondary transition-colors shrink-0 touch-none`}
         >
           <GripVertical className="w-5 h-5" />
         </div>
@@ -223,7 +223,7 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
               type="text"
               autoFocus
               aria-label="Category name"
-              className={`${INPUT} flex-1 min-w-[120px] bg-white`}
+              className={`${INPUT} flex-1 min-w-[120px] bg-surface`}
               value={editName}
               onChange={(e) => setEditName(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleUpdate(cat.id)}
@@ -245,10 +245,10 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
           </>
         ) : (
           <>
-            <div className={`w-10 h-10 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center shrink-0 ${cat.parentId ? 'scale-90' : ''}`}>
+            <div className={`w-10 h-10 rounded-xl bg-category-soft-strong text-category-ink-strong flex items-center justify-center shrink-0 ${cat.parentId ? 'scale-90' : ''}`}>
               <Icon name={cat.icon || 'List'} className="w-5 h-5" />
             </div>
-            <div className="flex-1 font-medium text-stone-800 flex items-center gap-2">
+            <div className="flex-1 font-medium text-ink flex items-center gap-2">
               {cat.name}
             </div>
             <div className="flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
@@ -268,7 +268,7 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
         </div>
         {childrenNode}
         {dropPreview && dropPreview.mode !== 'reorder' && dropPreview.anchorId === cat.id && !dndProps?.isOverlay && (
-          <div className={`absolute left-2 right-2 h-0.5 bg-blue-500 rounded-full z-50 pointer-events-none ${dropPreview.position === 'after' ? '-bottom-px' : '-top-px'}`} />
+          <div className={`absolute left-2 right-2 h-0.5 bg-category rounded-full z-50 pointer-events-none ${dropPreview.position === 'after' ? '-bottom-px' : '-top-px'}`} />
         )}
       </li>
     );
@@ -278,7 +278,7 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
 
   // The inline form for a new category, as a row: at the end of the list, or under its parent
   const renderNewCategoryRow = (nested: boolean) => (
-    <li className={`py-3 ${nested ? 'pane-inset-nested' : 'pane-inset'} bg-stone-50/50 flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-4`}>
+    <li className={`py-3 ${nested ? 'pane-inset-nested' : 'pane-inset'} bg-surface-subtle/50 flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-4`}>
       <div className="shrink-0">
         <IconPicker value={newIcon} onChange={setNewIcon} />
       </div>
@@ -287,7 +287,7 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
         autoFocus
         placeholder={nested ? 'Subcategory Name' : 'Category Name'}
         aria-label={nested ? 'Subcategory name' : 'Category name'}
-        className={`${INPUT} flex-1 min-w-[120px] bg-white`}
+        className={`${INPUT} flex-1 min-w-[120px] bg-surface`}
         value={newName}
         onChange={(e) => setNewName(e.target.value)}
         onKeyDown={(e) => e.key === 'Enter' && handleCreateInline()}
@@ -318,10 +318,10 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
           onDragEnd={handleDragEnd}
           measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
         >
-          <ul className="divide-y divide-stone-100">
+          <ul className="divide-y divide-line-subtle">
             <SortableContext items={categories.filter(c => !c.parentId).sort((a,b) => (a.order??0) - (b.order??0)).map(c => c.id)} strategy={sortingStrategy}>
               {categories.length === 0 && addingParentId === null ? (
-                <li className="pane-inset py-3 text-stone-500">No categories yet.</li>
+                <li className="pane-inset py-3 text-ink-muted">No categories yet.</li>
               ) : (
                 categories.filter(c => !c.parentId).sort((a, b) => (a.order ?? 0) - (b.order ?? 0)).map(parent => {
                   const children = categories.filter(c => c.parentId === parent.id).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
@@ -335,7 +335,7 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
                         renderCategoryRow={renderCategoryRow}
                         childrenNode={
                           (children.length > 0 || addingParentId === parent.id) ? (
-                            <ul className="divide-y divide-stone-100 border-t border-stone-100">
+                            <ul className="divide-y divide-line-subtle border-t border-line-subtle">
                               <SortableContext items={children.map(c => c.id)} strategy={sortingStrategy}>
                                 {children.map(child => (
                                   <SortableItem key={child.id} cat={child} renderCategoryRow={renderCategoryRow} disabled={isDraggingTopLevel} />
@@ -360,7 +360,7 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
               
               const children = categories.filter(c => c.parentId === activeCat.id).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
               const childrenNode = children.length > 0 ? (
-                <ul className="divide-y divide-stone-100 border-t border-stone-100">
+                <ul className="divide-y divide-line-subtle border-t border-line-subtle">
                   {children.map(child => <Fragment key={child.id}>{renderCategoryRow(child, { isOverlay: true })}</Fragment>)}
                 </ul>
               ) : null;
@@ -373,24 +373,24 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
             })() : null}
           </DragOverlay>
           
-          <div className="group relative border-t border-stone-100">
-            <div className="py-3 pane-inset flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-4 hover:bg-stone-50/50 transition-colors">
+          <div className="group relative border-t border-line-subtle">
+            <div className="py-3 pane-inset flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-4 hover:bg-surface-subtle/50 transition-colors">
               <div className="w-5 h-5 shrink-0 ml-0" />
-              <div className="w-10 h-10 rounded-xl bg-stone-100 flex items-center justify-center shrink-0">
-                <Icon name={UNCATEGORIZED_ICON} className="w-5 h-5 text-stone-400" />
+              <div className="w-10 h-10 rounded-xl bg-surface-muted flex items-center justify-center shrink-0">
+                <Icon name={UNCATEGORIZED_ICON} className="w-5 h-5 text-ink-subtle" />
               </div>
               <div className="flex-1 min-w-[120px]">
-                <span className="font-medium text-stone-500 italic">Uncategorized</span>
+                <span className="font-medium text-ink-muted italic">Uncategorized</span>
               </div>
               <div className="flex items-center gap-1 opacity-0 md:group-hover:opacity-100 transition-opacity">
-                <span className="text-xs text-stone-400 font-medium px-2 py-1 bg-stone-100 rounded-md">Default system category</span>
+                <span className="text-xs text-ink-subtle font-medium px-2 py-1 bg-surface-muted rounded-md">Default system category</span>
               </div>
             </div>
           </div>
           
         </DndContext>
 
-        <ul className="border-t border-stone-100">
+        <ul className="border-t border-line-subtle">
           {/* Adding a category: its form in place of the row that starts it, at the end of the list */}
           {addingParentId === '' ? renderNewCategoryRow(false) : (
             <li>
@@ -398,7 +398,7 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
                 type="button"
                 onClick={() => { setAddingParentId(''); setNewName(''); setNewIcon('List'); }}
                 disabled={addingParentId !== null}
-                className="w-full flex items-center gap-2 pane-inset py-3 text-left text-sm font-medium text-blue-700 hover:bg-stone-50 transition-colors disabled:opacity-50"
+                className="w-full flex items-center gap-2 pane-inset py-3 text-left text-sm font-medium text-category-ink-strong hover:bg-surface-subtle transition-colors disabled:opacity-50"
               >
                 <Plus className="w-4 h-4" /> New Category
               </button>

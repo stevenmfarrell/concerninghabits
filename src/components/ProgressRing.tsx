@@ -1,6 +1,6 @@
 import type { CadenceProgress } from '@/lib/cadence';
 
-const FILL = { emerald: 'stroke-emerald-500', blue: 'stroke-blue-500' } as const;
+const FILL = { emerald: 'stroke-accent', blue: 'stroke-category' } as const;
 
 // How far along something is, as a ring filling up around its count, e.g. "2/3", and an optional
 // short `sublabel` under the count, e.g. "W" for the period it's counted over, for a habit (or, in
@@ -17,7 +17,7 @@ export default function ProgressRing({ progress, sublabel, size = 40, color = 'e
     <div className="relative inline-flex items-center justify-center" style={{ width: size, height: size }}>
       {/* Starts at the top and fills clockwise */}
       <svg width={size} height={size} className="-rotate-90">
-        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" strokeWidth={stroke} className="stroke-stone-200" />
+        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" strokeWidth={stroke} className="stroke-surface-strong" />
         <circle
           cx={size / 2}
           cy={size / 2}
@@ -34,8 +34,8 @@ export default function ProgressRing({ progress, sublabel, size = 40, color = 'e
       </svg>
       {/* With a sublabel, the count sits just above the center and the sublabel low in the ring, apart
           from it: centered together as a pair, a single letter under the wider count looked high */}
-      <span className={`absolute text-[11px] leading-none font-semibold text-stone-700 tabular-nums ${sublabel ? '-translate-y-[3px]' : ''}`}>{done}/{needed}</span>
-      {sublabel && <span className="absolute bottom-[6px] text-[10px] leading-none font-medium text-stone-500">{sublabel}</span>}
+      <span className={`absolute text-[11px] leading-none font-semibold text-ink-secondary tabular-nums ${sublabel ? '-translate-y-[3px]' : ''}`}>{done}/{needed}</span>
+      {sublabel && <span className="absolute bottom-[6px] text-[10px] leading-none font-medium text-ink-muted">{sublabel}</span>}
     </div>
   );
 }

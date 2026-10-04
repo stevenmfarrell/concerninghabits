@@ -16,7 +16,7 @@ export default async function UpdatePasswordPage() {
         ? <PageHeader title="New Password" showBack={false} />
         : <PageHeader title="Change Password" backHref="/settings" />}
     >
-      <p className={`${PANE_INSET} pt-4 text-sm text-stone-600`}>
+      <p className={`${PANE_INSET} pt-4 text-sm text-ink-secondary`}>
         {needsUpdate
           ? `Welcome, ${user.name}! Set a new password for your account to continue.`
           : 'Enter your current password, then the new one twice.'}

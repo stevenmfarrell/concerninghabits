@@ -29,11 +29,11 @@ export default function AiTweakInput({ onApply, applying, disabled }: {
   };
 
   return (
-    <div className="flex items-center gap-2 pl-3 pr-1.5 py-1.5 bg-stone-50 border border-stone-200 rounded-xl focus-within:ring-2 focus-within:ring-emerald-500 focus-within:border-emerald-500">
-      {applying ? <Loader2 className="w-4 h-4 text-emerald-600 animate-spin shrink-0" /> : <Wand2 className="w-4 h-4 text-stone-400 shrink-0" />}
+    <div className="flex items-center gap-2 pl-3 pr-1.5 py-1.5 bg-surface-subtle border border-line rounded-xl focus-within:ring-2 focus-within:ring-focus focus-within:border-focus">
+      {applying ? <Loader2 className="w-4 h-4 text-accent-ink animate-spin shrink-0" /> : <Wand2 className="w-4 h-4 text-ink-subtle shrink-0" />}
       <input
         type="text"
-        className="flex-1 min-w-0 bg-transparent py-1.5 text-sm focus:outline-none placeholder-stone-400"
+        className="flex-1 min-w-0 bg-transparent py-1.5 text-sm focus:outline-none placeholder-ink-subtle"
         placeholder={isListening ? 'Listening...' : applying ? 'Updating the form...' : 'Ask AI to change the form'}
         value={isListening ? liveTranscript : text}
         onChange={e => setText(e.target.value)}
@@ -54,7 +54,7 @@ export default function AiTweakInput({ onApply, applying, disabled }: {
         disabled={busy}
         title={isListening ? 'Stop listening' : 'Say a change'}
         aria-label={isListening ? 'Stop listening' : 'Say a change'}
-        className={isListening ? 'text-red-600 bg-red-50 animate-pulse' : ''}
+        className={isListening ? 'text-danger-ink bg-danger-soft animate-pulse' : ''}
       >
         <Mic className="w-4 h-4" />
       </IconButton>

@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { IconButton } from '@/components/ui/IconButton';
 
 import { ArrowUpDown } from 'lucide-react';
+import { MENU_ITEM, MENU_PANEL, MenuBackdrop } from '@/components/ui/Menu';
 
 export default function CategoryMenu({ categoryId }: { categoryId?: string }) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -30,12 +31,12 @@ export default function CategoryMenu({ categoryId }: { categoryId?: string }) {
       
       {menuOpen && (
         <>
-          <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
-          <div className="absolute right-0 top-full mt-1 w-56 bg-white rounded-xl shadow-lg border border-stone-100 py-2 z-50">
+          <MenuBackdrop onClose={() => setMenuOpen(false)} />
+          <div className={`${MENU_PANEL} absolute right-0 top-full mt-1 w-56`}>
             {categoryId && (
               <Link 
                 href={`/categories/${categoryId}?reorder=true`}
-                className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-stone-700 hover:bg-stone-50 hover:text-emerald-600 transition-colors"
+                className={MENU_ITEM}
                 onClick={() => setMenuOpen(false)}
               >
                 <ArrowUpDown className="w-4 h-4" />
@@ -44,7 +45,7 @@ export default function CategoryMenu({ categoryId }: { categoryId?: string }) {
             )}
             <Link 
               href={`/settings/categories`}
-              className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-stone-700 hover:bg-stone-50 hover:text-emerald-600 transition-colors"
+              className={MENU_ITEM}
             >
               <Settings className="w-4 h-4" />
               Manage Categories
@@ -54,7 +55,7 @@ export default function CategoryMenu({ categoryId }: { categoryId?: string }) {
                 handleCopyUrl();
                 setMenuOpen(false);
               }}
-              className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-stone-700 hover:bg-stone-50 hover:text-emerald-600 transition-colors text-left"
+              className={MENU_ITEM}
             >
               <Link2 className="w-4 h-4" />
               Copy URL

@@ -60,28 +60,28 @@ export default function DurationWidget(props: WidgetProps) {
           type="number"
           min="0"
           placeholder="0"
-          className="w-16 sm:w-20 px-3 py-2.5 bg-white border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-stone-900 text-center font-medium"
+          className="w-16 sm:w-20 px-3 py-2.5 bg-surface border border-line rounded-xl focus:outline-none focus:ring-2 focus:ring-focus text-ink text-center font-medium"
           value={hrs}
           onChange={handleHrsChange}
           disabled={disabled || readonly}
         />
-        <span className="absolute -bottom-5 left-0 w-full text-center text-xs text-stone-400 font-medium">hr</span>
+        <span className="absolute -bottom-5 left-0 w-full text-center text-xs text-ink-subtle font-medium">hr</span>
       </div>
-      <span className="text-stone-400 font-bold ">:</span>
+      <span className="text-ink-subtle font-bold ">:</span>
       <div className="relative">
         <input
           id={`${id}-mins`}
           type="number"
           min="0"
           placeholder="0"
-          className="w-16 sm:w-20 px-3 py-2.5 bg-white border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-stone-900 text-center font-medium"
+          className="w-16 sm:w-20 px-3 py-2.5 bg-surface border border-line rounded-xl focus:outline-none focus:ring-2 focus:ring-focus text-ink text-center font-medium"
           value={mins}
           onChange={handleMinsChange}
           disabled={disabled || readonly}
         />
-        <span className="absolute -bottom-5 left-0 w-full text-center text-xs text-stone-400 font-medium">min</span>
+        <span className="absolute -bottom-5 left-0 w-full text-center text-xs text-ink-subtle font-medium">min</span>
       </div>
-      <span className="text-stone-400 font-bold ">:</span>
+      <span className="text-ink-subtle font-bold ">:</span>
       <div className="relative">
         <input
           id={`${id}-secs`}
@@ -89,12 +89,12 @@ export default function DurationWidget(props: WidgetProps) {
           min="0"
           max="59"
           placeholder="0"
-          className="w-16 sm:w-20 px-3 py-2.5 bg-white border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-stone-900 text-center font-medium"
+          className="w-16 sm:w-20 px-3 py-2.5 bg-surface border border-line rounded-xl focus:outline-none focus:ring-2 focus:ring-focus text-ink text-center font-medium"
           value={secs}
           onChange={handleSecsChange}
           disabled={disabled || readonly}
         />
-        <span className="absolute -bottom-5 left-0 w-full text-center text-xs text-stone-400 font-medium">sec</span>
+        <span className="absolute -bottom-5 left-0 w-full text-center text-xs text-ink-subtle font-medium">sec</span>
       </div>
     </div>
   );

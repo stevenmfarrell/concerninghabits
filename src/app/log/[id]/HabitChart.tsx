@@ -9,8 +9,15 @@ import { formatLogValue, formatDuration } from '../../../lib/format';
 import type { HabitSchema } from '@/lib/types';
 import { fieldTitle, type HabitFormProperties } from '@/components/widgets/habitForm';
 import { PANE_INSET, PANE_SURFACE, PaneHeading } from '@/components/Pane';
+import { MENU_PANEL, MenuBackdrop, menuOptionClasses } from '@/components/ui/Menu';
 
-const CHART_COLOR = '#059669'; // emerald-600
+// The theme's colors (see globals.css), as CSS variables so the chart follows light and dark mode
+const CHART_COLOR = 'var(--accent)';
+const CHART_GRID = 'var(--line-subtle)';
+const CHART_TICK = { fill: 'var(--ink-muted)', fontSize: 12 };
+const TOOLTIP_STYLE = { backgroundColor: 'var(--surface)', borderRadius: '12px', border: '1px solid var(--line)', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' };
+const TOOLTIP_LABEL_STYLE = { color: 'var(--ink-secondary)', fontWeight: 600, marginBottom: '4px' };
+const TOOLTIP_ITEM_STYLE = { color: 'var(--accent-ink-strong)', fontWeight: 700 };
 
 // The tooltip's label for a value: the field name, plus who logged it on a shared habit
 function tooltipLabel(fieldLabel: string, item: unknown) {
@@ -70,7 +77,7 @@ export default function HabitChart({
       const person = people?.[log.userId];
       // Who logged the point, when the chart is colored by person. Bars take `fill` straight from
       // their data point; line dots read it in the custom dot below.
-      const loggedBy = people ? { fill: person?.color ?? '#a8a29e', personName: person?.name ?? 'Former member' } : { fill: CHART_COLOR, personName: undefined };
+      const loggedBy = people ? { fill: person?.color ?? 'var(--ink-subtle)', personName: person?.name ?? 'Former member' } : { fill: CHART_COLOR, personName: undefined };
       try {
         const payload = JSON.parse(log.payload);
         const val = payload[selectedField];
@@ -183,15 +190,15 @@ export default function HabitChart({
             <div className="relative">
               <button 
                 onClick={() => setIsOpen(!isOpen)}
-                className="flex items-center gap-2 px-3 py-1.5 bg-stone-50 hover:bg-stone-100 border border-stone-200 rounded-lg text-sm font-medium text-stone-700 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+                className="flex items-center gap-2 px-3 py-1.5 bg-surface-subtle hover:bg-surface-muted border border-line rounded-lg text-sm font-medium text-ink-secondary transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
               >
                 {getFieldLabel(selectedField)}
-                <svg className="w-4 h-4 text-stone-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                <svg className="w-4 h-4 text-ink-subtle" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
               </button>
               {isOpen && (
                 <>
-                  <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)}></div>
-                  <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-stone-100 rounded-xl shadow-lg z-50 overflow-hidden py-1">
+                  <MenuBackdrop onClose={() => setIsOpen(false)} />
+                  <div className={`${MENU_PANEL} absolute right-0 top-full mt-1 w-48 overflow-hidden`}>
                     {numericFields.map(field => (
                       <button
                         key={field}
@@ -201,9 +208,7 @@ export default function HabitChart({
                           // Save to cookie for 10 years
                           document.cookie = `chartField_${habitId}=${field}; path=/; max-age=315360000`;
                         }}
-                        className={`w-full text-left px-4 py-2 text-sm transition-colors ${
-                          selectedField === field ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-stone-700 hover:bg-stone-50'
-                        }`}
+                        className={`${menuOptionClasses(selectedField === field)} px-4`}
                       >
                         {getFieldLabel(field)}
                       </button>
@@ -214,19 +219,19 @@ export default function HabitChart({
             </div>
           )}
           {numericFields.length === 1 && (
-            <span className="text-sm font-medium text-stone-500 bg-stone-100 px-3 py-1 rounded-lg">
+            <span className="text-sm font-medium text-ink-muted bg-surface-muted px-3 py-1 rounded-lg">
               {getFieldLabel(selectedField)}
             </span>
           )}
 
-          <div className="flex bg-stone-50 border border-stone-200 rounded-lg overflow-hidden">
+          <div className="flex bg-surface-subtle border border-line rounded-lg overflow-hidden">
             <button
               onClick={() => {
                 const newType = chartTypes[selectedField] === 'bar' ? 'line' : 'bar';
                 setChartTypes(prev => ({ ...prev, [selectedField]: newType }));
                 document.cookie = `chartType_${habitId}_${selectedField}=${newType}; path=/; max-age=315360000`;
               }}
-              className="flex items-center justify-center p-1.5 hover:bg-stone-100 text-stone-500 hover:text-emerald-600 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+              className="flex items-center justify-center p-1.5 hover:bg-surface-muted text-ink-muted hover:text-accent-ink transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
               title={`Switch to ${chartTypes[selectedField] === 'bar' ? 'Line' : 'Bar'} Chart`}
             >
               {chartTypes[selectedField] === 'bar' ? <LineChartIcon className="w-4 h-4" /> : <BarChart2 className="w-4 h-4" />}
@@ -240,14 +245,14 @@ export default function HabitChart({
       <div className={`${PANE_SURFACE} ${PANE_INSET} py-4`}>
         <div ref={chartWrapperRef} className="w-full h-64">
           {!hasData ? (
-            <div className="w-full h-full flex items-center justify-center text-stone-400 text-sm italic">
+            <div className="w-full h-full flex items-center justify-center text-ink-subtle text-sm italic">
               No data recorded for this metric yet.
             </div>
           ) : (
             <ResponsiveContainer width="100%" height="100%">
               {chartTypes[selectedField] === 'bar' ? (
                 <BarChart data={data} margin={{ top: 5, right: 10, left: -20, bottom: 5 }} onClick={handleChartClick} style={{ cursor: 'pointer', WebkitTapHighlightColor: 'transparent', userSelect: 'none', outline: 'none' }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f5f5f4" />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={CHART_GRID} />
                   <XAxis 
                     dataKey="logId" 
                     ticks={dayTicks}
@@ -256,21 +261,21 @@ export default function HabitChart({
                     minTickGap={12}
                     axisLine={false}
                     tickLine={false}
-                    tick={{ fill: '#78716c', fontSize: 12 }}
+                    tick={CHART_TICK}
                     dy={10}
                   />
                   <YAxis 
                     domain={yDomain}
                     axisLine={false}
                     tickLine={false}
-                    tick={{ fill: '#78716c', fontSize: 12 }}
+                    tick={CHART_TICK}
                     tickFormatter={yAxisTickFormatter}
                   />
                   <Tooltip 
-                    cursor={{ fill: '#f5f5f4' }}
-                    contentStyle={{ borderRadius: '12px', border: '1px solid #e7e5e4', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                    labelStyle={{ color: '#57534e', fontWeight: 600, marginBottom: '4px' }}
-                    itemStyle={{ color: '#047857', fontWeight: 700 }}
+                    cursor={{ fill: 'var(--surface-muted)' }}
+                    contentStyle={TOOLTIP_STYLE}
+                    labelStyle={TOOLTIP_LABEL_STYLE}
+                    itemStyle={TOOLTIP_ITEM_STYLE}
                     labelFormatter={tooltipDate}
                     formatter={(value: unknown, _name: unknown, item: unknown) => [formatLogValue(value, schemaProperties?.[selectedField]), tooltipLabel(fieldTitle(selectedField, schemaProperties), item)]}
                   />
@@ -285,7 +290,7 @@ export default function HabitChart({
                 </BarChart>
               ) : (
                 <LineChart data={data} margin={{ top: 5, right: 10, left: -20, bottom: 5 }} onClick={handleChartClick} style={{ cursor: 'pointer', WebkitTapHighlightColor: 'transparent', userSelect: 'none', outline: 'none' }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f5f5f4" />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={CHART_GRID} />
                   <XAxis 
                     dataKey="date" 
                     type="number"
@@ -294,7 +299,7 @@ export default function HabitChart({
                     padding={{ left: 20, right: 20 }}
                     axisLine={false}
                     tickLine={false}
-                    tick={{ fill: '#78716c', fontSize: 12 }}
+                    tick={CHART_TICK}
                     tickFormatter={(tick) => new Date(tick).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone })}
                     dy={10}
                   />
@@ -302,14 +307,14 @@ export default function HabitChart({
                     domain={yDomain}
                     axisLine={false}
                     tickLine={false}
-                    tick={{ fill: '#78716c', fontSize: 12 }}
+                    tick={CHART_TICK}
                     tickFormatter={yAxisTickFormatter}
                   />
                   <Tooltip 
                     cursor={false}
-                    contentStyle={{ borderRadius: '12px', border: '1px solid #e7e5e4', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                    labelStyle={{ color: '#57534e', fontWeight: 600, marginBottom: '4px' }}
-                    itemStyle={{ color: '#047857', fontWeight: 700 }}
+                    contentStyle={TOOLTIP_STYLE}
+                    labelStyle={TOOLTIP_LABEL_STYLE}
+                    itemStyle={TOOLTIP_ITEM_STYLE}
                     labelFormatter={tooltipDate}
                     formatter={(value: unknown, _name: unknown, item: unknown) => [formatLogValue(value, schemaProperties?.[selectedField]), tooltipLabel(fieldTitle(selectedField, schemaProperties), item)]}
                   />
@@ -318,7 +323,7 @@ export default function HabitChart({
                     type="monotone"
                     dataKey="value"
                     name="Value"
-                    stroke={people ? '#d6d3d1' : CHART_COLOR}
+                    stroke={people ? 'var(--line-strong)' : CHART_COLOR}
                     strokeWidth={3}
                     dot={people
                       ? ({ cx, cy, index, payload }) => (
@@ -327,9 +332,9 @@ export default function HabitChart({
                       : { r: 4, fill: CHART_COLOR, strokeWidth: 0, onClick: handleDotClick }}
                     activeDot={people
                       ? ({ cx, cy, payload }) => (
-                          <circle cx={cx} cy={cy} r={6} fill={payload.fill} stroke="#fff" strokeWidth={2} onClick={() => triggerHighlight(payload.logId)} />
+                          <circle cx={cx} cy={cy} r={6} fill={payload.fill} stroke="var(--surface)" strokeWidth={2} onClick={() => triggerHighlight(payload.logId)} />
                         )
-                      : { r: 6, fill: '#047857', stroke: '#fff', strokeWidth: 2, onClick: handleDotClick }}
+                      : { r: 6, fill: 'var(--accent-hover)', stroke: 'var(--surface)', strokeWidth: 2, onClick: handleDotClick }}
                   />
                 </LineChart>
               )}

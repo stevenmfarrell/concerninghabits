@@ -5,14 +5,14 @@ export type IconButtonVariant = 'default' | 'accent' | 'soft' | 'solid' | 'dange
 export type IconButtonEdge = 'left' | 'right' | 'none';
 
 const VARIANT_CLASSES: Record<IconButtonVariant, string> = {
-  default: 'text-stone-500 hover:text-stone-800 hover:bg-stone-100',
-  accent: 'text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50',
+  default: 'text-ink-muted hover:text-ink hover:bg-surface-muted',
+  accent: 'text-accent-ink hover:text-accent-ink-strong hover:bg-accent-soft',
   // Pale emerald, for an action repeated down a list, e.g. each row's Log button, so a column of
   // them doesn't outweigh the rows themselves
-  soft: 'bg-emerald-50 text-emerald-700 border border-emerald-100 hover:bg-emerald-100 hover:border-emerald-200 disabled:opacity-60',
+  soft: 'bg-accent-soft text-accent-ink-strong border border-accent-line hover:bg-accent-soft-strong hover:border-accent-line-strong disabled:opacity-60',
   // Filled emerald, for a primary action, e.g. sending something typed
-  solid: 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm disabled:opacity-60',
-  danger: 'text-red-600 hover:text-red-700 hover:bg-red-50',
+  solid: 'bg-accent text-on-accent hover:bg-accent-hover shadow-sm disabled:opacity-60',
+  danger: 'text-danger-ink hover:text-danger-ink-strong hover:bg-danger-soft',
 };
 
 const EDGE_CLASSES: Record<IconButtonEdge, string> = {

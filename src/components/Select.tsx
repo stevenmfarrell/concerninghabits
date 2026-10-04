@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, ReactNode } from 'react';
 import { ChevronDown } from 'lucide-react';
+import { MENU_PANEL, MENU_SEPARATOR, menuOptionClasses } from '@/components/ui/Menu';
 
 export interface SelectOption {
   id: string;
@@ -49,7 +50,7 @@ export default function Select({
         type="button"
         disabled={disabled}
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full h-[42px] flex items-center justify-between px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-left text-sm text-stone-900 shadow-sm disabled:opacity-50 transition-colors"
+        className="w-full h-[42px] flex items-center justify-between px-3 py-2 bg-surface border border-line rounded-lg focus:outline-none focus:ring-2 focus:ring-focus text-left text-sm text-ink shadow-sm disabled:opacity-50 transition-colors"
       >
         <div className="flex items-center gap-2 overflow-hidden">
           {selectedOption ? (
@@ -58,14 +59,14 @@ export default function Select({
               <span className="truncate">{selectedOption.selectedLabel ?? selectedOption.label}</span>
             </>
           ) : (
-            <span className="text-stone-400 truncate">{placeholder}</span>
+            <span className="text-ink-subtle truncate">{placeholder}</span>
           )}
         </div>
-        <ChevronDown className="w-4 h-4 text-stone-400 shrink-0" />
+        <ChevronDown className="w-4 h-4 text-ink-subtle shrink-0" />
       </button>
 
       {isOpen && (
-        <div className="absolute left-0 z-50 w-full mt-2 bg-white border border-stone-100 rounded-xl shadow-lg py-1 max-h-60 overflow-auto">
+        <div className={`${MENU_PANEL} absolute left-0 top-full mt-1 w-full max-h-60 overflow-auto`}>
           {options.map((option) => (
             <button
               key={option.id}
@@ -74,19 +75,17 @@ export default function Select({
                 onChange(option.id);
                 setIsOpen(false);
               }}
-              className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-stone-50 transition-colors ${
-                value === option.id ? 'bg-emerald-50 text-emerald-700 font-medium' : 'text-stone-700'
-              }`}
+              className={`${menuOptionClasses(value === option.id)} px-3`}
               style={option.depth ? { paddingLeft: `${0.75 + option.depth * 1.25}rem` } : undefined}
             >
-              {option.icon && <div className={`shrink-0 ${value === option.id ? 'text-emerald-600' : 'text-stone-400'}`}>{option.icon}</div>}
+              {option.icon && <div className={`shrink-0 ${value === option.id ? 'text-accent-ink' : 'text-ink-subtle'}`}>{option.icon}</div>}
               <span className="truncate">{option.label}</span>
             </button>
           ))}
           
           {footer && (
             <>
-              <div className="h-px bg-stone-100 my-1"></div>
+              <div className={MENU_SEPARATOR} />
               <div onClick={() => setIsOpen(false)}>
                 {footer}
               </div>

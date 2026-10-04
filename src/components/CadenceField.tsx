@@ -14,7 +14,7 @@ const CADENCE_OPTIONS: { [T in CadenceType]: { label: string; initial: () => Ext
   none: { label: 'No set cadence', initial: () => ({ type: 'none' }) },
 };
 
-const NUMBER_INPUT_CLASS = 'w-full sm:w-32 h-[42px] px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm shadow-sm';
+const NUMBER_INPUT_CLASS = 'w-full sm:w-32 h-[42px] px-3 py-2 bg-surface border border-line rounded-lg focus:outline-none focus:ring-2 focus:ring-focus text-sm shadow-sm';
 
 // The cadence picker. The setting the chosen cadence needs, if any, is CadenceSettings, which
 // HabitEditor shows below its row of pickers.
@@ -100,7 +100,7 @@ function CadenceNumber({ label, help, value, min, max, onChange, disabled }: { l
 
   return (
     <div className="mt-4 animate-in fade-in slide-in-from-top-2">
-      <label className="block text-sm font-semibold text-stone-700 mb-1">
+      <label className="block text-sm font-semibold text-ink-secondary mb-1">
         {label}
         <input
           type="number"
@@ -123,7 +123,7 @@ function CadenceNumber({ label, help, value, min, max, onChange, disabled }: { l
           disabled={disabled}
         />
       </label>
-      <p className="text-xs text-stone-500 mt-1">{help}</p>
+      <p className="text-xs text-ink-muted mt-1">{help}</p>
     </div>
   );
 }

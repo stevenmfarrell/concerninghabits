@@ -5,6 +5,7 @@ import { useState, useRef, useEffect } from 'react';
 import ConfirmDialog from '../../../components/ConfirmDialog';
 import { IconButton } from '@/components/ui/IconButton';
 import EditEntrySheet, { type EditableEntry } from './EditEntrySheet';
+import { MENU_ITEM, MENU_ITEM_DANGER, MENU_PANEL } from '@/components/ui/Menu';
 
 // Room the menu needs below its button to open downward: its own height, plus the bottom nav's
 const MENU_CLEARANCE = 200;
@@ -46,14 +47,14 @@ export default function EntryMenu({ habit, entry, deleteAction }: {
       </IconButton>
 
       {isOpen && (
-        <div className={`absolute right-0 w-32 ${openUp ? 'bottom-full mb-1 origin-bottom-right' : 'top-full mt-1 origin-top-right'} rounded-xl bg-white shadow-lg border border-stone-100 focus:outline-none z-50 overflow-hidden`}>
+        <div className={`${MENU_PANEL} absolute right-0 w-32 ${openUp ? 'bottom-full mb-1 origin-bottom-right' : 'top-full mt-1 origin-top-right'} overflow-hidden`}>
           <button
             type="button"
             onClick={() => {
               setIsOpen(false);
               setEditing(true);
             }}
-            className="flex items-center gap-2 w-full text-left px-4 py-3 text-sm font-medium text-stone-700 hover:bg-stone-50 hover:text-emerald-600 transition-colors"
+            className={MENU_ITEM}
           >
             <Pencil className="w-4 h-4" /> Edit
           </button>
@@ -63,7 +64,7 @@ export default function EntryMenu({ habit, entry, deleteAction }: {
               setIsOpen(false);
               setShowConfirm(true);
             }}
-            className="flex items-center gap-2 w-full text-left px-4 py-3 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
+            className={MENU_ITEM_DANGER}
           >
             <Trash2 className="w-4 h-4" /> Delete
           </button>

@@ -8,7 +8,7 @@ export default function AuthBrand({ subtitle }: { subtitle?: string }) {
       <img src="/hobbit-hole.svg" alt="" className="w-full max-w-xs h-auto" />
       <img src="/title-text.svg" alt="Concerning Habits" className="w-full max-w-xs h-auto mt-2" />
       <img src="/plant-icon.svg" alt="" className="w-12 h-auto -mt-2" />
-      {subtitle && <p className="text-stone-500 mt-8 font-medium">{subtitle}</p>}
+      {subtitle && <p className="text-ink-muted mt-8 font-medium">{subtitle}</p>}
     </div>
   );
 }

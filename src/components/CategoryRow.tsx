@@ -33,18 +33,18 @@ export default function CategoryRow({ href, name, icon, subtitle, dates, habitCo
   return (
     <Link
       href={href}
-      className="flex items-stretch transition-colors bg-white hover:bg-stone-50 group/row"
+      className="flex items-stretch transition-colors bg-surface hover:bg-surface-subtle group/row"
     >
       <div className="flex-1 flex items-center py-3 pane-inset gap-3 sm:gap-6 min-w-0">
         <div className="flex items-center gap-3 flex-1 min-w-0">
-          <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center text-blue-700 transition-colors shrink-0">
+          <div className="w-10 h-10 rounded-xl bg-category-soft-strong flex items-center justify-center text-category-ink-strong transition-colors shrink-0">
             <Icon name={icon} className="w-5 h-5" />
           </div>
           <div className="flex-1 min-w-0">
-            <h3 className="text-lg font-semibold text-stone-800 group-hover/row:text-blue-700 transition-colors truncate">
+            <h3 className="text-lg font-semibold text-ink group-hover/row:text-category-ink-strong transition-colors truncate">
               {name}
             </h3>
-            {subtitle && <p className="text-sm text-stone-500">{subtitle}</p>}
+            {subtitle && <p className="text-sm text-ink-muted">{subtitle}</p>}
           </div>
         </div>
 
@@ -61,12 +61,12 @@ export default function CategoryRow({ href, name, icon, subtitle, dates, habitCo
               weekStartsOn={weekStartsOn}
               timeZone={timeZone}
               color="blue"
-              emptyColor="bg-stone-200/70"
+              emptyColor="bg-surface-strong/70"
               futureColor="bg-transparent"
             />
           </div>
         </div>
-        <div className={`shrink-0 text-stone-300 group-hover/row:text-blue-600 transition-colors ${alignWithHabitRows ? 'w-16 flex justify-center -ml-1 sm:-ml-2' : ''}`}>
+        <div className={`shrink-0 text-ink-faint group-hover/row:text-category-ink transition-colors ${alignWithHabitRows ? 'w-16 flex justify-center -ml-1 sm:-ml-2' : ''}`}>
           <ChevronRight className="w-5 h-5" />
         </div>
       </div>

@@ -10,24 +10,24 @@ import { PANE_INSET, PanePage, PaneSection } from '@/components/Pane';
 function RowContent({ icon, title, description }: { icon: ReactNode; title: string; description?: string }) {
   return (
     <div className="flex items-center gap-3 min-w-0">
-      <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600 group-hover:bg-emerald-100 transition-colors shrink-0">
+      <div className="w-10 h-10 rounded-full bg-accent-soft flex items-center justify-center text-accent-ink group-hover:bg-accent-soft-strong transition-colors shrink-0">
         {icon}
       </div>
       <div className="flex flex-col min-w-0">
-        <span className="font-semibold text-stone-800 text-lg truncate">{title}</span>
-        {description && <span className="text-sm text-stone-500 truncate">{description}</span>}
+        <span className="font-semibold text-ink text-lg truncate">{title}</span>
+        {description && <span className="text-sm text-ink-muted truncate">{description}</span>}
       </div>
     </div>
   );
 }
 
-const ROW = `flex items-center justify-between gap-3 ${PANE_INSET} py-3 hover:bg-stone-50 transition-colors group`;
+const ROW = `flex items-center justify-between gap-3 ${PANE_INSET} py-3 hover:bg-surface-subtle transition-colors group`;
 
 function SettingsLink({ href, ...content }: { href: string; icon: ReactNode; title: string; description?: string }) {
   return (
     <Link href={href} className={ROW}>
       <RowContent {...content} />
-      <ChevronRight className="w-5 h-5 text-stone-400 group-hover:text-stone-600 transition-colors shrink-0" />
+      <ChevronRight className="w-5 h-5 text-ink-subtle group-hover:text-ink-secondary transition-colors shrink-0" />
     </Link>
   );
 }
@@ -38,14 +38,14 @@ export default async function SettingsPage() {
   return (
     <PanePage width="3xl" header={<PageHeader title="Settings" showBack={false} />}>
       <div className={`${PANE_INSET} py-4 flex items-center gap-4`}>
-        <div className="w-16 h-16 bg-stone-100 rounded-full flex items-center justify-center shrink-0 border border-stone-200">
-          <Icon name="User" className="w-8 h-8 text-stone-400" />
+        <div className="w-16 h-16 bg-surface-muted rounded-full flex items-center justify-center shrink-0 border border-line">
+          <Icon name="User" className="w-8 h-8 text-ink-subtle" />
         </div>
         <div className="min-w-0">
-          <h2 className="text-xl font-bold text-stone-900 truncate">{user.name}</h2>
-          <p className="text-stone-500 text-sm truncate">{user.email}</p>
+          <h2 className="text-xl font-bold text-ink truncate">{user.name}</h2>
+          <p className="text-ink-muted text-sm truncate">{user.email}</p>
           {user.isAdmin && (
-            <span className="inline-block mt-1 px-2 py-0.5 bg-emerald-100 text-emerald-700 text-[10px] font-bold rounded-md uppercase tracking-wider">
+            <span className="inline-block mt-1 px-2 py-0.5 bg-accent-soft-strong text-accent-ink-strong text-[10px] font-bold rounded-md uppercase tracking-wider">
               Admin
             </span>
           )}
@@ -53,7 +53,7 @@ export default async function SettingsPage() {
       </div>
 
       <PaneSection title="Preferences">
-        <SettingsLink href="/settings/preferences" icon={<Sliders className="w-5 h-5" />} title="Personal Preferences" description="Bedtime, calendar start day, emojis" />
+        <SettingsLink href="/settings/preferences" icon={<Sliders className="w-5 h-5" />} title="Personal Preferences" description="Theme, bedtime, calendar start day, emojis" />
         <SettingsLink href="/settings/categories" icon={<FolderTree className="w-5 h-5" />} title="Manage Categories" />
         {user.isAdmin && (
           <SettingsLink href="/settings/users" icon={<Users className="w-5 h-5" />} title="Family Users" description="Add or remove family members" />

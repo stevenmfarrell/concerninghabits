@@ -5,14 +5,14 @@ export type ActivityColor = 'emerald' | 'blue';
 export const ACTIVITY_PALETTES = {
   emerald: {
     // Shades for a multiple-times-a-day count, from a little to at-or-over target
-    scale: ['bg-emerald-300', 'bg-emerald-400', 'bg-emerald-500', 'bg-emerald-600'],
-    done: 'bg-emerald-500',
-    periodDone: 'bg-emerald-200',
+    scale: ['bg-accent-scale-1', 'bg-accent-scale-2', 'bg-accent-scale-3', 'bg-accent-scale-4'],
+    done: 'bg-accent-done',
+    periodDone: 'bg-accent-period',
   },
   blue: {
-    scale: ['bg-blue-300', 'bg-blue-400', 'bg-blue-500', 'bg-blue-600'],
-    done: 'bg-blue-500',
-    periodDone: 'bg-blue-200',
+    scale: ['bg-category-scale-1', 'bg-category-scale-2', 'bg-category-scale-3', 'bg-category-scale-4'],
+    done: 'bg-category-done',
+    periodDone: 'bg-category-period',
   },
 } as const;
 

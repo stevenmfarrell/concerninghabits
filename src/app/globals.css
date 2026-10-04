@@ -1,14 +1,229 @@
 @import "tailwindcss";
 
+/* The theme. Components use these semantic colors (bg-surface, text-ink-muted, border-line, …) rather
+   than a palette's shades, so dark mode only has to redefine them here. The theme is the
+   `data-theme` attribute on <html>, set before the first paint by THEME_SCRIPT (src/lib/theme.ts);
+   `dark:` matches it too, for a one-off exception. */
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+
 :root {
-  --background: #fafaf9;
-  --foreground: #171717;
   color-scheme: light;
+
+  /* What things sit on: the page, the white of its lists and dialogs, and fills a step or two
+     stronger for inputs, hovered rows, tracks and wells */
+  --canvas: var(--color-stone-50);
+  --surface: var(--color-white);
+  --surface-subtle: var(--color-stone-50);
+  --surface-muted: var(--color-stone-100);
+  --surface-strong: var(--color-stone-200);
+
+  /* Text and icons, from headings to placeholders */
+  --ink: var(--color-stone-900);
+  --ink-secondary: var(--color-stone-700);
+  --ink-muted: var(--color-stone-500);
+  --ink-subtle: var(--color-stone-400);
+  --ink-faint: var(--color-stone-300);
+
+  /* Borders and hairlines */
+  --line: var(--color-stone-200);
+  --line-subtle: var(--color-stone-100);
+  --line-strong: var(--color-stone-300);
+
+  /* The dark fill of a secondary button or a toast, and what's on it, dark in both themes */
+  --inverse: var(--color-stone-900);
+  --inverse-hover: var(--color-stone-800);
+  --on-inverse: var(--color-white);
+
+  /* Behind a dialog or sheet */
+  --overlay: rgb(28 25 23 / 0.4);
+  --focus: var(--color-emerald-500);
+
+  /* Each hue's family: a fill and its hover, text on the page (`-ink`), pale fills (`-soft`) and a
+     border to go with them (`-line`). Emerald is the app's accent, blue is a category's, red is
+     destructive, amber is a warning. */
+  --accent: var(--color-emerald-600);
+  --accent-hover: var(--color-emerald-700);
+  --accent-pressed: var(--color-emerald-800);
+  --on-accent: var(--color-white);
+  --accent-ink: var(--color-emerald-600);
+  --accent-ink-strong: var(--color-emerald-700);
+  --accent-soft: var(--color-emerald-50);
+  --accent-soft-strong: var(--color-emerald-100);
+  --accent-line: var(--color-emerald-100);
+  --accent-line-strong: var(--color-emerald-200);
+
+  --category: var(--color-blue-500);
+  --category-ink: var(--color-blue-600);
+  --category-ink-strong: var(--color-blue-700);
+  --category-soft: var(--color-blue-50);
+  --category-soft-strong: var(--color-blue-100);
+  --category-line: var(--color-blue-200);
+
+  --danger: var(--color-red-600);
+  --danger-hover: var(--color-red-700);
+  --danger-ink: var(--color-red-600);
+  --danger-ink-strong: var(--color-red-700);
+  --danger-soft: var(--color-red-50);
+  --danger-soft-strong: var(--color-red-100);
+  --danger-line: var(--color-red-200);
+
+  --warning: var(--color-amber-500);
+  --warning-ink: var(--color-amber-600);
+  --warning-ink-strong: var(--color-amber-700);
+  --warning-soft: var(--color-amber-50);
+  --warning-soft-strong: var(--color-amber-100);
+
+  /* An activity calendar's days: `-scale-1` to `-4` for a little to all of a day's target, `-done`
+     for a day that's done, `-period` for a day inside a week or month that's done. In dark, the
+     scale runs from dim to bright, so more still reads as more. */
+  --accent-scale-1: var(--color-emerald-300);
+  --accent-scale-2: var(--color-emerald-400);
+  --accent-scale-3: var(--color-emerald-500);
+  --accent-scale-4: var(--color-emerald-600);
+  --accent-done: var(--color-emerald-500);
+  --accent-period: var(--color-emerald-200);
+  --category-scale-1: var(--color-blue-300);
+  --category-scale-2: var(--color-blue-400);
+  --category-scale-3: var(--color-blue-500);
+  --category-scale-4: var(--color-blue-600);
+  --category-done: var(--color-blue-500);
+  --category-period: var(--color-blue-200);
+}
+
+/* Dark: the page is darkest, with surfaces and fills stepping lighter. Pale fills are the hue at a
+   low opacity, so they tint whatever they sit on. */
+[data-theme=dark] {
+  color-scheme: dark;
+
+  --canvas: var(--color-stone-950);
+  --surface: var(--color-stone-900);
+  --surface-subtle: color-mix(in oklab, var(--color-stone-800) 50%, var(--color-stone-900));
+  --surface-muted: var(--color-stone-800);
+  --surface-strong: var(--color-stone-700);
+
+  --ink: var(--color-stone-100);
+  --ink-secondary: var(--color-stone-300);
+  --ink-muted: var(--color-stone-400);
+  --ink-subtle: var(--color-stone-500);
+  --ink-faint: var(--color-stone-600);
+
+  --line: var(--color-stone-800);
+  --line-subtle: color-mix(in oklab, var(--color-stone-800) 60%, var(--color-stone-900));
+  --line-strong: var(--color-stone-700);
+
+  /* Still dark, but lifted off the page, so a toast keeps its light text and white Undo button */
+  --inverse: var(--color-stone-700);
+  --inverse-hover: var(--color-stone-600);
+
+  --overlay: rgb(0 0 0 / 0.6);
+
+  --accent: var(--color-emerald-600);
+  --accent-hover: var(--color-emerald-500);
+  --accent-pressed: var(--color-emerald-700);
+  --accent-ink: var(--color-emerald-400);
+  --accent-ink-strong: var(--color-emerald-300);
+  --accent-soft: color-mix(in oklab, var(--color-emerald-500) 12%, transparent);
+  --accent-soft-strong: color-mix(in oklab, var(--color-emerald-500) 22%, transparent);
+  --accent-line: color-mix(in oklab, var(--color-emerald-500) 25%, transparent);
+  --accent-line-strong: color-mix(in oklab, var(--color-emerald-500) 40%, transparent);
+
+  --category-ink: var(--color-blue-400);
+  --category-ink-strong: var(--color-blue-300);
+  --category-soft: color-mix(in oklab, var(--color-blue-500) 12%, transparent);
+  --category-soft-strong: color-mix(in oklab, var(--color-blue-500) 22%, transparent);
+  --category-line: color-mix(in oklab, var(--color-blue-500) 35%, transparent);
+
+  --danger-hover: var(--color-red-500);
+  --danger-ink: var(--color-red-400);
+  --danger-ink-strong: var(--color-red-300);
+  --danger-soft: color-mix(in oklab, var(--color-red-500) 12%, transparent);
+  --danger-soft-strong: color-mix(in oklab, var(--color-red-500) 22%, transparent);
+  --danger-line: color-mix(in oklab, var(--color-red-500) 35%, transparent);
+
+  --warning-ink: var(--color-amber-400);
+  --warning-ink-strong: var(--color-amber-300);
+  --warning-soft: color-mix(in oklab, var(--color-amber-500) 12%, transparent);
+  --warning-soft-strong: color-mix(in oklab, var(--color-amber-500) 22%, transparent);
+
+  --accent-scale-1: var(--color-emerald-900);
+  --accent-scale-2: var(--color-emerald-700);
+  --accent-scale-3: var(--color-emerald-600);
+  --accent-scale-4: var(--color-emerald-500);
+  --accent-done: var(--color-emerald-500);
+  --accent-period: color-mix(in oklab, var(--color-emerald-500) 30%, var(--color-stone-900));
+  --category-scale-1: var(--color-blue-900);
+  --category-scale-2: var(--color-blue-700);
+  --category-scale-3: var(--color-blue-600);
+  --category-scale-4: var(--color-blue-500);
+  --category-done: var(--color-blue-500);
+  --category-period: color-mix(in oklab, var(--color-blue-500) 30%, var(--color-stone-900));
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-subtle: var(--surface-subtle);
+  --color-surface-muted: var(--surface-muted);
+  --color-surface-strong: var(--surface-strong);
+  --color-ink: var(--ink);
+  --color-ink-secondary: var(--ink-secondary);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-subtle: var(--ink-subtle);
+  --color-ink-faint: var(--ink-faint);
+  --color-line: var(--line);
+  --color-line-subtle: var(--line-subtle);
+  --color-line-strong: var(--line-strong);
+  --color-inverse: var(--inverse);
+  --color-inverse-hover: var(--inverse-hover);
+  --color-on-inverse: var(--on-inverse);
+  --color-overlay: var(--overlay);
+  --color-focus: var(--focus);
+
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-pressed: var(--accent-pressed);
+  --color-on-accent: var(--on-accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-ink-strong: var(--accent-ink-strong);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-soft-strong: var(--accent-soft-strong);
+  --color-accent-line: var(--accent-line);
+  --color-accent-line-strong: var(--accent-line-strong);
+
+  --color-category: var(--category);
+  --color-category-ink: var(--category-ink);
+  --color-category-ink-strong: var(--category-ink-strong);
+  --color-category-soft: var(--category-soft);
+  --color-category-soft-strong: var(--category-soft-strong);
+  --color-category-line: var(--category-line);
+
+  --color-danger: var(--danger);
+  --color-danger-hover: var(--danger-hover);
+  --color-danger-ink: var(--danger-ink);
+  --color-danger-ink-strong: var(--danger-ink-strong);
+  --color-danger-soft: var(--danger-soft);
+  --color-danger-soft-strong: var(--danger-soft-strong);
+  --color-danger-line: var(--danger-line);
+
+  --color-warning: var(--warning);
+  --color-warning-ink: var(--warning-ink);
+  --color-warning-ink-strong: var(--warning-ink-strong);
+  --color-warning-soft: var(--warning-soft);
+  --color-warning-soft-strong: var(--warning-soft-strong);
+
+  --color-accent-scale-1: var(--accent-scale-1);
+  --color-accent-scale-2: var(--accent-scale-2);
+  --color-accent-scale-3: var(--accent-scale-3);
+  --color-accent-scale-4: var(--accent-scale-4);
+  --color-accent-done: var(--accent-done);
+  --color-accent-period: var(--accent-period);
+  --color-category-scale-1: var(--category-scale-1);
+  --color-category-scale-2: var(--category-scale-2);
+  --color-category-scale-3: var(--category-scale-3);
+  --color-category-scale-4: var(--category-scale-4);
+  --color-category-done: var(--category-done);
+  --color-category-period: var(--category-period);
+
   --font-sans: var(--font-geist-sans), "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
   --font-mono: var(--font-geist-mono);
   --animate-highlight-fade: highlight-fade 2s ease-out forwards;
@@ -16,8 +231,8 @@
 }
 
 @keyframes highlight-fade {
-  0% { background-color: #ecfdf5; }
-  15% { background-color: #d1fae5; }
+  0% { background-color: var(--accent-soft); }
+  15% { background-color: var(--accent-soft-strong); }
   100% { background-color: transparent; }
 }
 
@@ -57,13 +272,13 @@
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--canvas);
+  color: var(--ink);
   font-family: var(--font-sans), sans-serif;
 }
 
 input, textarea, select {
-  @apply text-stone-900;
+  @apply text-ink;
 }
 
 /* react-jsonschema-form styling overrides */
@@ -86,11 +301,11 @@ input, textarea, select {
 }
 
 .rjsf .control-label {
-  @apply block text-sm font-medium text-stone-700 mb-1.5 capitalize;
+  @apply block text-sm font-medium text-ink-secondary mb-1.5 capitalize;
 }
 
 .rjsf .form-control {
-  @apply block w-full px-4 py-2.5 bg-white border border-stone-200 rounded-xl text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow;
+  @apply block w-full px-4 py-2.5 bg-surface border border-line rounded-xl text-ink focus:outline-none focus:ring-2 focus:ring-focus focus:border-focus transition-shadow;
 }
 
 /* A free-form text field (x-widget: textarea) */
@@ -103,23 +318,23 @@ input, textarea, select {
 }
 
 .rjsf .checkbox input[type="checkbox"] {
-  @apply w-5 h-5 text-blue-600 bg-slate-100 border-slate-300 rounded focus:ring-blue-500;
+  @apply w-5 h-5 accent-accent bg-surface-muted border-line-strong rounded focus:ring-focus;
 }
 
 .rjsf .checkbox label {
-  @apply text-slate-700 font-medium cursor-pointer;
+  @apply text-ink-secondary font-medium cursor-pointer;
 }
 
 .rjsf .text-danger {
-  @apply text-red-500 text-sm mt-1 block;
+  @apply text-danger-ink text-sm mt-1 block;
 }
 
 .rjsf .error-detail {
-  @apply text-red-500 text-sm mt-1 m-0 p-0 list-none;
+  @apply text-danger-ink text-sm mt-1 m-0 p-0 list-none;
 }
 
 .rjsf .panel-danger {
-  @apply bg-red-50 border border-red-200 text-red-700 p-4 rounded-xl mb-6;
+  @apply bg-danger-soft border border-danger-line text-danger-ink-strong p-4 rounded-xl mb-6;
 }
 
 .rjsf .panel-heading {

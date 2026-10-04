@@ -6,6 +6,7 @@ import { Check, ChevronDown, Keyboard, Loader2, Mic } from 'lucide-react';
 import { Button, type ButtonSize } from '@/components/ui/Button';
 import QuillIconWavy from '@/components/QuillIconWavy';
 import { useSpeechRecognition } from '@/lib/useSpeechRecognition';
+import { MENU_ITEM, MENU_PANEL, MENU_SEPARATOR, MenuBackdrop } from '@/components/ui/Menu';
 
 type Mode = 'speak' | 'type';
 
@@ -33,7 +34,7 @@ function storeMode(mode: Mode) {
   modeListeners.forEach(listener => listener());
 }
 
-const SPLIT_BORDER = { primary: 'border-emerald-700', secondary: 'border-stone-700' } as const;
+const SPLIT_BORDER = { primary: 'border-accent-hover', secondary: 'border-inverse-hover' } as const;
 
 // What the parent is doing with submitted input; the panel stays open showing it until cleared
 export type SpeakOrTypeStatus = { message: string; input: string } | null;
@@ -131,8 +132,8 @@ export default function SpeakOrType({
 
         {menuOpen && (
           <>
-            <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
-            <div className="absolute right-0 top-full mt-1 w-60 bg-white rounded-xl shadow-lg border border-stone-100 py-2 z-50">
+            <MenuBackdrop onClose={() => setMenuOpen(false)} />
+            <div className={`${MENU_PANEL} absolute right-0 top-full mt-1 w-60`}>
               {([
                 { value: 'speak', label: 'Speak', icon: Mic },
                 { value: 'type', label: 'Type', icon: Keyboard },
@@ -141,16 +142,16 @@ export default function SpeakOrType({
                   key={value}
                   type="button"
                   onClick={() => chooseMode(value)}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-stone-700 hover:bg-stone-50 hover:text-emerald-600 transition-colors text-left"
+                  className={MENU_ITEM}
                 >
                   <ModeIcon className="w-4 h-4" />
                   <span className="flex-1">{modeLabel}</span>
-                  {mode === value && <Check className="w-4 h-4 text-emerald-600" />}
+                  {mode === value && <Check className="w-4 h-4 text-accent-ink" />}
                 </button>
               ))}
               {menuExtras && (
                 <>
-                  <div className="my-2 border-t border-stone-100" />
+                  <div className={MENU_SEPARATOR} />
                   {menuExtras}
                 </>
               )}
@@ -218,7 +219,7 @@ export default function SpeakOrType({
                   <p className="text-emerald-100">{prompt.hint}</p>
                 </div>
                 <textarea
-                  className="w-full max-w-xl px-4 py-3 bg-white border-0 rounded-xl focus:outline-none focus:ring-4 focus:ring-emerald-300 min-h-[112px] resize-none text-lg"
+                  className="w-full max-w-xl px-4 py-3 bg-white text-stone-900 border-0 rounded-xl focus:outline-none focus:ring-4 focus:ring-emerald-300 min-h-[112px] resize-none text-lg"
                   placeholder={prompt.placeholder}
                   value={typedInput}
                   onChange={(e) => setTypedInput(e.target.value)}

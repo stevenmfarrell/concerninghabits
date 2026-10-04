@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { BELOW_HEADER } from '@/components/PageHeader';
 
-// Pages are the body's stone background, with their lists on white running the full width of the
+// Pages are the body's stone background (the canvas), with their lists on white (the surface) running the full width of the
 // screen (rather than in cards), with only the lines between rows. Anything that isn't a list (a
 // line of text, a button, chips, an empty state) sits on the stone, as does whatever space is left
 // below. Agenda (src/app/page.tsx) is the reference.
@@ -12,7 +12,7 @@ export const PANE_INSET = 'pane-inset';
 
 // The white a section's content sits on, for a section built by hand around a PaneHeading, with a
 // hairline along its top and bottom so it reads as a block against the stone
-export const PANE_SURFACE = 'bg-white border-y border-stone-200';
+export const PANE_SURFACE = 'bg-surface border-y border-line';
 
 // The column a page's content lines up in, by `width`
 const PANE_WIDTHS = {
@@ -28,7 +28,7 @@ const PANE_WIDTHS = {
 // signing in) can be `centered` on the screen instead.
 export function PanePage({ header, width = '4xl', centered = false, children }: { header?: ReactNode; width?: keyof typeof PANE_WIDTHS; centered?: boolean; children: ReactNode }) {
   return (
-    <main className={`flex-1 pb-8 bg-stone-50 font-sans ${PANE_WIDTHS[width]} ${centered ? 'flex flex-col justify-center py-8' : ''}`}>
+    <main className={`flex-1 pb-8 bg-canvas font-sans ${PANE_WIDTHS[width]} ${centered ? 'flex flex-col justify-center py-8' : ''}`}>
       {header}
       {children}
     </main>
@@ -44,8 +44,8 @@ export function PaneHeading({ children, action }: { children: ReactNode; action?
   return (
     <>
       <div className="h-4" aria-hidden="true" />
-      <div className={`sticky ${BELOW_HEADER} z-20 ${PANE_INSET} pt-2 pb-1.5 min-h-9 flex items-end justify-between gap-4 bg-stone-50`}>
-        <h2 className="flex items-center gap-2 min-w-0 text-xs font-semibold uppercase tracking-wider text-stone-500">{children}</h2>
+      <div className={`sticky ${BELOW_HEADER} z-20 ${PANE_INSET} pt-2 pb-1.5 min-h-9 flex items-end justify-between gap-4 bg-canvas`}>
+        <h2 className="flex items-center gap-2 min-w-0 text-xs font-semibold uppercase tracking-wider text-ink-muted">{children}</h2>
         {action}
       </div>
     </>
@@ -59,8 +59,8 @@ export function PaneSection({ title, action, empty, children }: { title: ReactNo
     <section>
       <PaneHeading action={action}>{title}</PaneHeading>
       {empty
-        ? <div className={`${PANE_INSET} py-3 text-stone-500`}>{empty}</div>
-        : <div className={`${PANE_SURFACE} divide-y divide-stone-100`}>{children}</div>}
+        ? <div className={`${PANE_INSET} py-3 text-ink-muted`}>{empty}</div>
+        : <div className={`${PANE_SURFACE} divide-y divide-line-subtle`}>{children}</div>}
     </section>
   );
 }
@@ -70,8 +70,8 @@ export function PaneSection({ title, action, empty, children }: { title: ReactNo
 export function PaneField({ label, htmlFor, description, children }: { label: string; htmlFor?: string; description?: ReactNode; children: ReactNode }) {
   return (
     <div className={`${PANE_INSET} py-3 space-y-1.5`}>
-      <label htmlFor={htmlFor} className="block text-sm font-semibold text-stone-700">{label}</label>
-      {description && <p className="text-sm text-stone-500">{description}</p>}
+      <label htmlFor={htmlFor} className="block text-sm font-semibold text-ink-secondary">{label}</label>
+      {description && <p className="text-sm text-ink-muted">{description}</p>}
       {children}
     </div>
   );

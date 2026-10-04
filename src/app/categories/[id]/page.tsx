@@ -59,7 +59,7 @@ export default async function CategoryLogPage(props: { params: Promise<{ id: str
         <PageHeader
           title={
             <>
-              <Icon name={category.icon || 'Folder'} className="w-5 h-5 sm:w-6 sm:h-6 text-stone-500 shrink-0" />
+              <Icon name={category.icon || 'Folder'} className="w-5 h-5 sm:w-6 sm:h-6 text-ink-muted shrink-0" />
               <span className="truncate">{category.name}</span>
             </>
           }

@@ -5,13 +5,14 @@ export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'dan
 export type ButtonSize = 'sm' | 'md' | 'lg' | 'xl';
 
 const VARIANT_CLASSES: Record<ButtonVariant, string> = {
-  primary: 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm',
-  secondary: 'bg-stone-900 text-white hover:bg-stone-800',
-  outline: 'bg-stone-50 text-stone-700 border border-stone-200 hover:bg-stone-100',
-  ghost: 'text-stone-500 hover:text-stone-800 hover:bg-stone-100',
-  danger: 'bg-red-600 text-white hover:bg-red-700',
-  'danger-ghost': 'text-red-600 hover:bg-red-50',
-  // For dark emerald surfaces, e.g. the smart entry panel
+  primary: 'bg-accent text-on-accent hover:bg-accent-hover shadow-sm',
+  secondary: 'bg-inverse text-on-inverse hover:bg-inverse-hover',
+  outline: 'bg-surface-subtle text-ink-secondary border border-line hover:bg-surface-muted',
+  ghost: 'text-ink-muted hover:text-ink hover:bg-surface-muted',
+  danger: 'bg-danger text-white hover:bg-danger-hover',
+  'danger-ghost': 'text-danger-ink hover:bg-danger-soft',
+  // For dark emerald surfaces, e.g. the smart entry panel. That panel is the same deep emerald in
+  // both themes, so these keep fixed colors rather than the theme's.
   inverse: 'bg-white text-emerald-800 hover:bg-emerald-50 shadow-sm',
   'inverse-ghost': 'text-emerald-100 hover:text-white hover:bg-white/10',
 };

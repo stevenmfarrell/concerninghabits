@@ -52,7 +52,7 @@ export function showLoggedToast(entry: LoggedEntry, { onUndone, toastId }: { onU
     <ToastCard
       t={t}
       icon={<Check className="w-5 h-5" strokeWidth={3} />}
-      iconClassName="bg-emerald-500"
+      iconClassName="bg-accent text-on-accent"
       title={`${entry.habitName} logged`}
       detail={entry.source}
       values={values}
@@ -76,15 +76,15 @@ function ToastCard({ t, icon, iconClassName, title, detail, values, onUndo }: {
   return (
     <div
       role="status"
-      className={`w-[min(26rem,calc(100vw-2rem))] bg-stone-900 text-white rounded-2xl shadow-lg p-4 flex items-start gap-3 transition-all duration-200 ${t.visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}
+      className={`w-[min(26rem,calc(100vw-2rem))] bg-inverse text-on-inverse rounded-2xl shadow-lg p-4 flex items-start gap-3 transition-all duration-200 ${t.visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}
     >
       <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${iconClassName}`}>
         {icon}
       </div>
       <div className="flex-1 min-w-0 space-y-1 self-center">
         <p className="font-semibold truncate">{title}</p>
-        {detail && <p className="text-sm text-stone-400 truncate">{detail}</p>}
-        {values?.map((line, i) => <p key={i} className="text-sm text-stone-200 truncate">{line}</p>)}
+        {detail && <p className="text-sm text-on-inverse/60 truncate">{detail}</p>}
+        {values?.map((line, i) => <p key={i} className="text-sm text-on-inverse/85 truncate">{line}</p>)}
       </div>
       <div className="flex items-center gap-1 shrink-0">
         <Button variant="inverse" size="sm" onClick={onUndo}>
@@ -93,7 +93,7 @@ function ToastCard({ t, icon, iconClassName, title, detail, values, onUndo }: {
         <button
           type="button"
           onClick={() => toast.dismiss(t.id)}
-          className="p-1.5 rounded-full text-stone-400 hover:text-white hover:bg-white/10 transition-colors"
+          className="p-1.5 rounded-full text-on-inverse/60 hover:text-on-inverse hover:bg-on-inverse/10 transition-colors"
           aria-label="Dismiss"
         >
           <X className="w-4 h-4" />

@@ -1,6 +1,13 @@
 'use client';
 
 import { useRouter, usePathname } from 'next/navigation';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
+
+const HORIZONS = [
+  { value: 5, label: '1M' },
+  { value: 26, label: '6M' },
+  { value: 52, label: '1Y' },
+];
 
 export default function HorizonToggle({ habitId, currentWeeks }: { habitId: string, currentWeeks: number }) {
   const router = useRouter();
@@ -12,26 +19,5 @@ export default function HorizonToggle({ habitId, currentWeeks }: { habitId: stri
     router.replace(`${pathname}?horizon=${weeks}`);
   };
 
-  return (
-    <div className="flex bg-stone-100 rounded-lg p-1">
-      <button 
-        onClick={() => handleToggle(5)}
-        className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${currentWeeks === 5 ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-500 hover:text-stone-700'}`}
-      >
-        1M
-      </button>
-      <button 
-        onClick={() => handleToggle(26)}
-        className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${currentWeeks === 26 ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-500 hover:text-stone-700'}`}
-      >
-        6M
-      </button>
-      <button 
-        onClick={() => handleToggle(52)}
-        className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${currentWeeks === 52 ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-500 hover:text-stone-700'}`}
-      >
-        1Y
-      </button>
-    </div>
-  );
+  return <SegmentedControl label="Time range" options={HORIZONS} value={currentWeeks} onChange={handleToggle} />;
 }

@@ -43,14 +43,14 @@ interface ActivityCalendarProps {
 // A cell's fill for the people who logged that day: their color, or equal diagonal bands of each
 // person's color when several did.
 function personFill(ids: string[], people: Record<string, Person>) {
-  const colors = ids.map(id => people[id]?.color ?? '#a8a29e'); // stone-400 for a since-deleted user
+  const colors = ids.map(id => people[id]?.color ?? 'var(--ink-subtle)'); // for a since-deleted user
   if (colors.length === 1) return colors[0];
   const band = 100 / colors.length;
   return `linear-gradient(135deg, ${colors.map((c, i) => `${c} ${i * band}% ${(i + 1) * band}%`).join(', ')})`;
 }
 
 // All dates below are civil dates (UTC midnight for a day in `timeZone`), so only UTC methods are used.
-export default function ActivityCalendar({ dates, timeZone, weeks = 5, cadence = DEFAULT_CADENCE, density, size = 'sm', monthsPerColumn = 4, bedtime = '00:00', weekStartsOn = 'sunday', emptyColor = 'bg-stone-100', futureColor = 'bg-transparent border border-stone-100', onDateClick, loggedBy, people, color = 'emerald' }: ActivityCalendarProps) {
+export default function ActivityCalendar({ dates, timeZone, weeks = 5, cadence = DEFAULT_CADENCE, density, size = 'sm', monthsPerColumn = 4, bedtime = '00:00', weekStartsOn = 'sunday', emptyColor = 'bg-surface-muted', futureColor = 'bg-transparent border border-line-subtle', onDateClick, loggedBy, people, color = 'emerald' }: ActivityCalendarProps) {
   const bedtimeOffsetMinutes = parseBedtimeOffsetMinutes(bedtime);
   const startsMonday = weekStartsOn === 'monday';
   const colorByPerson = !!(loggedBy && people);
@@ -259,7 +259,7 @@ export default function ActivityCalendar({ dates, timeZone, weeks = 5, cadence =
                           className="absolute w-full flex items-center justify-center overflow-visible"
                           style={{ top: topPx, height: heightPx }}
                         >
-                          <div className="text-[10px] text-stone-400 font-bold tracking-widest whitespace-nowrap -rotate-90">
+                          <div className="text-[10px] text-ink-subtle font-bold tracking-widest whitespace-nowrap -rotate-90">
                             {block.text}
                           </div>
                         </div>
@@ -268,7 +268,7 @@ export default function ActivityCalendar({ dates, timeZone, weeks = 5, cadence =
                       {/* Horizontal Year Labels */}
                       {block.month === 0 && (
                         <div 
-                          className="absolute w-full text-[9px] text-stone-400 font-bold flex justify-center"
+                          className="absolute w-full text-[9px] text-ink-subtle font-bold flex justify-center"
                           style={{ top: topPx + 8 }}
                         >
                           {block.year}
@@ -276,7 +276,7 @@ export default function ActivityCalendar({ dates, timeZone, weeks = 5, cadence =
                       )}
                       {block.month === 11 && (
                         <div 
-                          className="absolute w-full text-[9px] text-stone-400 font-bold flex justify-center"
+                          className="absolute w-full text-[9px] text-ink-subtle font-bold flex justify-center"
                           style={{ top: block.endW * STEP - 8 }}
                         >
                           {block.year}
@@ -308,7 +308,7 @@ export default function ActivityCalendar({ dates, timeZone, weeks = 5, cadence =
                       className={`${cellClass} transition-colors relative z-10 flex items-center justify-center ${personStyle ? '' : getBackgroundColor(cell.count, cell.counting, cell.isFuture, cell.isPeriodCompleted)} ${onDateClick && !cell.isFuture ? 'cursor-pointer hover:opacity-80' : ''}`}
                     >
                       {cell.isToday && todayDotClass && (
-                        <div className={`rounded-full ${cell.count > 0 ? 'bg-white' : 'bg-stone-500'} ${todayDotClass}`} />
+                        <div className={`rounded-full ${cell.count > 0 ? 'bg-white' : 'bg-ink-muted'} ${todayDotClass}`} />
                       )}
                     </div>
                   );
@@ -323,7 +323,7 @@ export default function ActivityCalendar({ dates, timeZone, weeks = 5, cadence =
                     <div key={`boundary-${i}`}>
                       {cell.isNewMonthLeft && (
                         <div 
-                          className="absolute bg-stone-400"
+                          className="absolute bg-ink-subtle"
                           style={{
                             left: cell.d * STEP - 2,
                             top: cell.w * STEP - 2,
@@ -334,7 +334,7 @@ export default function ActivityCalendar({ dates, timeZone, weeks = 5, cadence =
                       )}
                       {cell.isNewMonthRight && (
                         <div 
-                          className="absolute bg-stone-400"
+                          className="absolute bg-ink-subtle"
                           style={{
                             left: (cell.d + 1) * STEP - 2,
                             top: cell.w * STEP - 2,
@@ -345,7 +345,7 @@ export default function ActivityCalendar({ dates, timeZone, weeks = 5, cadence =
                       )}
                       {cell.isNewMonthTop && (
                         <div 
-                          className="absolute bg-stone-400"
+                          className="absolute bg-ink-subtle"
                           style={{
                             left: cell.d * STEP - 2,
                             top: cell.w * STEP - 2,
@@ -356,7 +356,7 @@ export default function ActivityCalendar({ dates, timeZone, weeks = 5, cadence =
                       )}
                       {cell.isNewMonthBottom && (
                         <div 
-                          className="absolute bg-stone-400"
+                          className="absolute bg-ink-subtle"
                           style={{
                             left: cell.d * STEP - 2,
                             top: (cell.w + 1) * STEP - 2,

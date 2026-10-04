@@ -7,11 +7,13 @@ import { useRouter } from 'next/navigation';
 import { SquarePen, Sparkles } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Button, type ButtonSize } from '@/components/ui/Button';
+import { Dialog, DialogFooter } from '@/components/ui/Dialog';
 import QuillIconWavy from '@/components/QuillIconWavy';
 import SpeakOrType, { type SpeakOrTypeStatus } from '@/components/SpeakOrType';
 import { generateHabitSchema, interpretSmartEntry, logSmartEntry, prefillSmartEntry, type HabitCandidate } from './actions/habit';
 import { showLoggedToast } from '@/components/LoggedToast';
 import type { HabitFormProperties } from '@/components/widgets/habitForm';
+import { MENU_ITEM } from '@/components/ui/Menu';
 
 // The habit's log page with `data` as prefill params (see LogClient), to finish an entry there
 function prefillHref(habitId: string, data: Record<string, unknown>) {
@@ -128,7 +130,7 @@ export default function SmartEntry({ size }: { size?: ButtonSize }) {
         menuExtras={
           <Link
             href="/create"
-            className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-stone-700 hover:bg-stone-50 hover:text-emerald-600 transition-colors"
+            className={MENU_ITEM}
           >
             <SquarePen className="w-4 h-4" />
             Build a habit manually
@@ -148,35 +150,33 @@ export default function SmartEntry({ size }: { size?: ButtonSize }) {
       {/* Portaled to <body>, like SpeakOrType's panel, so an ancestor (e.g. a transformed one) can't
           make `fixed` relative to it rather than the screen */}
       {picker && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/40 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="p-6 sm:p-8 space-y-4">
-              <div className="space-y-2">
-                <h3 className="text-xl font-bold text-stone-900">Which habit was that?</h3>
-                <p className="text-stone-500 leading-relaxed">“{picker.input}”</p>
-              </div>
-              <div className="flex flex-col gap-2">
-                {picker.candidates.map(candidate => (
-                  <Button
-                    key={candidate.habitId ?? 'new'}
-                    variant="outline"
-                    size="lg"
-                    onClick={() => proceed(candidate, picker.input, picker.didIt)}
-                    className="w-full"
-                  >
-                    {!candidate.habitId && <Sparkles className="w-5 h-5 text-emerald-600 shrink-0" />}
-                    <span className="flex-1 min-w-0 truncate text-left">{candidate.name}</span>
-                  </Button>
-                ))}
-              </div>
+        <Dialog label="Which habit was that?">
+          <div className="p-6 sm:p-8 space-y-4">
+            <div className="space-y-2">
+              <h3 className="text-xl font-bold text-ink">Which habit was that?</h3>
+              <p className="text-ink-muted leading-relaxed">“{picker.input}”</p>
             </div>
-            <div className="p-4 sm:px-8 sm:py-6 bg-stone-50 border-t border-stone-100 flex justify-end">
-              <Button variant="ghost" onClick={() => setPicker(null)} className="w-full sm:w-auto">
-                Cancel
-              </Button>
+            <div className="flex flex-col gap-2">
+              {picker.candidates.map(candidate => (
+                <Button
+                  key={candidate.habitId ?? 'new'}
+                  variant="outline"
+                  size="lg"
+                  onClick={() => proceed(candidate, picker.input, picker.didIt)}
+                  className="w-full"
+                >
+                  {!candidate.habitId && <Sparkles className="w-5 h-5 text-accent-ink shrink-0" />}
+                  <span className="flex-1 min-w-0 truncate text-left">{candidate.name}</span>
+                </Button>
+              ))}
             </div>
           </div>
-        </div>,
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setPicker(null)} className="w-full sm:w-auto">
+              Cancel
+            </Button>
+          </DialogFooter>
+        </Dialog>,
         document.body
       )}
     </>

@@ -7,7 +7,7 @@ import { Button } from './ui/Button';
 import { Toggle } from './ui/Toggle';
 import { FIELD_TYPES, settingsProblem, type FieldSettings } from '@/lib/formFields';
 
-const INPUT_CLASS = 'w-full px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm shadow-sm';
+const INPUT_CLASS = 'w-full px-3 py-2 bg-surface border border-line rounded-lg focus:outline-none focus:ring-2 focus:ring-focus text-sm shadow-sm';
 
 const NEW_FIELD: FieldSettings = { title: '', type: 'text', unit: '', choices: [], required: false };
 
@@ -45,7 +45,7 @@ export default function FieldEditorSheet({ initial, loggedBefore, onDone, onRemo
         }}
       >
         <label className="block space-y-1.5">
-          <span className="block text-sm font-medium text-stone-700">Name</span>
+          <span className="block text-sm font-medium text-ink-secondary">Name</span>
           <input
             type="text"
             className={INPUT_CLASS}
@@ -59,7 +59,7 @@ export default function FieldEditorSheet({ initial, loggedBefore, onDone, onRemo
         </label>
 
         <div className="space-y-1.5">
-          <label htmlFor="field-type" className="block text-sm font-medium text-stone-700">Type</label>
+          <label htmlFor="field-type" className="block text-sm font-medium text-ink-secondary">Type</label>
           {/* Native, unlike the app's Select: in a sheet at the bottom of the screen a dropdown would open
               off it, while a phone shows its own picker for this */}
           <select
@@ -72,7 +72,7 @@ export default function FieldEditorSheet({ initial, loggedBefore, onDone, onRemo
             {types.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
           </select>
           {typeChanged && loggedBefore && (
-            <p className="text-xs text-amber-700">
+            <p className="text-xs text-warning-ink-strong">
               Entries already logged keep the values they have. One that doesn&apos;t fit the new type shows as it was, and needs fixing if you edit that entry.
             </p>
           )}
@@ -80,7 +80,7 @@ export default function FieldEditorSheet({ initial, loggedBefore, onDone, onRemo
 
         {(settings.type === 'number' || settings.type === 'integer') && (
           <label className="block space-y-1.5">
-            <span className="block text-sm font-medium text-stone-700">Unit <span className="font-normal text-stone-400">(optional)</span></span>
+            <span className="block text-sm font-medium text-ink-secondary">Unit <span className="font-normal text-ink-subtle">(optional)</span></span>
             <input
               type="text"
               className={INPUT_CLASS}
@@ -95,7 +95,7 @@ export default function FieldEditorSheet({ initial, loggedBefore, onDone, onRemo
 
         {settings.type === 'choice' && (
           <label className="block space-y-1.5">
-            <span className="block text-sm font-medium text-stone-700">Choices</span>
+            <span className="block text-sm font-medium text-ink-secondary">Choices</span>
             <textarea
               className={`${INPUT_CLASS} min-h-28 resize-y`}
               value={choicesText}
@@ -129,7 +129,7 @@ export default function FieldEditorSheet({ initial, loggedBefore, onDone, onRemo
           </Button>
         </div>
         {loggedBefore && onRemove && (
-          <p className="text-xs text-stone-500 -mt-2">Removing a field hides it from the form; values already logged for it are kept.</p>
+          <p className="text-xs text-ink-muted -mt-2">Removing a field hides it from the form; values already logged for it are kept.</p>
         )}
       </form>
     </BottomSheet>

@@ -25,11 +25,11 @@ interface PageHeaderProps {
 // Its contents line up with the page's column on a pane page (see pane-inset in globals.css)
 export default function PageHeader({ title, subtitle, backHref, showBack = true, actions, titleInsetClassName = 'px-14' }: PageHeaderProps) {
   return (
-    <div className="sticky top-0 z-30 h-17 sm:h-19 border-b border-stone-200 pane-inset flex items-center justify-between shadow-sm">
+    <div className="sticky top-0 z-30 h-17 sm:h-19 border-b border-line pane-inset flex items-center justify-between shadow-sm">
       {/* The frosted background is its own layer: a backdrop blur on the header itself would make it
           the containing block for `fixed` descendants, confining a menu's tap-outside-to-close
           overlay to the header */}
-      <div className="absolute inset-0 -z-10 bg-white/80 backdrop-blur-md" />
+      <div className="absolute inset-0 -z-10 bg-surface/80 backdrop-blur-md" />
       {showBack ? (
         <>
           <div className="relative z-10 shrink-0">
@@ -42,14 +42,14 @@ export default function PageHeader({ title, subtitle, backHref, showBack = true,
             )}
           </div>
 
-          <h1 className={`absolute inset-0 flex items-center justify-center text-xl sm:text-2xl font-bold text-stone-900 pointer-events-none ${titleInsetClassName}`}>
+          <h1 className={`absolute inset-0 flex items-center justify-center text-xl sm:text-2xl font-bold text-ink pointer-events-none ${titleInsetClassName}`}>
             <span className="truncate flex items-center gap-2">{title}</span>
           </h1>
         </>
       ) : (
         <h1 className="min-w-0 flex items-baseline gap-2.5 mr-4">
-          <span className="truncate text-2xl sm:text-3xl font-extrabold text-stone-900 tracking-tight">{title}</span>
-          {subtitle && <span className="shrink-0 text-sm sm:text-base font-semibold uppercase tracking-wider text-stone-400">{subtitle}</span>}
+          <span className="truncate text-2xl sm:text-3xl font-extrabold text-ink tracking-tight">{title}</span>
+          {subtitle && <span className="shrink-0 text-sm sm:text-base font-semibold uppercase tracking-wider text-ink-subtle">{subtitle}</span>}
         </h1>
       )}
 

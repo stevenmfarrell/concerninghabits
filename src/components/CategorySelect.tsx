@@ -30,7 +30,7 @@ export default function CategorySelect({ categories, value, onChange, onNew, dis
     <button
       type="button"
       onClick={onNew}
-      className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 text-emerald-600 hover:bg-emerald-50 transition-colors"
+      className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 text-accent-ink hover:bg-accent-soft transition-colors"
     >
       <Plus className="w-4 h-4" />
       <span className="font-medium">New Category</span>

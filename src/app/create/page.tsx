@@ -51,7 +51,7 @@ export default function CreateHabit({ searchParams }: { searchParams: Promise<{ 
           <div className={`${PANE_SURFACE} ${PANE_INSET} py-4`}>
             <textarea
               id="habit-prompt"
-              className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 min-h-[120px] resize-none"
+              className="w-full px-4 py-3 bg-surface-subtle border border-line rounded-xl focus:outline-none focus:ring-2 focus:ring-focus min-h-[120px] resize-none"
               placeholder="e.g., Read 20 pages a day, track my morning run with distance and time, or drink 8 glasses of water..."
               value={initialPrompt}
               onChange={(e) => setInitialPrompt(e.target.value)}

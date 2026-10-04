@@ -26,12 +26,12 @@ export default async function UsersSettingsPage() {
           <div key={user.id} className={`${PANE_INSET} py-3 flex items-center justify-between gap-3`}>
             <div className="flex flex-col min-w-0">
               <div className="flex items-center gap-2">
-                <span className="font-medium text-stone-900 truncate">{user.name}</span>
+                <span className="font-medium text-ink truncate">{user.name}</span>
                 {user.isAdmin && (
-                  <Shield className="w-3.5 h-3.5 text-emerald-600 shrink-0" aria-label="Admin" />
+                  <Shield className="w-3.5 h-3.5 text-accent-ink shrink-0" aria-label="Admin" />
                 )}
               </div>
-              <span className="text-sm text-stone-500">ID: {user.id.slice(0, 8)}...</span>
+              <span className="text-sm text-ink-muted">ID: {user.id.slice(0, 8)}...</span>
             </div>
             {user.id !== currentUser.id && (
               <DeleteUserButton userId={user.id} userName={user.name} />

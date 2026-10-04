@@ -153,9 +153,9 @@ export default async function HabitPage(props: { params: Promise<{ id: string }>
                   highlight) with its contents in the page's column. The when is a fixed width, wide
                   enough for any date, so the values line up down the list. */}
               {paginatedLogs.length === 0 ? (
-                <p className="p-8 text-center text-stone-500">No logs found in this period.</p>
+                <p className="p-8 text-center text-ink-muted">No logs found in this period.</p>
               ) : (
-                <ul className="divide-y divide-stone-100">
+                <ul className="divide-y divide-line-subtle">
                   {paginatedLogs.map((log) => {
                     const payload = JSON.parse(log.payload);
                     const hasDetails = Object.keys(payload).length > 0;
@@ -169,26 +169,26 @@ export default async function HabitPage(props: { params: Promise<{ id: string }>
                         id={`log-${log.id}`}
                         key={isHighlighted ? `${log.id}-${searchParams?.t || '1'}` : log.id}
                         className={`flex items-start gap-4 pane-inset py-3 group transition-colors ${
-                          isHighlighted ? 'animate-highlight-fade' : 'hover:bg-stone-50/50'
+                          isHighlighted ? 'animate-highlight-fade' : 'hover:bg-surface-subtle/50'
                         }`}
                       >
                         <div className="w-30 shrink-0">
-                          <div className="inline-flex flex-col text-stone-800 whitespace-nowrap">
+                          <div className="inline-flex flex-col text-ink whitespace-nowrap">
                             <span className="font-medium">
                               {new Date(log.createdAt).toLocaleDateString('en-US', { dateStyle: 'medium', timeZone: user.timeZone })}
                             </span>
-                            <span className="text-sm text-stone-500 text-right">
+                            <span className="text-sm text-ink-muted text-right">
                               {new Date(log.createdAt).toLocaleTimeString('en-US', { timeStyle: 'short', timeZone: user.timeZone })}
                             </span>
                             {people && <PersonLabel person={people[log.userId]} className="mt-1.5 justify-end" />}
                           </div>
                         </div>
-                        <div className="flex-1 text-stone-600 min-w-0">
+                        <div className="flex-1 text-ink-secondary min-w-0">
                           {hasDetails ? (
                             <div className="space-y-1">
                               {Object.entries(payload).map(([key, value]) => (
                                 <div key={key} className="text-sm whitespace-pre-line break-words">
-                                  <span className="font-medium text-stone-700">
+                                  <span className="font-medium text-ink-secondary">
                                     {fieldTitle(key, schemaProperties)}:
                                   </span>{' '}
                                   {formatLogValue(value, schemaProperties?.[key])}
@@ -196,7 +196,7 @@ export default async function HabitPage(props: { params: Promise<{ id: string }>
                               ))}
                             </div>
                           ) : (
-                            <span className="text-stone-400 italic text-sm">Completed</span>
+                            <span className="text-ink-subtle italic text-sm">Completed</span>
                           )}
                         </div>
                         <div className="-my-1.5 -mr-2">
@@ -215,8 +215,8 @@ export default async function HabitPage(props: { params: Promise<{ id: string }>
               )}
 
               {totalPages > 1 && (
-                <div className={`${PANE_INSET} flex items-center justify-between gap-4 py-3 border-t border-stone-100`}>
-                  <span className="text-sm text-stone-500 font-medium">
+                <div className={`${PANE_INSET} flex items-center justify-between gap-4 py-3 border-t border-line-subtle`}>
+                  <span className="text-sm text-ink-muted font-medium">
                     {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, filteredLogs.length)} of {filteredLogs.length}
                   </span>
                   <div className="flex items-center gap-2">

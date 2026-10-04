@@ -17,7 +17,7 @@ import type { HabitListItem, SessionUser } from '@/lib/types';
 // habits are, to log one), each with a calendar of its recent entries like a habit's
 function CategoryList({ categories, user }: { categories: DueCategory[]; user: SessionUser }) {
   return (
-    <div className="divide-y divide-stone-100 flex flex-col">
+    <div className="divide-y divide-line-subtle flex flex-col">
       {categories.map(category => (
         <CategoryRow
           key={category.id}
@@ -49,10 +49,10 @@ function DoneChips({ habits, categories }: { habits: HabitListItem[]; categories
         <li key={category.id}>
           <Link
             href={`/categories/${category.id}`}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border border-blue-200 text-sm font-medium text-stone-700 hover:bg-stone-50 transition-colors"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface border border-category-line text-sm font-medium text-ink-secondary hover:bg-surface-subtle transition-colors"
           >
-            <Check className="w-3.5 h-3.5 shrink-0 text-blue-600" strokeWidth={3} />
-            <Icon name={category.icon || 'Folder'} className="w-3.5 h-3.5 shrink-0 text-blue-600" />
+            <Check className="w-3.5 h-3.5 shrink-0 text-category-ink" strokeWidth={3} />
+            <Icon name={category.icon || 'Folder'} className="w-3.5 h-3.5 shrink-0 text-category-ink" />
             <span className="truncate max-w-[14rem]">{category.name}</span>
           </Link>
         </li>
@@ -61,9 +61,9 @@ function DoneChips({ habits, categories }: { habits: HabitListItem[]; categories
         <li key={habit.id}>
           <Link
             href={`/log/${habit.id}`}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border border-emerald-200 text-sm font-medium text-stone-700 hover:bg-stone-50 transition-colors"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface border border-accent-line-strong text-sm font-medium text-ink-secondary hover:bg-surface-subtle transition-colors"
           >
-            <Check className="w-3.5 h-3.5 shrink-0 text-emerald-600" strokeWidth={3} />
+            <Check className="w-3.5 h-3.5 shrink-0 text-accent-ink" strokeWidth={3} />
             <span className="truncate max-w-[14rem]">{habit.name}</span>
           </Link>
         </li>

@@ -22,16 +22,16 @@ export default function HabitFormOverview({ schema, onEditField, onAddField }: {
   const required = new Set(schema.required ?? []);
 
   return (
-    <ul className="divide-y divide-stone-100">
+    <ul className="divide-y divide-line-subtle">
       {fields.length === 0 && (
-        <li className="pane-inset py-3 text-sm text-stone-500">No fields: logging it is a single tap.</li>
+        <li className="pane-inset py-3 text-sm text-ink-muted">No fields: logging it is a single tap.</li>
       )}
       {fields.map(([key, field]) => {
         const row = (
           <>
-            <span className="font-medium text-stone-800 min-w-0 truncate">{field.title || key}</span>
-            <span className="flex-1 min-w-0 text-sm text-stone-500 truncate">{describeField(field)}</span>
-            <span className={`text-xs font-medium shrink-0 ${required.has(key) ? 'text-emerald-700' : 'text-stone-400'}`}>
+            <span className="font-medium text-ink min-w-0 truncate">{field.title || key}</span>
+            <span className="flex-1 min-w-0 text-sm text-ink-muted truncate">{describeField(field)}</span>
+            <span className={`text-xs font-medium shrink-0 ${required.has(key) ? 'text-accent-ink-strong' : 'text-ink-subtle'}`}>
               {required.has(key) ? 'Required' : 'Optional'}
             </span>
           </>
@@ -42,11 +42,11 @@ export default function HabitFormOverview({ schema, onEditField, onAddField }: {
               <button
                 type="button"
                 onClick={() => onEditField(key)}
-                className="w-full flex items-center gap-3 pane-inset py-3 text-left hover:bg-stone-50 transition-colors"
+                className="w-full flex items-center gap-3 pane-inset py-3 text-left hover:bg-surface-subtle transition-colors"
                 aria-label={`Edit field ${field.title || key}`}
               >
                 {row}
-                <ChevronRight className="w-4 h-4 text-stone-300 shrink-0" />
+                <ChevronRight className="w-4 h-4 text-ink-faint shrink-0" />
               </button>
             ) : (
               <div className="flex items-baseline gap-3 pane-inset py-3">{row}</div>
@@ -60,7 +60,7 @@ export default function HabitFormOverview({ schema, onEditField, onAddField }: {
           <button
             type="button"
             onClick={onAddField}
-            className="w-full flex items-center gap-2 pane-inset py-3 text-left text-sm font-medium text-emerald-700 hover:bg-stone-50 transition-colors"
+            className="w-full flex items-center gap-2 pane-inset py-3 text-left text-sm font-medium text-accent-ink-strong hover:bg-surface-subtle transition-colors"
           >
             <Plus className="w-4 h-4" />
             Add field
@@ -86,7 +86,7 @@ export function FormPreviewButton({ schema, title }: { schema: HabitSchema; titl
 
       {previewOpen && (
         <BottomSheet title={title || 'New Habit'} ariaLabel="Form preview" onClose={() => setPreviewOpen(false)}>
-          <p className="text-sm text-stone-500 -mt-3">A preview: nothing is logged.</p>
+          <p className="text-sm text-ink-muted -mt-3">A preview: nothing is logged.</p>
           {hasFields ? (
             <div className="rjsf-custom">
               <Form
@@ -105,7 +105,7 @@ export function FormPreviewButton({ schema, title }: { schema: HabitSchema; titl
               </Form>
             </div>
           ) : (
-            <p className="text-stone-600">This habit has no form: its Log button logs it straight away.</p>
+            <p className="text-ink-secondary">This habit has no form: its Log button logs it straight away.</p>
           )}
         </BottomSheet>
       )}

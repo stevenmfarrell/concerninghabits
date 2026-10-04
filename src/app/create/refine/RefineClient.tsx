@@ -69,7 +69,7 @@ export default function RefineClient() {
   return (
     // Back goes to the New Habit page, to start over
     <PanePage width="3xl" header={<PageHeader title="New Habit" backHref="/create" />}>
-      {source && <p className={`${PANE_INSET} py-3 text-stone-500 break-words`}>From “{source}”</p>}
+      {source && <p className={`${PANE_INSET} py-3 text-ink-muted break-words`}>From “{source}”</p>}
 
       <HabitEditor
         mode="create"
@@ -85,10 +85,10 @@ export default function RefineClient() {
         onSave={handleSave}
         onChangeTitle={handleTitleChange}
         saveBarExtra={draft.transcript && (
-          <label className="flex items-center gap-2 text-sm text-stone-700 cursor-pointer min-w-0">
+          <label className="flex items-center gap-2 text-sm text-ink-secondary cursor-pointer min-w-0">
             <input
               type="checkbox"
-              className="w-4 h-4 accent-emerald-600 shrink-0"
+              className="w-4 h-4 accent-accent shrink-0"
               checked={logFirstEntry}
               onChange={e => setLogFirstEntry(e.target.checked)}
             />

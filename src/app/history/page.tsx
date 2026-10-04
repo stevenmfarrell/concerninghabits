@@ -112,7 +112,7 @@ export default async function HistoryPage(props: { searchParams: Promise<{ day?:
                 <ChevronLeft className="w-6 h-6" />
               </IconLinkButton>
               {isToday ? (
-                <span className="p-2 -mr-2 text-stone-200" aria-hidden="true">
+                <span className="p-2 -mr-2 text-ink-faint" aria-hidden="true">
                   <ChevronRight className="w-6 h-6" />
                 </span>
               ) : (
@@ -135,7 +135,7 @@ export default async function HistoryPage(props: { searchParams: Promise<{ day?:
         </EmptyState>
       ) : (
         <>
-          <p className={`${PANE_INSET} py-3 text-sm text-stone-500`}>
+          <p className={`${PANE_INSET} py-3 text-sm text-ink-muted`}>
             {habitCount} {habitCount === 1 ? 'habit' : 'habits'} done
             {entries.length > habitCount && ` · ${entries.length} entries`}
           </p>
@@ -144,7 +144,7 @@ export default async function HistoryPage(props: { searchParams: Promise<{ day?:
               key={group.id}
               title={
                 <>
-                  <Icon name={group.icon} className="w-4 h-4 text-blue-700 shrink-0" />
+                  <Icon name={group.icon} className="w-4 h-4 text-category-ink-strong shrink-0" />
                   <span className="truncate">{group.name}</span>
                 </>
               }
@@ -152,9 +152,9 @@ export default async function HistoryPage(props: { searchParams: Promise<{ day?:
               {group.sections.map(section => (
                 <div key={section.id}>
                   {section.name && (
-                    <p className={`${PANE_INSET} pt-3 text-sm font-semibold text-stone-500`}>{section.name}</p>
+                    <p className={`${PANE_INSET} pt-3 text-sm font-semibold text-ink-muted`}>{section.name}</p>
                   )}
-                  <ul className="divide-y divide-stone-100">
+                  <ul className="divide-y divide-line-subtle">
                     {section.habits.map(habit => (
                       <HabitDay key={habit.id} habit={habit} entries={entriesByHabit.get(habit.id)!} timeZone={user.timeZone} />
                     ))}
@@ -176,25 +176,25 @@ function HabitDay({ habit, entries, timeZone }: { habit: DayHabit; entries: DayE
 
   return (
     <li>
-      <Link href={`/log/${habit.id}`} className="flex items-start gap-3 pane-inset py-3 hover:bg-stone-50 transition-colors group/row">
+      <Link href={`/log/${habit.id}`} className="flex items-start gap-3 pane-inset py-3 hover:bg-surface-subtle transition-colors group/row">
         <div className="flex-1 min-w-0 space-y-1">
-          <h3 className="font-semibold text-stone-800 group-hover/row:text-emerald-600 transition-colors truncate">
+          <h3 className="font-semibold text-ink group-hover/row:text-accent-ink transition-colors truncate">
             {habit.name}
-            {entries.length > 1 && <span className="ml-2 text-sm font-medium text-stone-400">×{entries.length}</span>}
+            {entries.length > 1 && <span className="ml-2 text-sm font-medium text-ink-subtle">×{entries.length}</span>}
           </h3>
           {entries.map(entry => {
             const values = summarize(entry.payload, properties);
             return (
-              <p key={entry.id} className="text-sm text-stone-500">
+              <p key={entry.id} className="text-sm text-ink-muted">
                 <span className="tabular-nums">
                   {new Date(entry.createdAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone })}
                 </span>
-                {values && <span className="text-stone-700"> · {values}</span>}
+                {values && <span className="text-ink-secondary"> · {values}</span>}
               </p>
             );
           })}
         </div>
-        <ChevronRight className="w-5 h-5 mt-0.5 text-stone-300 group-hover/row:text-emerald-600 transition-colors shrink-0" />
+        <ChevronRight className="w-5 h-5 mt-0.5 text-ink-faint group-hover/row:text-accent-ink transition-colors shrink-0" />
       </Link>
     </li>
   );

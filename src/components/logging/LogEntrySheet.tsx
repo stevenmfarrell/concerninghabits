@@ -49,7 +49,7 @@ export default function LogEntrySheet({ logger }: { logger: HabitLogger }) {
         title="Backdate log"
         aria-label="Backdate log"
         aria-pressed={showBackdate}
-        className={`rounded-l-none px-5! border-l border-emerald-700 ${showBackdate ? 'bg-emerald-800!' : ''}`}
+        className={`rounded-l-none px-5! border-l border-accent-hover ${showBackdate ? 'bg-accent-pressed!' : ''}`}
       >
         <History className="w-6 h-6" strokeWidth={2.5} />
       </Button>
@@ -70,7 +70,7 @@ export default function LogEntrySheet({ logger }: { logger: HabitLogger }) {
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={aiLoading}
-                className="w-12 h-12 flex items-center justify-center rounded-xl border-2 transition-all shadow-sm bg-blue-50 border-blue-100 text-blue-700 hover:bg-blue-100 hover:border-blue-200 disabled:opacity-70 shrink-0"
+                className="w-12 h-12 flex items-center justify-center rounded-xl border-2 transition-all shadow-sm bg-category-soft border-category-line text-category-ink-strong hover:bg-category-soft-strong hover:border-category-line disabled:opacity-70 shrink-0"
                 title="Photo Log"
               >
                 {imageProcessing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Camera className="w-5 h-5" strokeWidth={2.5} />}
@@ -84,8 +84,8 @@ export default function LogEntrySheet({ logger }: { logger: HabitLogger }) {
               disabled={aiLoading}
               className={`w-12 h-12 flex items-center justify-center rounded-xl border-2 transition-all shadow-sm shrink-0 ${
                 isListening
-                  ? 'bg-red-50 border-red-200 text-red-600 animate-pulse'
-                  : 'bg-emerald-50 border-emerald-100 text-emerald-700 hover:bg-emerald-100 hover:border-emerald-200'
+                  ? 'bg-danger-soft border-danger-line text-danger-ink animate-pulse'
+                  : 'bg-accent-soft border-accent-line text-accent-ink-strong hover:bg-accent-soft-strong hover:border-accent-line-strong'
               } disabled:opacity-70`}
               title="Voice Log"
             >
@@ -96,16 +96,16 @@ export default function LogEntrySheet({ logger }: { logger: HabitLogger }) {
       }
     >
       {showBackdate && (
-        <div className="p-4 bg-stone-50 border border-stone-200 rounded-xl">
+        <div className="p-4 bg-surface-subtle border border-line rounded-xl">
           <div className="flex justify-between items-center mb-2">
-            <label htmlFor="log-date" className="block text-sm font-medium text-stone-700">Custom Date & Time</label>
+            <label htmlFor="log-date" className="block text-sm font-medium text-ink-secondary">Custom Date & Time</label>
             <button
               type="button"
               onClick={() => {
                 setShowBackdate(false);
                 setLogDate('');
               }}
-              className="text-xs text-stone-500 hover:text-stone-700 font-medium"
+              className="text-xs text-ink-muted hover:text-ink-secondary font-medium"
             >
               Cancel
             </button>
@@ -113,7 +113,7 @@ export default function LogEntrySheet({ logger }: { logger: HabitLogger }) {
           <input
             id="log-date"
             type="datetime-local"
-            className="w-full px-4 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-stone-700 text-sm"
+            className="w-full px-4 py-2 bg-surface border border-line rounded-lg focus:outline-none focus:ring-2 focus:ring-focus text-ink-secondary text-sm"
             value={logDate}
             onChange={e => setLogDate(e.target.value)}
             disabled={busy}
