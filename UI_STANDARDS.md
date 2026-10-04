@@ -33,13 +33,13 @@ import { IconButton, IconLinkButton } from '@/components/ui/IconButton';
 
 ## Toggles and folded settings
 
-An on/off setting is a `<Toggle>` row (`src/components/ui/Toggle.tsx`): icon, title, description, and a switch, with the whole row tappable. Don't hand-roll the `w-12 h-6 rounded-full` switch markup again.
+An on/off setting is a `<Toggle>` row (`src/components/ui/Toggle.tsx`): icon, title, description, and a switch, with the whole row tappable. Don't hand-roll the `w-12 h-6 rounded-full` switch markup again. In a pane's list, pass `bare` so it's a plain row divided by the list's hairlines; without it, it's a boxed row, for a sheet or dialog.
 
 ```tsx
 <Toggle icon={<Mic className="w-5 h-5" />} title="Voice Log" description="Fill in the form from what you say" checked={on} onChange={setOn} />
 ```
 
-Settings that are rarely changed go in a `<CollapsibleSection title="…" summary="…">` (`src/components/CollapsibleSection.tsx`), a card that folds away but keeps a one-line summary of its state in view.
+Settings that are rarely changed go in a `<CollapsibleSection title="…" summary="…">` (`src/components/CollapsibleSection.tsx`). It's a row in a pane's list that folds its contents away but keeps a one-line summary of their state in view, and unfolds them below it as more rows (e.g. `bare` toggles). The habit editor's More settings is the example.
 
 ## Page headers
 
@@ -71,7 +71,7 @@ Every page gets the sticky `<PageHeader>` (`src/components/PageHeader.tsx`), a f
 - Keep the subtitle short; it doesn't shrink, the title truncates instead.
 - Anything `fixed` (a modal, a full-screen panel) rendered from inside the bar should be portaled to `<body>`, as `SmartEntry` and `SpeakOrType` do.
 
-**Legacy, being phased out:** `<BackLink>` (`src/components/BackLink.tsx`) on settings sub-pages and wizards (create/refine). Don't use either on a new page; move a page to `<PageHeader>` when you rework it.
+**Legacy, being phased out:** `<BackLink>` (`src/components/BackLink.tsx`), still on the settings sub-pages. Don't use it on a new page; move a page to `<PageHeader>` when you rework it.
 
 ## Panes, not cards
 
@@ -94,7 +94,9 @@ A page's background is always the body's `stone-50`. Lists sit on white running 
 - Don't use `pane-inset` on table cells, because percentage padding doesn't size reliably there. A list with columns is flex rows with a fixed-width first column, as the log page's Entries are.
 - Rows are `py-3` with `PANE_INSET` padding. Don't put rows in a `rounded-2xl` card.
 - Without cards to group them, nesting is shown by indenting: a subcategory's habits (`SortableHabitList nested`) line up under the subcategory's name.
-- Converted: the four tabs, the category page and the habit log page. Settings sub-pages and forms still use cards; move each one over when you rework it.
+- A form is sections like any other page: settings as rows (`pane-inset py-3`), text inputs in a `PANE_SURFACE` block, and its buttons on the stone below. The habit editor (`src/components/HabitEditor.tsx`) and the New Habit page are the examples.
+- A habit's category and cadence are pills (`CategoryQuickEdit`, `CadenceQuickEdit`), centered on the stone under the header, each opening a small dialog to change it. That holds wherever they appear: the habit's page and the category page save on the spot, while the editor passes `saveLabel="Done"` and only changes its draft. Toasts about a saved change belong to the caller, not the dialog.
+- Converted: the four tabs, the category page, the habit log page, and the create and edit pages. The settings sub-pages still use cards; move each one over when you rework it.
 
 ## Dropdown / popover menus
 

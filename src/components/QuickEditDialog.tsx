@@ -7,8 +7,9 @@ import { Button } from '@/components/ui/Button';
 
 // A small dialog to change one thing (e.g. a habit's category or cadence) on the spot. Saving
 // refreshes the page through the server action's revalidation, then closes. Not overflow-hidden,
-// so a dropdown inside can spill out of it.
-export default function QuickEditDialog({ title, canSave, onSave, onClose, children }: { title: string; canSave: boolean; onSave: () => Promise<void>; onClose: () => void; children: ReactNode }) {
+// so a dropdown inside can spill out of it. `saveLabel` renames its Save button, e.g. "Done" where
+// the change only goes into a draft that's saved later (the habit editor).
+export default function QuickEditDialog({ title, canSave, onSave, onClose, saveLabel = 'Save', children }: { title: string; canSave: boolean; onSave: () => Promise<void>; onClose: () => void; saveLabel?: string; children: ReactNode }) {
   const [saving, setSaving] = useState(false);
 
   const save = async () => {
@@ -40,7 +41,7 @@ export default function QuickEditDialog({ title, canSave, onSave, onClose, child
           <Button variant="ghost" onClick={onClose} disabled={saving}>Cancel</Button>
           <Button onClick={save} disabled={!canSave || saving}>
             {saving && <Loader2 className="w-4 h-4 animate-spin" />}
-            Save
+            {saveLabel}
           </Button>
         </div>
       </div>

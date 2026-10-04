@@ -9,8 +9,9 @@ const ON_CLASSES: Record<ToggleColor, { track: string; icon: string }> = {
 };
 
 // A setting that's on or off, as a row: an icon, a title and description, and a switch. The whole
-// row is the label, so tapping anywhere on it flips the switch.
-export function Toggle({ icon, title, description, checked, onChange, disabled, color = 'emerald' }: {
+// row is the label, so tapping anywhere on it flips the switch. `bare` drops its own box, for a row in
+// a pane's list (see Pane), where the list's hairlines separate it from its neighbors.
+export function Toggle({ icon, title, description, checked, onChange, disabled, color = 'emerald', bare = false }: {
   icon: ReactNode;
   title: string;
   description?: ReactNode;
@@ -18,10 +19,11 @@ export function Toggle({ icon, title, description, checked, onChange, disabled, 
   onChange: (checked: boolean) => void;
   disabled?: boolean;
   color?: ToggleColor;
+  bare?: boolean;
 }) {
   const on = ON_CLASSES[color];
   return (
-    <label className={`flex items-center justify-between gap-4 p-4 bg-stone-50 border border-stone-200 rounded-xl transition-colors ${disabled ? 'opacity-60' : 'cursor-pointer hover:bg-stone-100'}`}>
+    <label className={`flex items-center justify-between gap-4 transition-colors ${bare ? 'pane-inset py-3' : 'p-4 bg-stone-50 border border-stone-200 rounded-xl'} ${disabled ? 'opacity-60' : `cursor-pointer ${bare ? 'hover:bg-stone-50' : 'hover:bg-stone-100'}`}`}>
       <div className="flex items-center gap-3 min-w-0">
         <div className={`p-2 rounded-lg shrink-0 ${checked ? on.icon : 'bg-stone-200 text-stone-500'}`}>{icon}</div>
         <div className="min-w-0">

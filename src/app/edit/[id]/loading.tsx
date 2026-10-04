@@ -1,5 +1,5 @@
-import { TopLevelPageSkeleton } from '@/components/Skeleton';
+import { PanePageSkeleton } from '@/components/Skeleton';
 
 export default function Loading() {
-  return <TopLevelPageSkeleton width="max-w-3xl" />;
+  return <PanePageSkeleton drillIn width="3xl" />;
 }

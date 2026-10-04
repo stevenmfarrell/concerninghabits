@@ -11,8 +11,8 @@ import { HABIT_FORM_WIDGETS, habitFormUiSchema, type HabitFormProperties } from 
 import type { HabitSchema } from '@/lib/types';
 import { describeField, fieldsOf } from '@/lib/formFields';
 
-// The habit's form in the editor: its fields listed as plain text. With `onEditField`, each field
-// is a button to change it, and `onAddField` adds a button for a new one.
+// The habit's form in the editor: its fields as rows of plain text, in a pane's list (see Pane). With
+// `onEditField`, each field is a button to change it, and `onAddField` adds a last row for a new one.
 export default function HabitFormOverview({ schema, onEditField, onAddField }: {
   schema: HabitSchema;
   onEditField?: (key: string) => void;
@@ -22,50 +22,52 @@ export default function HabitFormOverview({ schema, onEditField, onAddField }: {
   const required = new Set(schema.required ?? []);
 
   return (
-    <div className="space-y-2">
-      {fields.length === 0 ? (
-        <p className="text-sm text-stone-500 p-4 bg-stone-50 border border-stone-100 rounded-xl">
-          No fields: logging it is a single tap.
-        </p>
-      ) : (
-        <ul className="divide-y divide-stone-100 border border-stone-100 rounded-xl overflow-hidden">
-          {fields.map(([key, field]) => {
-            const row = (
-              <>
-                <span className="font-medium text-stone-800 min-w-0 truncate">{field.title || key}</span>
-                <span className="flex-1 min-w-0 text-sm text-stone-500 truncate">{describeField(field)}</span>
-                <span className={`text-xs font-medium shrink-0 ${required.has(key) ? 'text-emerald-700' : 'text-stone-400'}`}>
-                  {required.has(key) ? 'Required' : 'Optional'}
-                </span>
-              </>
-            );
-            return (
-              <li key={key}>
-                {onEditField ? (
-                  <button
-                    type="button"
-                    onClick={() => onEditField(key)}
-                    className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-stone-50 transition-colors"
-                    aria-label={`Edit field ${field.title || key}`}
-                  >
-                    {row}
-                    <ChevronRight className="w-4 h-4 text-stone-300 shrink-0" />
-                  </button>
-                ) : (
-                  <div className="flex items-baseline gap-3 px-4 py-3">{row}</div>
-                )}
-              </li>
-            );
-          })}
-        </ul>
+    <ul className="divide-y divide-stone-100">
+      {fields.length === 0 && (
+        <li className="pane-inset py-3 text-sm text-stone-500">No fields: logging it is a single tap.</li>
       )}
+      {fields.map(([key, field]) => {
+        const row = (
+          <>
+            <span className="font-medium text-stone-800 min-w-0 truncate">{field.title || key}</span>
+            <span className="flex-1 min-w-0 text-sm text-stone-500 truncate">{describeField(field)}</span>
+            <span className={`text-xs font-medium shrink-0 ${required.has(key) ? 'text-emerald-700' : 'text-stone-400'}`}>
+              {required.has(key) ? 'Required' : 'Optional'}
+            </span>
+          </>
+        );
+        return (
+          <li key={key}>
+            {onEditField ? (
+              <button
+                type="button"
+                onClick={() => onEditField(key)}
+                className="w-full flex items-center gap-3 pane-inset py-3 text-left hover:bg-stone-50 transition-colors"
+                aria-label={`Edit field ${field.title || key}`}
+              >
+                {row}
+                <ChevronRight className="w-4 h-4 text-stone-300 shrink-0" />
+              </button>
+            ) : (
+              <div className="flex items-baseline gap-3 pane-inset py-3">{row}</div>
+            )}
+          </li>
+        );
+      })}
+      {/* A row like the fields rather than a Button, so it reads as the end of the list */}
       {onAddField && (
-        <Button variant="outline" size="sm" onClick={onAddField}>
-          <Plus className="w-4 h-4" />
-          Add field
-        </Button>
+        <li>
+          <button
+            type="button"
+            onClick={onAddField}
+            className="w-full flex items-center gap-2 pane-inset py-3 text-left text-sm font-medium text-emerald-700 hover:bg-stone-50 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Add field
+          </button>
+        </li>
       )}
-    </div>
+    </ul>
   );
 }
 
@@ -77,7 +79,7 @@ export function FormPreviewButton({ schema, title }: { schema: HabitSchema; titl
 
   return (
     <>
-      <Button variant="ghost" size="sm" onClick={() => setPreviewOpen(true)} className="-mr-2">
+      <Button variant="ghost" size="sm" onClick={() => setPreviewOpen(true)} className="-mr-2 -my-2">
         <Eye className="w-4 h-4" />
         Preview form
       </Button>

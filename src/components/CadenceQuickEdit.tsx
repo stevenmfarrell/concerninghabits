@@ -2,20 +2,21 @@
 
 import { useState } from 'react';
 import { Lock, Repeat } from 'lucide-react';
-import toast from 'react-hot-toast';
 import { CadencePicker, CadenceSettings } from './CadenceField';
 import QuickEditDialog from './QuickEditDialog';
 import { describeCadence, type Cadence } from '@/lib/cadence';
 
-const PILL = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-sm font-medium transition-colors';
+export const PILL = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-sm font-medium transition-colors';
 
 // A cadence as a pill (e.g. "Every 3 days") that opens a dialog to change it, for a habit or a
 // category. Without `onSave` it's shown but can't be changed, e.g. a shared habit's cadence for
-// someone other than its owner, with `lockedTitle` saying why.
-export default function CadenceQuickEdit({ cadence, onSave, lockedTitle }: {
+// someone other than its owner, with `lockedTitle` saying why. `saveLabel` names the dialog's
+// button (see QuickEditDialog).
+export default function CadenceQuickEdit({ cadence, onSave, lockedTitle, saveLabel }: {
   cadence: Cadence;
   onSave?: (cadence: Cadence) => Promise<void>;
   lockedTitle?: string;
+  saveLabel?: string;
 }) {
   const [editing, setEditing] = useState(false);
 
@@ -40,23 +41,21 @@ export default function CadenceQuickEdit({ cadence, onSave, lockedTitle }: {
         <Repeat className="w-4 h-4 shrink-0" />
         {describeCadence(cadence)}
       </button>
-      {editing && <CadenceDialog initial={cadence} onSave={onSave} onClose={() => setEditing(false)} />}
+      {editing && <CadenceDialog initial={cadence} onSave={onSave} saveLabel={saveLabel} onClose={() => setEditing(false)} />}
     </>
   );
 }
 
-function CadenceDialog({ initial, onSave, onClose }: { initial: Cadence; onSave: (cadence: Cadence) => Promise<void>; onClose: () => void }) {
+function CadenceDialog({ initial, onSave, saveLabel, onClose }: { initial: Cadence; onSave: (cadence: Cadence) => Promise<void>; saveLabel?: string; onClose: () => void }) {
   const [cadence, setCadence] = useState(initial);
 
   return (
     <QuickEditDialog
       title="Cadence"
       canSave={JSON.stringify(cadence) !== JSON.stringify(initial)}
-      onSave={async () => {
-        await onSave(cadence);
-        toast.success('Cadence changed');
-      }}
+      onSave={() => onSave(cadence)}
       onClose={onClose}
+      saveLabel={saveLabel}
     >
       <CadencePicker value={cadence} onChange={setCadence} />
       <CadenceSettings value={cadence} onChange={setCadence} />

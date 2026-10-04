@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 import { saveHabit } from '../../actions/db';
 import HabitEditor, { type HabitDraft as EditorDraft } from '../../../components/HabitEditor';
 import { useRouter } from 'next/navigation';
-import BackLink from '@/components/BackLink';
+import PageHeader from '@/components/PageHeader';
+import { PANE_INSET, PanePage } from '@/components/Pane';
 import type { HabitSchema } from '@/lib/types';
 import { NO_CADENCE, type Cadence } from '@/lib/cadence';
 import { setPendingSmartEntry } from '@/lib/pendingSmartEntry';
@@ -66,40 +67,35 @@ export default function RefineClient() {
   const source = draft.transcript ?? draft.prompt;
 
   return (
-    <main className="flex-1 p-4 sm:p-8 bg-stone-50 font-sans">
-      <div className="max-w-3xl mx-auto space-y-4 sm:space-y-6">
-        <div>
-          <BackLink href="/create">Start over</BackLink>
-          <h1 className="text-3xl font-bold text-stone-900">New Habit</h1>
-          {source && <p className="text-stone-500 mt-1 break-words">From “{source}”</p>}
-        </div>
+    // Back goes to the New Habit page, to start over
+    <PanePage width="3xl" header={<PageHeader title="New Habit" backHref="/create" />}>
+      {source && <p className={`${PANE_INSET} py-3 text-stone-500 break-words`}>From “{source}”</p>}
 
-        <HabitEditor
-          mode="create"
-          initial={{
-            title: draft.schema?.title || '',
-            description: draft.schema?.description || '',
-            schema: draft.schema,
-            cadence: draft.cadence ?? NO_CADENCE,
-            categoryId: draft.categoryId || '',
-            publishToMqtt: false,
-            aiContext: '',
-          }}
-          onSave={handleSave}
-          onChangeTitle={handleTitleChange}
-          saveBarExtra={draft.transcript && (
-            <label className="flex items-center gap-2 text-sm text-stone-700 cursor-pointer min-w-0">
-              <input
-                type="checkbox"
-                className="w-4 h-4 accent-emerald-600 shrink-0"
-                checked={logFirstEntry}
-                onChange={e => setLogFirstEntry(e.target.checked)}
-              />
-              <span className="truncate">Log it as the first entry</span>
-            </label>
-          )}
-        />
-      </div>
-    </main>
+      <HabitEditor
+        mode="create"
+        initial={{
+          title: draft.schema?.title || '',
+          description: draft.schema?.description || '',
+          schema: draft.schema,
+          cadence: draft.cadence ?? NO_CADENCE,
+          categoryId: draft.categoryId || '',
+          publishToMqtt: false,
+          aiContext: '',
+        }}
+        onSave={handleSave}
+        onChangeTitle={handleTitleChange}
+        saveBarExtra={draft.transcript && (
+          <label className="flex items-center gap-2 text-sm text-stone-700 cursor-pointer min-w-0">
+            <input
+              type="checkbox"
+              className="w-4 h-4 accent-emerald-600 shrink-0"
+              checked={logFirstEntry}
+              onChange={e => setLogFirstEntry(e.target.checked)}
+            />
+            <span className="truncate">Log it as the first entry</span>
+          </label>
+        )}
+      />
+    </PanePage>
   );
 }

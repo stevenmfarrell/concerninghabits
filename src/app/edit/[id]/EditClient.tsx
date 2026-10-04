@@ -7,12 +7,12 @@ import { deleteHabit, leaveHabit, setHabitAiContext, setHabitCategory, updateHab
 import HabitEditor, { type HabitDraft, type RemoveAction } from '@/components/HabitEditor';
 import { parseHabitSchema } from '@/components/widgets/habitForm';
 import { parseCadence } from '@/lib/cadence';
-import type { HabitDetail } from '@/lib/types';
+import type { CategoryOption, HabitDetail } from '@/lib/types';
 import type { Person } from '@/lib/userColors';
 
 // A habit's edit page, below its header: the full editor for its owner, or for someone it's shared
 // with, just their own category and notes for AI. Saving goes back to the habit's page.
-export default function EditClient({ habit, owner }: { habit: HabitDetail; owner: Person | undefined }) {
+export default function EditClient({ habit, owner, categories }: { habit: HabitDetail; owner: Person | undefined; categories: CategoryOption[] }) {
   const router = useRouter();
   const habitHref = `/log/${habit.id}`;
 
@@ -65,8 +65,6 @@ export default function EditClient({ habit, owner }: { habit: HabitDetail; owner
       };
 
   return (
-    <div className="p-4 sm:p-8 max-w-3xl mx-auto w-full">
-      <HabitEditor mode={habit.isOwner ? 'edit' : 'shared'} initial={initial} owner={owner} onSave={handleSave} remove={remove} />
-    </div>
+    <HabitEditor mode={habit.isOwner ? 'edit' : 'shared'} initial={initial} owner={owner} onSave={handleSave} remove={remove} categories={categories} />
   );
 }

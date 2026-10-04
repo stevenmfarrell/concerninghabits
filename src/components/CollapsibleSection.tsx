@@ -1,8 +1,9 @@
 import { ChevronRight } from 'lucide-react';
 import type { ReactNode } from 'react';
 
-// A card whose contents fold away under its title, with a one-line `summary` of them shown beside
-// the title, so settings that are rarely changed stay out of the way but their state is still in view
+// A row in a pane's list (see Pane) whose contents fold away under it, with a one-line `summary` of
+// them shown under its title, so settings that are rarely changed stay out of the way but their state
+// is still in view. Its contents unfold below it as more rows, divided by hairlines.
 export default function CollapsibleSection({ title, summary, defaultOpen = false, children }: {
   title: string;
   summary?: ReactNode;
@@ -10,15 +11,15 @@ export default function CollapsibleSection({ title, summary, defaultOpen = false
   children: ReactNode;
 }) {
   return (
-    <details open={defaultOpen} className="group bg-white rounded-2xl shadow-sm border border-stone-100">
-      <summary className="flex items-center gap-3 p-5 sm:px-6 cursor-pointer list-none [&::-webkit-details-marker]:hidden select-none">
+    <details open={defaultOpen} className="group">
+      <summary className="flex items-center gap-3 pane-inset py-3 cursor-pointer list-none [&::-webkit-details-marker]:hidden select-none hover:bg-stone-50 transition-colors">
         <ChevronRight className="w-5 h-5 text-stone-400 shrink-0 transition-transform group-open:rotate-90" />
         <div className="min-w-0 flex-1">
-          <h2 className="font-semibold text-stone-800">{title}</h2>
+          <h3 className="font-semibold text-stone-800">{title}</h3>
           {summary && <p className="text-sm text-stone-500 truncate">{summary}</p>}
         </div>
       </summary>
-      <div className="px-5 pb-5 sm:px-6 sm:pb-6 space-y-4">{children}</div>
+      <div className="border-t border-stone-100 divide-y divide-stone-100">{children}</div>
     </details>
   );
 }

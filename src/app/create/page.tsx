@@ -5,6 +5,9 @@ import { generateHabitSchema } from '../actions/habit';
 import { Loader2, Sparkles } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
+import PageHeader from '@/components/PageHeader';
+import { PANE_INSET, PANE_SURFACE, PaneHeading, PanePage } from '@/components/Pane';
+import { Button } from '@/components/ui/Button';
 
 // `?category=<id>` starts the new habit in that category (e.g. from an empty category's page),
 // instead of the one the AI suggests
@@ -29,20 +32,25 @@ export default function CreateHabit({ searchParams }: { searchParams: Promise<{ 
     }
   };
 
+  const buildManually = () => {
+    sessionStorage.setItem('draftHabit', JSON.stringify({
+      success: true,
+      schema: { title: '', type: 'object', properties: {} },
+      categoryId: category,
+    }));
+    router.push('/create/refine');
+  };
+
   return (
-    <main className="flex-1 p-4 sm:p-8 bg-stone-50 font-sans">
-      <div className="max-w-3xl mx-auto space-y-6 sm:space-y-8">
-        <div>
-
-          <div className="space-y-2">
-            <h1 className="text-3xl font-bold text-stone-900">New Habit</h1>
-          </div>
-        </div>
-
-        <form onSubmit={handleGenerate} className="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-stone-100 flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-2">
-          <div>
-            <label className="block text-stone-700 mb-2 font-medium">What do you want to track?</label>
-            <textarea 
+    <PanePage width="3xl" header={<PageHeader title="New Habit" />}>
+      <form onSubmit={handleGenerate}>
+        <section>
+          <PaneHeading>
+            <label htmlFor="habit-prompt">What do you want to track?</label>
+          </PaneHeading>
+          <div className={`${PANE_SURFACE} ${PANE_INSET} py-4`}>
+            <textarea
+              id="habit-prompt"
               className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 min-h-[120px] resize-none"
               placeholder="e.g., Read 20 pages a day, track my morning run with distance and time, or drink 8 glasses of water..."
               value={initialPrompt}
@@ -62,33 +70,17 @@ export default function CreateHabit({ searchParams }: { searchParams: Promise<{ 
               enterKeyHint="send"
             />
           </div>
-          <div className="flex flex-col sm:flex-row justify-end gap-3 sm:gap-4 mt-2">
-            <button
-              type="button"
-              onClick={() => {
-                sessionStorage.setItem('draftHabit', JSON.stringify({
-                  success: true,
-                  schema: { title: '', type: 'object', properties: {} },
-                  categoryId: category,
-                }));
-                router.push('/create/refine');
-              }}
-              disabled={loading}
-              className="px-6 py-3 text-stone-600 bg-stone-100 hover:bg-stone-200 rounded-xl font-medium transition-colors disabled:opacity-70 order-2 sm:order-1 text-center"
-            >
-              Skip & Build Manually
-            </button>
-            <button 
-              type="submit" 
-              disabled={loading || !initialPrompt.trim()}
-              className="px-6 py-3 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-70 order-1 sm:order-2"
-            >
-              {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
-              {loading ? 'Designing Habit...' : 'Generate with AI'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </main>
+        </section>
+        <div className={`${PANE_INSET} py-4 flex flex-col sm:flex-row sm:justify-end gap-3`}>
+          <Button type="submit" size="lg" disabled={loading || !initialPrompt.trim()} className="sm:order-2">
+            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
+            {loading ? 'Designing Habit...' : 'Generate with AI'}
+          </Button>
+          <Button type="button" variant="outline" size="lg" onClick={buildManually} disabled={loading} className="sm:order-1">
+            Skip & Build Manually
+          </Button>
+        </div>
+      </form>
+    </PanePage>
   );
 }

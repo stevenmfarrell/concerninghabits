@@ -62,18 +62,3 @@ export function PanePageSkeleton({ rows = 5, width = '4xl', drillIn = false }: {
     </main>
   );
 }
-
-// Pages that scroll under a plain <h1> (edit)
-export function TopLevelPageSkeleton({ width = 'max-w-4xl' }: { width?: string }) {
-  return (
-    <main className="flex-1 p-4 sm:p-8 bg-stone-50 font-sans">
-      <div className={`${width} mx-auto space-y-6 sm:space-y-8`}>
-        <div className="space-y-2">
-          <SkeletonBar className="h-4 w-40" />
-          <SkeletonBar className="h-9 w-48" />
-        </div>
-        <SkeletonCard rows={4} />
-      </div>
-    </main>
-  );
-}
