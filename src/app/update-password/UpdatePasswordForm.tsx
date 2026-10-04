@@ -7,6 +7,9 @@ import { Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
+import { PANE_INSET, PaneField, PaneSection } from '@/components/Pane';
+import { Button } from '@/components/ui/Button';
+import { INPUT } from '@/components/ui/Input';
 
 export default function UpdatePasswordForm({ needsUpdate }: { needsUpdate: boolean }) {
   const router = useRouter();
@@ -34,73 +37,25 @@ export default function UpdatePasswordForm({ needsUpdate }: { needsUpdate: boole
   }, [state?.success, router, needsUpdate]);
 
   return (
-    <form action={action} className="space-y-6">
-      <div>
-        <label className="block text-sm font-medium text-stone-700">Current Password</label>
-        <div className="mt-1">
-          <input
-            name="currentPassword"
-            type="password"
-            required
-            className="appearance-none block w-full px-4 py-3 border border-stone-200 rounded-xl placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm bg-stone-50"
-            placeholder="••••••••"
-          />
-        </div>
-      </div>
+    <form action={action}>
+      <PaneSection title="Password">
+        <PaneField label="Current Password" htmlFor="currentPassword">
+          <input id="currentPassword" name="currentPassword" type="password" required autoComplete="current-password" className={INPUT} placeholder="••••••••" />
+        </PaneField>
+        <PaneField label="New Password" htmlFor="newPassword">
+          <input id="newPassword" name="newPassword" type="password" required minLength={MIN_PASSWORD_LENGTH} autoComplete="new-password" className={INPUT} placeholder="••••••••" />
+        </PaneField>
+        <PaneField label="Confirm New Password" htmlFor="confirmPassword">
+          <input id="confirmPassword" name="confirmPassword" type="password" required minLength={MIN_PASSWORD_LENGTH} autoComplete="new-password" className={INPUT} placeholder="••••••••" />
+        </PaneField>
+      </PaneSection>
 
-      <div>
-        <label className="block text-sm font-medium text-stone-700">New Password</label>
-        <div className="mt-1">
-          <input
-            name="newPassword"
-            type="password"
-            required
-            minLength={MIN_PASSWORD_LENGTH}
-            className="appearance-none block w-full px-4 py-3 border border-stone-200 rounded-xl placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm bg-stone-50"
-            placeholder="••••••••"
-          />
-        </div>
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-stone-700">Confirm New Password</label>
-        <div className="mt-1">
-          <input
-            name="confirmPassword"
-            type="password"
-            required
-            minLength={MIN_PASSWORD_LENGTH}
-            className="appearance-none block w-full px-4 py-3 border border-stone-200 rounded-xl placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm bg-stone-50"
-            placeholder="••••••••"
-          />
-        </div>
-      </div>
-
-      {state?.error && (
-        <div className="p-4 bg-red-50 border border-red-100 rounded-xl">
-          <p className="text-sm text-red-600">{state.error}</p>
-        </div>
-      )}
-
-      <div>
-        <button
-          type="submit"
-          disabled={isPending || state?.success}
-          className="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 disabled:opacity-70 transition-colors"
-        >
+      <div className={`${PANE_INSET} py-4 space-y-3`}>
+        {state?.error && <p className="text-sm text-red-600" role="alert">{state.error}</p>}
+        <Button type="submit" size="lg" disabled={isPending || state?.success} className="w-full">
           {isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : (needsUpdate ? 'Set Password & Continue' : 'Update Password')}
-        </button>
+        </Button>
       </div>
-      
-      {!needsUpdate && (
-        <button
-          type="button"
-          onClick={() => router.push('/settings')}
-          className="w-full flex justify-center py-3 px-4 border border-stone-200 rounded-xl shadow-sm text-sm font-medium text-stone-700 bg-white hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-stone-500 transition-colors mt-3"
-        >
-          Cancel
-        </button>
-      )}
     </form>
   );
 }

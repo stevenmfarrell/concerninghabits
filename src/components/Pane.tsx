@@ -16,16 +16,19 @@ export const PANE_SURFACE = 'bg-white border-y border-stone-200';
 
 // The column a page's content lines up in, by `width`
 const PANE_WIDTHS = {
+  // e.g. a sign-in form
+  'md': '[--pane-width:28rem]',
   '3xl': '[--pane-width:48rem]',
   '4xl': '[--pane-width:56rem]',
 };
 
 // The page itself: its sticky header, then its sections, each spanning the screen with its contents
 // in a centered column (PANE_INSET). Sections follow each other directly, their headings keeping them
-// apart; anything else on the page brings its own vertical padding.
-export function PanePage({ header, width = '4xl', children }: { header: ReactNode; width?: keyof typeof PANE_WIDTHS; children: ReactNode }) {
+// apart; anything else on the page brings its own vertical padding. A page with no header (e.g.
+// signing in) can be `centered` on the screen instead.
+export function PanePage({ header, width = '4xl', centered = false, children }: { header?: ReactNode; width?: keyof typeof PANE_WIDTHS; centered?: boolean; children: ReactNode }) {
   return (
-    <main className={`flex-1 pb-8 bg-stone-50 font-sans ${PANE_WIDTHS[width]}`}>
+    <main className={`flex-1 pb-8 bg-stone-50 font-sans ${PANE_WIDTHS[width]} ${centered ? 'flex flex-col justify-center py-8' : ''}`}>
       {header}
       {children}
     </main>
@@ -59,5 +62,17 @@ export function PaneSection({ title, action, empty, children }: { title: ReactNo
         ? <div className={`${PANE_INSET} py-3 text-stone-500`}>{empty}</div>
         : <div className={`${PANE_SURFACE} divide-y divide-stone-100`}>{children}</div>}
     </section>
+  );
+}
+
+// A form field as a row in a pane's list: its label, an optional line about it, then its control
+// (with `id` matching `htmlFor`)
+export function PaneField({ label, htmlFor, description, children }: { label: string; htmlFor?: string; description?: ReactNode; children: ReactNode }) {
+  return (
+    <div className={`${PANE_INSET} py-3 space-y-1.5`}>
+      <label htmlFor={htmlFor} className="block text-sm font-semibold text-stone-700">{label}</label>
+      {description && <p className="text-sm text-stone-500">{description}</p>}
+      {children}
+    </div>
   );
 }

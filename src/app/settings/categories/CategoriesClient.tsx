@@ -7,7 +7,9 @@ import IconPicker from '../../../components/IconPicker';
 import { Plus, Trash2, Edit2, Check, X, Loader2, GripVertical } from 'lucide-react';
 import { Fragment } from 'react';
 import ConfirmDialog from '../../../components/ConfirmDialog';
-import { Button } from '../../../components/ui/Button';
+import { IconButton } from '../../../components/ui/IconButton';
+import { INPUT } from '../../../components/ui/Input';
+import { PANE_SURFACE, PaneHeading } from '../../../components/Pane';
 import { UNCATEGORIZED_ICON } from '@/lib/constants';
 import toast from 'react-hot-toast';
 import { DropResult, computeDrop, applyDrop, getDropPosition, sameDropResult } from './categoryDrop';
@@ -47,7 +49,7 @@ const customCollisionDetection: CollisionDetection = (args) => {
 const SubcategoryDropZone = ({ isProjected }: { isProjected: boolean }) => {
   return (
     <div
-      className={`absolute right-4 top-1/2 -translate-y-1/2 h-10 px-4 rounded-lg border-2 flex items-center justify-center transition-colors z-50 shadow-sm ${isProjected ? 'border-emerald-500 bg-emerald-50 text-emerald-700 font-bold scale-110' : 'border-dashed border-stone-200 bg-white/80 text-stone-400 font-medium'}`}
+      className={`absolute right-[max(1rem,calc((100%-var(--pane-width,100%))/2+1rem))] top-1/2 -translate-y-1/2 h-10 px-4 rounded-lg border-2 flex items-center justify-center transition-colors z-50 shadow-sm ${isProjected ? 'border-emerald-500 bg-emerald-50 text-emerald-700 font-bold scale-110' : 'border-dashed border-stone-200 bg-white/80 text-stone-400 font-medium'}`}
     >
       <span className="text-xs whitespace-nowrap pointer-events-none">{isProjected ? 'Release to Nest' : 'Drag Right to Nest'}</span>
     </div>
@@ -201,9 +203,9 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
       <li 
         ref={dndProps?.setNodeRef}
         style={dndProps?.style}
-        className={`transition-colors group relative ${dndProps?.isOverlay ? 'bg-stone-50 z-50 shadow-2xl rounded-xl cursor-grabbing scale-[1.02]' : dndProps?.isDragging ? 'opacity-30 bg-stone-100 rounded-xl dashed-border' : ''}`}
+        className={`transition-colors group relative ${dndProps?.isOverlay ? 'bg-white z-50 shadow-2xl cursor-grabbing scale-[1.02]' : dndProps?.isDragging ? 'opacity-30 bg-stone-100' : ''}`}
       >
-        <div className={`py-3 sm:py-4 pr-3 sm:pr-4 ${cat.parentId ? 'pl-1 sm:pl-2' : 'pl-3 sm:pl-4'} flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-4 ${!dndProps?.isDragging && 'hover:bg-stone-50/50'} rounded-xl relative`}>
+        <div className={`py-3 ${cat.parentId ? 'pane-inset-nested' : 'pane-inset'} flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-4 ${!dndProps?.isDragging && 'hover:bg-stone-50/50'} relative`}>
         <div 
           {...dndProps?.attributes}
           {...dndProps?.listeners}
@@ -220,26 +222,25 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
             <input 
               type="text"
               autoFocus
-              className="flex-1 min-w-[120px] px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              aria-label="Category name"
+              className={`${INPUT} flex-1 min-w-[120px] bg-white`}
               value={editName}
               onChange={(e) => setEditName(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleUpdate(cat.id)}
             />
 
             <div className="flex items-center gap-2">
-              <button 
+              <IconButton
+                variant="accent"
                 onClick={() => handleUpdate(cat.id)}
                 disabled={loading === cat.id || !editName.trim()}
-                className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors disabled:opacity-50"
+                title="Save"
               >
                 {loading === cat.id ? <Loader2 className="w-5 h-5 animate-spin" /> : <Check className="w-5 h-5" />}
-              </button>
-              <button 
-                onClick={() => setEditingId(null)}
-                className="p-2 text-stone-400 hover:text-stone-600 hover:bg-stone-100 rounded-lg transition-colors"
-              >
+              </IconButton>
+              <IconButton onClick={() => setEditingId(null)} edge="right" title="Cancel">
                 <X className="w-5 h-5" />
-              </button>
+              </IconButton>
             </div>
           </>
         ) : (
@@ -252,21 +253,12 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
             </div>
             <div className="flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
 
-              <button 
-                onClick={() => startEdit(cat)}
-                className="p-2 text-stone-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
-                title="Edit"
-              >
+              <IconButton onClick={() => startEdit(cat)} title="Edit">
                 <Edit2 className="w-4 h-4" />
-              </button>
-              <button 
-                onClick={() => setDeleteConfirmId(cat.id)}
-                disabled={loading === cat.id}
-                className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
-                title="Delete"
-              >
+              </IconButton>
+              <IconButton onClick={() => setDeleteConfirmId(cat.id)} disabled={loading === cat.id} edge="right" title="Delete">
                 {loading === cat.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-              </button>
+              </IconButton>
             </div>
           </>
         )}
@@ -284,20 +276,37 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
 
 
 
-  return (
-    <div className="space-y-4">
-      <div>
-        <div className="flex justify-end">
-          <Button
-            onClick={() => { setAddingParentId(''); setNewName(''); setNewIcon('List'); }}
-            disabled={addingParentId !== null}
-          >
-            <Plus className="w-4 h-4" /> New Category
-          </Button>
-        </div>
+  // The inline form for a new category, as a row: at the end of the list, or under its parent
+  const renderNewCategoryRow = (nested: boolean) => (
+    <li className={`py-3 ${nested ? 'pane-inset-nested' : 'pane-inset'} bg-stone-50/50 flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-4`}>
+      <div className="shrink-0">
+        <IconPicker value={newIcon} onChange={setNewIcon} />
       </div>
+      <input
+        type="text"
+        autoFocus
+        placeholder={nested ? 'Subcategory Name' : 'Category Name'}
+        aria-label={nested ? 'Subcategory name' : 'Category name'}
+        className={`${INPUT} flex-1 min-w-[120px] bg-white`}
+        value={newName}
+        onChange={(e) => setNewName(e.target.value)}
+        onKeyDown={(e) => e.key === 'Enter' && handleCreateInline()}
+      />
+      <div className="flex items-center gap-1 shrink-0">
+        <IconButton variant="accent" onClick={handleCreateInline} disabled={loading === 'create' || !newName.trim()} title="Add">
+          {loading === 'create' ? <Loader2 className="w-5 h-5 animate-spin" /> : <Check className="w-5 h-5" />}
+        </IconButton>
+        <IconButton onClick={() => setAddingParentId(null)} edge="right" title="Cancel">
+          <X className="w-5 h-5" />
+        </IconButton>
+      </div>
+    </li>
+  );
 
-      <div className="bg-white rounded-2xl shadow-sm border border-stone-100">
+  return (
+    <section>
+      <PaneHeading>Drag to reorder, or right to nest</PaneHeading>
+      <div className={PANE_SURFACE}>
 
         <DndContext
           id="categories-dnd-context"
@@ -311,40 +320,8 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
         >
           <ul className="divide-y divide-stone-100">
             <SortableContext items={categories.filter(c => !c.parentId).sort((a,b) => (a.order??0) - (b.order??0)).map(c => c.id)} strategy={sortingStrategy}>
-              {addingParentId === '' && (
-                <li className="p-3 sm:p-4 bg-stone-50 flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-4 border-b border-stone-100">
-                  <div className="shrink-0">
-                    <IconPicker value={newIcon} onChange={setNewIcon} />
-                  </div>
-                  <input 
-                    type="text"
-                    autoFocus
-                    placeholder="Category Name"
-                    className="flex-1 min-w-[120px] px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    value={newName}
-                    onChange={(e) => setNewName(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleCreateInline()}
-                  />
-                  <div className="flex items-center gap-2 shrink-0">
-                    <button 
-                      onClick={handleCreateInline}
-                      disabled={loading === 'create' || !newName.trim()}
-                      className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors disabled:opacity-50"
-                    >
-                      {loading === 'create' ? <Loader2 className="w-5 h-5 animate-spin" /> : <Check className="w-5 h-5" />}
-                    </button>
-                    <button 
-                      onClick={() => setAddingParentId(null)}
-                      className="p-2 text-stone-400 hover:text-stone-600 hover:bg-stone-100 rounded-lg transition-colors"
-                    >
-                      <X className="w-5 h-5" />
-                    </button>
-                  </div>
-                </li>
-              )}
-
               {categories.length === 0 && addingParentId === null ? (
-                <li className="p-8 text-center text-stone-500">No categories found.</li>
+                <li className="pane-inset py-3 text-stone-500">No categories yet.</li>
               ) : (
                 categories.filter(c => !c.parentId).sort((a, b) => (a.order ?? 0) - (b.order ?? 0)).map(parent => {
                   const children = categories.filter(c => c.parentId === parent.id).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
@@ -358,43 +335,13 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
                         renderCategoryRow={renderCategoryRow}
                         childrenNode={
                           (children.length > 0 || addingParentId === parent.id) ? (
-                            <ul className="ml-6 sm:ml-8 border-l-2 border-stone-200">
+                            <ul className="divide-y divide-stone-100 border-t border-stone-100">
                               <SortableContext items={children.map(c => c.id)} strategy={sortingStrategy}>
                                 {children.map(child => (
                                   <SortableItem key={child.id} cat={child} renderCategoryRow={renderCategoryRow} disabled={isDraggingTopLevel} />
                                 ))}
                               </SortableContext>
-                              {addingParentId === parent.id && (
-                                <li className="p-3 sm:p-4 bg-stone-50/50 flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-4 mt-1 rounded-xl">
-                                  <div className="shrink-0">
-                                    <IconPicker value={newIcon} onChange={setNewIcon} />
-                                  </div>
-                                  <input 
-                                    type="text"
-                                    autoFocus
-                                    placeholder="Subcategory Name"
-                                    className="flex-1 min-w-[120px] px-3 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                                    value={newName}
-                                    onChange={(e) => setNewName(e.target.value)}
-                                    onKeyDown={(e) => e.key === 'Enter' && handleCreateInline()}
-                                  />
-                                  <div className="flex items-center gap-2 shrink-0">
-                                    <button 
-                                      onClick={handleCreateInline}
-                                      disabled={loading === 'create' || !newName.trim()}
-                                      className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors disabled:opacity-50"
-                                    >
-                                      {loading === 'create' ? <Loader2 className="w-5 h-5 animate-spin" /> : <Check className="w-5 h-5" />}
-                                    </button>
-                                    <button 
-                                      onClick={() => setAddingParentId(null)}
-                                      className="p-2 text-stone-400 hover:text-stone-600 hover:bg-stone-100 rounded-lg transition-colors"
-                                    >
-                                      <X className="w-5 h-5" />
-                                    </button>
-                                  </div>
-                                </li>
-                              )}
+                              {addingParentId === parent.id && renderNewCategoryRow(true)}
                             </ul>
                           ) : null
                         }
@@ -413,7 +360,7 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
               
               const children = categories.filter(c => c.parentId === activeCat.id).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
               const childrenNode = children.length > 0 ? (
-                <ul className="ml-6 sm:ml-8 border-l-2 border-stone-200">
+                <ul className="divide-y divide-stone-100 border-t border-stone-100">
                   {children.map(child => <Fragment key={child.id}>{renderCategoryRow(child, { isOverlay: true })}</Fragment>)}
                 </ul>
               ) : null;
@@ -427,7 +374,7 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
           </DragOverlay>
           
           <div className="group relative border-t border-stone-100">
-            <div className="py-3 sm:py-4 pr-3 sm:pr-4 pl-3 sm:pl-4 flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-4 hover:bg-stone-50/50 transition-colors rounded-b-2xl">
+            <div className="py-3 pane-inset flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-4 hover:bg-stone-50/50 transition-colors">
               <div className="w-5 h-5 shrink-0 ml-0" />
               <div className="w-10 h-10 rounded-xl bg-stone-100 flex items-center justify-center shrink-0">
                 <Icon name={UNCATEGORIZED_ICON} className="w-5 h-5 text-stone-400" />
@@ -443,6 +390,21 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
           
         </DndContext>
 
+        <ul className="border-t border-stone-100">
+          {/* Adding a category: its form in place of the row that starts it, at the end of the list */}
+          {addingParentId === '' ? renderNewCategoryRow(false) : (
+            <li>
+              <button
+                type="button"
+                onClick={() => { setAddingParentId(''); setNewName(''); setNewIcon('List'); }}
+                disabled={addingParentId !== null}
+                className="w-full flex items-center gap-2 pane-inset py-3 text-left text-sm font-medium text-emerald-700 hover:bg-stone-50 transition-colors disabled:opacity-50"
+              >
+                <Plus className="w-4 h-4" /> New Category
+              </button>
+            </li>
+          )}
+        </ul>
       </div>
 
       <ConfirmDialog
@@ -454,6 +416,6 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
         onConfirm={executeDelete}
         onCancel={() => setDeleteConfirmId(null)}
       />
-    </div>
+    </section>
   );
 }

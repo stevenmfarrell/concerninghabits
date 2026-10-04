@@ -6,6 +6,7 @@ import { deleteUser } from '@/app/actions/auth';
 import toast from 'react-hot-toast';
 
 import ConfirmDialog from '@/components/ConfirmDialog';
+import { IconButton } from '@/components/ui/IconButton';
 
 export default function DeleteUserButton({ userId, userName }: { userId: string, userName: string }) {
   const [isDeleting, setIsDeleting] = useState(false);
@@ -26,14 +27,15 @@ export default function DeleteUserButton({ userId, userName }: { userId: string,
 
   return (
     <>
-      <button
+      <IconButton
         onClick={() => setShowConfirm(true)}
         disabled={isDeleting}
-        className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+        edge="right"
         title={`Delete ${userName}`}
+        aria-label={`Delete ${userName}`}
       >
         {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-      </button>
+      </IconButton>
 
       <ConfirmDialog
         isOpen={showConfirm}

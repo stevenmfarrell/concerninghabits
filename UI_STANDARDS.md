@@ -71,7 +71,7 @@ Every page gets the sticky `<PageHeader>` (`src/components/PageHeader.tsx`), a f
 - Keep the subtitle short; it doesn't shrink, the title truncates instead.
 - Anything `fixed` (a modal, a full-screen panel) rendered from inside the bar should be portaled to `<body>`, as `SmartEntry` and `SpeakOrType` do.
 
-**Legacy, being phased out:** `<BackLink>` (`src/components/BackLink.tsx`), still on the settings sub-pages. Don't use it on a new page; move a page to `<PageHeader>` when you rework it.
+A page that's a step you can't leave (e.g. setting a new password before going on) uses the tab style (`showBack={false}`). Pages with no app around them (signing in, first-time setup) have no header; pass `centered` to `PanePage` instead.
 
 ## Panes, not cards
 
@@ -85,7 +85,7 @@ A page's background is always the body's `stone-50`. Lists sit on white running 
 </PanePage>
 ```
 
-- `PanePage` is the `<main>`: the header, then the sections. Each section spans the screen, while its contents line up in a centered column (`width`: `'4xl'`, the default, or `'3xl'`). Sections follow each other with no gap, since their headings separate them. Anything else in the column (a line of text, a profile, a button) brings its own vertical padding, usually `py-3` or `py-4`.
+- `PanePage` is the `<main>`: the header, then the sections. Each section spans the screen, while its contents line up in a centered column (`width`: `'4xl'`, the default, `'3xl'`, or `'md'` for a narrow form like signing in). Sections follow each other with no gap, since their headings separate them. Anything else in the column (a line of text, a profile, a button) brings its own vertical padding, usually `py-3` or `py-4`.
 - `PaneSection` is a heading over its rows on white, divided by hairlines. Pass `empty` (text or an `<EmptyState>`) for a section with nothing in it; that is shown on the stone instead of an empty white block.
 - A section whose content isn't rows (a calendar, a chart) is built by hand: a `<section>` holding a `PaneHeading` with the controls in its `action`, then the content in a `PANE_SURFACE` div with `PANE_INSET` and `py-4`, as the habit log page's Activity and Trends do.
 - Content that isn't a list doesn't go on white, even inside a section. For example, Agenda's Done chips sit on the stone under their heading.
@@ -96,7 +96,8 @@ A page's background is always the body's `stone-50`. Lists sit on white running 
 - Without cards to group them, nesting is shown by indenting: a subcategory's habits (`SortableHabitList nested`) line up under the subcategory's name.
 - A form is sections like any other page: settings as rows (`pane-inset py-3`), text inputs in a `PANE_SURFACE` block, and its buttons on the stone below. The habit editor (`src/components/HabitEditor.tsx`) and the New Habit page are the examples.
 - A habit's category and cadence are pills (`CategoryQuickEdit`, `CadenceQuickEdit`), centered on the stone under the header, each opening a small dialog to change it. That holds wherever they appear: the habit's page and the category page save on the spot, while the editor passes `saveLabel="Done"` and only changes its draft. Toasts about a saved change belong to the caller, not the dialog.
-- Converted: the four tabs, the category page, the habit log page, and the create and edit pages. The settings sub-pages still use cards; move each one over when you rework it.
+- A form field is a `PaneField` row (label, optional description, then the control), and a text input uses the `INPUT` classes from `src/components/ui/Input.tsx`. Something added to a list (a field, a category, a user) is a last row with a `+` and emerald text, not a `Button`.
+- Every page uses panes now. Don't add a page made of `rounded-2xl` cards.
 
 ## Dropdown / popover menus
 

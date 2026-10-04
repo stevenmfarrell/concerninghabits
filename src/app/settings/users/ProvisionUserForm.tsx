@@ -28,14 +28,20 @@ export default function ProvisionUserForm() {
     }
   }, [state?.success]);
 
+  // One element, since it's a row in the users list (its dialog is fixed, so it doesn't take up room)
   return (
-    <>
-      <Button onClick={() => setIsOpen(true)}>
+    <div>
+      {/* The users list's last row, rather than a Button, so it reads as adding to the list */}
+      <button
+        type="button"
+        onClick={() => setIsOpen(true)}
+        className="w-full flex items-center gap-2 pane-inset py-3 text-left text-sm font-medium text-emerald-700 hover:bg-stone-50 transition-colors"
+      >
         <Plus className="w-4 h-4" /> Provision User
-      </Button>
+      </button>
 
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-stone-900/40 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="p-6 sm:p-8 space-y-6">
               <div className="flex items-start gap-4">
@@ -122,6 +128,6 @@ export default function ProvisionUserForm() {
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }

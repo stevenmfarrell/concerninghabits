@@ -1,11 +1,14 @@
 'use client';
 import { useState } from 'react';
 import { updateUserPreferences } from '../actions/db';
-import { Loader2, Save } from 'lucide-react';
+import { Loader2, Save, Smile } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import Select from '@/components/Select';
 import { Button } from '@/components/ui/Button';
+import { INPUT } from '@/components/ui/Input';
+import { Toggle } from '@/components/ui/Toggle';
+import { PANE_INSET, PaneField, PaneSection } from '@/components/Pane';
 
 export default function PreferencesForm({ initialBedtime, initialWeekStartsOn, initialUseEmojiTitle, initialUnitSystem, initialEmojiModifier }: { initialBedtime: string, initialWeekStartsOn: string, initialUseEmojiTitle: boolean, initialUnitSystem: string, initialEmojiModifier: string | null }) {
   const [bedtime, setBedtime] = useState(initialBedtime || '01:00');
@@ -33,95 +36,77 @@ export default function PreferencesForm({ initialBedtime, initialWeekStartsOn, i
   const hasChanges = bedtime !== initialBedtime || weekStartsOn !== initialWeekStartsOn || useEmojiTitle !== initialUseEmojiTitle || unitSystem !== initialUnitSystem || emojiModifier !== (initialEmojiModifier || '');
 
   return (
-    <form onSubmit={handleSave} className="space-y-6">
-      <div>
-        <label className="block text-sm font-semibold text-stone-700 mb-1">End of Day (Bedtime)</label>
-        <p className="text-sm text-stone-500 mb-3">
-          Events logged before this time will count towards the previous day. 
-        </p>
-        <input 
-          type="time" 
-          value={bedtime}
-          onChange={e => setBedtime(e.target.value)}
-          className="w-full sm:w-48 px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
-          required
-        />
-      </div>
-
-      <div>
-        <label className="block text-sm font-semibold text-stone-700 mb-1">Week Starts On</label>
-        <p className="text-sm text-stone-500 mb-3">
-          Choose the first day of the week for calendars and weekly habit tracking.
-        </p>
-        <div className="relative w-full sm:w-48">
-          <Select
-            value={weekStartsOn}
-            onChange={setWeekStartsOn}
-            options={[
-              { id: 'sunday', label: 'Sunday' },
-              { id: 'monday', label: 'Monday' }
-            ]}
-          />
-        </div>
-      </div>
-
-      <div>
-        <label className="block text-sm font-semibold text-stone-700 mb-1">Unit System</label>
-        <p className="text-sm text-stone-500 mb-3">
-          Preferred measurement system. This is passed to AI tools when generating fields.
-        </p>
-        <div className="relative w-full sm:w-64">
-          <Select
-            value={unitSystem}
-            onChange={setUnitSystem}
-            options={[
-              { id: 'imperial', label: 'Imperial (miles, lbs)' },
-              { id: 'metric', label: 'Metric (km, kg)' }
-            ]}
-          />
-        </div>
-      </div>
-
-      <div className="flex items-start gap-3">
-        <div className="flex items-center h-5 mt-0.5">
+    <form onSubmit={handleSave}>
+      <PaneSection title="Calendar">
+        <PaneField label="End of Day (Bedtime)" htmlFor="bedtime" description="Events logged before this time count towards the previous day.">
           <input
-            id="useEmojiTitle"
-            type="checkbox"
-            checked={useEmojiTitle}
-            onChange={e => setUseEmojiTitle(e.target.checked)}
-            className="w-4 h-4 text-emerald-600 bg-stone-50 border-stone-300 rounded focus:ring-emerald-500"
+            id="bedtime"
+            type="time"
+            value={bedtime}
+            onChange={e => setBedtime(e.target.value)}
+            className={`${INPUT} sm:w-48`}
+            required
           />
-        </div>
-        <div>
-          <label htmlFor="useEmojiTitle" className="block text-sm font-semibold text-stone-700">
-            Use Emoji in Habit Titles
-          </label>
-          <p className="text-sm text-stone-500 mt-1">
-            When creating habits with AI, ask the AI to include a relevant emoji at the start of the title.
-          </p>
-        </div>
+        </PaneField>
+        <PaneField label="Week Starts On" description="The first day of the week for calendars and weekly habits.">
+          <div className="w-full sm:w-48">
+            <Select
+              value={weekStartsOn}
+              onChange={setWeekStartsOn}
+              options={[
+                { id: 'sunday', label: 'Sunday' },
+                { id: 'monday', label: 'Monday' }
+              ]}
+            />
+          </div>
+        </PaneField>
+      </PaneSection>
+
+      <PaneSection title="AI">
+        <PaneField label="Unit System" description="Your preferred measurements, passed to AI when it designs a habit's fields.">
+          <div className="w-full sm:w-64">
+            <Select
+              value={unitSystem}
+              onChange={setUnitSystem}
+              options={[
+                { id: 'imperial', label: 'Imperial (miles, lbs)' },
+                { id: 'metric', label: 'Metric (km, kg)' }
+              ]}
+            />
+          </div>
+        </PaneField>
+        <Toggle
+          bare
+          icon={<Smile className="w-5 h-5" />}
+          title="Emoji in Habit Titles"
+          description="When AI creates a habit, start its title with a fitting emoji"
+          checked={useEmojiTitle}
+          onChange={setUseEmojiTitle}
+        />
+        {useEmojiTitle && (
+          <PaneField
+            label="Emoji Style"
+            htmlFor="emojiModifier"
+            description={<>Ask AI for specific emoji styles, such as skin tone or gender (e.g. &quot;medium-light skin tone, female&quot;).</>}
+          >
+            <input
+              id="emojiModifier"
+              type="text"
+              placeholder="e.g. female, light skin tone"
+              value={emojiModifier}
+              onChange={e => setEmojiModifier(e.target.value)}
+              className={`${INPUT} sm:w-64`}
+            />
+          </PaneField>
+        )}
+      </PaneSection>
+
+      <div className={`${PANE_INSET} py-4 flex justify-end`}>
+        <Button type="submit" disabled={saving || !hasChanges}>
+          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+          Save
+        </Button>
       </div>
-
-      {useEmojiTitle && (
-        <div className="ml-7">
-          <label className="block text-sm font-semibold text-stone-700 mb-1">Emoji Style Modifiers</label>
-          <p className="text-sm text-stone-500 mb-3">
-            Instruct the AI to use specific emoji styles, such as skin tone or gender (e.g., &quot;medium-light skin tone, female&quot;).
-          </p>
-          <input 
-            type="text" 
-            placeholder="e.g. female, light skin tone"
-            value={emojiModifier}
-            onChange={e => setEmojiModifier(e.target.value)}
-            className="w-full sm:w-64 px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
-          />
-        </div>
-      )}
-
-      <Button type="submit" disabled={saving || !hasChanges}>
-        {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-        Save
-      </Button>
     </form>
   );
 }
