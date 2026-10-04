@@ -1,4 +1,4 @@
-import { cadenceProgress, cadenceStatus, NO_CADENCE, parseCadence, type Cadence } from './cadence';
+import { cadenceCountsDown, cadencePeriod, cadenceProgress, cadenceStatus, daysUntilDue, NO_CADENCE, parseCadence, type Cadence, type CadenceProgress, type ProgressPeriod } from './cadence';
 import type { HabitListItem } from './types';
 
 // A category as the Agenda page needs it: its cadence, and its habits with their recent entries
@@ -14,6 +14,17 @@ export interface CategoryTree extends CategoryWithHabits {
   children: CategoryWithHabits[];
 }
 
+// What a due or upcoming row shows beside its calendar (see RowStatus): how far along it is toward
+// done, for a cadence that takes several entries (e.g. 2 of 3 this week); the period, for one done
+// with a single entry a day, week, or month (e.g. "weekly"); or how many days until it's due, for
+// one that counts down (every N days): positive before then, 0 on the day, negative once overdue,
+// or `neverDone` before its first entry
+export type RowStatus =
+  | ({ kind: 'progress' } & CadenceProgress)
+  | { kind: 'period'; period: ProgressPeriod }
+  | { kind: 'dueIn'; days: number }
+  | { kind: 'neverDone' };
+
 // A category with a cadence on the Agenda page, with every habit counting toward it (a top-level
 // category's subcategories' habits included), for its calendar
 export interface DueCategory {
@@ -24,6 +35,8 @@ export interface DueCategory {
   parentName?: string;
   cadence: Cadence;
   habits: HabitListItem[];
+  // When it's due or upcoming, what its row shows beside its calendar
+  status?: RowStatus;
 }
 
 // Something done for now that's due again soon, in `dueInDays` days
@@ -36,8 +49,8 @@ export interface DueList {
   dueCategories: DueCategory[];
   upcomingCategories: Upcoming<DueCategory>[];
   doneCategories: DueCategory[];
-  // How far along each due habit that takes more than one entry is, by habit id, e.g. 3 of 4 today
-  progress: Record<string, { done: number; needed: number }>;
+  // What each due or upcoming habit's row shows beside its calendar, by habit id
+  statuses: Record<string, RowStatus>;
 }
 
 // What the Agenda page shows: every habit and category with a cadence, split into those due, those
@@ -61,29 +74,41 @@ export function buildDueList(
     return dates;
   };
 
-  const list: DueList = { dueHabits: [], upcomingHabits: [], doneHabits: [], dueCategories: [], upcomingCategories: [], doneCategories: [], progress: {} };
+  const list: DueList = { dueHabits: [], upcomingHabits: [], doneHabits: [], dueCategories: [], upcomingCategories: [], doneCategories: [], statuses: {} };
+
+  const rowStatus = (cadence: Cadence, dates: Date[]): RowStatus | undefined => {
+    const progress = cadenceProgress(cadence, dates, user, now);
+    if (progress) return { kind: 'progress', ...progress };
+    const period = cadencePeriod(cadence);
+    if (period) return { kind: 'period', period };
+    if (!cadenceCountsDown(cadence)) return undefined;
+    const days = daysUntilDue(cadence, dates, user, now);
+    return days === null ? { kind: 'neverDone' } : { kind: 'dueIn', days };
+  };
 
   const addHabit = (habit: HabitListItem) => {
     const cadence = parseCadence(habit.cadence);
     if (cadence.type === 'none') return;
     const dates = entryDates(habit);
     const status = cadenceStatus(cadence, dates, user, now);
-    if (status.state === 'due') {
-      list.dueHabits.push(habit);
-      const progress = cadenceProgress(cadence, dates, user, now);
-      if (progress) list.progress[habit.id] = progress;
+    if (status.state === 'done') {
+      list.doneHabits.push(habit);
+      return;
     }
-    else if (status.state === 'upcoming') list.upcomingHabits.push({ item: habit, dueInDays: status.dueInDays });
-    else list.doneHabits.push(habit);
+    if (status.state === 'due') list.dueHabits.push(habit);
+    else list.upcomingHabits.push({ item: habit, dueInDays: status.dueInDays });
+    const shown = rowStatus(cadence, dates);
+    if (shown) list.statuses[habit.id] = shown;
   };
 
   const addCategory = (category: CategoryWithHabits, habits: HabitListItem[], parentName?: string) => {
     const cadence = parseCadence(category.cadence, NO_CADENCE);
     if (cadence.type === 'none') return;
     const item: DueCategory = { id: category.id, name: category.name, icon: category.icon, parentName, cadence, habits };
-    const status = cadenceStatus(cadence, habits.flatMap(entryDates), user, now);
-    if (status.state === 'due') list.dueCategories.push(item);
-    else if (status.state === 'upcoming') list.upcomingCategories.push({ item, dueInDays: status.dueInDays });
+    const dates = habits.flatMap(entryDates);
+    const status = cadenceStatus(cadence, dates, user, now);
+    if (status.state === 'due') list.dueCategories.push({ ...item, status: rowStatus(cadence, dates) });
+    else if (status.state === 'upcoming') list.upcomingCategories.push({ item: { ...item, status: rowStatus(cadence, dates) }, dueInDays: status.dueInDays });
     else list.doneCategories.push(item);
   };
 

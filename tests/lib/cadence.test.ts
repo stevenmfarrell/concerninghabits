@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cadenceFromSuggestion, cadenceStatus, describeCadence, isHabitComplete, parseCadence, startOfWeek, upcomingDays, type Cadence } from '@/lib/cadence';
+import { cadenceFromSuggestion, cadenceProgress, cadenceStatus, describeCadence, isHabitComplete, parseCadence, startOfWeek, upcomingDays, withTimes, type Cadence } from '@/lib/cadence';
 import { civilDayKey, parseCivilDayKey } from '@/lib/timezone';
 
 const user = { timeZone: 'UTC', bedtime: '00:00', weekStartsOn: 'sunday' };
@@ -63,6 +63,21 @@ describe('isHabitComplete', () => {
     const monthly: Cadence = { type: 'calendarMonth' };
     expect(complete(monthly, [at('2026-10-01T09:00:00Z')])).toBe(true);
     expect(complete(monthly, [at('2026-09-30T09:00:00Z')])).toBe(false);
+  });
+
+  it('completes a several-times-a-week habit once it has that many entries this week', () => {
+    const thriceWeekly: Cadence = { type: 'calendarWeek', times: 3 };
+    // Sunday and Tuesday this week, and the Saturday before, which is last week
+    const logs = [at('2026-09-27T09:00:00Z'), at('2026-09-29T09:00:00Z'), at('2026-09-26T09:00:00Z')];
+    expect(complete(thriceWeekly, logs)).toBe(false);
+    expect(cadenceProgress(thriceWeekly, logs, user, now)).toEqual({ done: 2, needed: 3, period: 'weekly' });
+    expect(complete(thriceWeekly, [...logs, at('2026-10-03T08:00:00Z')])).toBe(true);
+  });
+
+  it('completes a several-times-a-month habit once it has that many entries this month', () => {
+    const twiceMonthly: Cadence = { type: 'calendarMonth', times: 2 };
+    expect(cadenceProgress(twiceMonthly, [at('2026-10-01T09:00:00Z'), at('2026-09-30T09:00:00Z')], user, now)).toEqual({ done: 1, needed: 2, period: 'monthly' });
+    expect(complete(twiceMonthly, [at('2026-10-01T09:00:00Z'), at('2026-10-02T09:00:00Z')])).toBe(true);
   });
 
   it('never completes a habit with no cadence', () => {
@@ -149,6 +164,8 @@ describe('cadenceFromSuggestion', () => {
     expect(cadenceFromSuggestion({ type: 'daily' })).toEqual({ type: 'daily', timesPerDay: 1 });
     expect(cadenceFromSuggestion({ type: 'everyNDays' })).toEqual({ type: 'everyNDays', days: 2 });
     expect(cadenceFromSuggestion({ type: 'calendarMonth', days: 5 })).toEqual({ type: 'calendarMonth' });
+    expect(cadenceFromSuggestion({ type: 'calendarWeek', timesPerPeriod: 3 })).toEqual({ type: 'calendarWeek', times: 3 });
+    expect(cadenceFromSuggestion({ type: 'calendarWeek', timesPerPeriod: 1 })).toEqual({ type: 'calendarWeek' });
   });
 
   it('means no cadence for no suggestion or one that doesn\'t fit', () => {
@@ -160,10 +177,20 @@ describe('cadenceFromSuggestion', () => {
 describe('describeCadence', () => {
   it('describes each cadence for people', () => {
     expect(describeCadence({ type: 'daily', timesPerDay: 1 })).toBe('Daily');
-    expect(describeCadence({ type: 'daily', timesPerDay: 3 })).toBe('3× a day');
+    expect(describeCadence({ type: 'daily', timesPerDay: 3 })).toBe('3× daily');
     expect(describeCadence({ type: 'everyNDays', days: 3 })).toBe('Every 3 days');
-    expect(describeCadence({ type: 'calendarWeek' })).toBe('Once per calendar week');
-    expect(describeCadence({ type: 'calendarMonth' })).toBe('Once per calendar month');
+    expect(describeCadence({ type: 'calendarWeek' })).toBe('Weekly');
+    expect(describeCadence({ type: 'calendarMonth' })).toBe('Monthly');
+    expect(describeCadence({ type: 'calendarWeek', times: 3 })).toBe('3× weekly');
+    expect(describeCadence({ type: 'calendarMonth', times: 2 })).toBe('2× monthly');
     expect(describeCadence({ type: 'none' })).toBe('No set cadence');
+  });
+});
+
+describe('withTimes', () => {
+  it('stores once a week or month the way it always was, with no count', () => {
+    expect(withTimes({ type: 'calendarWeek', times: 3 }, 1)).toEqual({ type: 'calendarWeek' });
+    expect(withTimes({ type: 'calendarMonth' }, 4)).toEqual({ type: 'calendarMonth', times: 4 });
+    expect(parseCadence('{"type":"calendarWeek"}')).toEqual({ type: 'calendarWeek' });
   });
 });

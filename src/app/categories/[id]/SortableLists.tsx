@@ -11,11 +11,12 @@ import ActivityCalendar from '../../../components/ActivityCalendar';
 import { reorderCategories } from '../../actions/db';
 import { reorderHabits } from '../../actions/db';
 import { parseCadence } from '@/lib/cadence';
+import type { RowStatus as Status } from '@/lib/dueList';
 import type { HabitListItem, SessionUser, SubcategoryListItem } from '@/lib/types';
 import { isSharedHabit, type Person } from '@/lib/userColors';
 import { useReorderableList } from './useReorderableList';
 import LogHabitButton from '@/components/logging/LogHabitButton';
-import ProgressRing from '@/components/ProgressRing';
+import RowStatus from '@/components/RowStatus';
 
 import { ChevronDown, ExternalLink, Users } from 'lucide-react';
 
@@ -139,9 +140,8 @@ export function SortableCategoryItemList({ items: initialItems, user, people, is
   );
 }
 
-// `note` is a line under the habit's name, e.g. when it's due on the Agenda page. `progress` is how
-// far along it is toward done, for one that takes several entries, shown as a ring by its calendar.
-const SortableHabitItem = ({ habit, note, progress, user, people, isOverlay, isReordering, className = '' }: SortableRowProps & { habit: HabitListItem; note?: string; progress?: { done: number; needed: number } }) => {
+// `status` is what the Agenda page shows beside its calendar, e.g. a progress ring (see RowStatus)
+const SortableHabitItem = ({ habit, status, user, people, isOverlay, isReordering, className = '' }: SortableRowProps & { habit: HabitListItem; status?: Status }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: habit.id });
 
   const style = {
@@ -170,11 +170,10 @@ const SortableHabitItem = ({ habit, note, progress, user, people, isOverlay, isR
                 <Users className="w-4 h-4 text-stone-400 shrink-0" aria-label="Shared" />
               )}
             </div>
-            {note && <p className="text-sm text-stone-500">{note}</p>}
           </div>
           {/* The ring goes before the calendar, so calendars line up down the list with or without one */}
           <div className="shrink-0 flex items-center gap-3">
-            {progress && <ProgressRing done={progress.done} needed={progress.needed} />}
+            {status && <RowStatus status={status} />}
             <div className="opacity-80 group-hover/row:opacity-100 transition-opacity pointer-events-none">
               <ActivityCalendar
                 dates={logs.map(l => l.createdAt)}
@@ -199,9 +198,8 @@ const SortableHabitItem = ({ habit, note, progress, user, people, isOverlay, isR
   return <div ref={setNodeRef} style={style} className={`relative bg-white ${className}`}>{content}</div>;
 };
 
-// `notes` are lines shown under some habits' names, and `progress` some habits' progress toward
-// done, by habit id (see SortableHabitItem)
-export function SortableHabitList({ items: initialItems, notes, progress, user, people, isReordering, dndContextId = "habits-dnd-context", isNested = false }: { items: HabitListItem[], notes?: Record<string, string>, progress?: Record<string, { done: number; needed: number }>, user: SessionUser, people: Record<string, Person>, isReordering?: boolean, dndContextId?: string, isNested?: boolean }) {
+// `statuses` are what some habits' rows show beside their calendars, by habit id (see SortableHabitItem)
+export function SortableHabitList({ items: initialItems, statuses, user, people, isReordering, dndContextId = "habits-dnd-context", isNested = false }: { items: HabitListItem[], statuses?: Record<string, Status>, user: SessionUser, people: Record<string, Person>, isReordering?: boolean, dndContextId?: string, isNested?: boolean }) {
   const { items, activeId, sensors, handleDragStart, handleDragCancel, handleDragEnd } = useReorderableList(initialItems, async (newItems) => {
     const updates = newItems.map((item, index) => ({ id: item.id, order: index }));
     await reorderHabits(updates);
@@ -213,7 +211,7 @@ export function SortableHabitList({ items: initialItems, notes, progress, user, 
     <div className={isNested ? "divide-y divide-stone-100 flex flex-col w-full" : "bg-white rounded-2xl shadow-sm border border-stone-100 overflow-hidden divide-y divide-stone-100 flex flex-col"}>
       <DndContext id={dndContextId} sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={handleDragCancel}>
         <SortableContext items={items.map(i => i.id)} strategy={verticalListSortingStrategy}>
-          {items.map(habit => <SortableHabitItem key={habit.id} habit={habit} note={notes?.[habit.id]} progress={progress?.[habit.id]} user={user} people={people} isReordering={isReordering} />)}
+          {items.map(habit => <SortableHabitItem key={habit.id} habit={habit} status={statuses?.[habit.id]} user={user} people={people} isReordering={isReordering} />)}
         </SortableContext>
         <DragOverlay>
           {activeItem ? <SortableHabitItem habit={activeItem} user={user} people={people} isOverlay isReordering={isReordering} /> : null}

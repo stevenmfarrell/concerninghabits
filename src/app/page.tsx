@@ -11,24 +11,22 @@ import { buildDueList, type DueCategory } from '@/lib/dueList';
 import { parseBedtimeOffsetMinutes, toCivilDate } from '@/lib/timezone';
 import type { HabitListItem, SessionUser } from '@/lib/types';
 
-// When something upcoming is due again
-const dueLabel = (dueInDays: number) => (dueInDays === 1 ? 'Due tomorrow' : `Due in ${dueInDays} days`);
-
 // Categories with a cadence that are due or upcoming, as rows linking to their pages (where their
 // habits are, to log one), each with a calendar of its recent entries like a habit's
-function CategoryList({ categories, user }: { categories: { category: DueCategory; note?: string }[]; user: SessionUser }) {
+function CategoryList({ categories, user }: { categories: DueCategory[]; user: SessionUser }) {
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-stone-100 overflow-hidden divide-y divide-stone-100 flex flex-col">
-      {categories.map(({ category, note }) => (
+      {categories.map(category => (
         <CategoryRow
           key={category.id}
           href={`/categories/${category.id}`}
           name={category.parentName ? `${category.parentName} › ${category.name}` : category.name}
           icon={category.icon || 'Folder'}
-          subtitle={note}
           dates={category.habits.flatMap(h => (h.logs ?? []).map(l => l.createdAt))}
           habitCount={category.habits.length}
           cadence={category.cadence}
+          status={category.status}
+          alignWithHabitRows
           bedtime={user.bedtime}
           weekStartsOn={user.weekStartsOn}
           timeZone={user.timeZone}
@@ -88,7 +86,7 @@ export default async function AgendaPage() {
     getPeople(),
   ]);
 
-  const { dueHabits, upcomingHabits, doneHabits, dueCategories, upcomingCategories, doneCategories, progress } = buildDueList(categories, uncategorized, latestLogDates, user);
+  const { dueHabits, upcomingHabits, doneHabits, dueCategories, upcomingCategories, doneCategories, statuses } = buildDueList(categories, uncategorized, latestLogDates, user);
   const anyDue = dueHabits.length > 0 || dueCategories.length > 0;
   const anyUpcoming = upcomingHabits.length > 0 || upcomingCategories.length > 0;
   const anyDone = doneHabits.length > 0 || doneCategories.length > 0;
@@ -123,10 +121,10 @@ export default async function AgendaPage() {
             <section className="space-y-4">
               <SectionHeading>Due Now</SectionHeading>
               {dueHabits.length > 0 && (
-                <SortableHabitList items={dueHabits} progress={progress} user={user} people={people} dndContextId="due-habits" />
+                <SortableHabitList items={dueHabits} statuses={statuses} user={user} people={people} dndContextId="due-habits" />
               )}
               {dueCategories.length > 0 && (
-                <CategoryList categories={dueCategories.map(category => ({ category }))} user={user} />
+                <CategoryList categories={dueCategories} user={user} />
               )}
               {!anyDue && <p className="text-stone-500">Nothing due right now.</p>}
             </section>
@@ -137,14 +135,14 @@ export default async function AgendaPage() {
                 {upcomingHabits.length > 0 && (
                   <SortableHabitList
                     items={upcomingHabits.map(u => u.item)}
-                    notes={Object.fromEntries(upcomingHabits.map(u => [u.item.id, dueLabel(u.dueInDays)]))}
+                    statuses={statuses}
                     user={user}
                     people={people}
                     dndContextId="upcoming-habits"
                   />
                 )}
                 {upcomingCategories.length > 0 && (
-                  <CategoryList categories={upcomingCategories.map(({ item, dueInDays }) => ({ category: item, note: dueLabel(dueInDays) }))} user={user} />
+                  <CategoryList categories={upcomingCategories.map(u => u.item)} user={user} />
                 )}
               </section>
             )}

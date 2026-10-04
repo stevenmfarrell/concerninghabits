@@ -2,15 +2,15 @@
 
 import { useState } from 'react';
 import Select from './Select';
-import { CADENCE_TYPES, type Cadence, type CadenceType } from '@/lib/cadence';
+import { CADENCE_TYPES, withTimes, type Cadence, type CadenceType } from '@/lib/cadence';
 
 // Each cadence as the editor offers it: its name in the picker, and what it starts as when picked.
 // Keyed by every cadence type, so a new one doesn't build until it's given a place here.
 const CADENCE_OPTIONS: { [T in CadenceType]: { label: string; initial: () => Extract<Cadence, { type: T }> } } = {
   daily: { label: 'Daily', initial: () => ({ type: 'daily', timesPerDay: 1 }) },
   everyNDays: { label: 'Every N days', initial: () => ({ type: 'everyNDays', days: 2 }) },
-  calendarWeek: { label: 'Once per calendar week', initial: () => ({ type: 'calendarWeek' }) },
-  calendarMonth: { label: 'Once per calendar month', initial: () => ({ type: 'calendarMonth' }) },
+  calendarWeek: { label: 'Weekly', initial: () => ({ type: 'calendarWeek' }) },
+  calendarMonth: { label: 'Monthly', initial: () => ({ type: 'calendarMonth' }) },
   none: { label: 'No set cadence', initial: () => ({ type: 'none' }) },
 };
 
@@ -58,7 +58,31 @@ export function CadenceSettings({ value, onChange, disabled }: { value: Cadence;
         />
       );
     case 'calendarWeek':
+      return (
+        <CadenceNumber
+          key="calendarWeek"
+          label="Times a week"
+          help="How many entries a week it takes to be done. Weeks begin on your week's start day."
+          value={value.times ?? 1}
+          min={1}
+          max={100}
+          onChange={times => onChange(withTimes(value, times))}
+          disabled={disabled}
+        />
+      );
     case 'calendarMonth':
+      return (
+        <CadenceNumber
+          key="calendarMonth"
+          label="Times a month"
+          help="How many entries a month it takes to be done. Months begin on the 1st."
+          value={value.times ?? 1}
+          min={1}
+          max={100}
+          onChange={times => onChange(withTimes(value, times))}
+          disabled={disabled}
+        />
+      );
     case 'none':
       return null;
     default: {

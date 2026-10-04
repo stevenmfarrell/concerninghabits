@@ -61,12 +61,44 @@ describe('buildDueList', () => {
     const water = habit('water', { type: 'daily', timesPerDay: 4 }, [today, today, yesterday].map(createdAt => ({ createdAt, userId: 'me' })));
     const list = buildDueList([], [water, habit('run', daily)], {}, user, now);
     expect(ids(list.dueHabits)).toEqual(['water', 'run']);
-    expect(list.progress).toEqual({ water: { done: 2, needed: 4 } });
+    expect(list.statuses).toEqual({
+      water: { kind: 'progress', done: 2, needed: 4, period: 'daily' },
+      // Once a day: just the period
+      run: { kind: 'period', period: 'daily' },
+    });
+  });
+
+  it('gives how far along a due category that takes several entries a week is, from any of its habits', () => {
+    const thriceWeekly: Cadence = { type: 'calendarWeek', times: 3 };
+    const monday = new Date('2026-09-28T09:00:00Z');
+    const music = category('Music', thriceWeekly, [
+      habit('piano', none, [{ createdAt: monday, userId: 'me' }]),
+      habit('guitar', none, [{ createdAt: today, userId: 'me' }]),
+    ]);
+    const list = buildDueList([music], [], {}, user, now);
+    expect(list.dueCategories).toMatchObject([{ id: 'Music', status: { kind: 'progress', done: 2, needed: 3, period: 'weekly' } }]);
   });
 
   it('leaves out the progress of a habit once it\'s done', () => {
     const water = habit('water', { type: 'daily', timesPerDay: 2 }, [today, today].map(createdAt => ({ createdAt, userId: 'me' })));
-    expect(buildDueList([], [water], {}, user, now).progress).toEqual({});
+    expect(buildDueList([], [water], {}, user, now).statuses).toEqual({});
+  });
+
+  it('counts down to when an every-N-days habit is due: before, on the day, once overdue, and before its first entry', () => {
+    const everyThreeDays: Cadence = { type: 'everyNDays', days: 3 };
+    const loggedOn = (iso: string) => [{ createdAt: new Date(iso), userId: 'me' }];
+    // Saturday's habit was last done Wednesday, so it's due today; the other one was due Thursday
+    const list = buildDueList([], [
+      habit('due today', everyThreeDays, loggedOn('2026-09-30T09:00:00Z')),
+      habit('overdue', everyThreeDays, loggedOn('2026-09-28T09:00:00Z')),
+      habit('never', everyThreeDays),
+    ], {}, user, now);
+    expect(list.statuses).toEqual({ 'due today': { kind: 'dueIn', days: 0 }, overdue: { kind: 'dueIn', days: -2 }, never: { kind: 'neverDone' } });
+
+    const everyTenDays = habit('soon', { type: 'everyNDays', days: 10 }, loggedOn('2026-09-25T09:00:00Z'));
+    const soon = buildDueList([], [everyTenDays], {}, user, now);
+    expect(ids(soon.upcomingHabits.map(u => u.item))).toEqual(['soon']);
+    expect(soon.statuses).toEqual({ soon: { kind: 'dueIn', days: 2 } });
   });
 
   it('uses a habit\'s latest entry when it\'s older than its recent entries reach', () => {

@@ -11,10 +11,11 @@ export const cadenceSchema = z.discriminatedUnion('type', [
   // Again `days` days after the last entry: an entry counts for its own day and the days after it
   // until the next one is due
   z.object({ type: z.literal('everyNDays'), days: z.number().int().min(2).max(365) }),
-  // Once per calendar week, by the user's week start
-  z.object({ type: z.literal('calendarWeek') }),
-  // Once per calendar month
-  z.object({ type: z.literal('calendarMonth') }),
+  // `times` times per calendar week, by the user's week start. Left out for once, the usual case
+  // (and how a weekly cadence was stored before it could be more than once).
+  z.object({ type: z.literal('calendarWeek'), times: z.number().int().min(1).max(100).optional() }),
+  // `times` times per calendar month, left out for once
+  z.object({ type: z.literal('calendarMonth'), times: z.number().int().min(1).max(100).optional() }),
   // Logged whenever it happens, with nothing expected, so it's never done
   z.object({ type: z.literal('none') }),
 ]);
@@ -37,6 +38,15 @@ export interface CadenceContext {
   weekStartsOn: string;
 }
 
+export type ProgressPeriod = 'daily' | 'weekly' | 'monthly';
+
+// How far along something is toward done for now, e.g. 2 of 3 entries this week
+export interface CadenceProgress {
+  done: number;
+  needed: number;
+  period: ProgressPeriod;
+}
+
 // The days (civil dates, inclusive) an entry counts toward, e.g. its whole week for a weekly habit
 interface DayRange {
   from: Date;
@@ -46,8 +56,14 @@ interface DayRange {
 // How a cadence works. Everything else (whether a habit is done, how a calendar shades a day)
 // is worked out from these, so a new cadence only has to answer them.
 interface CadenceRule<C extends Cadence> {
-  // For people, e.g. "3× a day", "Every 3 days"
+  // For people, e.g. "3× daily", "Every 3 days"
   describe(cadence: C): string;
+  // The period its entries are counted over, for showing progress through it, e.g. "2/3 weekly";
+  // null for a cadence that's done with one entry, or never
+  period: ProgressPeriod | null;
+  // Whether it's shown counting down to when it's next due (e.g. "in 3 days"), since its due date
+  // moves with each entry rather than following the calendar
+  countsDown: boolean;
   // The days an entry made on civil day `day` counts toward
   covers(cadence: C, day: Date, context: CadenceContext): DayRange;
   // How many entries counting toward a day make it done; Infinity for never
@@ -69,15 +85,28 @@ export function startOfWeek(day: Date, weekStartsOn: string) {
 
 const justThatDay = (day: Date): DayRange => ({ from: day, to: day });
 
+// A weekly or monthly cadence for people, e.g. "Weekly", "3× weekly"
+const timesPer = (times: number | undefined, period: 'Weekly' | 'Monthly') => ((times ?? 1) === 1 ? period : `${times}× ${period.toLowerCase()}`);
+
+// A weekly or monthly cadence `times` times per period, in its usual form: `times` left out for once
+export function withTimes<C extends { type: 'calendarWeek' | 'calendarMonth' }>(cadence: C, times: number) {
+  const { type } = cadence;
+  return (times === 1 ? { type } : { type, times }) as C;
+}
+
 const RULES: { [T in CadenceType]: CadenceRule<Extract<Cadence, { type: T }>> } = {
   daily: {
-    describe: c => (c.timesPerDay === 1 ? 'Daily' : `${c.timesPerDay}× a day`),
+    describe: c => (c.timesPerDay === 1 ? 'Daily' : `${c.timesPerDay}× daily`),
+    period: 'daily',
+    countsDown: false,
     covers: (_, day) => justThatDay(day),
     needed: c => c.timesPerDay,
     upcomingDays: () => 0,
   },
   everyNDays: {
     describe: c => `Every ${c.days} days`,
+    period: null,
+    countsDown: true,
     covers: (c, day) => ({ from: day, to: addDays(day, c.days - 1) }),
     needed: () => 1,
     // The last 20% of the stretch, rounded up to whole days (N / 5 rather than N * 0.2, which isn't
@@ -86,25 +115,31 @@ const RULES: { [T in CadenceType]: CadenceRule<Extract<Cadence, { type: T }>> } 
     upcomingDays: c => (c.days > 3 ? Math.ceil(c.days / 5) : 0),
   },
   calendarWeek: {
-    describe: () => 'Once per calendar week',
+    describe: c => timesPer(c.times, 'Weekly'),
+    period: 'weekly',
+    countsDown: false,
     covers: (_, day, context) => {
       const from = startOfWeek(day, context.weekStartsOn);
       return { from, to: addDays(from, 6) };
     },
-    needed: () => 1,
+    needed: c => c.times ?? 1,
     upcomingDays: () => 0,
   },
   calendarMonth: {
-    describe: () => 'Once per calendar month',
+    describe: c => timesPer(c.times, 'Monthly'),
+    period: 'monthly',
+    countsDown: false,
     covers: (_, day) => ({
       from: new Date(Date.UTC(day.getUTCFullYear(), day.getUTCMonth(), 1)),
       to: new Date(Date.UTC(day.getUTCFullYear(), day.getUTCMonth() + 1, 0)),
     }),
-    needed: () => 1,
+    needed: c => c.times ?? 1,
     upcomingDays: () => 0,
   },
   none: {
     describe: () => 'No set cadence',
+    period: null,
+    countsDown: false,
     covers: (_, day) => justThatDay(day),
     needed: () => Infinity,
     upcomingDays: () => 0,
@@ -137,10 +172,12 @@ export function parseCadence(raw: string | null | undefined, fallback: Cadence =
 // A cadence from a loosely shaped suggestion (e.g. the AI's, which picks a type and may leave out
 // or misjudge the numbers), with defaults filled in for missing numbers. No suggestion, or one that
 // doesn't fit, means no cadence: a habit only recurs when that's clearly what the user wants.
-export function cadenceFromSuggestion(suggestion: { type?: string; timesPerDay?: number; days?: number } | undefined): Cadence {
+export function cadenceFromSuggestion(suggestion: { type?: string; timesPerDay?: number; days?: number; timesPerPeriod?: number } | undefined): Cadence {
   const candidate =
     suggestion?.type === 'daily' ? { type: 'daily', timesPerDay: suggestion.timesPerDay ?? 1 }
     : suggestion?.type === 'everyNDays' ? { type: 'everyNDays', days: suggestion.days ?? 2 }
+    : suggestion?.type === 'calendarWeek' || suggestion?.type === 'calendarMonth'
+      ? { type: suggestion.type, ...((suggestion.timesPerPeriod ?? 1) > 1 ? { times: suggestion.timesPerPeriod } : {}) }
     : { type: suggestion?.type };
   const parsed = cadenceSchema.safeParse(candidate);
   return parsed.success ? parsed.data : NO_CADENCE;
@@ -179,10 +216,33 @@ export function cadenceProgress(
   logDates: Date[],
   user: { timeZone: string; bedtime: string; weekStartsOn: string },
   now = new Date(),
-): { done: number; needed: number } | null {
+): CadenceProgress | null {
+  const { period } = ruleFor(cadence);
   const needed = entriesNeeded(cadence);
-  if (needed <= 1 || !Number.isFinite(needed)) return null;
-  return { done: Math.min(countingToday(cadence, logDates, user, now).counting.length, needed), needed };
+  if (!period || needed <= 1) return null;
+  return { done: Math.min(countingToday(cadence, logDates, user, now).counting.length, needed), needed, period };
+}
+
+// The period a cadence's entries are counted over (see CadenceRule.period), e.g. "weekly"
+export const cadencePeriod = (cadence: Cadence) => ruleFor(cadence).period;
+
+// Whether a cadence is shown counting down to when it's next due (see CadenceRule.countsDown)
+export const cadenceCountsDown = (cadence: Cadence) => ruleFor(cadence).countsDown;
+
+// For a cadence that counts down (see countsDown), how many days until it's next due: positive
+// before then, 0 on the day, negative once overdue. Null for other cadences, or with no entries yet.
+export function daysUntilDue(
+  cadence: Cadence,
+  logDates: Date[],
+  user: { timeZone: string; bedtime: string; weekStartsOn: string },
+  now = new Date(),
+): number | null {
+  if (!ruleFor(cadence).countsDown || logDates.length === 0) return null;
+  const offset = parseBedtimeOffsetMinutes(user.bedtime);
+  const today = toCivilDate(now, user.timeZone, offset);
+  // Due the day after the last day the latest entry counts for
+  const lastCovered = Math.max(...logDates.map(date => cadenceCovers(cadence, toCivilDate(date, user.timeZone, offset), user).to.getTime()));
+  return Math.round((lastCovered - today.getTime()) / DAY_MS) + 1;
 }
 
 export function cadenceStatus(
