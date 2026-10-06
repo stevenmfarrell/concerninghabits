@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { chartProblem, chartRows, periodChoices, chartUnit, defaultCharts, formatChartX, formatPlotted, parseCharts, periodLabel, plottableFields, seriesLabel, seriesPoints } from '@/lib/charts';
+import { chartProblem, chartRows, periodChoices, chartUnit, defaultCharts, drawnAsDots, formatChartX, formatPlotted, formatTick, plottedValue, parseCharts, periodLabel, plottableFields, seriesLabel, seriesPoints, seriesUnit } from '@/lib/charts';
 import type { CalculatedField } from '@/lib/calculatedFields';
 import type { HabitSchema } from '@/lib/types';
 
@@ -36,6 +36,76 @@ describe('charts', () => {
     ], paceField);
     expect(points.map(p => [p.entry.id, p.value])).toEqual([['a', 9], ['c', 10]]);
     expect(formatPlotted(9.5, paceField)).toBe('9:30');
+  });
+  it('plots a comparison as yes or no, with no unit, counting yeses and their share by period', () => {
+    const longRun: CalculatedField = { key: 'longRun', title: '3+ miles', expression: 'distance >= 3', unit: 'miles', format: 'duration' };
+    const [field] = plottableFields(runSchema, [longRun]).slice(-1);
+    expect(field).toEqual({ key: 'longRun', title: '3+ miles', format: 'yesno', expression: 'distance >= 3', inputChoices: {} });
+    expect(formatPlotted(1, field)).toBe('Yes');
+    expect(formatPlotted(0, field)).toBe('No');
+
+    const fields = [field];
+    expect(seriesUnit({ field: 'longRun' }, fields, 'entry')).toEqual({ unit: undefined, format: 'yesno' });
+    expect(seriesUnit({ field: 'longRun' }, fields, 'week')).toEqual({ unit: 'times', format: 'number' });
+    expect(seriesUnit({ field: 'longRun', fn: 'sum' }, fields, 'week')).toEqual({ unit: 'times', format: 'number' });
+    expect(seriesUnit({ field: 'longRun', fn: 'avg' }, fields, 'month')).toEqual({ format: 'percent' });
+    expect(seriesUnit({ field: 'longRun', fn: 'max' }, fields, 'week')).toEqual({ unit: undefined, format: 'yesno' });
+    expect(formatPlotted(0.4, { format: 'percent' })).toBe('40%');
+  });
+
+  it('labels axis ticks by format, marking only the values of a yes-or-no or choice axis', () => {
+    expect(formatTick(9.5, { format: 'duration' })).toBe('9:30');
+    expect(formatTick(1, { format: 'yesno' })).toBe('Yes');
+    expect(formatTick(0, { format: 'yesno' })).toBe('No');
+    expect(formatTick(0.5, { format: 'yesno' })).toBe('');
+    expect(formatTick(1, { format: 'choice', choices: ['Bad', 'Good'] })).toBe('Good');
+    expect(formatTick(0.5, { format: 'choice', choices: ['Bad', 'Good'] })).toBe('');
+    expect(formatTick(0.25, { format: 'percent' })).toBe('25%');
+    expect(formatTick(12, { format: 'number' })).toBe('12');
+  });
+
+  describe('yes-or-no and choice form fields', () => {
+    const moodSchema: HabitSchema = {
+      type: 'object',
+      properties: {
+        mood: { type: 'string', title: 'Mood', enum: ['Bad', 'OK', 'Good'] },
+        outside: { type: 'boolean', title: 'Outside' },
+        notes: { type: 'string', title: 'Notes' },
+        hours: { type: 'number', title: 'Hours' },
+      },
+    };
+    const fields = plottableFields(moodSchema, []);
+    const [mood, outside] = fields;
+
+    it("are plotted in the form's order, a choice by its place in the list", () => {
+      expect(fields.map(f => f.key)).toEqual(['mood', 'outside', 'hours']);
+      expect(mood).toEqual({ key: 'mood', title: 'Mood', format: 'choice', choices: ['Bad', 'OK', 'Good'] });
+      expect(outside).toEqual({ key: 'outside', title: 'Outside', format: 'yesno' });
+      expect(plottedValue(mood, { mood: 'Good' })).toBe(2);
+      expect(plottedValue(mood, { mood: 'Bad' })).toBe(0);
+      expect(plottedValue(mood, { mood: 'Great' })).toBeNull();
+      expect(plottedValue(mood, {})).toBeNull();
+      expect(plottedValue(outside, { outside: false })).toBe(0);
+      expect(plottedValue(outside, {})).toBeNull();
+      expect(formatPlotted(1, mood)).toBe('OK');
+    });
+
+    it('plots a calculated field comparing a choice', () => {
+      const good: CalculatedField = { key: 'good', title: 'Good mood', expression: 'mood >= "OK"', format: 'number' };
+      const [field] = plottableFields(moodSchema, [good]).slice(-1);
+      expect(plottedValue(field, { mood: 'Good' })).toBe(1);
+      expect(plottedValue(field, { mood: 'Bad' })).toBe(0);
+    });
+
+    it('are drawn as dots by entry, and a choice can only be counted by period', () => {
+      expect(drawnAsDots({ period: 'entry', series: [{ field: 'mood' }] }, fields)).toBe(true);
+      expect(drawnAsDots({ period: 'entry', series: [{ field: 'outside' }] }, fields)).toBe(true);
+      expect(drawnAsDots({ period: 'entry', series: [{ field: 'hours' }] }, fields)).toBe(false);
+      expect(drawnAsDots({ period: 'week', series: [{ field: 'outside', fn: 'sum' }] }, fields)).toBe(false);
+      expect(chartProblem({ period: 'week', series: [{ field: 'mood', fn: 'count' }] }, fields)).toBeNull();
+      expect(chartProblem({ period: 'week', series: [{ field: 'mood', fn: 'avg' }] }, fields)).toMatch(/can only be counted/);
+      expect(chartProblem({ period: 'entry', series: [{ field: 'mood' }] }, fields)).toBeNull();
+    });
   });
 });
 

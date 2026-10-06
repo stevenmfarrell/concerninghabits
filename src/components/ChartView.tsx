@@ -3,8 +3,7 @@
 import { useEffect, useId, useMemo, useRef } from 'react';
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import type { Person } from '@/lib/userColors';
-import { formatDuration } from '@/lib/format';
-import { chartUnit, formatChartX, formatPlotted, seriesLabel, seriesUnit, type ChartRow, type ChartShape, type PlottableField } from '@/lib/charts';
+import { chartUnit, formatChartX, formatPlotted, formatTick, isCategorical, seriesLabel, seriesUnit, type ChartRow, type ChartShape, type PlottableField } from '@/lib/charts';
 
 // The theme's colors (see globals.css), as CSS variables so the chart follows light and dark mode.
 // Series take the chart colors in order, never cycled (a chart has at most three).
@@ -110,21 +109,42 @@ export default function ChartView({ spec, kind, rows, fields, timeZone, people, 
   // tall. Panels keep the same x axis, hidden but for the last, so they line up, and hover together.
   const plot = (indices: number[], plotHeight: number, showXAxis: boolean) => {
     const unit = separate ? seriesUnit(series[indices[0]], fields, period) : chartUnit(spec, fields);
+    // Yes or no, or a choice, by entry is a dot per entry at its value, with no line or bar: there's
+    // nothing between one value and the next
+    const dots = byEntry && isCategorical(unit.format);
+    const plotKind = dots ? 'line' : kind;
     // Totals and counts start from zero, as bars do; other lines fit their values
-    const fromZero = kind === 'bar' || (!byEntry && indices.every(i => series[i].fn === 'sum' || series[i].fn === 'count'));
-    const margin = { ...MARGIN, bottom: showXAxis ? 5 : 0 };
-    const yAxis = (
+    const fromZero = plotKind === 'bar' || (!byEntry && indices.every(i => series[i].fn === 'sum' || series[i].fn === 'count'));
+    // Yes or no, or a choice, has a mark for each of its values (No, then Yes; or the choices in the
+    // form's order, up from the bottom), padded so dots on the first and last aren't cut off, and an
+    // axis wide enough for the longest. A share of entries runs from 0 to 1.
+    const values = unit.format === 'yesno' ? ['No', 'Yes'] : unit.format === 'choice' ? unit.choices ?? [] : null;
+    // A number axis tucks into the chart's left edge; labels in words get all their width
+    const margin = { ...MARGIN, left: values ? 0 : MARGIN.left, bottom: showXAxis ? 5 : 0 };
+    const yAxis = values ? (
       <YAxis
-        domain={fromZero ? [0, 'auto'] : ['auto', 'auto']}
+        domain={[0, Math.max(1, values.length - 1)]}
+        ticks={values.map((_, i) => i)}
+        interval={0}
+        padding={{ top: 8, bottom: 8 }}
+        width={Math.min(120, 12 + 7 * Math.max(...values.map(v => v.length)))}
         axisLine={false}
         tickLine={false}
         tick={CHART_TICK}
-        tickFormatter={tick => (unit.format === 'duration' ? formatDuration(Number(tick)) : String(tick))}
+        tickFormatter={tick => formatTick(Number(tick), unit)}
+      />
+    ) : (
+      <YAxis
+        domain={unit.format === 'percent' ? [0, 1] : fromZero ? [0, 'auto'] : ['auto', 'auto']}
+        axisLine={false}
+        tickLine={false}
+        tick={CHART_TICK}
+        tickFormatter={tick => formatTick(Number(tick), unit)}
       />
     );
     const tooltip = (
       <Tooltip
-        cursor={kind === 'bar' ? { fill: 'var(--surface-muted)' } : false}
+        cursor={plotKind === 'bar' ? { fill: 'var(--surface-muted)' } : false}
         contentStyle={TOOLTIP_STYLE}
         labelStyle={TOOLTIP_LABEL_STYLE}
         itemStyle={TOOLTIP_ITEM_STYLE}
@@ -144,7 +164,7 @@ export default function ChartView({ spec, kind, rows, fields, timeZone, people, 
     return (
       <div style={{ height: plotHeight }} className="w-full">
         <ResponsiveContainer width="100%" height="100%">
-          {kind === 'bar' ? (
+          {plotKind === 'bar' ? (
             <BarChart {...common}>
               {grid}
               <XAxis
@@ -220,13 +240,13 @@ export default function ChartView({ spec, kind, rows, fields, timeZone, people, 
                     // break the line; the dots show where the values are
                     connectNulls
                     // On a shared habit the line goes neutral so each point's person color stands out
-                    stroke={byPerson ? 'var(--line-strong)' : color}
+                    stroke={dots ? 'none' : byPerson ? 'var(--line-strong)' : color}
                     strokeWidth={3}
                     dot={byPerson
                       ? ({ cx, cy, index, payload }) => (
                           <circle key={index} cx={cx} cy={cy} r={4} fill={payload.fill} onClick={() => payload.logId && onPointClick?.(payload.logId)} />
                         )
-                      : showDots ? { r: 4, fill: color, strokeWidth: 0 } : false}
+                      : showDots || dots ? { r: 4, fill: color, strokeWidth: 0 } : false}
                     activeDot={byPerson
                       ? ({ cx, cy, payload }) => (
                           <circle cx={cx} cy={cy} r={6} fill={payload.fill} stroke="var(--surface)" strokeWidth={2} onClick={() => payload.logId && onPointClick?.(payload.logId)} />

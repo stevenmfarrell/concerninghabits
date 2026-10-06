@@ -1,51 +1,90 @@
 import { z } from 'zod';
 import type { HabitSchema } from './types';
-import { fieldsOf } from './formFields';
-import { calculatedFieldProblem, calculateValue, type CalculatedField } from './calculatedFields';
-import { formatLogValue } from './format';
+import { fieldsOf, fieldTypeOf } from './formFields';
+import { calculatedFieldProblem, calculateValue, choiceLists, isYesNo, type CalculatedField, type ChoiceLists } from './calculatedFields';
+import { formatDuration, formatLogValue } from './format';
 import { startOfWeek } from './cadence';
 import { toCivilDate } from './timezone';
 
-// A number a habit's entries can be charted by: one of its form's number fields, or a calculated
-// field (see calculatedFields.ts) worked out from them
+// How a plotted value is shown: a number, a duration in minutes (as h:mm:ss), yes or no (1 or 0),
+// one of a list of choices (its index in `choices`), or a share from 0 to 1 (as a percentage, e.g.
+// the average of a yes-or-no field)
+export type ValueFormat = 'number' | 'duration' | 'yesno' | 'choice' | 'percent';
+
+// How a series' values are shown, and what in: see seriesUnit
+export interface ValueUnit {
+  unit?: string;
+  format: ValueFormat;
+  // For 'choice', the choices in the form's order
+  choices?: string[];
+}
+
+// Whether values in a format are one of a few, rather than an amount: yes or no, or a choice. By
+// entry these are drawn as dots without a line, since there's nothing between one value and the next.
+export function isCategorical(format: ValueFormat) {
+  return format === 'yesno' || format === 'choice';
+}
+
+// Whether a chart, as shown, is of categorical values (see isCategorical) by entry, so drawn as dots
+export function drawnAsDots(spec: ChartShape, fields: PlottableField[]) {
+  return spec.period === 'entry' && spec.series.every(s => isCategorical(seriesUnit(s, fields, spec.period).format));
+}
+
+// Something a habit's entries can be charted by: one of its form's number, yes-or-no or choice
+// fields, or a calculated field (see calculatedFields.ts) worked out from them, which may be yes or no
 export interface PlottableField {
   key: string;
   title: string;
   unit?: string;
-  format: 'number' | 'duration';
-  // Set for a calculated field: its formula, as stored
+  format: 'number' | 'duration' | 'yesno' | 'choice';
+  // For a choice field, its choices in the form's order
+  choices?: string[];
+  // Set for a calculated field: its formula, as stored, and the form's choice fields' choices, which
+  // it may compare with (see calculatedFields.ts)
   expression?: string;
+  inputChoices?: ChoiceLists;
 }
 
-// The habit's plottable fields: the form's number fields in the form's order, then its calculated
-// fields. A calculated field that doesn't work with the form as it is (see calculatedFieldProblem)
-// is left out, since it has no values to plot.
+// The habit's plottable fields: the form's number, yes-or-no and choice fields in the form's order,
+// then its calculated fields. A calculated field that doesn't work with the form as it is (see
+// calculatedFieldProblem) is left out, since it has no values to plot.
 export function plottableFields(schema: HabitSchema, calculatedFields: CalculatedField[]): PlottableField[] {
-  const formFields = Object.entries(fieldsOf(schema))
-    .filter(([, field]) => field.type === 'number' || field.type === 'integer')
-    .map(([key, field]): PlottableField => ({
-      key,
-      title: field.title || key,
-      unit: field['x-unit'],
-      format: field['x-widget'] === 'duration' ? 'duration' : 'number',
-    }));
+  const formFields = Object.entries(fieldsOf(schema)).flatMap(([key, field]): PlottableField[] => {
+    const title = field.title || key;
+    if (field.type === 'number' || field.type === 'integer') {
+      return [{ key, title, unit: field['x-unit'], format: field['x-widget'] === 'duration' ? 'duration' : 'number' }];
+    }
+    if (field.type === 'boolean') return [{ key, title, format: 'yesno' }];
+    if (fieldTypeOf(field) === 'choice' && field.enum!.length > 0) return [{ key, title, format: 'choice', choices: field.enum!.map(String) }];
+    return [];
+  });
+  const inputChoices = choiceLists(schema);
   const calculated = calculatedFields
     .filter(field => !calculatedFieldProblem(field, schema))
-    .map(({ key, title, unit, format, expression }): PlottableField => ({ key, title, unit, format, expression }));
+    .map(({ key, title, unit, format, expression }): PlottableField =>
+      isYesNo(expression) ? { key, title, format: 'yesno', expression, inputChoices } : { key, title, unit, format, expression, inputChoices });
   return [...formFields, ...calculated];
 }
 
 // A plottable field's value for one entry, or null when the entry has none
 export function plottedValue(field: PlottableField, payload: Record<string, unknown>): number | null {
   if (field.expression !== undefined) {
-    return calculateValue(field.expression, payload);
+    return calculateValue(field.expression, payload, field.inputChoices);
   }
   const value = payload[field.key];
+  if (field.format === 'yesno') return typeof value === 'boolean' ? (value ? 1 : 0) : null;
+  if (field.format === 'choice') {
+    const index = field.choices!.indexOf(String(value));
+    return value === undefined || value === null || index < 0 ? null : index;
+  }
   return typeof value === 'number' ? value : null;
 }
 
-// A plotted value as text, e.g. "3.1 miles" or "9:30"
-export function formatPlotted(value: unknown, field: Pick<PlottableField, 'unit' | 'format'> | undefined) {
+// A plotted value as text, e.g. "3.1 miles", "9:30", "Yes", "Good" or "40%"
+export function formatPlotted(value: unknown, field: ValueUnit | undefined) {
+  if (typeof value === 'number' && field?.format === 'yesno') return value ? 'Yes' : 'No';
+  if (typeof value === 'number' && field?.format === 'choice') return field.choices?.[value] ?? '';
+  if (typeof value === 'number' && field?.format === 'percent') return `${Math.round(value * 100)}%`;
   return formatLogValue(value, field && { 'x-widget': field.format === 'duration' ? 'duration' : undefined, 'x-unit': field.unit });
 }
 
@@ -149,11 +188,30 @@ export function parseCharts(raw: string | null | undefined): SavedChart[] {
   }
 }
 
-// The unit and format a series' values are in: its field's, or entries when it counts them
-export function seriesUnit(series: ChartSeries, fields: PlottableField[], period: ChartPeriod) {
-  if (series.field === null || (period !== 'entry' && series.fn === 'count')) return { unit: 'entries', format: 'number' as const };
+// The unit and format a series' values are in: its field's, or entries when it counts them. A
+// yes-or-no field's total is how many entries were yes, and its average the share that were. A
+// choice field can only be counted by period (see chartProblem).
+export function seriesUnit(series: ChartSeries, fields: PlottableField[], period: ChartPeriod): ValueUnit {
+  if (series.field === null || (period !== 'entry' && series.fn === 'count')) return { unit: 'entries', format: 'number' };
   const field = fields.find(f => f.key === series.field);
-  return { unit: field?.unit, format: field?.format ?? ('number' as const) };
+  if (field?.format === 'yesno' && period !== 'entry') {
+    // A field's own chart doesn't say how to combine, and is totalled (see seriesPoints)
+    const fn = series.fn ?? 'sum';
+    if (fn === 'sum') return { unit: 'times', format: 'number' };
+    if (fn === 'avg') return { format: 'percent' };
+  }
+  if (field?.format === 'choice') return { format: 'choice', choices: field.choices };
+  return { unit: field?.unit, format: field?.format ?? 'number' };
+}
+
+// A value on a chart's axis, e.g. "9:30", "Yes", "Good" or "40%". A yes-or-no or choice axis only
+// labels its values, not the space between them.
+export function formatTick(tick: number, unit: ValueUnit) {
+  if (unit.format === 'duration') return formatDuration(tick);
+  if (unit.format === 'yesno') return tick === 1 ? 'Yes' : tick === 0 ? 'No' : '';
+  if (unit.format === 'choice') return Number.isInteger(tick) ? unit.choices?.[tick] ?? '' : '';
+  if (unit.format === 'percent') return `${Math.round(tick * 100)}%`;
+  return String(tick);
 }
 
 // The unit and format a chart's values are in (on a shared axis its series all share one; see
@@ -170,6 +228,8 @@ export function chartProblem(spec: ChartShape, fields: PlottableField[]): string
     if (byEntry && series.field === null) return 'Counting entries needs a day, week or month to count them in';
     if (!byEntry && !series.fn) return 'Say how each period\'s entries combine, e.g. a total or an average';
     if (series.field === null && series.fn !== 'count') return 'Entries themselves can only be counted';
+    const field = fields.find(f => f.key === series.field);
+    if (field?.format === 'choice' && series.fn && series.fn !== 'count') return `${field.title} is one of a list, so it can only be counted`;
   }
   const keys = spec.series.map(s => `${s.field}:${byEntry ? '' : s.fn}`);
   if (new Set(keys).size !== keys.length) {

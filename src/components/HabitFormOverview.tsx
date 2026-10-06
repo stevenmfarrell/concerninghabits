@@ -10,7 +10,7 @@ import { Button } from './ui/Button';
 import { HABIT_FORM_WIDGETS, habitFormUiSchema, type HabitFormProperties } from './widgets/habitForm';
 import type { HabitSchema } from '@/lib/types';
 import { describeField, fieldsOf } from '@/lib/formFields';
-import { calculatedFieldProblem, describeExpression, type CalculatedField } from '@/lib/calculatedFields';
+import { calculatedFieldProblem, describeExpression, isYesNo, type CalculatedField } from '@/lib/calculatedFields';
 
 // The habit's form in the editor: its fields as rows of plain text, in a pane's list (see Pane). With
 // `onEditField`, each field is a button to change it, and `onAddField` adds a last row for a new one.
@@ -134,7 +134,7 @@ export function CalculatedFieldsOverview({ fields, schema, onEdit, onAdd }: {
               <span className="flex-1 min-w-0 text-sm text-danger-ink truncate" title={problem}>{problem}</span>
             ) : (
               <span className="flex-1 min-w-0 text-sm text-ink-muted truncate">
-                = {describeExpression(field.expression, schema)}{field.unit ? ` · ${field.unit}` : ''}
+                {isYesNo(field.expression) ? 'Yes when' : '='} {describeExpression(field.expression, schema)}{field.unit && !isYesNo(field.expression) ? ` · ${field.unit}` : ''}
               </span>
             )}
           </>

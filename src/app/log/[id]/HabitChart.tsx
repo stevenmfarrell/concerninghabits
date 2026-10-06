@@ -6,7 +6,7 @@ import { BarChart2, Calculator, ChevronDown, LineChart as LineChartIcon, Pencil,
 import { useRouter, useSearchParams } from 'next/navigation';
 import toast from 'react-hot-toast';
 import type { HabitSchema } from '@/lib/types';
-import { chartProblem, chartRows, periodChoiceId, periodChoices, seriesPoints, type ChartContext, type ChartEntry, type ChartSpec, type PlottableField } from '@/lib/charts';
+import { chartProblem, chartRows, drawnAsDots, periodChoiceId, periodChoices, seriesPoints, type ChartContext, type ChartEntry, type ChartSpec, type PlottableField } from '@/lib/charts';
 import type { CalculatedField } from '@/lib/calculatedFields';
 import { deleteCalculatedField, deleteChart, saveCalculatedField, saveChart } from '@/app/actions/db';
 import type { ChartDraft } from '@/app/actions/habit';
@@ -269,7 +269,8 @@ export default function HabitChart({
             <span className="text-sm font-medium text-ink-muted truncate">{chartLabel(chart)}</span>
           )}
 
-          {chart && (
+          {/* Dots, for yes or no or a choice by entry, are neither bars nor a line */}
+          {shown && !drawnAsDots(shown, fields) && (
             <SegmentedControl
               label="Chart type"
               options={CHART_TYPE_OPTIONS}

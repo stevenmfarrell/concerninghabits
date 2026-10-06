@@ -10,7 +10,7 @@ import { Button } from './ui/Button';
 import { INPUT_SM } from './ui/Input';
 import { SegmentedControl } from './ui/SegmentedControl';
 import { generateCalculatedField } from '@/app/actions/habit';
-import { calculatedFieldProblem, describeExpression, isFormulaInput, type CalculatedField } from '@/lib/calculatedFields';
+import { calculatedFieldProblem, choiceLists, describeExpression, isFormulaInput, isYesNo, type CalculatedField } from '@/lib/calculatedFields';
 import { formatPlotted, seriesPoints, type ChartEntry, type PlottableField } from '@/lib/charts';
 import { fieldsOf } from '@/lib/formFields';
 import type { HabitSchema } from '@/lib/types';
@@ -49,6 +49,8 @@ export default function CalculatedFieldSheet({ schema, initial, entries = [], do
   const hasFormula = draft.expression.trim() !== '';
   const formulaProblem = hasFormula ? calculatedFieldProblem(draft, schema) : null;
   const problem = !draft.title.trim() ? 'Give it a name' : !hasFormula ? 'Write a formula' : formulaProblem;
+  // A comparison gives yes or no, which has no unit or format to choose
+  const yesNo = !formulaProblem && isYesNo(draft.expression);
   const busy = generating || saving;
 
   const handleAsk = async (request: string) => {
@@ -83,7 +85,7 @@ export default function CalculatedFieldSheet({ schema, initial, entries = [], do
     <BottomSheet title={initial ? 'Edit calculated field' : 'New calculated field'} onClose={onClose}>
       <div className="space-y-5">
         {inputs.length === 0 ? (
-          <p className="text-sm text-ink-muted">Calculated fields are worked out from a habit&apos;s number or yes-or-no fields, and this habit has none yet.</p>
+          <p className="text-sm text-ink-muted">Calculated fields are worked out from a habit&apos;s number, yes-or-no or choice fields, and this habit has none yet.</p>
         ) : (
           <>
             {/* Asking AI, set apart from the fields it fills in below */}
@@ -119,7 +121,13 @@ export default function CalculatedFieldSheet({ schema, initial, entries = [], do
               className="space-y-5"
               onSubmit={e => {
                 e.preventDefault();
-                if (!problem && !busy) run(() => onDone({ ...draft, title: draft.title.trim(), expression: draft.expression.trim(), unit: draft.unit?.trim() || undefined }));
+                if (!problem && !busy) run(() => onDone({
+                  ...draft,
+                  title: draft.title.trim(),
+                  expression: draft.expression.trim(),
+                  unit: yesNo ? undefined : draft.unit?.trim() || undefined,
+                  format: yesNo ? 'number' : draft.format,
+                }));
               }}
             >
               <label className="block space-y-1.5">
@@ -154,7 +162,7 @@ export default function CalculatedFieldSheet({ schema, initial, entries = [], do
                 {formulaProblem ? (
                   <p className="text-xs text-danger-ink">{formulaProblem}</p>
                 ) : hasFormula ? (
-                  <p className="text-xs text-ink-muted">= {describeExpression(draft.expression, schema)}</p>
+                  <p className="text-xs text-ink-muted">{yesNo ? 'Yes when' : '='} {describeExpression(draft.expression, schema)}</p>
                 ) : null}
                 {/* The fields a formula can use, by key, to tap into it */}
                 <div className="flex flex-wrap gap-1.5 pt-1">
@@ -170,38 +178,42 @@ export default function CalculatedFieldSheet({ schema, initial, entries = [], do
                       {key}
                     </button>
                   ))}
-                  <span className="text-xs text-ink-subtle self-center">with + − * / ( )</span>
+                  <span className="text-xs text-ink-subtle self-center">with + − * / ( ), or for yes or no, compare with == != &lt; &gt; &lt;= &gt;= (a choice with one of its own, in quotes: == &quot;Good&quot;) and combine with and, or, not</span>
                 </div>
               </div>
 
-              <div className="flex gap-3">
-                <label className="flex-1 min-w-0 space-y-1.5">
-                  <span className="block text-sm font-medium text-ink-secondary">Unit <span className="font-normal text-ink-subtle">(optional)</span></span>
-                  <input
-                    type="text"
-                    className={INPUT_SM}
-                    value={draft.unit ?? ''}
-                    onChange={e => set({ unit: e.target.value })}
-                    placeholder='e.g. "min/mile"'
-                    autoComplete="off"
-                    data-1p-ignore
-                    disabled={busy}
-                  />
-                </label>
-                <div className="flex-1 min-w-0 space-y-1.5">
-                  <span className="block text-sm font-medium text-ink-secondary">Show as</span>
-                  {/* Two choices, so segments rather than a dropdown. A time is worked out in minutes and shown as m:ss. */}
-                  <SegmentedControl
-                    size="md"
-                    label="Show as"
-                    options={FORMAT_OPTIONS}
-                    value={draft.format}
-                    onChange={format => set({ format })}
-                  />
+              {yesNo ? (
+                <p className="text-sm text-ink-muted">A yes-or-no formula shows <span className="font-medium text-ink-secondary">Yes</span> or <span className="font-medium text-ink-secondary">No</span> for each entry. Charted by day, week or month, its total is how many were yes, and its average the share that were.</p>
+              ) : (
+                <div className="flex gap-3">
+                  <label className="flex-1 min-w-0 space-y-1.5">
+                    <span className="block text-sm font-medium text-ink-secondary">Unit <span className="font-normal text-ink-subtle">(optional)</span></span>
+                    <input
+                      type="text"
+                      className={INPUT_SM}
+                      value={draft.unit ?? ''}
+                      onChange={e => set({ unit: e.target.value })}
+                      placeholder='e.g. "min/mile"'
+                      autoComplete="off"
+                      data-1p-ignore
+                      disabled={busy}
+                    />
+                  </label>
+                  <div className="flex-1 min-w-0 space-y-1.5">
+                    <span className="block text-sm font-medium text-ink-secondary">Show as</span>
+                    {/* Two choices, so segments rather than a dropdown. A time is worked out in minutes and shown as m:ss. */}
+                    <SegmentedControl
+                      size="md"
+                      label="Show as"
+                      options={FORMAT_OPTIONS}
+                      value={draft.format}
+                      onChange={format => set({ format })}
+                    />
+                  </div>
                 </div>
-              </div>
+              )}
 
-              {hasFormula && !formulaProblem && <Preview field={draft} entries={entries} />}
+              {hasFormula && !formulaProblem && <Preview field={draft} schema={schema} entries={entries} />}
 
               <div className={`flex items-center gap-3 ${onRemove ? 'justify-between' : 'justify-end'}`}>
                 {onRemove && (
@@ -224,11 +236,13 @@ export default function CalculatedFieldSheet({ schema, initial, entries = [], do
 }
 
 // The field's values over the latest entries, as a small line, with the latest value
-function Preview({ field, entries }: { field: FieldDraft; entries: ChartEntry[] }) {
-  const plotted: PlottableField = useMemo(
-    () => ({ key: '__preview', title: field.title, unit: field.unit?.trim() || undefined, format: field.format, expression: field.expression }),
-    [field.title, field.unit, field.format, field.expression],
-  );
+function Preview({ field, schema, entries }: { field: FieldDraft; schema: HabitSchema; entries: ChartEntry[] }) {
+  const plotted: PlottableField = useMemo(() => {
+    const inputChoices = choiceLists(schema);
+    return isYesNo(field.expression)
+      ? { key: '__preview', title: field.title, format: 'yesno', expression: field.expression, inputChoices }
+      : { key: '__preview', title: field.title, unit: field.unit?.trim() || undefined, format: field.format, expression: field.expression, inputChoices };
+  }, [field.title, field.unit, field.format, field.expression, schema]);
   const points = useMemo(() => seriesPoints(entries, plotted).slice(-PREVIEW_ENTRIES), [entries, plotted]);
 
   if (entries.length === 0) return null;
@@ -246,7 +260,7 @@ function Preview({ field, entries }: { field: FieldDraft; entries: ChartEntry[] 
       <div className="h-24 rounded-lg bg-surface-subtle px-2 py-2">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={points} margin={{ top: 4, right: 4, left: 4, bottom: 4 }}>
-            <YAxis hide domain={['auto', 'auto']} />
+            <YAxis hide domain={plotted.format === 'yesno' ? [0, 1] : ['auto', 'auto']} />
             <Tooltip
               cursor={false}
               contentStyle={{ backgroundColor: 'var(--surface)', borderRadius: '8px', border: '1px solid var(--line)', fontSize: 12 }}
@@ -256,7 +270,8 @@ function Preview({ field, entries }: { field: FieldDraft; entries: ChartEntry[] 
               }}
               formatter={(value: unknown) => [formatPlotted(value, plotted), field.title || 'Value']}
             />
-            <Line type="monotone" dataKey="value" stroke="var(--accent)" strokeWidth={2} dot={{ r: 3, fill: 'var(--accent)', strokeWidth: 0 }} isAnimationActive={false} />
+            {/* Yes or no is a dot per entry, with nothing between one and the next */}
+            <Line type="monotone" dataKey="value" stroke={plotted.format === 'yesno' ? 'none' : 'var(--accent)'} strokeWidth={2} dot={{ r: 3, fill: 'var(--accent)', strokeWidth: 0 }} isAnimationActive={false} />
           </LineChart>
         </ResponsiveContainer>
       </div>

@@ -12,7 +12,7 @@ import { IconButton } from './ui/IconButton';
 import { INPUT_SM } from './ui/Input';
 import { SegmentedControl } from './ui/SegmentedControl';
 import { generateChart, type ChartDraft } from '@/app/actions/habit';
-import { describeExpression, type CalculatedField } from '@/lib/calculatedFields';
+import { describeExpression, isYesNo, type CalculatedField } from '@/lib/calculatedFields';
 import {
   AGGREGATE_LABELS,
   AGGREGATES,
@@ -125,6 +125,11 @@ export default function ChartSheet({ habitId, schema, calculatedFields, initial,
     ...(byEntry ? [] : [{ id: ENTRIES_OPTION, label: 'Entries (a count)' }]),
   ];
   const fnOptions = AGGREGATES.map(fn => ({ id: fn, label: fn === 'count' ? 'Count' : AGGREGATE_LABELS[fn] }));
+  // Entries, and a choice field (one of a list), can only be counted
+  const countedOnly = (field: string | null) => field === null || fields.find(f => f.key === field)?.format === 'choice';
+  // A field's series as picked: counted when it can only be, and a total when it no longer has to be
+  const seriesFor = (field: string, from?: ChartDraft['series'][number]) =>
+    countedOnly(field) ? { field, fn: 'count' as const } : { field, ...(!from || countedOnly(from.field) ? { fn: 'sum' as const } : {}) };
 
   return (
     <BottomSheet title={initial ? 'Edit chart' : 'New chart'} onClose={onClose}>
@@ -185,7 +190,7 @@ export default function ChartSheet({ habitId, schema, calculatedFields, initial,
                   <li key={field.key} className="flex items-center gap-3 pl-3 pr-1 py-1.5 text-sm">
                     <span className="font-medium text-ink shrink-0">{field.title}</span>
                     <span className="flex-1 min-w-0 truncate text-ink-muted">
-                      = {describeExpression(field.expression, schema)}{field.unit ? ` · ${field.unit}` : ''}
+                      {isYesNo(field.expression) ? 'Yes when' : '='} {describeExpression(field.expression, schema)}{field.unit && !isYesNo(field.expression) ? ` · ${field.unit}` : ''}
                     </span>
                     <IconButton
                       size="sm"
@@ -246,7 +251,7 @@ export default function ChartSheet({ habitId, schema, calculatedFields, initial,
                       size="sm"
                       value={series.fn}
                       onChange={fn => setSeries(i, { fn: fn as Aggregate })}
-                      options={series.field === null ? fnOptions.filter(o => o.id === 'count') : fnOptions}
+                      options={countedOnly(series.field) ? fnOptions.filter(o => o.id === 'count') : fnOptions}
                       disabled={busy}
                     />
                   </div>
@@ -254,7 +259,7 @@ export default function ChartSheet({ habitId, schema, calculatedFields, initial,
                     <Select
                       size="sm"
                       value={series.field ?? ENTRIES_OPTION}
-                      onChange={id => setSeries(i, id === ENTRIES_OPTION ? { field: null, fn: 'count' } : { field: id, ...(series.field === null ? { fn: 'sum' as const } : {}) })}
+                      onChange={id => setSeries(i, id === ENTRIES_OPTION ? { field: null, fn: 'count' } : seriesFor(id, series))}
                       options={fieldOptions}
                       placeholder="Pick a field"
                       disabled={busy}
@@ -282,7 +287,7 @@ export default function ChartSheet({ habitId, schema, calculatedFields, initial,
             {draft.series.length < MAX_SERIES && (
               <button
                 type="button"
-                onClick={() => set({ series: [...draft.series, fields[0] ? { field: fields[0].key, fn: 'sum' } : { field: null, fn: 'count' }] })}
+                onClick={() => set({ series: [...draft.series, fields[0] ? { fn: 'sum', ...seriesFor(fields[0].key) } : { field: null, fn: 'count' }] })}
                 disabled={busy}
                 className="flex items-center gap-2 py-1 text-sm font-medium text-accent-ink-strong"
               >

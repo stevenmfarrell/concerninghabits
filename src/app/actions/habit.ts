@@ -12,7 +12,7 @@ import { getDefaultUser, getCategories, getHabit, getLoggableHabits, logHabitEve
 import { buildCategoryChoices } from '@/lib/categoryChoices';
 import type { HabitSchema } from '@/lib/types';
 import { CADENCE_TYPES, cadenceFromSuggestion } from '@/lib/cadence';
-import { calculatedFieldProblem, calculatedFieldSchema, isFormulaInput, parseCalculatedFields, type CalculatedField } from '@/lib/calculatedFields';
+import { calculatedFieldProblem, calculatedFieldSchema, isFormulaInput, isYesNo, parseCalculatedFields, type CalculatedField } from '@/lib/calculatedFields';
 import { AGGREGATES, chartProblem, MAX_ROLLING_DAYS, MAX_SERIES, plottableFields, type SavedChart } from '@/lib/charts';
 import { fieldsOf } from '@/lib/formFields';
 
@@ -330,6 +330,8 @@ ${JSON.stringify(inputs, null, 2)}
 
 Write the formula using only those keys, numbers, + - * / and parentheses. No functions, no other names.
 Durations are stored as total minutes, so e.g. a pace in minutes per mile is \`duration / distance\`, and a speed in miles per hour is \`distance / (duration / 60)\`.
+For a yes-or-no question about each entry (e.g. "did I run at least 3 miles", "was my pace under 9 minutes"), compare values with == != <= >= < >, e.g. \`distance >= 3\` or \`duration / distance < 9\`, and combine yes-or-no values with and, or and not, written as in Python, e.g. \`distance >= 3 and not treadmill\`; a chain like \`3 <= distance < 6\` works as in Python. The result is then shown as Yes or No, so leave unit "" and set format 'number'.
+A choice field (one of a list) can only be compared with one of its own choices, in double quotes, exactly as listed: \`mood == "Good"\`. < > <= >= follow the list's order, so \`mood >= "Good"\` is Good or any choice after it in the list. Use that for a yes-or-no question about a choice, e.g. "was I happy" when the choices run from sad to happy.
 Set format to 'duration' only when the result is itself a length of time in minutes (e.g. a pace in minutes per mile), so it's shown as m:ss; otherwise 'number'.
 Give the unit the result is in, e.g. "min/mile", "mph", "lbs". The user prefers the ${user.unitSystem} measurement system when converting.
 A calculated field works on one entry at a time. If the user asks for something across several entries (a total or average per week, a count, a streak, a change since last time), or something the fields can't give, set possible to false and say why in reason, briefly, in plain words to the user.
@@ -338,7 +340,7 @@ ${current ? `The user is changing this existing calculated field: ${JSON.stringi
   const outputSchema = z.object({
     possible: z.boolean().describe('Whether a value from each single entry can give what the user asked for'),
     reason: z.string().optional().describe("When not possible: why, in a short sentence to the user"),
-    title: z.string().describe('A short name for the value, e.g. "Pace", "Speed", "Total volume"'),
+    title: z.string().describe('A short name for the value, e.g. "Pace", "Speed", "Total volume", or for a yes-or-no field what yes means, e.g. "3+ miles"'),
     expression: z.string().describe('The formula, e.g. "duration / distance"'),
     unit: z.string().describe('The unit of the result, e.g. "min/mile", or "" for none'),
     format: z.enum(['number', 'duration']),
@@ -359,8 +361,9 @@ ${current ? `The user is changing this existing calculated field: ${JSON.stringi
       const field = {
         title: object.title.trim(),
         expression: object.expression.trim(),
-        unit: object.unit.trim() || undefined,
-        format: object.format,
+        // Yes or no has no unit or format, whatever the AI gave it
+        unit: isYesNo(object.expression) ? undefined : object.unit.trim() || undefined,
+        format: isYesNo(object.expression) ? 'number' as const : object.format,
       };
       const problem = field.title ? calculatedFieldProblem(field, schema) : 'The field needs a name';
       if (!problem) return { success: true, field };
@@ -383,7 +386,12 @@ function describeFormulaInputs(schema: HabitSchema) {
     .map(([key, field]) => ({
       key,
       title: field.title || key,
-      type: field['x-widget'] === 'duration' ? 'duration, in minutes' : field.type === 'boolean' ? 'yes or no, as 1 or 0' : field.type === 'integer' ? 'whole number' : 'number',
+      type: field['x-widget'] === 'duration' ? 'duration, in minutes'
+        : field.type === 'boolean' ? 'yes or no, as 1 or 0'
+        : field.type === 'integer' ? 'whole number'
+        : field.type === 'number' ? 'number'
+        : 'choice, one of a list (only compared with one of its choices)',
+      ...(Array.isArray(field.enum) ? { choices: field.enum.map(String) } : {}),
       ...(field['x-unit'] ? { unit: field['x-unit'] } : {}),
     }));
 }
@@ -418,17 +426,17 @@ Every entry is one time the user did the habit, so "how many", "how often", "tim
 
 The form's fields (keys are used in formulas):
 ${JSON.stringify(inputs, null, 2)}
-
+${inputs.some(f => f.choices) ? `\nA series of a choice field can only use fn 'count' (the entries with a choice). For how often a choice, or a range of them, came up (e.g. "how often I'm happy"), define a yes-or-no calculated field comparing it with one of its choices and chart that field's sum (how many times) or avg (the share of entries).\n` : ''}
 Calculated fields the habit already has, worked out from each entry's form fields:
-${JSON.stringify(existingCalculated.map(({ key, title, expression, unit, format }) => ({ key, title, expression, unit, format })), null, 2)}
+${JSON.stringify(existingCalculated.map(({ key, title, expression, unit, format }) => (isYesNo(expression) ? { key, title, expression, type: 'yes or no, as 1 or 0' } : { key, title, expression, unit, format })), null, 2)}
 
 A chart has:
 - period: what it's shown by at first. Anyone viewing it can switch it between entries, days, weeks and months, so pick the one that best fits the request. 'entry' is a point per entry, the entry's own value. 'day', 'week' or 'month' combine each calendar period's entries into one point. 'rolling' is a point per day combining the entries of the last rollingDays days (2 to ${MAX_ROLLING_DAYS}), e.g. a 7-day average.
-- series: 1 to ${MAX_SERIES} lines on the same axis. Each takes a field (a form field key or calculated field key that's a number, or 'entries' to count entries) and fn: how a period's entries combine (${AGGREGATES.join(', ')}), whichever period it's shown by, so give it even for period 'entry'. Amounts that add up, like a distance, a time spent or pages read, use sum; rates, ratios and readings, like a pace, a speed, a weight or a mood, use avg (or min or max when asked for the lowest or highest). 'count' counts the entries (with a value for the field). 'entries' can only use fn 'count'.
+- series: 1 to ${MAX_SERIES} lines on the same axis. Each takes a field (a form field key or calculated field key that's a number, or 'entries' to count entries) and fn: how a period's entries combine (${AGGREGATES.join(', ')}), whichever period it's shown by, so give it even for period 'entry'. Amounts that add up, like a distance, a time spent or pages read, use sum; rates, ratios and readings, like a pace, a speed, a weight or a mood, use avg (or min or max when asked for the lowest or highest). 'count' counts the entries (with a value for the field). 'entries' can only use fn 'count'. A yes-or-no field's sum is how many entries were yes, and its avg the share that were (shown as a percentage), e.g. for "how often did I run 3+ miles".
 - kind: 'bar' suits totals and counts per period; 'line' suits values over time, averages and rolling values.
 - layout, for 2 or more series: 'shared' draws them on one axis, for comparing like amounts directly (e.g. total distance and longest run). 'separate' stacks a panel per series over the same dates, each scaled to its own values: use it when the series sit in different ranges that would flatten each other's movement on one axis (e.g. systolic around 120 and diastolic around 80 blood pressure), or are in different units (e.g. distance and time; a count's unit is entries). Series in different units must be 'separate'.
 
-When the chart needs a value worked out from each entry that isn't a form field or an existing calculated field (e.g. a pace or a speed), define it in newCalculatedFields: a new key (not one already used), a short title, a formula using only form field keys, numbers, + - * / and parentheses, its unit, and format 'duration' only when the result is a length of time in minutes (shown as m:ss). Durations are stored as total minutes, so a pace in minutes per mile is \`duration / distance\` and a speed in mph is \`distance / (duration / 60)\`. Reuse an existing calculated field when one fits. The user prefers the ${user.unitSystem} measurement system.
+When the chart needs a value worked out from each entry that isn't a form field or an existing calculated field (e.g. a pace or a speed), define it in newCalculatedFields: a new key (not one already used), a short title, a formula using only form field keys, numbers, + - * / and parentheses (or, for a yes-or-no value, comparisons with == != <= >= < > combined with and, or and not as in Python, e.g. \`distance >= 3 and not treadmill\`, with unit ""), its unit, and format 'duration' only when the result is a length of time in minutes (shown as m:ss). Durations are stored as total minutes, so a pace in minutes per mile is \`duration / distance\` and a speed in mph is \`distance / (duration / 60)\`. A choice field (one of a list) can only be compared with one of its own choices, in double quotes, exactly as listed: \`mood == "Good"\`. < > <= >= follow the list's order, so \`mood >= "Good"\` is Good or any choice after it in the list. Use that for a yes-or-no question about a choice, e.g. "was I happy" when the choices run from sad to happy. Reuse an existing calculated field when one fits. The user prefers the ${user.unitSystem} measurement system.
 Give the chart a short title naming what it shows, without the period, since the viewer can change that: e.g. "Miles run", "Pace", "Runs", "Distance and longest run". Never "per week", "weekly", "daily", "monthly", "each month" or the like in the title.
 If what the user asks for can't be charted from these fields, set possible to false and say why in reason, briefly, to the user.
 ${current ? `The user is changing this chart: ${JSON.stringify(current.chart)}. Keep what they don't ask to change.` : ''}`;
@@ -500,8 +508,9 @@ function toChartDraft(object: {
     key: f.key.trim(),
     title: f.title.trim(),
     expression: f.expression.trim(),
-    unit: f.unit.trim() || undefined,
-    format: f.format,
+    // Yes or no has no unit or format, whatever the AI gave it
+    unit: isYesNo(f.expression) ? undefined : f.unit.trim() || undefined,
+    format: isYesNo(f.expression) ? 'number' as const : f.format,
   }));
   return { chart, newCalculatedFields };
 }
