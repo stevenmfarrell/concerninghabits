@@ -173,11 +173,15 @@ const SortableHabitItem = ({ habit, status, user, people, isOverlay, isReorderin
   const isShared = isSharedHabit(habit.userId, habit.memberCount ?? 1, logs);
   const cadence = parseCadence(habit.cadence);
 
+  // An Agenda row (with a ring) is roomier side to side and less so top to bottom, with a larger name.
+  // A row held to log elsewhere is as tall as a category row.
+  const spacing = status ? 'py-3 gap-4 sm:gap-5' : `${holdToLog ? 'py-4 min-h-18' : 'py-3'} gap-2 sm:gap-4`;
+
   // `logButton` is the Log button for the row's end, and `logger` the row's logger for its ring,
   // given by HoldToLog when the row is held to log
   const renderContent = (logButton?: React.ReactNode, logger?: HabitLogger) => (
     <div className={`flex items-stretch transition-colors group/row relative ${isDragging ? 'opacity-30 bg-surface-muted' : 'bg-surface hover:bg-surface-subtle'} ${isOverlay ? 'shadow-2xl scale-[1.02] z-50 rounded-xl' : ''}`}>
-      <div className={`flex-1 flex items-center ${holdToLog ? 'py-4 min-h-18' : 'py-3'} ${nested ? 'pane-inset-nested' : 'pane-inset'} gap-2 sm:gap-4 min-w-0`}>
+      <div className={`flex-1 flex items-center ${spacing} ${nested ? 'pane-inset-nested' : 'pane-inset'} min-w-0`}>
         {isReordering && (
           <div {...attributes} {...listeners} className="relative z-10 cursor-grab active:cursor-grabbing text-ink-faint hover:text-ink-muted touch-none shrink-0 p-1 -ml-2">
             <GripVertical className="w-5 h-5" />
@@ -196,7 +200,7 @@ const SortableHabitItem = ({ habit, status, user, people, isOverlay, isReorderin
         <Link href={`/log/${habit.id}`} className="flex-1 flex flex-wrap sm:flex-nowrap items-center gap-3 sm:gap-6 min-w-0 w-full justify-between after:absolute after:inset-0">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <h3 className="text-base sm:text-lg font-semibold text-ink group-hover/row:text-accent-ink transition-colors truncate">
+              <h3 className={`${status ? 'text-lg' : 'text-base sm:text-lg'} font-semibold text-ink group-hover/row:text-accent-ink transition-colors truncate`}>
                 {habit.name}
               </h3>
               {/* The ring has no room for the Log button's form icon, so it's here: a tap on the ring

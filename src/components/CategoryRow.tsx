@@ -27,8 +27,7 @@ export interface CategoryRowProps {
   // the ring that logs it on the Agenda page (see LogRing); its icon goes before its name instead
   leading?: ReactNode;
   // Lines its status and calendar up with habit rows' in a list alongside them (the Agenda page),
-  // by leaving out its chevron, since those rows end at their calendars, and matching their roomier
-  // spacing
+  // by leaving out its chevron, since those rows end at their calendars, and matching their spacing
   alignWithHabitRows?: boolean;
   // A button at the row's end, beside its link rather than in it, e.g. the button to pick a habit in
   // it to log, shown only with a mouse (see pointerOnly); it takes the chevron's place there
@@ -41,7 +40,7 @@ export interface CategoryRowProps {
 // A category as a row in a list, linking to its page: its name and a line about it, and a
 // calendar of its recent entries (shaded by its cadence, or by how many of its habits were logged)
 export default function CategoryRow({ href, name, icon, subtitle, showCadence, dates, habitCount, cadence, status, leading, alignWithHabitRows, action, bedtime, weekStartsOn, timeZone }: CategoryRowProps) {
-  const padding = `pane-inset ${alignWithHabitRows ? 'py-4' : 'py-3'}`;
+  const padding = 'pane-inset py-3';
   const buttons = action || leading;
   return (
     // Without buttons, the whole row is the link, padding and all. With them, the padding is the
@@ -49,7 +48,7 @@ export default function CategoryRow({ href, name, icon, subtitle, showCadence, d
     // percentage padding is of the parent's width, which the other side's padding has narrowed).
     // With them, the link is stretched over the row (its ::after) so the padding is still
     // tappable, with the buttons above it
-    <div className={`relative flex items-center gap-2 sm:gap-4 transition-colors bg-surface hover:bg-surface-subtle group/row ${buttons ? padding : ''}`}>
+    <div className={`relative flex items-center ${leading ? 'gap-4 sm:gap-5' : 'gap-2 sm:gap-4'} transition-colors bg-surface hover:bg-surface-subtle group/row ${buttons ? padding : ''}`}>
       {leading}
       <Link href={href} className={`flex-1 flex items-center gap-3 sm:gap-6 min-w-0 ${buttons ? 'after:absolute after:inset-0' : padding}`}>
         <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -59,8 +58,7 @@ export default function CategoryRow({ href, name, icon, subtitle, showCadence, d
             </div>
           )}
           <div className="flex-1 min-w-0">
-            {/* With a habit row's sizes when beside them */}
-            <h3 className={`${alignWithHabitRows ? 'text-base sm:text-lg' : 'text-lg'} font-semibold text-ink group-hover/row:text-category-ink-strong transition-colors flex items-center gap-1.5 min-w-0`}>
+            <h3 className={`text-lg font-semibold text-ink group-hover/row:text-category-ink-strong transition-colors flex items-center gap-1.5 min-w-0`}>
               {leading && <Icon name={icon} className="w-4 h-4 shrink-0 text-category-ink" />}
               <span className="truncate">{name}</span>
             </h3>

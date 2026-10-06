@@ -40,7 +40,7 @@ export default function LogRing({ status, pending = 0, label, onClick, disabled,
       // height: as a block, the ring would sit on a line of text, taller than it, and ride high.
       className="relative z-10 shrink-0 flex rounded-full group/ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 disabled:opacity-50"
     >
-      <ProgressRing progress={{ done, needed: status.needed }} showCount={several} color={color} />
+      <ProgressRing progress={{ done, needed: status.needed }} showCount={several} size={44} color={color} />
       {!several && done === 0 && !disabled && (
         <span className={`absolute inset-0 flex items-center justify-center opacity-0 pointer-fine:group-hover/ring:opacity-40 transition-opacity ${color === 'blue' ? 'text-category-ink' : 'text-accent-ink'}`} aria-hidden="true">
           <Check className="w-5 h-5" strokeWidth={3} />
