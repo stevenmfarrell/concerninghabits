@@ -1,6 +1,13 @@
 import { Check } from 'lucide-react';
 
 const FILL = { emerald: 'stroke-accent', blue: 'stroke-category' } as const;
+// The ring's empty track, over a pale fill of the same hue, so it reads as a button rather than a
+// chart, deepening on hover when it's in a button (`group/ring`, see LogRing). Lighter on the light
+// theme, where a column of them is otherwise loud; the dark theme's tints are subdued already.
+const TRACK = {
+  emerald: 'stroke-accent-line fill-accent-soft/50 dark:stroke-accent-line-strong dark:fill-accent-soft pointer-fine:group-hover/ring:fill-accent-soft-strong',
+  blue: 'stroke-category-soft-strong fill-category-soft/50 dark:stroke-category-line dark:fill-category-soft pointer-fine:group-hover/ring:fill-category-soft-strong',
+} as const;
 const DONE = { emerald: 'bg-accent text-on-accent', blue: 'bg-category text-on-category' } as const;
 
 // How far along something is, as a ring filling up around how many are done, e.g. "2" (of 3, which
@@ -24,7 +31,7 @@ export default function ProgressRing({ progress, showCount = true, size = 40, co
     <div className="relative inline-flex items-center justify-center" style={{ width: size, height: size }}>
       {/* Starts at the top and fills clockwise */}
       <svg width={size} height={size} className="-rotate-90">
-        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" strokeWidth={stroke} className="stroke-surface-strong" />
+        <circle cx={size / 2} cy={size / 2} r={radius} strokeWidth={stroke} className={`${TRACK[color]} transition-[fill]`} />
         <circle
           cx={size / 2}
           cy={size / 2}
