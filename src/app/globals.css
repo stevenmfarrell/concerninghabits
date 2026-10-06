@@ -236,8 +236,8 @@
   --color-category-done: var(--category-done);
   --color-category-period: var(--category-period);
 
-  --font-sans: var(--font-geist-sans), "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-geist-sans), var(--font-noto-emoji);
+  --font-mono: var(--font-geist-mono), var(--font-noto-emoji);
   --animate-highlight-fade: highlight-fade 2s ease-out forwards;
   --animate-voice-bar: voice-bar 1.1s ease-in-out infinite;
 }

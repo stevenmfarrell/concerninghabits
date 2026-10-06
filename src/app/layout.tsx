@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Noto_Emoji } from "next/font/google";
 import SWUnregister from "../components/SWUnregister";
 import TimeZoneSync from "../components/TimeZoneSync";
 import ThemeSync from "../components/ThemeSync";
@@ -21,6 +21,12 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+// Black-and-white emoji, so they sit in with the line icons (see src/lib/emoji.ts)
+const notoEmoji = Noto_Emoji({
+  variable: "--font-noto-emoji",
+  subsets: ["emoji"],
+});
+
 
 export const metadata: Metadata = {
   title: "Concerning Habits",
@@ -40,7 +46,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${notoEmoji.variable} h-full antialiased`}
       // THEME_SCRIPT sets data-theme before React hydrates
       suppressHydrationWarning
     >

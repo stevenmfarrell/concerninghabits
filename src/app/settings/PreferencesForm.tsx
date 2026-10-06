@@ -87,7 +87,7 @@ export default function PreferencesForm({ initialBedtime, initialWeekStartsOn, i
           <PaneField
             label="Emoji Style"
             htmlFor="emojiModifier"
-            description={<>Ask AI for specific emoji styles, such as skin tone or gender (e.g. &quot;medium-light skin tone, female&quot;).</>}
+            description={<>Ask AI for specific emoji styles, such as skin tone or gender (e.g. &quot;medium-light skin tone, female&quot;). Emoji are shown in black and white, so skin tones won&apos;t appear.</>}
           >
             <input
               id="emojiModifier"
