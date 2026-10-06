@@ -1,12 +1,19 @@
-import type { CadenceProgress } from '@/lib/cadence';
+import { Check } from 'lucide-react';
 
 const FILL = { emerald: 'stroke-accent', blue: 'stroke-category' } as const;
+const DONE = { emerald: 'bg-accent text-on-accent', blue: 'bg-category text-on-category' } as const;
 
-// How far along something is, as a ring filling up around its count, e.g. "2/3", and an optional
-// short `sublabel` under the count, e.g. "W" for the period it's counted over, for a habit (or, in
-// blue, a category) that takes several entries a day, week, or month. It's described for screen
-// readers by RowStatus.
-export default function ProgressRing({ progress, sublabel, size = 40, color = 'emerald' }: { progress: CadenceProgress; sublabel?: string; size?: number; color?: keyof typeof FILL }) {
+// How far along something is, as a ring filling up around how many are done, e.g. "2" (of 3, which
+// the ring's fill shows), for a habit (or, in blue, a category) that takes several entries a day,
+// week, or month. Without `showCount` it's
+// an empty circle until done, like a checkbox, for one done with a single entry. Once done it's a
+// filled disc with a check. It's described for screen readers by whatever holds it (see LogRing).
+export default function ProgressRing({ progress, showCount = true, size = 40, color = 'emerald' }: {
+  progress: { done: number; needed: number };
+  showCount?: boolean;
+  size?: number;
+  color?: keyof typeof FILL;
+}) {
   const { done, needed } = progress;
   const stroke = 4;
   const radius = (size - stroke) / 2;
@@ -32,10 +39,16 @@ export default function ProgressRing({ progress, sublabel, size = 40, color = 'e
           visibility={done > 0 ? 'visible' : 'hidden'}
         />
       </svg>
-      {/* With a sublabel, the count sits just above the center and the sublabel low in the ring, apart
-          from it: centered together as a pair, a single letter under the wider count looked high */}
-      <span className={`absolute text-[11px] leading-none font-semibold text-ink-secondary tabular-nums ${sublabel ? '-translate-y-[3px]' : ''}`}>{done}/{needed}</span>
-      {sublabel && <span className="absolute bottom-[6px] text-[10px] leading-none font-medium text-ink-muted">{sublabel}</span>}
+      {/* Done: the disc fills in over the full ring */}
+      <span
+        className={`absolute inset-0 rounded-full flex items-center justify-center transition-[opacity,scale] duration-300 ${DONE[color]} ${fraction >= 1 ? 'opacity-100 scale-100' : 'opacity-0 scale-75'}`}
+        aria-hidden="true"
+      >
+        <Check className="w-5 h-5" strokeWidth={3} />
+      </span>
+      {showCount && fraction < 1 && (
+        <span className="absolute text-sm leading-none font-semibold text-ink-secondary tabular-nums">{done}</span>
+      )}
     </div>
   );
 }

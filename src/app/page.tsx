@@ -7,7 +7,7 @@ import SmartEntry from './SmartEntry';
 import EmptyState from '@/components/EmptyState';
 import CategoryRow from '@/components/CategoryRow';
 import CategoryHoldToLog from '@/components/logging/CategoryHoldToLog';
-import { POINTER_ONLY } from '@/components/logging/pointerOnly';
+import LogRing from '@/components/logging/LogRing';
 import { LinkButton } from '@/components/ui/Button';
 import PageHeader from '@/components/PageHeader';
 import { PANE_INSET, PaneHeading, PanePage, PaneSection } from '@/components/Pane';
@@ -17,8 +17,8 @@ import type { HabitListItem, SessionUser } from '@/lib/types';
 import { DEFAULT_CATEGORY_ICON } from '@/lib/constants';
 
 // Categories with a cadence that are due or upcoming, as rows linking to their pages, each with a
-// calendar of its recent entries like a habit's. Pressing and holding one (or its button, with a
-// mouse) picks a habit in it to log. `tipFirst` shows the tip about the hold under the first row.
+// calendar of its recent entries like a habit's. Tapping its ring, or pressing and holding the row,
+// picks a habit in it to log. Each has its cadence under its name, as habit rows here do. `tipFirst` shows the tip about the hold under the first row.
 function CategoryList({ categories, user, tipFirst = false }: { categories: DueCategory[]; user: SessionUser; tipFirst?: boolean }) {
   return (
     <div className="divide-y divide-line-subtle flex flex-col">
@@ -27,6 +27,7 @@ function CategoryList({ categories, user, tipFirst = false }: { categories: DueC
           href: `/categories/${category.id}`,
           name: category.name,
           icon: category.icon || DEFAULT_CATEGORY_ICON,
+          showCadence: true,
           dates: category.habits.flatMap(h => (h.logs ?? []).map(l => l.createdAt)),
           habitCount: category.habits.length,
           cadence: category.cadence,
@@ -36,11 +37,10 @@ function CategoryList({ categories, user, tipFirst = false }: { categories: DueC
           weekStartsOn: user.weekStartsOn,
           timeZone: user.timeZone,
         };
-        // A category with no habits has nothing to log, so just room for a Log button, to line its
-        // calendar up with the others'
+        // A category with no habits has nothing to log, so its ring can't be tapped
         return category.habits.length > 0
           ? <CategoryHoldToLog key={category.id} category={category} row={row} tip={i === 0 && tipFirst} />
-          : <CategoryRow key={category.id} {...row} action={<span className={`${POINTER_ONLY} w-16`} aria-hidden="true" />} />;
+          : <CategoryRow key={category.id} {...row} leading={category.status && <LogRing status={category.status} label="No habits to log" color="blue" disabled />} />;
       })}
     </div>
   );
@@ -130,7 +130,7 @@ export default async function AgendaPage() {
         <>
           <PaneSection title="Due Now" empty={!anyDue && 'Nothing due right now.'}>
             {dueHabits.length > 0 && (
-              <SortableHabitList items={dueHabits} statuses={statuses} user={user} people={people} dndContextId="due-habits" bare holdToLog tipFirst={tipAt('dueHabits')} />
+              <SortableHabitList items={dueHabits} statuses={statuses} user={user} people={people} dndContextId="due-habits" bare holdToLog showCadence tipFirst={tipAt('dueHabits')} />
             )}
             {dueCategories.length > 0 && (
               <CategoryList categories={dueCategories} user={user} tipFirst={tipAt('dueCategories')} />
@@ -148,6 +148,7 @@ export default async function AgendaPage() {
                   dndContextId="upcoming-habits"
                   bare
                   holdToLog
+                  showCadence
                   tipFirst={tipAt('upcomingHabits')}
                 />
               )}

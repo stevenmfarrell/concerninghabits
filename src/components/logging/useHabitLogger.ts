@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { startTransition, useEffect, useOptimistic, useState } from 'react';
 import toast from 'react-hot-toast';
 import { logHabitEvent } from '@/app/actions/db';
 import { showLoggedToast } from '@/components/LoggedToast';
@@ -42,6 +42,9 @@ export function useHabitLogger(habit: LoggableHabit, { initialData = {}, onLogge
   // Whether the sheet opened straight to picking a custom date, e.g. to backdate a habit with no form
   const [sheetBackdate, setSheetBackdate] = useState(false);
   const [busy, setBusy] = useState(false);
+  // Entries logged here that the page doesn't show yet: each counts from when it's logged until the
+  // page is rendered again with it, e.g. to fill an Agenda row's ring at once (see LogRing)
+  const [pending, addPending] = useOptimistic(0, (count, added: number) => count + added);
 
   // An undone entry for this habit, put back in the sheet to correct and log again: one waiting
   // when this Log button appears (e.g. a habit restored from the Agenda page's done chips), or
@@ -61,8 +64,17 @@ export function useHabitLogger(habit: LoggableHabit, { initialData = {}, onLogge
   const isComplete = (data: Record<string, unknown>) =>
     (schema.required ?? []).every(field => data[field] !== undefined && data[field] !== null && data[field] !== '');
 
-  const logEntry = async (data: Record<string, unknown>, { createdAt, source, toastId }: LogOptions = {}) => {
-    if (busy) return;
+  // In a transition, so `pending` lasts until the page has been rendered again with the entry
+  const logEntry = (data: Record<string, unknown>, options: LogOptions = {}) => new Promise<void>(resolve => {
+    if (busy) return resolve();
+    startTransition(async () => {
+      addPending(1);
+      await record(data, options);
+      resolve();
+    });
+  });
+
+  const record = async (data: Record<string, unknown>, { createdAt, source, toastId }: LogOptions) => {
     setBusy(true);
     try {
       const log = await logHabitEvent(habit.id, data, createdAt);
@@ -121,6 +133,7 @@ export function useHabitLogger(habit: LoggableHabit, { initialData = {}, onLogge
     openSheet,
     closeSheet: () => setSheetOpen(false),
     busy,
+    pending,
     isComplete,
     logEntry,
     start,

@@ -1,4 +1,4 @@
-import { cadencePeriod, cadenceProgress, cadenceStatus, daysUntilDue, NO_CADENCE, parseCadence, type Cadence, type CadenceProgress, type ProgressPeriod } from './cadence';
+import { cadenceProgress, cadenceStatus, daysUntilDue, NO_CADENCE, parseCadence, type Cadence, type ProgressPeriod } from './cadence';
 import type { HabitListItem } from './types';
 
 // A category as the Agenda page needs it: its cadence, and its habits with their recent entries
@@ -16,15 +16,19 @@ export interface CategoryTree extends CategoryWithHabits {
   children: CategoryWithHabits[];
 }
 
-// What a due or upcoming row shows beside its calendar (see RowStatus): how far along it is toward
-// done, for a cadence that takes several entries (e.g. 2 of 3 this week); the period, for one done
-// with a single entry a day, week, or month (e.g. "weekly"); or how many days until it's due, for
-// one that counts down (every N days) and has been done before: positive before then, 0 on the
-// day, negative once overdue
-export type RowStatus =
-  | ({ kind: 'progress' } & CadenceProgress)
-  | { kind: 'period'; period: ProgressPeriod }
-  | { kind: 'dueIn'; days: number };
+// What a due or upcoming row shows: how far along it is toward done, in the ring that logs it (see
+// LogRing), and for one that counts down, how far off it's due, beside its calendar (see RowStatus)
+export interface RowStatus {
+  // Entries counting toward done for now, of how many it takes, e.g. 2 of 3 this week. One done with
+  // a single entry is 0 of 1, since a row that's done isn't shown.
+  done: number;
+  needed: number;
+  // The period they're counted over, for one that takes several entries a day, week, or month
+  period: ProgressPeriod | null;
+  // For one that counts down (every N days) and has been done before, days until it's due:
+  // positive before then, 0 on the day, negative once overdue
+  dueInDays: number | null;
+}
 
 // A category with a cadence on the Agenda page, with every habit counting toward it (a top-level
 // category's subcategories' habits included), for its calendar
@@ -34,7 +38,7 @@ export interface DueCategory {
   icon: string | null;
   cadence: Cadence;
   habits: HabitListItem[];
-  // When it's due or upcoming, what its row shows beside its calendar
+  // When it's due or upcoming, what its row shows
   status?: RowStatus;
   // The same habits laid out to pick one to log from (see pickerSections)
   sections: PickerSection[];
@@ -106,14 +110,10 @@ export function buildDueList(
 
   const list: DueList = { dueHabits: [], upcomingHabits: [], doneHabits: [], dueCategories: [], upcomingCategories: [], doneCategories: [], statuses: {} };
 
-  const rowStatus = (cadence: Cadence, dates: Date[]): RowStatus | undefined => {
-    const progress = cadenceProgress(cadence, dates, user, now);
-    if (progress) return { kind: 'progress', ...progress };
-    const period = cadencePeriod(cadence);
-    if (period) return { kind: 'period', period };
-    const days = daysUntilDue(cadence, dates, user, now);
-    return days === null ? undefined : { kind: 'dueIn', days };
-  };
+  const rowStatus = (cadence: Cadence, dates: Date[]): RowStatus => ({
+    ...(cadenceProgress(cadence, dates, user, now) ?? { done: 0, needed: 1, period: null }),
+    dueInDays: daysUntilDue(cadence, dates, user, now),
+  });
 
   const addHabit = (habit: HabitListItem) => {
     const cadence = parseCadence(habit.cadence);
@@ -126,8 +126,7 @@ export function buildDueList(
     }
     if (status.state === 'due') list.dueHabits.push(habit);
     else list.upcomingHabits.push({ item: habit, dueInDays: status.dueInDays });
-    const shown = rowStatus(cadence, dates);
-    if (shown) list.statuses[habit.id] = shown;
+    list.statuses[habit.id] = rowStatus(cadence, dates);
   };
 
   // `children` is a top-level category's subcategories, whose habits count toward it too

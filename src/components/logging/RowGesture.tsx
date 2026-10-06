@@ -61,9 +61,11 @@ function subscribeTip(listener: () => void) {
 // Vertical drags are left to scrolling. On a touch screen, a hidden button labeled `label` does the
 // same without the gesture, e.g. with a screen reader or a keyboard: focused from the keyboard, it
 // rings the row (and slides a swipeable one partway open). With a mouse, the row has a visible
-// button for this instead (see pointerOnly). `tip` shows a tip under the row about the hold, on a
-// touch screen, until the viewer uses a row's gesture or taps it away (e.g. on a page's first row).
-export default function RowGesture({ onCommit, label, icon, tone = 'accent', hold = true, swipe = false, busy = false, tip = false, children }: {
+// button for this instead (see pointerOnly). `hiddenButton={false}` leaves the hidden one out, for a
+// row with a visible button of its own that does the same everywhere (e.g. an Agenda row's ring, see
+// LogRing). `tip` shows a tip under the row about the hold, on a touch screen, until the viewer uses
+// a row's gesture or taps it away (e.g. on a page's first row).
+export default function RowGesture({ onCommit, label, icon, tone = 'accent', hold = true, swipe = false, busy = false, hiddenButton = true, tip = false, children }: {
   onCommit: () => unknown;
   label: string;
   // What a swipe reveals
@@ -72,6 +74,7 @@ export default function RowGesture({ onCommit, label, icon, tone = 'accent', hol
   hold?: boolean;
   swipe?: boolean;
   busy?: boolean;
+  hiddenButton?: boolean;
   tip?: boolean;
   children: ReactNode;
 }) {
@@ -267,16 +270,18 @@ export default function RowGesture({ onCommit, label, icon, tone = 'accent', hol
           {/* A ring around the row while the hidden button has the keyboard's focus */}
           {focused && !swipe && <div className="absolute inset-0 pointer-events-none ring-2 ring-inset ring-focus" aria-hidden="true" />}
         </div>
-        <button
-          type="button"
-          className="sr-only pointer-fine:hidden"
-          onClick={onCommit}
-          disabled={busy}
-          onFocus={e => setFocused(e.currentTarget.matches(':focus-visible'))}
-          onBlur={() => setFocused(false)}
-        >
-          {label}
-        </button>
+        {hiddenButton && (
+          <button
+            type="button"
+            className="sr-only pointer-fine:hidden"
+            onClick={onCommit}
+            disabled={busy}
+            onFocus={e => setFocused(e.currentTarget.matches(':focus-visible'))}
+            onBlur={() => setFocused(false)}
+          >
+            {label}
+          </button>
+        )}
       </div>
       {tip && !tipDone && hold && (
         // Under the row, pointing up at it, pushing the rows below down rather than covering them
