@@ -15,12 +15,11 @@ import { DEFAULT_CATEGORY_ICON } from '@/lib/constants';
 
 // A category's row, held to pick one of its habits to log. One with no habits has nothing to log, so
 // it's a plain row, with room for the button the others have with a mouse, to line its calendar up.
-// `tip` shows the tip about the hold under it.
-function HoldableCategoryRow({ row, sections, tip }: { row: CategoryRowProps; sections: PickerSection[]; tip: boolean }) {
+function HoldableCategoryRow({ row, sections }: { row: CategoryRowProps; sections: PickerSection[] }) {
   if (sections.length === 0) {
     return <CategoryRow {...row} action={<span className={`${POINTER_ONLY} w-16`} aria-hidden="true" />} />;
   }
-  return <CategoryHoldToLog category={{ name: row.name, icon: row.icon, sections }} row={row} tip={tip} />;
+  return <CategoryHoldToLog category={{ name: row.name, icon: row.icon, sections }} row={row} />;
 }
 
 // Habits: every category (and uncategorized habits) to browse, with recent activity. What's due
@@ -75,11 +74,10 @@ export default async function HabitsPage() {
         }
       >
         {/* Empty categories too, so they can be found and given habits */}
-        {categoryRows.map((cat, i) => (
+        {categoryRows.map(cat => (
           <HoldableCategoryRow
             key={cat.id}
             sections={cat.sections}
-            tip={i === 0}
             row={{
               href: `/categories/${cat.id}`,
               name: cat.name,
@@ -97,7 +95,6 @@ export default async function HabitsPage() {
         {uncategorized.length > 0 && (
           <HoldableCategoryRow
             sections={[{ subcategory: null, habits: uncategorized }]}
-            tip={categoryRows.length === 0}
             row={{
               href: `/categories/${UNCATEGORIZED_ID}`,
               name: 'Uncategorized',

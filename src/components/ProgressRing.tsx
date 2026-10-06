@@ -5,9 +5,9 @@ const DONE = { emerald: 'bg-accent text-on-accent', blue: 'bg-category text-on-c
 
 // How far along something is, as a ring filling up around how many are done, e.g. "2" (of 3, which
 // the ring's fill shows), for a habit (or, in blue, a category) that takes several entries a day,
-// week, or month. Without `showCount` it's
-// an empty circle until done, like a checkbox, for one done with a single entry. Once done it's a
-// filled disc with a check. It's described for screen readers by whatever holds it (see LogRing).
+// week, or month, or an empty circle before the first. Without `showCount` it's an empty circle until
+// done, like a checkbox, for one done with a single entry. Once done it's a filled disc with a
+// check. It's described for screen readers by whatever holds it (see LogRing).
 export default function ProgressRing({ progress, showCount = true, size = 40, color = 'emerald' }: {
   progress: { done: number; needed: number };
   showCount?: boolean;
@@ -46,7 +46,7 @@ export default function ProgressRing({ progress, showCount = true, size = 40, co
       >
         <Check className="w-5 h-5" strokeWidth={3} />
       </span>
-      {showCount && fraction < 1 && (
+      {showCount && done > 0 && fraction < 1 && (
         <span className="absolute text-sm leading-none font-semibold text-ink-secondary tabular-nums">{done}</span>
       )}
     </div>

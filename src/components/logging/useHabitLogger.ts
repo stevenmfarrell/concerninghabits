@@ -6,6 +6,7 @@ import { logHabitEvent } from '@/app/actions/db';
 import { showLoggedToast } from '@/components/LoggedToast';
 import { parseHabitSchema, type HabitFormProperties } from '@/components/widgets/habitForm';
 import { requestReopen, subscribeReopen, takeReopen } from './pendingReopen';
+import type { Leaving } from './zoomAway';
 
 // What logging needs to know about a habit. `aiContext` is the viewer's own notes on it, for
 // voice and photo logging.
@@ -29,9 +30,15 @@ export interface LogOptions {
 // LogEntrySheet) to fill in. Either way it happens in place, confirmed by the logged toast with an
 // Undo. Undoing an entry with a form reopens the sheet with its values, to correct and log again
 // (see pendingReopen).
-export function useHabitLogger(habit: LoggableHabit, { initialData = {}, onLogged }: {
+//
+// `leave` is called as each entry starts logging, in the same transition, and may start the row
+// it's logged from on its way out, when the entry makes it done (see zoomAway): from the moment it's
+// logged, without waiting for the server, and put back if that fails. The page isn't rendered again
+// until it's gone.
+export function useHabitLogger(habit: LoggableHabit, { initialData = {}, onLogged, leave }: {
   initialData?: Record<string, unknown>;
   onLogged?: () => void;
+  leave?: () => Leaving | undefined;
 } = {}) {
   const schema = parseHabitSchema(habit.schema);
   const properties = schema.properties as HabitFormProperties | undefined;
@@ -69,11 +76,15 @@ export function useHabitLogger(habit: LoggableHabit, { initialData = {}, onLogge
     if (busy) return resolve();
     startTransition(async () => {
       addPending(1);
-      await record(data, options);
+      const leaving = leave?.();
+      const logged = await record(data, options);
+      if (!logged) leaving?.cancel();
+      else await leaving?.finished.catch(() => {});
       resolve();
     });
   });
 
+  // Whether it was logged
   const record = async (data: Record<string, unknown>, { createdAt, source, toastId }: LogOptions) => {
     setBusy(true);
     try {
@@ -89,8 +100,10 @@ export function useHabitLogger(habit: LoggableHabit, { initialData = {}, onLogge
       setFormData({});
       setSheetOpen(false);
       onLogged?.();
+      return true;
     } catch (err) {
       toast.error(`Failed to log entry: ${err instanceof Error ? err.message : 'Unknown error'}`, { id: toastId });
+      return false;
     } finally {
       setBusy(false);
     }

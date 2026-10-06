@@ -12,16 +12,18 @@ import type { PickerSection } from '@/lib/dueList';
 import { ClipboardList, Loader2 } from 'lucide-react';
 import LogEntrySheet from './LogEntrySheet';
 import { useHabitLogger, type LoggableHabit } from './useHabitLogger';
+import type { Leaving } from './zoomAway';
 
 // One of the category's habits as a plain chip: a tap logs it the same as its Log button would, at
 // once for a habit with no form, or by opening its entry sheet for one with a form (which a form
 // icon after its name shows)
-function HabitLogChip({ habit, onFormChange, onLogged }: {
+function HabitLogChip({ habit, onFormChange, onLogged, leave }: {
   habit: LoggableHabit;
   onFormChange: (habitId: string, open: boolean) => void;
   onLogged: () => void;
+  leave?: () => Leaving | undefined;
 }) {
-  const logger = useHabitLogger(habit, { onLogged });
+  const logger = useHabitLogger(habit, { onLogged, leave });
 
   useEffect(() => {
     onFormChange(habit.id, logger.sheetOpen);
@@ -54,10 +56,12 @@ function HabitLogChip({ habit, onFormChange, onLogged }: {
 // pickerSections). Picking a habit with a form swaps this dialog for
 // the habit's entry sheet; closing that comes back here, and logging closes both. The chips stay
 // mounted while hidden, since each holds its habit's logger, and it's portaled to <body> so the
-// row it was opened from can't clip or offset it.
-export default function CategoryLogDialog({ category, onClose }: {
+// row it was opened from can't clip or offset it. `leave` sends the category's row away once
+// logging a habit makes it done (see useHabitLogger).
+export default function CategoryLogDialog({ category, onClose, leave }: {
   category: { name: string; icon: string | null; sections: PickerSection[] };
   onClose: () => void;
+  leave?: () => Leaving | undefined;
 }) {
   // The habit whose entry sheet is open in place of this one
   const [formHabitId, setFormHabitId] = useState<string | null>(null);
@@ -90,7 +94,7 @@ export default function CategoryLogDialog({ category, onClose }: {
               <ul className="flex flex-wrap gap-2" aria-label={subcategory?.name ?? 'Habits'}>
                 {habits.map(habit => (
                   <li key={habit.id}>
-                    <HabitLogChip habit={habit} onFormChange={onFormChange} onLogged={onClose} />
+                    <HabitLogChip habit={habit} onFormChange={onFormChange} onLogged={onClose} leave={leave} />
                   </li>
                 ))}
               </ul>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState, useSyncExternalStore, type MouseEvent, type PointerEvent, type ReactNode } from 'react';
+import { useRef, useState, type MouseEvent, type PointerEvent, type ReactNode } from 'react';
 
 // Pressing and holding the row does its action, as a tint fills it from the left: the fill waits
 // HOLD_DELAY ms, so a tap doesn't flash it, then takes HOLD_DURATION ms
@@ -22,33 +22,6 @@ const FLICK_MIN_DISTANCE = 32;
 const AXIS_LOCK = 8;
 // Where a swiped row rests while its action finishes, so the spinner shows behind it
 const BUSY_OFFSET = 80;
-// Set on this device once the viewer has used a row's gesture, or dismissed the tip about it, after
-// which the tip (see `tip`) isn't shown again. Shared by every row, so the tip goes from all of them
-// at once.
-const TIP_DONE_KEY = 'rowGestureTipDone';
-const tipListeners = new Set<() => void>();
-
-function isTipDone() {
-  try {
-    return localStorage.getItem(TIP_DONE_KEY) === '1';
-  } catch {
-    return true;
-  }
-}
-
-function markTipDone() {
-  try {
-    localStorage.setItem(TIP_DONE_KEY, '1');
-  } catch {}
-  tipListeners.forEach(listener => listener());
-}
-
-function subscribeTip(listener: () => void) {
-  tipListeners.add(listener);
-  return () => {
-    tipListeners.delete(listener);
-  };
-}
 
 // A list row with an action done by a gesture, while a tap still follows the row's link:
 // - `hold` (on by default): pressing and holding it fills the row with a tint from the left, emerald
@@ -63,9 +36,8 @@ function subscribeTip(listener: () => void) {
 // rings the row (and slides a swipeable one partway open). With a mouse, the row has a visible
 // button for this instead (see pointerOnly). `hiddenButton={false}` leaves the hidden one out, for a
 // row with a visible button of its own that does the same everywhere (e.g. an Agenda row's ring, see
-// LogRing). `tip` shows a tip under the row about the hold, on a touch screen, until the viewer uses
-// a row's gesture or taps it away (e.g. on a page's first row).
-export default function RowGesture({ onCommit, label, icon, tone = 'accent', hold = true, swipe = false, busy = false, hiddenButton = true, tip = false, children }: {
+// LogRing).
+export default function RowGesture({ onCommit, label, icon, tone = 'accent', hold = true, swipe = false, busy = false, hiddenButton = true, children }: {
   onCommit: () => unknown;
   label: string;
   // What a swipe reveals
@@ -75,7 +47,6 @@ export default function RowGesture({ onCommit, label, icon, tone = 'accent', hol
   swipe?: boolean;
   busy?: boolean;
   hiddenButton?: boolean;
-  tip?: boolean;
   children: ReactNode;
 }) {
   const [offset, setOffset] = useState(0);
@@ -93,8 +64,6 @@ export default function RowGesture({ onCommit, label, icon, tone = 'accent', hol
   const fillRef = useRef<HTMLDivElement>(null);
   // The hold's fill, while the finger is down and it isn't full yet
   const holdAnimation = useRef<Animation | null>(null);
-  // Done when rendered on the server, so the tip only appears once this device's answer is known
-  const tipDone = useSyncExternalStore(subscribeTip, isTipDone, () => true);
 
   const reset = () => {
     gesture.current = null;
@@ -120,7 +89,6 @@ export default function RowGesture({ onCommit, label, icon, tone = 'accent', hol
       slider.setPointerCapture(pointerId);
     } catch {}
     navigator.vibrate?.(15);
-    markTipDone();
     // The tint stays while the action finishes, then drains away
     await onCommit();
     const fade = fillRef.current?.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 250, easing: 'ease-out' });
@@ -207,7 +175,6 @@ export default function RowGesture({ onCommit, label, icon, tone = 'accent', hol
     gesture.current = null;
     setDragging(false);
     setArmed(false);
-    markTipDone();
     // After the click a mouse fires on release, so it can't land on a sheet the action opens (and
     // close it straight away)
     await new Promise(resolve => setTimeout(resolve));
@@ -231,71 +198,56 @@ export default function RowGesture({ onCommit, label, icon, tone = 'accent', hol
   const fillColor = tone === 'category' ? 'bg-category/20' : 'bg-accent/20';
 
   return (
-    // The tip goes below the row, so it's outside the row's clipping
-    <div>
-      <div ref={rowRef} className="relative overflow-hidden">
-        {swipe && (
-          <div className={`absolute inset-0 ${tone === 'category' ? 'bg-category text-on-category' : 'bg-accent text-on-accent'} flex items-center justify-end pane-inset-r`} aria-hidden="true">
-            <span
-              className={`p-2 -m-2 rounded-full transition-transform duration-150 ${focused ? 'ring-2 ring-current' : ''}`}
-              style={{ opacity: busy ? 1 : 0.4 + progress * 0.6, transform: `scale(${armed ? 1.15 : 0.85 + progress * 0.15})` }}
-            >
-              {icon}
-            </span>
-          </div>
-        )}
-        <div
-          className={`relative select-none ${swipe ? 'touch-pan-y' : ''} ${dragging ? '' : 'transition-transform duration-200 ease-out'}`}
-          // No callout on a long press either, iOS's link menu
-          style={{ transform: shownOffset ? `translateX(${shownOffset}px)` : undefined, WebkitTouchCallout: 'none' }}
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-          onPointerCancel={() => {
-            cancelHold();
-            reset();
-          }}
-          onClickCapture={onClickCapture}
-          // Holding a finger on the row is the hold, not a request for the link's menu
-          onContextMenu={e => {
-            if (gesture.current || done.current) e.preventDefault();
-          }}
-          // A mouse drag on the row's link would start the browser's own link drag instead
-          onDragStart={e => e.preventDefault()}
-        >
-          {children}
-          {hold && (
-            <div ref={fillRef} className={`absolute inset-0 pointer-events-none origin-left ${fillColor}`} style={{ transform: 'scaleX(0)' }} aria-hidden="true" />
-          )}
-          {/* A ring around the row while the hidden button has the keyboard's focus */}
-          {focused && !swipe && <div className="absolute inset-0 pointer-events-none ring-2 ring-inset ring-focus" aria-hidden="true" />}
-        </div>
-        {hiddenButton && (
-          <button
-            type="button"
-            className="sr-only pointer-fine:hidden"
-            onClick={onCommit}
-            disabled={busy}
-            onFocus={e => setFocused(e.currentTarget.matches(':focus-visible'))}
-            onBlur={() => setFocused(false)}
+    <div ref={rowRef} className="relative overflow-hidden">
+      {swipe && (
+        <div className={`absolute inset-0 ${tone === 'category' ? 'bg-category text-on-category' : 'bg-accent text-on-accent'} flex items-center justify-end pane-inset-r`} aria-hidden="true">
+          <span
+            className={`p-2 -m-2 rounded-full transition-transform duration-150 ${focused ? 'ring-2 ring-current' : ''}`}
+            style={{ opacity: busy ? 1 : 0.4 + progress * 0.6, transform: `scale(${armed ? 1.15 : 0.85 + progress * 0.15})` }}
           >
-            {label}
-          </button>
+            {icon}
+          </span>
+        </div>
+      )}
+      {/* What a row zooming away slides (see zoomAway) */}
+      <div
+        data-row-content
+        className={`relative select-none ${swipe ? 'touch-pan-y' : ''} ${dragging ? '' : 'transition-transform duration-200 ease-out'}`}
+        // No callout on a long press either, iOS's link menu
+        style={{ transform: shownOffset ? `translateX(${shownOffset}px)` : undefined, WebkitTouchCallout: 'none' }}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={() => {
+          cancelHold();
+          reset();
+        }}
+        onClickCapture={onClickCapture}
+        // Holding a finger on the row is the hold, not a request for the link's menu
+        onContextMenu={e => {
+          if (gesture.current || done.current) e.preventDefault();
+        }}
+        // A mouse drag on the row's link would start the browser's own link drag instead
+        onDragStart={e => e.preventDefault()}
+      >
+        {children}
+        {hold && (
+          <div ref={fillRef} className={`absolute inset-0 pointer-events-none origin-left ${fillColor}`} style={{ transform: 'scaleX(0)' }} aria-hidden="true" />
         )}
+        {/* A ring around the row while the hidden button has the keyboard's focus */}
+        {focused && !swipe && <div className="absolute inset-0 pointer-events-none ring-2 ring-inset ring-focus" aria-hidden="true" />}
       </div>
-      {tip && !tipDone && hold && (
-        // Under the row, pointing up at it, pushing the rows below down rather than covering them
-        <div className="pane-inset pt-1 pb-3 bg-surface pointer-fine:hidden">
-          <button
-            type="button"
-            onClick={markTipDone}
-            className="relative inline-flex items-center gap-2 rounded-xl bg-inverse text-on-inverse text-sm px-3 py-2 animate-in fade-in duration-300"
-          >
-            <span className="absolute -top-1 left-5 w-2.5 h-2.5 rotate-45 bg-inverse" aria-hidden="true" />
-            Press and hold to log
-            <span className="font-semibold">Got it</span>
-          </button>
-        </div>
+      {hiddenButton && (
+        <button
+          type="button"
+          className="sr-only pointer-fine:hidden"
+          onClick={onCommit}
+          disabled={busy}
+          onFocus={e => setFocused(e.currentTarget.matches(':focus-visible'))}
+          onBlur={() => setFocused(false)}
+        >
+          {label}
+        </button>
       )}
     </div>
   );
