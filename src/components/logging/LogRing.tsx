@@ -36,8 +36,9 @@ export default function LogRing({ status, pending = 0, label, onClick, disabled,
       disabled={disabled}
       title={label}
       aria-label={`${label}${progress}`}
-      // Above the row's link, which is stretched over the row
-      className="relative z-10 shrink-0 rounded-full group/ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 disabled:opacity-50"
+      // Above the row's link, which is stretched over the row. Flex, so it's exactly the ring's
+      // height: as a block, the ring would sit on a line of text, taller than it, and ride high.
+      className="relative z-10 shrink-0 flex rounded-full group/ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 disabled:opacity-50"
     >
       <ProgressRing progress={{ done, needed: status.needed }} showCount={several} color={color} />
       {!several && done === 0 && !disabled && (
