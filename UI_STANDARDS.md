@@ -7,7 +7,7 @@ Read this before touching any page under `src/app/` or `src/components/`. It exi
 The app has light and dark themes, so components use the semantic colors defined in `src/app/globals.css`, not a palette's shades. Write `bg-surface text-ink border-line`, not `bg-white text-stone-900 border-stone-200`.
 
 - **Neutrals:** `canvas` (the page) · `surface` (lists, dialogs, menus) · `surface-subtle` / `surface-muted` / `surface-strong` (inputs, hovered rows, tracks, wells, in that order of strength) · `ink` / `ink-secondary` / `ink-muted` / `ink-subtle` / `ink-faint` (text and icons) · `line` / `line-subtle` / `line-strong` (borders and hairlines) · `inverse` / `on-inverse` (a dark fill like a secondary button) · `overlay` · `focus` (focus rings).
-- **Hues:** `accent` (emerald), `category` (blue), `danger` (red) and `warning` (amber), each with a fill (`bg-accent`, with `-hover`, and `-pressed` for a toggled-on button), text on the page (`text-accent-ink`, `-ink-strong`), pale fills (`-soft`, `-soft-strong`) and a matching border (`-line`). Use `text-on-accent` on an accent fill.
+- **Hues:** `accent` (emerald), `category` (blue), `danger` (red) and `warning` (amber), each with a fill (`bg-accent`, with `-hover`, and `-pressed` for a toggled-on button), text on the page (`text-accent-ink`, `-ink-strong`), pale fills (`-soft`, `-soft-strong`) and a matching border (`-line`). Use `text-on-accent` on an accent fill, and `text-on-category` on a category one.
 - `dark:` is there for a genuine one-off. If you need a color that isn't a token, add the token to both themes in `globals.css`.
 - Activity calendars use their own shades, `accent-scale-1`…`4`, `-done` and `-period` (and the same for `category`), so more activity still reads as more in dark mode. They're set in `src/lib/activityShade.ts`.
 - Charts draw from `src/components/ChartView.tsx`. A chart's lines or bars take `--chart-1`, `--chart-2` and `--chart-3` in that order (never cycled; a chart has at most three, on one axis), a set checked for color blindness and contrast in both themes. A chart with more than one gets a legend.
@@ -85,7 +85,7 @@ Icons are lucide's (`lucide-react`). One meaning gets one icon everywhere, so a 
 | Automation (submit URL, Home Assistant) | `Zap` | |
 | Back | `ArrowLeft` | |
 | Drill into a row | `ChevronRight` at the row's end | |
-| Open a page from inside a row that does something else on tap (e.g. a subcategory that expands) | `ArrowRight` | `ExternalLink` (that means leaving the app) |
+| Open a page from inside a row that does something else on tap | `ArrowRight` | `ExternalLink` (that means leaving the app) |
 | Expand or collapse | `ChevronRight`, turning `rotate-90` while open | swapping in a `ChevronDown` |
 | More actions | `MoreVertical` | |
 | Confirm, cancel inline | `Check`, `X` in `IconButton`s, with a `title` and `aria-label` | |
@@ -155,6 +155,7 @@ A page's background is always the body's `stone-50`. Lists sit on white running 
 - `PANE_INSET` (the `pane-inset` utility in `globals.css`) is the horizontal padding for anything that spans the screen. It pads the element so its contents sit in the page's column, with a 1rem gutter (1.5rem from `sm`). Use it on rows, text blocks and section bodies, never a fixed `px-4 sm:px-6`, or the contents drift to the screen's edges on desktop. `pane-inset-l`, `pane-inset-r` and `pane-inset-nested` cover one side, or a row indented under a subcategory.
 - Don't use `pane-inset` on table cells, because percentage padding doesn't size reliably there. A list with columns is flex rows with a fixed-width first column, as the log page's Entries are.
 - Rows are `py-3` with `PANE_INSET` padding. Don't put rows in a `rounded-2xl` card.
+- The whole row is the tap target, padding included. When a row's padding sits outside its link (because the row also holds a button or a drag handle), stretch the link over the row: `relative` on the row, `after:absolute after:inset-0` on the link, and `relative z-10` on the buttons and handles so they stay above it.
 - Without cards to group them, nesting is shown by indenting: a subcategory's habits (`SortableHabitList nested`) line up under the subcategory's name.
 - A form is sections like any other page: settings as rows (`pane-inset py-3`), text inputs in a `PANE_SURFACE` block, and its buttons on the stone below. The habit editor (`src/components/HabitEditor.tsx`) and the New Habit page are the examples.
 - A habit's category and cadence are pills (`CategoryQuickEdit`, `CadenceQuickEdit`), centered on the stone under the header, each opening a small dialog to change it. That holds wherever they appear: the habit's page and the category page save on the spot, while the editor passes `saveLabel="Done"` and only changes its draft. Toasts about a saved change belong to the caller, not the dialog.

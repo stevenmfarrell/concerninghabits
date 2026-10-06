@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import type { ButtonHTMLAttributes, ComponentProps } from 'react';
 
-export type IconButtonVariant = 'default' | 'accent' | 'soft' | 'solid' | 'danger';
+export type IconButtonVariant = 'default' | 'accent' | 'soft' | 'category-soft' | 'solid' | 'danger';
 export type IconButtonEdge = 'left' | 'right' | 'none';
 // `sm` is for a section heading's controls (see PaneHeading), 32px tall with a w-5 icon
 export type IconButtonSize = 'sm' | 'md';
@@ -12,6 +12,9 @@ const VARIANT_CLASSES: Record<IconButtonVariant, string> = {
   // Pale emerald, for an action repeated down a list, e.g. each row's Log button, so a column of
   // them doesn't outweigh the rows themselves
   soft: 'bg-accent-soft text-accent-ink-strong border border-accent-line hover:bg-accent-soft-strong hover:border-accent-line-strong',
+  // Pale blue, the same for something done with a category, e.g. its Agenda row's button to pick a
+  // habit in it to log
+  'category-soft': 'bg-category-soft text-category-ink-strong border border-category-line hover:bg-category-soft-strong',
   // Filled emerald, for a primary action, e.g. sending something typed
   solid: 'bg-accent text-on-accent hover:bg-accent-hover shadow-sm',
   danger: 'text-danger-ink hover:text-danger-ink-strong hover:bg-danger-soft',

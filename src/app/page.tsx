@@ -6,6 +6,8 @@ import { SortableHabitList } from './categories/[id]/SortableLists';
 import SmartEntry from './SmartEntry';
 import EmptyState from '@/components/EmptyState';
 import CategoryRow from '@/components/CategoryRow';
+import CategoryHoldToLog from '@/components/logging/CategoryHoldToLog';
+import { POINTER_ONLY } from '@/components/logging/pointerOnly';
 import { LinkButton } from '@/components/ui/Button';
 import PageHeader from '@/components/PageHeader';
 import { PANE_INSET, PaneHeading, PanePage, PaneSection } from '@/components/Pane';
@@ -14,33 +16,38 @@ import { parseBedtimeOffsetMinutes, toCivilDate } from '@/lib/timezone';
 import type { HabitListItem, SessionUser } from '@/lib/types';
 import { DEFAULT_CATEGORY_ICON } from '@/lib/constants';
 
-// Categories with a cadence that are due or upcoming, as rows linking to their pages (where their
-// habits are, to log one), each with a calendar of its recent entries like a habit's
-function CategoryList({ categories, user }: { categories: DueCategory[]; user: SessionUser }) {
+// Categories with a cadence that are due or upcoming, as rows linking to their pages, each with a
+// calendar of its recent entries like a habit's. Pressing and holding one (or its button, with a
+// mouse) picks a habit in it to log. `tipFirst` shows the tip about the hold under the first row.
+function CategoryList({ categories, user, tipFirst = false }: { categories: DueCategory[]; user: SessionUser; tipFirst?: boolean }) {
   return (
     <div className="divide-y divide-line-subtle flex flex-col">
-      {categories.map(category => (
-        <CategoryRow
-          key={category.id}
-          href={`/categories/${category.id}`}
-          name={category.name}
-          icon={category.icon || DEFAULT_CATEGORY_ICON}
-          dates={category.habits.flatMap(h => (h.logs ?? []).map(l => l.createdAt))}
-          habitCount={category.habits.length}
-          cadence={category.cadence}
-          status={category.status}
-          alignWithHabitRows
-          bedtime={user.bedtime}
-          weekStartsOn={user.weekStartsOn}
-          timeZone={user.timeZone}
-        />
-      ))}
+      {categories.map((category, i) => {
+        const row = {
+          href: `/categories/${category.id}`,
+          name: category.name,
+          icon: category.icon || DEFAULT_CATEGORY_ICON,
+          dates: category.habits.flatMap(h => (h.logs ?? []).map(l => l.createdAt)),
+          habitCount: category.habits.length,
+          cadence: category.cadence,
+          status: category.status,
+          alignWithHabitRows: true,
+          bedtime: user.bedtime,
+          weekStartsOn: user.weekStartsOn,
+          timeZone: user.timeZone,
+        };
+        // A category with no habits has nothing to log, so just room for a Log button, to line its
+        // calendar up with the others'
+        return category.habits.length > 0
+          ? <CategoryHoldToLog key={category.id} category={category} row={row} tip={i === 0 && tipFirst} />
+          : <CategoryRow key={category.id} {...row} action={<span className={`${POINTER_ONLY} w-16`} aria-hidden="true" />} />;
+      })}
     </div>
   );
 }
 
 // What's done for now, as small chips: white, with the check (and border) in the habit's emerald or
-// the category's blue, so they don't look like the rows' Log buttons. They have no Log button, which
+// the category's blue, so they don't look like the rows above. They can't be held to log, which
 // is what keeps something done from being logged twice by accident; each links to its page, where it
 // can still be logged. Links styled as chips, not buttons, so they don't use LinkButton.
 function DoneChips({ habits, categories }: { habits: HabitListItem[]; categories: DueCategory[] }) {
@@ -93,6 +100,11 @@ export default async function AgendaPage() {
   const anyHabits = uncategorized.length > 0 || categories.some(c => c.habits.length > 0 || c.children.some(child => child.habits.length > 0));
 
   // Today in the viewer's time zone, following the same bedtime rule as the calendars
+  // Only the first row on the page has the tip about holding: due habits, then due categories,
+  // upcoming habits and upcoming categories
+  const firstList = dueHabits.length ? 'dueHabits' : dueCategories.length ? 'dueCategories' : upcomingHabits.length ? 'upcomingHabits' : 'upcomingCategories';
+  const tipAt = (list: typeof firstList) => firstList === list;
+
   const today = toCivilDate(new Date(), user.timeZone, parseBedtimeOffsetMinutes(user.bedtime));
 
   return (
@@ -118,10 +130,10 @@ export default async function AgendaPage() {
         <>
           <PaneSection title="Due Now" empty={!anyDue && 'Nothing due right now.'}>
             {dueHabits.length > 0 && (
-              <SortableHabitList items={dueHabits} statuses={statuses} user={user} people={people} dndContextId="due-habits" bare />
+              <SortableHabitList items={dueHabits} statuses={statuses} user={user} people={people} dndContextId="due-habits" bare holdToLog tipFirst={tipAt('dueHabits')} />
             )}
             {dueCategories.length > 0 && (
-              <CategoryList categories={dueCategories} user={user} />
+              <CategoryList categories={dueCategories} user={user} tipFirst={tipAt('dueCategories')} />
             )}
           </PaneSection>
 
@@ -135,10 +147,12 @@ export default async function AgendaPage() {
                   people={people}
                   dndContextId="upcoming-habits"
                   bare
+                  holdToLog
+                  tipFirst={tipAt('upcomingHabits')}
                 />
               )}
               {upcomingCategories.length > 0 && (
-                <CategoryList categories={upcomingCategories.map(u => u.item)} user={user} />
+                <CategoryList categories={upcomingCategories.map(u => u.item)} user={user} tipFirst={tipAt('upcomingCategories')} />
               )}
             </PaneSection>
           )}

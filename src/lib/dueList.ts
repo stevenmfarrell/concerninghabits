@@ -7,6 +7,8 @@ interface CategoryWithHabits {
   name: string;
   icon: string | null;
   cadence: string;
+  // Its place among its parent's direct habits and subcategories, which share one order sequence
+  order?: number | null;
   habits: HabitListItem[];
 }
 
@@ -34,6 +36,37 @@ export interface DueCategory {
   habits: HabitListItem[];
   // When it's due or upcoming, what its row shows beside its calendar
   status?: RowStatus;
+  // The same habits laid out to pick one to log from (see pickerSections)
+  sections: PickerSection[];
+}
+
+// A run of a category's own habits (`subcategory` null), or one subcategory's habits under its name
+export interface PickerSection {
+  subcategory: { id: string; name: string; icon: string | null } | null;
+  habits: HabitListItem[];
+}
+
+// A category's habits as its page orders them, for picking one: its own habits and its subcategories
+// share one order sequence (habits first on ties), so its own habits can come before, between or
+// after the subcategories. Consecutive own habits make one section; a subcategory with no habits
+// makes none.
+export function pickerSections(habits: HabitListItem[], children: CategoryWithHabits[]): PickerSection[] {
+  const items = [
+    ...habits.map(habit => ({ order: habit.order ?? 0, habit, child: null })),
+    ...children.map(child => ({ order: child.order ?? 0, habit: null, child })),
+  ].sort((a, b) => a.order - b.order);
+
+  const sections: PickerSection[] = [];
+  for (const { habit, child } of items) {
+    if (habit) {
+      const last = sections[sections.length - 1];
+      if (last && !last.subcategory) last.habits.push(habit);
+      else sections.push({ subcategory: null, habits: [habit] });
+    } else if (child && child.habits.length > 0) {
+      sections.push({ subcategory: { id: child.id, name: child.name, icon: child.icon }, habits: child.habits });
+    }
+  }
+  return sections;
 }
 
 // Something done for now that's due again soon, in `dueInDays` days
@@ -97,10 +130,13 @@ export function buildDueList(
     if (shown) list.statuses[habit.id] = shown;
   };
 
-  const addCategory = (category: CategoryWithHabits, habits: HabitListItem[]) => {
+  // `children` is a top-level category's subcategories, whose habits count toward it too
+  const addCategory = (category: CategoryWithHabits, children: CategoryWithHabits[] = []) => {
     const cadence = parseCadence(category.cadence, NO_CADENCE);
     if (cadence.type === 'none') return;
-    const item: DueCategory = { id: category.id, name: category.name, icon: category.icon, cadence, habits };
+    const habits = [...category.habits, ...children.flatMap(child => child.habits)];
+    const sections = pickerSections(category.habits, children);
+    const item: DueCategory = { id: category.id, name: category.name, icon: category.icon, cadence, habits, sections };
     const dates = habits.flatMap(entryDates);
     const status = cadenceStatus(cadence, dates, user, now);
     if (status.state === 'due') list.dueCategories.push({ ...item, status: rowStatus(cadence, dates) });
@@ -109,10 +145,10 @@ export function buildDueList(
   };
 
   for (const category of categories) {
-    addCategory(category, [...category.habits, ...category.children.flatMap(child => child.habits)]);
+    addCategory(category, category.children);
     category.habits.forEach(addHabit);
     for (const child of category.children) {
-      addCategory(child, child.habits);
+      addCategory(child);
       child.habits.forEach(addHabit);
     }
   }

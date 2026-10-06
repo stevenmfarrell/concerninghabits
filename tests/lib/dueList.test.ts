@@ -12,9 +12,11 @@ function habit(id: string, cadence: Cadence, logs: { createdAt: Date; userId: st
   return { id, name: id, schema: '{}', cadence: JSON.stringify(cadence), userId: 'me', logs };
 }
 
-function category(id: string, cadence: Cadence, habits: HabitListItem[], children: CategoryTree['children'] = []): CategoryTree {
-  return { id, name: id, icon: null, cadence: JSON.stringify(cadence), habits, children };
+function category(id: string, cadence: Cadence, habits: HabitListItem[], children: CategoryTree['children'] = [], order = 0): CategoryTree {
+  return { id, name: id, icon: null, cadence: JSON.stringify(cadence), habits, children, order };
 }
+
+const ordered = (h: HabitListItem, order: number): HabitListItem => ({ ...h, order });
 
 const daily: Cadence = { type: 'daily', timesPerDay: 1 };
 const none: Cadence = { type: 'none' };
@@ -41,6 +43,25 @@ describe('buildDueList', () => {
     const list = buildDueList([category('Fitness', daily, [habit('pushups', none)], [cardio])], [], {}, user, now);
     expect(ids(list.doneCategories)).toEqual(['Fitness']);
     expect(ids(list.doneCategories[0].habits)).toEqual(['pushups', 'bike']);
+  });
+
+  it('lays out a category\'s habits to pick from in its order, each subcategory\'s under its name', () => {
+    const cardio = category('Cardio', none, [habit('bike', none), habit('swim', none)], [], 1);
+    const empty = category('Empty', none, [], [], 2);
+    const strength = category('Strength', none, [habit('lift', none)], [], 4);
+    const fitness = category('Fitness', daily, [ordered(habit('stretch', none), 0), ordered(habit('pushups', none), 3), ordered(habit('walk', none), 3)], [strength, cardio, empty]);
+    const [due] = buildDueList([fitness], [], {}, user, now).dueCategories;
+    expect(due.sections.map(s => [s.subcategory?.name ?? null, ids(s.habits)])).toEqual([
+      [null, ['stretch']],
+      ['Cardio', ['bike', 'swim']],
+      [null, ['pushups', 'walk']],
+      ['Strength', ['lift']],
+    ]);
+  });
+
+  it('lays out a category with no subcategories as one section', () => {
+    const [due] = buildDueList([category('Cardio', daily, [habit('bike', none), habit('run', none)])], [], {}, user, now).dueCategories;
+    expect(due.sections.map(s => [s.subcategory, ids(s.habits)])).toEqual([[null, ['bike', 'run']]]);
   });
 
   it('lists a due subcategory with only its own habits', () => {

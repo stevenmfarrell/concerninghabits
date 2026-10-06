@@ -61,6 +61,7 @@
   --accent-line-strong: var(--color-emerald-200);
 
   --category: var(--color-blue-500);
+  --on-category: var(--color-white);
   --category-ink: var(--color-blue-600);
   --category-ink-strong: var(--color-blue-700);
   --category-soft: var(--color-blue-50);
@@ -203,6 +204,7 @@
   --color-accent-line-strong: var(--accent-line-strong);
 
   --color-category: var(--category);
+  --color-on-category: var(--on-category);
   --color-category-ink: var(--category-ink);
   --color-category-ink-strong: var(--category-ink-strong);
   --color-category-soft: var(--category-soft);
