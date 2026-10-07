@@ -41,11 +41,14 @@ export function PanePage({ header, width = '4xl', centered = false, children }: 
 // the next section's heading takes its place; the space above it is a separate spacer, which scrolls
 // away, so the pinned heading stays slim. Its controls are all 32px tall, so every heading is the same
 // height when pinned: SegmentedControl, IconButton size="sm", Button size="xs" (see UI_STANDARDS.md).
+// Being sticky, each heading is its own stacking context, so a menu opened from its controls can't
+// rise above the headings after it, whatever its z-index: while a control's menu is open (its
+// trigger's aria-expanded), the heading lifts above the others, still under the page header.
 export function PaneHeading({ children, action }: { children: ReactNode; action?: ReactNode }) {
   return (
     <>
       <div className="h-4" aria-hidden="true" />
-      <div className={`sticky ${BELOW_HEADER} z-20 ${PANE_INSET} pt-2 pb-1.5 min-h-9 flex items-end justify-between gap-4 bg-canvas`}>
+      <div className={`sticky ${BELOW_HEADER} z-20 has-[[aria-expanded=true]]:z-25 ${PANE_INSET} pt-2 pb-1.5 min-h-9 flex items-end justify-between gap-4 bg-canvas`}>
         <h2 className="flex items-center gap-2 min-w-0 text-xs font-semibold uppercase tracking-wider text-ink-muted">{children}</h2>
         {/* The controls overhang the row's padding, so a heading is as slim with them as without */}
         {action && <div className="shrink-0 -my-1.5 flex items-center gap-2">{action}</div>}

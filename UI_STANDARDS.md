@@ -184,6 +184,8 @@ Any menu anchored to a trigger button (kebab menu, chart field picker, etc.) mus
 <div className="absolute right-0 top-full mt-1 w-56 ...">
 ```
 
+A menu in a `PaneHeading`'s controls needs its trigger to set `aria-expanded` while it's open. Each heading is sticky, so it's a stacking context of its own, and without that the next section's heading covers the menu whatever its z-index; the heading lifts above the others while one of its triggers is expanded.
+
 Style the panel and its items with `MENU_PANEL`, `MENU_ITEM` (`MENU_ITEM_DANGER` for a destructive action), `MENU_SEPARATOR` and `menuOptionClasses(selected)` from `src/components/ui/Menu.tsx`, with a `<MenuBackdrop>` behind it so a tap outside closes it. Position the panel yourself, as above.
 
 A picker for a form field is `Select` (`src/components/Select.tsx`), not a native `<select>`, including in a sheet or dialog. Its list is portaled to `<body>` and fixed to the screen, opening below the field or above it when there's more room there, so a sheet that scrolls can't clip it and the `top-full` rule below doesn't apply to it. For two or three options, use a `SegmentedControl` with `size="md"` instead.
