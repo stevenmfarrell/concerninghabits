@@ -8,6 +8,7 @@ import { Toggle } from './ui/Toggle';
 import { FIELD_TYPES, settingsProblem, type FieldSettings } from '@/lib/formFields';
 import { INPUT_SM, TEXTAREA_SM } from '@/components/ui/Input';
 import Select from './Select';
+import { MAX_NAME_LENGTH } from '@/lib/constants';
 
 
 const NEW_FIELD: FieldSettings = { title: '', type: 'text', unit: '', choices: [], required: false };
@@ -57,6 +58,7 @@ export default function FieldEditorSheet({ initial, loggedBefore, usedBy = [], o
             value={settings.title}
             onChange={e => set({ title: e.target.value })}
             placeholder='e.g. "Pages read"'
+            maxLength={MAX_NAME_LENGTH}
             autoFocus={!initial}
             autoComplete="off"
             data-1p-ignore
@@ -88,6 +90,7 @@ export default function FieldEditorSheet({ initial, loggedBefore, usedBy = [], o
               value={settings.unit}
               onChange={e => set({ unit: e.target.value })}
               placeholder='e.g. "miles", "pages", "lbs"'
+              maxLength={40}
               autoComplete="off"
               data-1p-ignore
             />

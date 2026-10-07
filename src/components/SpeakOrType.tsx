@@ -7,6 +7,7 @@ import { Button, type ButtonSize } from '@/components/ui/Button';
 import QuillIconWavy from '@/components/QuillIconWavy';
 import { useSpeechRecognition } from '@/lib/useSpeechRecognition';
 import { MENU_ITEM, MENU_PANEL, MENU_SEPARATOR, MenuBackdrop } from '@/components/ui/Menu';
+import { MAX_AI_INPUT_LENGTH } from '@/lib/constants';
 
 type Mode = 'speak' | 'type';
 
@@ -221,6 +222,7 @@ export default function SpeakOrType({
                 <textarea
                   className="w-full max-w-xl px-4 py-3 bg-white text-stone-900 border-0 rounded-xl focus:outline-none focus:ring-4 focus:ring-emerald-300 min-h-[112px] resize-none text-lg"
                   placeholder={prompt.placeholder}
+                  maxLength={MAX_AI_INPUT_LENGTH}
                   value={typedInput}
                   onChange={(e) => setTypedInput(e.target.value)}
                   onKeyDown={(e) => {

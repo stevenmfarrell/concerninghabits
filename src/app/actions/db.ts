@@ -9,7 +9,9 @@ import rjsfValidator from '@rjsf/validator-ajv8';
 
 import { verifySession } from '@/lib/auth';
 import { redirect } from 'next/navigation';
-import { MAX_AI_CONTEXT_LENGTH, MAX_CSV_IMPORT_ROWS, MAX_HISTORY_WEEKS, UNCATEGORIZED_ID, UNCATEGORIZED_ICON } from '@/lib/constants';
+import { MAX_AI_CONTEXT_LENGTH, MAX_CSV_IMPORT_ROWS, MAX_DESCRIPTION_LENGTH, MAX_HISTORY_WEEKS, MAX_LOG_PAYLOAD_BYTES, MAX_NAME_LENGTH, UNCATEGORIZED_ID, UNCATEGORIZED_ICON } from '@/lib/constants';
+import { habitSchemaProblem } from '@/lib/habitSchema';
+import { isIconName } from '@/lib/icons';
 import { userPreferencesSchema } from '@/lib/preferences';
 import { cadenceSchema, DEFAULT_CADENCE, NO_CADENCE, type Cadence } from '@/lib/cadence';
 import { TIMEZONE_COOKIE, civilDayKey, isValidTimeZone, parseBedtimeOffsetMinutes, parseCivilDayKey, toCivilDate } from '@/lib/timezone';
@@ -183,8 +185,16 @@ export async function getCategories() {
   });
 }
 
+// A category's name and icon checked, since they come from the browser
+function checkCategory(name: string, icon: string | null | undefined) {
+  if (!name.trim()) throw new Error('Give the category a name');
+  if (name.length > MAX_NAME_LENGTH) throw new Error(`Category names must be ${MAX_NAME_LENGTH} characters or fewer`);
+  if (icon && !isIconName(icon)) throw new Error('Unknown icon');
+}
+
 export async function createCategory(name: string, icon?: string, parentId?: string) {
   const user = await getDefaultUser();
+  checkCategory(name, icon);
   if (parentId) await assertValidParent(user.id, parentId);
   const category = await prisma.category.create({
     data: { name, icon, userId: user.id, parentId: parentId || null }
@@ -197,6 +207,7 @@ export async function updateCategory(id: string, name: string, icon: string | nu
   const user = await getDefaultUser();
   const existing = await prisma.category.findUnique({ where: { id } });
   if (!existing || existing.userId !== user.id) throw new Error("Unauthorized");
+  checkCategory(name, icon);
   if (parentId) await assertValidParent(user.id, parentId, id);
 
   const category = await prisma.category.update({
@@ -238,9 +249,18 @@ export async function deleteCategory(id: string) {
   revalidateLists();
 }
 
+// A habit's name, description and form checked, since they come from the browser
+function checkHabit(name: string, description: string, schema: HabitSchema) {
+  if (!name.trim()) throw new Error('Give your habit a title');
+  if (name.length > MAX_NAME_LENGTH) throw new Error(`Habit titles must be ${MAX_NAME_LENGTH} characters or fewer`);
+  if ((description ?? '').length > MAX_DESCRIPTION_LENGTH) throw new Error(`Descriptions must be ${MAX_DESCRIPTION_LENGTH} characters or fewer`);
+  const problem = habitSchemaProblem(schema);
+  if (problem) throw new Error(problem);
+}
+
 export async function saveHabit(name: string, description: string, schema: HabitSchema, categoryId?: string, cadence: Cadence = DEFAULT_CADENCE, publishToMqtt: boolean = false, aiContext?: string, calculatedFields: CalculatedField[] = []) {
   const user = await getDefaultUser();
-  if (!name.trim()) throw new Error('Give your habit a title');
+  checkHabit(name, description, schema);
   if (categoryId) await getOwnedCategory(user.id, categoryId);
   const normalizedAiContext = normalizeAiContext(aiContext);
   const checkedCalculatedFields = checkCalculatedFields(calculatedFields, schema);
@@ -380,7 +400,16 @@ function sanitizeLogPayload(habit: { schema: string }, payload: Record<string, u
   if (errors.length > 0) {
     throw new Error(`Invalid log data: ${errors.map(e => e.stack).join('; ')}`);
   }
+  const problem = payloadSizeProblem(sanitizedPayload);
+  if (problem) throw new Error(problem);
   return sanitizedPayload;
+}
+
+// Why an entry's values are too big to store (see MAX_LOG_PAYLOAD_BYTES), or null if they fit
+function payloadSizeProblem(payload: Record<string, unknown>) {
+  const bytes = Buffer.byteLength(JSON.stringify(payload), 'utf8');
+  if (bytes <= MAX_LOG_PAYLOAD_BYTES) return null;
+  return `This entry is too long (${(bytes / 1024).toFixed(1)} KB; the limit is ${MAX_LOG_PAYLOAD_BYTES / 1024} KB)`;
 }
 
 // Anyone can edit or delete an entry they logged; a habit's owner can also edit or delete anyone's
@@ -602,6 +631,12 @@ export async function importHabitLogsCsv(habitId: string, csvText: string) {
       }
     });
 
+    const sizeProblem = payloadSizeProblem(payload);
+    if (sizeProblem) {
+      errors.push(`Row ${rowNum}: ${sizeProblem}.`);
+      return;
+    }
+
     toCreate.push({
       habitId,
       userId: user.id,
@@ -624,7 +659,7 @@ export async function importHabitLogsCsv(habitId: string, csvText: string) {
 // Its calculated fields are left as they are unless `calculatedFields` is given.
 export async function updateHabit(id: string, name: string, description: string, schema: HabitSchema, categoryId?: string, cadence: Cadence = DEFAULT_CADENCE, publishToMqtt: boolean = false, aiContext?: string, calculatedFields?: CalculatedField[]) {
   const user = await getDefaultUser();
-  if (!name.trim()) throw new Error('Give your habit a title');
+  checkHabit(name, description, schema);
   await getOwnedHabit(user.id, id);
   if (categoryId) await getOwnedCategory(user.id, categoryId);
   const normalizedAiContext = normalizeAiContext(aiContext);

@@ -5,7 +5,7 @@ import { createSession, deleteSession } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import bcrypt from 'bcryptjs';
 import { headers } from 'next/headers';
-import { MIN_PASSWORD_LENGTH } from '@/lib/constants';
+import { MAX_PASSWORD_BYTES, MIN_PASSWORD_LENGTH } from '@/lib/constants';
 import { seedDefaultCategories } from '@/lib/defaultCategories';
 import { RETURN_TO_PARAM, safeReturnTo } from '@/lib/returnTo';
 
@@ -49,7 +49,9 @@ let dummyPasswordHash: string | undefined;
 const getDummyPasswordHash = () => (dummyPasswordHash ??= bcrypt.hashSync('not-a-real-password', 10));
 
 function checkPasswordLength(password: string) {
-  return password.length < MIN_PASSWORD_LENGTH ? `Password must be at least ${MIN_PASSWORD_LENGTH} characters` : null;
+  if (password.length < MIN_PASSWORD_LENGTH) return `Password must be at least ${MIN_PASSWORD_LENGTH} characters`;
+  if (new TextEncoder().encode(password).length > MAX_PASSWORD_BYTES) return `Password must be at most ${MAX_PASSWORD_BYTES} characters`;
+  return null;
 }
 
 export async function login(formData: FormData) {

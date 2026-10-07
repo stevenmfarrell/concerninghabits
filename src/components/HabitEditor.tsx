@@ -24,6 +24,7 @@ import { fieldsUsed, isFormulaInput, parseExpression, type CalculatedField } fro
 import type { ChartEntry } from '@/lib/charts';
 import type { CategoryOption, HabitSchema } from '@/lib/types';
 import type { Person } from '@/lib/userColors';
+import { MAX_NAME_LENGTH, MAX_DESCRIPTION_LENGTH } from '@/lib/constants';
 
 // Everything the editor edits about a habit. `schema` carries the form's own settings (its title,
 // and whether voice and photo logging are on) as saved.
@@ -253,6 +254,7 @@ export default function HabitEditor({ mode, initial, owner, onSave, remove, save
                   value={title}
                   placeholder="Habit title"
                   aria-label="Habit title"
+                  maxLength={MAX_NAME_LENGTH}
                   aria-invalid={titleMissing}
                   onChange={e => {
                     setTitle(e.target.value);
@@ -269,6 +271,7 @@ export default function HabitEditor({ mode, initial, owner, onSave, remove, save
                 className="w-full text-ink-secondary bg-transparent border-b border-transparent hover:border-line focus:border-focus focus:outline-none placeholder-ink-subtle pb-0.5 transition-colors"
                 placeholder="Add a description"
                 aria-label="Description"
+                maxLength={MAX_DESCRIPTION_LENGTH}
                 value={description}
                 onChange={e => setDescription(e.target.value)}
                 disabled={busy}

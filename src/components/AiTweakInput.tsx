@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { ArrowDown, ArrowUp, Loader2, Mic, Sparkles } from 'lucide-react';
 import { IconButton } from '@/components/ui/IconButton';
 import { useSpeechRecognition } from '@/lib/useSpeechRecognition';
+import { MAX_AI_INPUT_LENGTH } from '@/lib/constants';
 
 // A one-line box for describing a change for AI to make (by default, to a habit's form), typed
 // (Enter applies it) or spoken (the mic applies what was heard). `applying` while the change is
@@ -57,6 +58,7 @@ export default function AiTweakInput({
         className="flex-1 min-w-0 bg-transparent py-1.5 text-sm focus:outline-none placeholder-ink-subtle"
         placeholder={isListening ? 'Listening...' : applying ? applyingPlaceholder : placeholder}
         value={isListening ? liveTranscript : text}
+        maxLength={MAX_AI_INPUT_LENGTH}
         onChange={e => setText(e.target.value)}
         onKeyDown={e => {
           if (e.key === 'Enter') {

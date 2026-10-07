@@ -10,7 +10,7 @@ import ConfirmDialog from '../../../components/ConfirmDialog';
 import { IconButton } from '../../../components/ui/IconButton';
 import { INPUT_SM } from '../../../components/ui/Input';
 import { PANE_SURFACE, PaneHeading } from '../../../components/Pane';
-import { DEFAULT_CATEGORY_ICON, UNCATEGORIZED_ICON } from '@/lib/constants';
+import { DEFAULT_CATEGORY_ICON, MAX_NAME_LENGTH, UNCATEGORIZED_ICON } from '@/lib/constants';
 import toast from 'react-hot-toast';
 import { DropResult, computeDrop, applyDrop, getDropPosition, sameDropResult } from './categoryDrop';
 import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors, MeasuringStrategy, DragOverlay, defaultDropAnimationSideEffects, CollisionDetection, DragStartEvent, DragMoveEvent, DragEndEvent, DraggableAttributes, DraggableSyntheticListeners } from '@dnd-kit/core';
@@ -225,6 +225,7 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
               type="text"
               autoFocus
               aria-label="Category name"
+              maxLength={MAX_NAME_LENGTH}
               className={`${INPUT_SM} w-auto flex-1 min-w-[120px]`}
               value={editName}
               onChange={(e) => setEditName(e.target.value)}
@@ -289,6 +290,7 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
         autoFocus
         placeholder={nested ? 'Subcategory Name' : 'Category Name'}
         aria-label={nested ? 'Subcategory name' : 'Category name'}
+        maxLength={MAX_NAME_LENGTH}
         className={`${INPUT_SM} w-auto flex-1 min-w-[120px]`}
         value={newName}
         onChange={(e) => setNewName(e.target.value)}

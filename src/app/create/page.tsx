@@ -9,6 +9,7 @@ import PageHeader from '@/components/PageHeader';
 import { PANE_INSET, PANE_SURFACE, PaneHeading, PanePage } from '@/components/Pane';
 import { Button } from '@/components/ui/Button';
 import { INPUT } from '@/components/ui/Input';
+import { MAX_AI_INPUT_LENGTH } from '@/lib/constants';
 
 // `?category=<id>` starts the new habit in that category (e.g. from an empty category's page),
 // instead of the one the AI suggests
@@ -55,6 +56,7 @@ export default function CreateHabit({ searchParams }: { searchParams: Promise<{ 
               className={`${INPUT} min-h-[120px] resize-none`}
               placeholder="e.g., Read 20 pages a day, track my morning run with distance and time, or drink 8 glasses of water..."
               value={initialPrompt}
+              maxLength={MAX_AI_INPUT_LENGTH}
               onChange={(e) => setInitialPrompt(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {

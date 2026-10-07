@@ -1,5 +1,5 @@
 'use client';
-import { MIN_PASSWORD_LENGTH } from '@/lib/constants';
+import { MAX_PASSWORD_BYTES, MIN_PASSWORD_LENGTH } from '@/lib/constants';
 
 import { useActionState, useState, useEffect } from 'react';
 import { provisionUser } from '@/app/actions/auth';
@@ -88,7 +88,7 @@ export default function ProvisionUserForm() {
                   required
                   className={INPUT}
                   placeholder="••••••••"
-                  minLength={MIN_PASSWORD_LENGTH}
+                  minLength={MIN_PASSWORD_LENGTH} maxLength={MAX_PASSWORD_BYTES}
                 />
               </div>
 

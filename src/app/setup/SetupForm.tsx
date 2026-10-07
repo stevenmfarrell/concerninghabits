@@ -1,5 +1,5 @@
 'use client';
-import { MIN_PASSWORD_LENGTH } from '@/lib/constants';
+import { MAX_PASSWORD_BYTES, MIN_PASSWORD_LENGTH } from '@/lib/constants';
 
 import { useActionState } from 'react';
 import { setupInitialAdmin } from '@/app/actions/auth';
@@ -31,7 +31,7 @@ export default function SetupForm() {
             <input id="email" type="email" name="email" required autoComplete="email" className={INPUT} placeholder="you@example.com" />
           </PaneField>
           <PaneField label="Password" htmlFor="password">
-            <input id="password" type="password" name="password" required autoComplete="new-password" minLength={MIN_PASSWORD_LENGTH} className={INPUT} placeholder="••••••••" />
+            <input id="password" type="password" name="password" required autoComplete="new-password" minLength={MIN_PASSWORD_LENGTH} maxLength={MAX_PASSWORD_BYTES} className={INPUT} placeholder="••••••••" />
           </PaneField>
         </PaneSection>
 

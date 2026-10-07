@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { prisma } from '@/lib/prisma';
 import { setSessionCookie } from '../setup';
-import { logHabitEvent, saveHabit, updateHabitLog } from '@/app/actions/db';
+import { importHabitLogsCsv, logHabitEvent, saveHabit, updateHabitLog } from '@/app/actions/db';
+import { MAX_LOG_PAYLOAD_BYTES } from '@/lib/constants';
 import type { HabitSchema } from '@/lib/types';
 
 const runSchema: HabitSchema = {
@@ -37,5 +38,23 @@ describe('updateHabitLog', () => {
     await expect(updateHabitLog(log.id, habitId, { distance: 3 }, new Date('not a date'))).rejects.toThrow('Invalid date');
 
     expect(JSON.parse((await prisma.habitLog.findUnique({ where: { id: log.id } }))!.payload)).toEqual({ distance: 3 });
+  });
+
+  it('rejects entries over the size limit, counting bytes rather than characters', async () => {
+    // Up to the limit fits; `{"distance":3,"notes":""}` is 25 bytes
+    await logHabitEvent(habitId, { distance: 3, notes: 'a'.repeat(MAX_LOG_PAYLOAD_BYTES - 25) });
+    await expect(logHabitEvent(habitId, { distance: 3, notes: 'a'.repeat(MAX_LOG_PAYLOAD_BYTES) })).rejects.toThrow('too long');
+    // 4 bytes each in UTF-8, so well under the limit in characters but over it in bytes
+    await expect(logHabitEvent(habitId, { distance: 3, notes: '🏃'.repeat(1100) })).rejects.toThrow('too long');
+
+    const log = await logHabitEvent(habitId, { distance: 3 });
+    await expect(updateHabitLog(log.id, habitId, { distance: 3, notes: 'a'.repeat(MAX_LOG_PAYLOAD_BYTES) })).rejects.toThrow('too long');
+    expect(JSON.parse((await prisma.habitLog.findUnique({ where: { id: log.id } }))!.payload)).toEqual({ distance: 3 });
+  });
+
+  it('skips imported rows over the size limit', async () => {
+    const result = await importHabitLogsCsv(habitId, `Date,Distance,notes\n2026-01-01,3,short\n2026-01-02,4,${'a'.repeat(MAX_LOG_PAYLOAD_BYTES)}\n`);
+    expect(result.imported).toBe(1);
+    expect(result.errors).toEqual([expect.stringMatching(/^Row 3: This entry is too long/)]);
   });
 });

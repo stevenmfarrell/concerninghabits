@@ -5,7 +5,7 @@ import { Check, X, Loader2 } from 'lucide-react';
 import IconPicker from './IconPicker';
 import { IconButton } from '@/components/ui/IconButton';
 import { INPUT_SM } from '@/components/ui/Input';
-import { DEFAULT_CATEGORY_ICON } from '@/lib/constants';
+import { DEFAULT_CATEGORY_ICON, MAX_NAME_LENGTH } from '@/lib/constants';
 
 interface Props {
   onSave: (name: string, icon: string) => Promise<void>;
@@ -32,6 +32,7 @@ export default function NewCategoryInline({ onSave, onCancel, defaultIcon = DEFA
         type="text"
         autoFocus
         placeholder="Category Name"
+        maxLength={MAX_NAME_LENGTH}
         className={`${INPUT_SM} w-auto flex-1 min-w-[100px]`}
         value={name}
         onChange={(e) => setName(e.target.value)}

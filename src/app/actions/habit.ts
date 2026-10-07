@@ -15,9 +15,14 @@ import { CADENCE_TYPES, cadenceFromSuggestion } from '@/lib/cadence';
 import { calculatedFieldProblem, calculatedFieldSchema, isFormulaInput, isYesNo, parseCalculatedFields, type CalculatedField } from '@/lib/calculatedFields';
 import { AGGREGATES, chartProblem, MAX_ROLLING_DAYS, MAX_SERIES, plottableFields, type SavedChart } from '@/lib/charts';
 import { fieldsOf } from '@/lib/formFields';
+import { aiRequestProblem } from '@/lib/aiLimits';
+import { habitSchemaProblem, jsonBytes } from '@/lib/habitSchema';
+import { MAX_AI_CONTEXT_LENGTH } from '@/lib/constants';
 
 export async function generateHabitSchema(prompt: string, currentSchema?: HabitSchema) {
   const user = await getDefaultUser();
+  const problem = (currentSchema && habitSchemaProblem(currentSchema)) || await aiRequestProblem(user.id, prompt);
+  if (problem) return { success: false, error: problem };
 
   // Let the AI choose from the user's own categories, then map its choice back to an id
   const categoryIdsByLabel = buildCategoryChoices(await getCategories());
@@ -78,9 +83,29 @@ function aiContextPrompt(aiContext?: string | null) {
   return aiContext ? `\n\nThe user's notes about this habit:\n${aiContext}` : '';
 }
 
-export async function parseVoiceLog(schemaStr: string, transcript: string, aiContext?: string | null) {
-  await getDefaultUser();
+// A form and AI context sent from the browser checked the same as when they're saved, since
+// they go into the AI request as they are
+function clientFormProblem(schemaStr: string, aiContext?: string | null) {
+  if (aiContext && aiContext.length > MAX_AI_CONTEXT_LENGTH) return `Context for AI must be ${MAX_AI_CONTEXT_LENGTH} characters or fewer`;
+  try {
+    return habitSchemaProblem(JSON.parse(schemaStr));
+  } catch {
+    return 'This form isn\'t valid';
+  }
+}
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- the AI's values, checked when logged
+type ParsedLog = { success: boolean; data?: Record<string, any>; error?: string };
+
+export async function parseVoiceLog(schemaStr: string, transcript: string, aiContext?: string | null): Promise<ParsedLog> {
+  const user = await getDefaultUser();
+  const problem = clientFormProblem(schemaStr, aiContext) || await aiRequestProblem(user.id, transcript);
+  if (problem) return { success: false, error: problem };
+  return extractFromTranscript(schemaStr, transcript, aiContext);
+}
+
+// A form filled in from what the user said or typed. Unchecked: callers check what they're given.
+async function extractFromTranscript(schemaStr: string, transcript: string, aiContext?: string | null): Promise<ParsedLog> {
   try {
     const { object } = await generateObject({
       model: google('gemini-flash-lite-latest'),
@@ -104,7 +129,10 @@ ${AI_CONTEXT_INSTRUCTION}`,
 }
 
 export async function parseImageLog(schemaStr: string, base64Image: string, aiContext?: string | null) {
-  await getDefaultUser();
+  const user = await getDefaultUser();
+  if (!/^data:image\/[a-z+.-]+;base64,/.test(base64Image)) return { success: false, error: 'That isn\'t an image.' };
+  const problem = clientFormProblem(schemaStr, aiContext) || await aiRequestProblem(user.id);
+  if (problem) return { success: false, error: problem };
 
   try {
     const base64Data = base64Image.split(',')[1];
@@ -191,6 +219,9 @@ function describeHabitForMatching(habit: { description: string | null; schema: s
 export async function interpretSmartEntry(input: string): Promise<
   { success: true; confident: boolean; candidates: HabitCandidate[]; didIt: boolean } | { success: false; error: string }
 > {
+  const user = await getDefaultUser();
+  const problem = await aiRequestProblem(user.id, input);
+  if (problem) return { success: false, error: problem };
   const habits = await getLoggableHabits();
 
   const options = new Map<string, HabitCandidate>([
@@ -298,7 +329,11 @@ async function fillFromInput(habitId: string, input: string): Promise<
   } catch {}
 
   if (Object.keys(schema.properties ?? {}).length === 0) return { success: true, data: {}, schema };
-  const parsed = await parseVoiceLog(habit.schema, input, habit.aiContext);
+  // The habit's own form, so only the input needs checking
+  const user = await getDefaultUser();
+  const problem = await aiRequestProblem(user.id, input);
+  if (problem) return { success: false, error: problem };
+  const parsed = await extractFromTranscript(habit.schema, input, habit.aiContext);
   if (!parsed.success || !parsed.data) return { success: false, error: parsed.error || 'AI could not understand' };
   return { success: true, data: Object.fromEntries(Object.entries(parsed.data).filter(([key]) => key in schema.properties!)), schema };
 }
@@ -320,6 +355,10 @@ export async function generateCalculatedField(request: string, schema: HabitSche
   { success: true; field: Omit<CalculatedField, 'key'> } | { success: false; error: string }
 > {
   const user = await getDefaultUser();
+  const problem = habitSchemaProblem(schema)
+    || (current && !calculatedFieldSchema.omit({ key: true }).safeParse(current).success ? 'That calculated field isn\'t valid' : null)
+    || await aiRequestProblem(user.id, request);
+  if (problem) return { success: false, error: problem };
 
   const inputs = describeFormulaInputs(schema);
   if (inputs.length === 0) return { success: false, error: 'This habit has no number fields to calculate from.' };
@@ -378,6 +417,8 @@ ${current ? `The user is changing this existing calculated field: ${JSON.stringi
 
 // The chart part of what generateChart drafts, without the id it gets when saved
 export type ChartDraft = Omit<SavedChart, 'id'>;
+// Largest chart draft, with its new calculated fields, sent back for a follow-up (see generateChart)
+const MAX_CURRENT_CHART_BYTES = 16 * 1024;
 
 // What a field is, for the AI writing a formula or a chart
 function describeFormulaInputs(schema: HabitSchema) {
@@ -409,6 +450,10 @@ export async function generateChart(habitId: string, request: string, current?: 
   const user = await getDefaultUser();
   const habit = await getHabit(habitId);
   if (!habit?.isOwner) return { success: false, error: 'Only the habit\'s owner can add charts.' };
+  // The chart being changed comes from the browser; its own checks run on save (see saveChart)
+  const problem = (current && jsonBytes(JSON.stringify(current)) > MAX_CURRENT_CHART_BYTES ? 'That chart is too big' : null)
+    || await aiRequestProblem(user.id, request);
+  if (problem) return { success: false, error: problem };
 
   let schema: HabitSchema = {};
   try {

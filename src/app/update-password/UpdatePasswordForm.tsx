@@ -1,5 +1,5 @@
 'use client';
-import { MIN_PASSWORD_LENGTH } from '@/lib/constants';
+import { MAX_PASSWORD_BYTES, MIN_PASSWORD_LENGTH } from '@/lib/constants';
 
 import { useActionState } from 'react';
 import { updatePassword } from '@/app/actions/auth';
@@ -43,10 +43,10 @@ export default function UpdatePasswordForm({ needsUpdate }: { needsUpdate: boole
           <input id="currentPassword" name="currentPassword" type="password" required autoComplete="current-password" className={INPUT} placeholder="••••••••" />
         </PaneField>
         <PaneField label="New Password" htmlFor="newPassword">
-          <input id="newPassword" name="newPassword" type="password" required minLength={MIN_PASSWORD_LENGTH} autoComplete="new-password" className={INPUT} placeholder="••••••••" />
+          <input id="newPassword" name="newPassword" type="password" required minLength={MIN_PASSWORD_LENGTH} maxLength={MAX_PASSWORD_BYTES} autoComplete="new-password" className={INPUT} placeholder="••••••••" />
         </PaneField>
         <PaneField label="Confirm New Password" htmlFor="confirmPassword">
-          <input id="confirmPassword" name="confirmPassword" type="password" required minLength={MIN_PASSWORD_LENGTH} autoComplete="new-password" className={INPUT} placeholder="••••••••" />
+          <input id="confirmPassword" name="confirmPassword" type="password" required minLength={MIN_PASSWORD_LENGTH} maxLength={MAX_PASSWORD_BYTES} autoComplete="new-password" className={INPUT} placeholder="••••••••" />
         </PaneField>
       </PaneSection>
 
