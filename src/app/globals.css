@@ -284,6 +284,15 @@
   padding-left: calc(max(var(--pane-gutter), calc((100% - var(--pane-width, 100%)) / 2 + var(--pane-gutter))) + 2.75rem);
   padding-right: max(var(--pane-gutter), calc((100% - var(--pane-width, 100%)) / 2 + var(--pane-gutter)));
 }
+/* The same, under a subcategory's header with a log ring rather than an icon (see LogRing): past its
+   2.75rem ring and the 1rem gap after it (1.25rem from sm) */
+@utility pane-inset-nested-ring {
+  padding-left: calc(max(var(--pane-gutter), calc((100% - var(--pane-width, 100%)) / 2 + var(--pane-gutter))) + 3.75rem);
+  padding-right: max(var(--pane-gutter), calc((100% - var(--pane-width, 100%)) / 2 + var(--pane-gutter)));
+  @media (width >= 40rem) {
+    padding-left: calc(max(var(--pane-gutter), calc((100% - var(--pane-width, 100%)) / 2 + var(--pane-gutter))) + 4rem);
+  }
+}
 
 body {
   background: var(--canvas);

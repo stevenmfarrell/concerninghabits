@@ -46,6 +46,8 @@ export interface SubcategoryListItem {
   id: string;
   name: string;
   icon: string | null;
+  // Its own cadence as stored, JSON (see parseCadence), or none
+  cadence?: string;
   order?: number | null;
   habits?: HabitListItem[];
 }

@@ -1,43 +1,47 @@
-import { getCategoriesWithHierarchy, getDefaultUser, getUncategorizedHabits } from '../actions/db';
+import { getCategoriesWithHierarchy, getDefaultUser, getLatestLogDates, getUncategorizedHabits } from '../actions/db';
 import { Plus, FolderTree } from 'lucide-react';
 import CategoryRow, { type CategoryRowProps } from '@/components/CategoryRow';
 import CategoryHoldToLog from '@/components/logging/CategoryHoldToLog';
-import { POINTER_ONLY } from '@/components/logging/pointerOnly';
+import LogRing from '@/components/logging/LogRing';
 import { LinkButton } from '@/components/ui/Button';
 import EmptyState from '@/components/EmptyState';
 import PageHeader from '@/components/PageHeader';
 import { PanePage, PaneSection } from '@/components/Pane';
 import { IconLinkButton } from '@/components/ui/IconButton';
 import { UNCATEGORIZED_ID, UNCATEGORIZED_ICON } from '@/lib/constants';
-import { describeCadence, NO_CADENCE, parseCadence } from '@/lib/cadence';
-import { pickerSections, type PickerSection } from '@/lib/dueList';
+import { NO_CADENCE, parseCadence } from '@/lib/cadence';
+import { entryDates, listRowStatus, pickerSections, type PickerSection } from '@/lib/dueList';
 import { DEFAULT_CATEGORY_ICON } from '@/lib/constants';
 
-// A category's row, held to pick one of its habits to log. One with no habits has nothing to log, so
-// it's a plain row, with room for the button the others have with a mouse, to line its calendar up.
+// A category's row, with a ring that opens a picker of its habits to log, as does holding the row
+// (see CategoryHoldToLog). One with no habits has nothing to log, so its ring can't be tapped.
 function HoldableCategoryRow({ row, sections }: { row: CategoryRowProps; sections: PickerSection[] }) {
   if (sections.length === 0) {
-    return <CategoryRow {...row} action={<span className={`${POINTER_ONLY} w-16`} aria-hidden="true" />} />;
+    return <CategoryRow {...row} leading={row.status && <LogRing status={row.status} label="No habits to log" color="blue" disabled />} />;
   }
   return <CategoryHoldToLog category={{ name: row.name, icon: row.icon, sections }} row={row} />;
 }
 
 // Habits: every category (and uncategorized habits) to browse, with recent activity. What's due
-// lives on the Agenda page; this is where everything else is found. Pressing and holding a category
-// picks a habit in it to log, as on the Agenda (see CategoryHoldToLog).
+// lives on the Agenda page; this is where everything else is found. Its rows are laid out like the
+// Agenda's, a ring at the start of each to log a habit in it, and its cadence under its name, but
+// they stay when they're done, their rings checked (see listRowStatus).
 export default async function HabitsPage() {
   const user = await getDefaultUser();
-  // Only the 4-week calendars read entries here
-  const [categories, uncategorized] = await Promise.all([getCategoriesWithHierarchy(), getUncategorizedHabits(5)]);
+  // The 4-week calendars and the rings read entries here (5 weeks, so a month's entries count); the
+  // latest entries are for an every-N-days cadence's older ones
+  const [categories, uncategorized, latestLogDates] = await Promise.all([getCategoriesWithHierarchy(), getUncategorizedHabits(5), getLatestLogDates()]);
 
   const categoryRows = categories
     .map(cat => {
       const habits = [...cat.habits, ...cat.children.flatMap(c => c.habits)];
+      const cadence = parseCadence(cat.cadence, NO_CADENCE);
       return {
         id: cat.id,
         name: cat.name,
         icon: cat.icon || DEFAULT_CATEGORY_ICON,
-        cadence: parseCadence(cat.cadence, NO_CADENCE),
+        cadence,
+        status: listRowStatus(cadence, habits.flatMap(h => entryDates(h, latestLogDates)), user, { habit: false }),
         habitCount: habits.length,
         dates: habits.flatMap(h => h.logs.map(l => l.createdAt)),
         sections: pickerSections(cat.habits, cat.children),
@@ -84,8 +88,9 @@ export default async function HabitsPage() {
               icon: cat.icon,
               dates: cat.dates,
               habitCount: cat.habitCount,
-              subtitle: `${cat.habitCount} ${cat.habitCount === 1 ? 'habit' : 'habits'}${cat.cadence.type !== 'none' ? ` · ${describeCadence(cat.cadence)}` : ''}`,
+              showCadence: true,
               cadence: cat.cadence,
+              status: cat.status,
               bedtime: user.bedtime,
               weekStartsOn: user.weekStartsOn,
               timeZone: user.timeZone,
@@ -101,8 +106,10 @@ export default async function HabitsPage() {
               icon: UNCATEGORIZED_ICON,
               dates: uncategorized.flatMap(h => h.logs.map(l => l.createdAt)),
               habitCount: uncategorized.length,
-              subtitle: `${uncategorized.length} ${uncategorized.length === 1 ? 'habit' : 'habits'}`,
+              showCadence: true,
               cadence: NO_CADENCE,
+              // No cadence, so never done
+              status: listRowStatus(NO_CADENCE, [], user, { habit: false }),
               bedtime: user.bedtime,
               weekStartsOn: user.weekStartsOn,
               timeZone: user.timeZone,

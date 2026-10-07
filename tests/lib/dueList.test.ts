@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildDueList, type CategoryTree } from '@/lib/dueList';
+import { buildDueList, listRowStatus, type CategoryTree } from '@/lib/dueList';
 import type { HabitListItem } from '@/lib/types';
 import type { Cadence } from '@/lib/cadence';
 
@@ -150,5 +150,37 @@ describe('buildDueList', () => {
     expect(list.upcomingCategories.map(u => [u.item.id, u.dueInDays])).toEqual([['Health', 3]]);
     expect(list.dueHabits).toEqual([]);
     expect(list.doneHabits).toEqual([]);
+  });
+});
+
+describe('listRowStatus', () => {
+  const at = (iso: string) => new Date(iso);
+  const yesterday = at('2026-10-02T09:00:00Z');
+
+  it('checks a habit with a cadence once it\'s met, and leaves it unchecked before', () => {
+    expect(listRowStatus(daily, [today], user, { habit: true }, now)).toEqual({ done: 1, needed: 1, period: null, dueInDays: null });
+    expect(listRowStatus(daily, [yesterday], user, { habit: true }, now)).toEqual({ done: 0, needed: 1, period: null, dueInDays: null });
+  });
+
+  it('counts toward a cadence that takes several entries, up to done', () => {
+    const thriceDaily: Cadence = { type: 'daily', timesPerDay: 3 };
+    expect(listRowStatus(thriceDaily, [today], user, { habit: true }, now)).toMatchObject({ done: 1, needed: 3 });
+    expect(listRowStatus(thriceDaily, [today, today, today], user, { habit: true }, now)).toMatchObject({ done: 3, needed: 3 });
+  });
+
+  it('keeps an every-N-days habit checked until it\'s due again, even when due soon', () => {
+    const everyTenDays: Cadence = { type: 'everyNDays', days: 10 };
+    // Done 8 days ago: due in 2 days, the stretch the Agenda calls upcoming
+    expect(listRowStatus(everyTenDays, [at('2026-09-25T09:00:00Z')], user, { habit: true }, now)).toEqual({ done: 1, needed: 1, period: null, dueInDays: 2 });
+    expect(listRowStatus(everyTenDays, [at('2026-09-20T09:00:00Z')], user, { habit: true }, now)).toMatchObject({ done: 0, dueInDays: -3 });
+  });
+
+  it('checks a habit with no cadence once it has an entry today', () => {
+    expect(listRowStatus(none, [today], user, { habit: true }, now)).toMatchObject({ done: 1, needed: 1 });
+    expect(listRowStatus(none, [yesterday], user, { habit: true }, now)).toMatchObject({ done: 0, needed: 1 });
+  });
+
+  it('never checks a category with no cadence', () => {
+    expect(listRowStatus(none, [today], user, { habit: false }, now)).toEqual({ done: 0, needed: 0, period: null, dueInDays: null });
   });
 });

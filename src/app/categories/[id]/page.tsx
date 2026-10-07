@@ -1,4 +1,4 @@
-import { getCategory, getDefaultUser, getPeople } from '../../actions/db';
+import { getCategory, getDefaultUser, getLatestLogDates, getPeople } from '../../actions/db';
 import { notFound } from 'next/navigation';
 import { cookies } from 'next/headers';
 import Icon from '../../../components/Icon';
@@ -14,9 +14,12 @@ import { NO_CADENCE, parseCadence } from '@/lib/cadence';
 import { UNCATEGORIZED_ID } from '@/lib/constants';
 import { SortableCategoryItemList } from './SortableLists';
 import { DEFAULT_CATEGORY_ICON } from '@/lib/constants';
+import { entryDates, listRowStatus, type RowStatus } from '@/lib/dueList';
+import type { HabitListItem } from '@/lib/types';
 
 // A category's page: its cadence, its habits and subcategories, and an activity calendar of all
-// their entries over the chosen horizon, like a habit's page.
+// their entries over the chosen horizon, like a habit's page. Its rows are laid out like the
+// Agenda's, each with a ring to log it that checks once it's done (see listRowStatus).
 export default async function CategoryLogPage(props: { params: Promise<{ id: string }>, searchParams: Promise<{ reorder?: string, horizon?: string }> }) {
   const params = await props.params;
   const searchParams = await props.searchParams;
@@ -30,7 +33,9 @@ export default async function CategoryLogPage(props: { params: Promise<{ id: str
   const mobileMonthsPerColumn = weeks === 52 ? 7 : 4;
   const desktopMonthsPerColumn = weeks === 52 ? 5 : 4;
 
-  const [category, people] = await Promise.all([getCategory(params.id, weeks), getPeople()]);
+  // At least 6 weeks of entries, whatever the calendar shows, so a month's entries all count toward
+  // the rings; the latest entries are for an every-N-days cadence's older ones
+  const [category, people, latestLogDates] = await Promise.all([getCategory(params.id, Math.max(weeks, 6)), getPeople(), getLatestLogDates()]);
 
   if (!category) return notFound();
 
@@ -47,6 +52,17 @@ export default async function CategoryLogPage(props: { params: Promise<{ id: str
   // Shaded by the category's cadence when it has one, otherwise by how many of its habits were logged
   const calendarShading = cadence.type === 'none' ? { density: Math.max(habitCount, 1) } : { cadence };
   const calendarProps = { dates, weeks, ...calendarShading, size: 'md' as const, bedtime: user.bedtime, weekStartsOn: user.weekStartsOn, timeZone: user.timeZone, color: 'blue' as const };
+
+  // Every row's ring, by id: each habit's, and each subcategory's from its habits' entries
+  const statuses: Record<string, RowStatus> = {};
+  const addHabitStatus = (habit: HabitListItem) => {
+    statuses[habit.id] = listRowStatus(parseCadence(habit.cadence), entryDates(habit, latestLogDates), user, { habit: true });
+  };
+  category.habits.forEach(addHabitStatus);
+  for (const child of isTopLevel ? category.children : []) {
+    child.habits.forEach(addHabitStatus);
+    statuses[child.id] = listRowStatus(parseCadence(child.cadence, NO_CADENCE), child.habits.flatMap(h => entryDates(h, latestLogDates)), user, { habit: false });
+  }
 
   // Direct habits and subcategories share one order sequence. On ties, habits come first.
   const items = [
@@ -85,7 +101,7 @@ export default async function CategoryLogPage(props: { params: Promise<{ id: str
 
       {items.length > 0 ? (
         <PaneSection title="Habits">
-          <SortableCategoryItemList items={items} user={user} people={people} isReordering={isReordering} />
+          <SortableCategoryItemList items={items} statuses={statuses} user={user} people={people} isReordering={isReordering} />
         </PaneSection>
       ) : (
         <EmptyState title="No habits in this category yet" action={<LinkButton href={category.id === UNCATEGORIZED_ID ? '/create' : `/create?category=${category.id}`} variant="outline">New Habit</LinkButton>}>

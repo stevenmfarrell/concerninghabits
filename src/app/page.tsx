@@ -39,7 +39,7 @@ function CategoryList({ categories, user }: { categories: DueCategory[]; user: S
         };
         // A category with no habits has nothing to log, so its ring can't be tapped
         return category.habits.length > 0
-          ? <CategoryHoldToLog key={category.id} category={category} row={row} />
+          ? <CategoryHoldToLog key={category.id} category={category} row={row} leavesWhenDone />
           : <CategoryRow key={category.id} {...row} leading={category.status && <LogRing status={category.status} label="No habits to log" color="blue" disabled />} />;
       })}
     </div>
@@ -125,7 +125,7 @@ export default async function AgendaPage() {
         <>
           <PaneSection title="Due Now" empty={!anyDue && 'Nothing due right now.'}>
             {dueHabits.length > 0 && (
-              <SortableHabitList items={dueHabits} statuses={statuses} user={user} people={people} dndContextId="due-habits" bare holdToLog showCadence />
+              <SortableHabitList items={dueHabits} statuses={statuses} user={user} people={people} dndContextId="due-habits" bare holdToLog showCadence leavesWhenDone />
             )}
             {dueCategories.length > 0 && (
               <CategoryList categories={dueCategories} user={user} />
@@ -144,6 +144,7 @@ export default async function AgendaPage() {
                   bare
                   holdToLog
                   showCadence
+                  leavesWhenDone
                 />
               )}
               {upcomingCategories.length > 0 && (

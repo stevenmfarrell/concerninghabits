@@ -14,11 +14,13 @@ import type { PickerSection } from '@/lib/dueList';
 // A category's list row (`row`), pressed and held, filling with its blue (see RowGesture), to pick
 // one of its habits to log from a dialog of chips (see CategoryLogDialog). With a mouse, a
 // button at the row's end opens it too, lined up with habit rows' Log buttons. With the row's
-// `status` (the Agenda page), a ring at its start opens it on a tap instead, everywhere (see LogRing),
-// filling as soon as a habit's picked, and the row zooms away once that makes it done (see zoomAway).
-export default function CategoryHoldToLog({ category, row }: {
+// `status` (the Agenda and Habits pages), a ring at its start opens it on a tap instead, everywhere
+// (see LogRing), filling as soon as a habit's picked. With `leavesWhenDone` (the Agenda), the row
+// zooms away once that makes it done (see zoomAway).
+export default function CategoryHoldToLog({ category, row, leavesWhenDone = false }: {
   category: { name: string; icon: string | null; sections: PickerSection[] };
   row: CategoryRowProps;
+  leavesWhenDone?: boolean;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const open = () => setIsOpen(true);
@@ -32,7 +34,7 @@ export default function CategoryHoldToLog({ category, row }: {
   const leave = () => {
     if (!status) return undefined;
     addPending(1);
-    return status.done + pending + 1 >= status.needed ? zoomAway(rowRef.current) : undefined;
+    return leavesWhenDone && status.done + pending + 1 >= status.needed ? zoomAway(rowRef.current) : undefined;
   };
 
   return (

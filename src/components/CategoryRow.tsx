@@ -14,7 +14,8 @@ export interface CategoryRowProps {
   icon: string;
   // A line under the name, e.g. "7 habits · Daily" on the Habits page
   subtitle?: string;
-  // Its cadence under the name instead, as habit rows show theirs on the Agenda page (see CadenceLabel)
+  // Its cadence under the name instead (none without one), as habit rows show theirs on the Agenda
+  // and Habits pages (see CadenceLabel)
   showCadence?: boolean;
   // Every entry on the category's habits, for its calendar
   dates: Date[];
@@ -62,7 +63,7 @@ export default function CategoryRow({ href, name, icon, subtitle, showCadence, d
               {leading && <Icon name={icon} className="w-4 h-4 shrink-0 text-category-ink" />}
               <span className="truncate">{name}</span>
             </h3>
-            {showCadence ? <CadenceLabel cadence={cadence} /> : subtitle && <p className="text-sm text-ink-muted">{subtitle}</p>}
+            {showCadence ? cadence.type !== 'none' && <CadenceLabel cadence={cadence} /> : subtitle && <p className="text-sm text-ink-muted">{subtitle}</p>}
           </div>
         </div>
 
