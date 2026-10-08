@@ -1,8 +1,9 @@
 import { fuzzyDays } from '@/lib/format';
 
-// What a due or upcoming row that counts down (every N days) shows beside its calendar: how far off
-// it's due, in grey ("3d", "2w"), or how overdue, in amber. Nothing on the day it's due, since
-// everything in Due Now is due today, or before its first entry (`days` null). How far along a row
+// What a row that counts down (every N days), or a weekly or monthly one not done yet, shows beside
+// its calendar: how far off it's due (for a weekly or monthly one, its period's last day), in grey
+// ("3d", "2w"), or how overdue, in amber. Nothing on the day it's due, or before a countdown's
+// first entry (`days` null). How far along a row
 // is goes in its ring instead (see LogRing). The full meaning is in its label for screen readers and
 // its hover title.
 export default function RowStatus({ days }: { days: number | null }) {

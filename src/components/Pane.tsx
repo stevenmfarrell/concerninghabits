@@ -58,14 +58,15 @@ export function PaneHeading({ children, action }: { children: ReactNode; action?
 }
 
 // A titled group of rows on white, divided by hairlines. With `empty` set, that text is shown on the
-// stone instead, for a section with nothing in it.
+// stone instead, for a section with nothing in it. The two are keyed apart, so the white isn't
+// reused for the stone along with anything done to it (e.g. zoomAway fading it out).
 export function PaneSection({ title, action, empty, children }: { title: ReactNode; action?: ReactNode; empty?: ReactNode; children?: ReactNode }) {
   return (
     <section>
       <PaneHeading action={action}>{title}</PaneHeading>
       {empty
-        ? <div className={`${PANE_INSET} py-3 text-ink-muted`}>{empty}</div>
-        : <div className={`${PANE_SURFACE} divide-y divide-line-subtle`}>{children}</div>}
+        ? <div key="empty" className={`${PANE_INSET} py-3 text-ink-muted`}>{empty}</div>
+        : <div key="rows" className={`${PANE_SURFACE} divide-y divide-line-subtle`} data-pane-surface>{children}</div>}
     </section>
   );
 }

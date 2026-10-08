@@ -97,7 +97,8 @@ describe('buildDueList', () => {
       habit('guitar', none, [{ createdAt: today, userId: 'me' }]),
     ]);
     const list = buildDueList([music], [], {}, user, now);
-    expect(list.dueCategories).toMatchObject([{ id: 'Music', status: { done: 2, needed: 3, period: 'weekly', dueInDays: null } }]);
+    // Saturday, the week's last day
+    expect(list.dueCategories).toMatchObject([{ id: 'Music', status: { done: 2, needed: 3, period: 'weekly', dueInDays: 0 } }]);
   });
 
   it('leaves out the status of a habit once it\'s done', () => {
@@ -151,6 +152,51 @@ describe('buildDueList', () => {
     expect(list.dueHabits).toEqual([]);
     expect(list.doneHabits).toEqual([]);
   });
+
+  it('lists weekly and monthly habits and categories not done yet as upcoming until their last days', () => {
+    const weekly: Cadence = { type: 'calendarWeek' };
+    const monthly: Cadence = { type: 'calendarMonth' };
+    const wednesday = new Date('2026-09-30T15:00:00Z');
+    const list = buildDueList([category('Chores', weekly, [habit('vacuum', weekly), habit('budget', monthly)])], [], {}, user, wednesday);
+    expect(list.upcomingHabits.map(u => [u.item.id, u.dueInDays])).toEqual([['vacuum', 3]]);
+    // The last day of September
+    expect(ids(list.dueHabits)).toEqual(['budget']);
+    expect(list.upcomingCategories.map(u => [u.item.id, u.dueInDays])).toEqual([['Chores', 3]]);
+    // Counting down to Saturday
+    expect(list.statuses.vacuum).toEqual({ done: 0, needed: 1, period: null, dueInDays: 3 });
+
+    // Saturday is the week's last day
+    const saturday = buildDueList([category('Chores', weekly, [habit('vacuum', weekly)])], [], {}, user, now);
+    expect(ids(saturday.dueHabits)).toEqual(['vacuum']);
+    expect(ids(saturday.dueCategories)).toEqual(['Chores']);
+  });
+});
+
+describe('clearedToday', () => {
+  const yesterday = new Date('2026-10-02T09:00:00Z');
+  const cleared = (habits: HabitListItem[], categories: CategoryTree[] = []) => buildDueList(categories, habits, {}, user, now).clearedToday;
+  const loggedAt = (...dates: Date[]) => dates.map(createdAt => ({ createdAt, userId: 'me' }));
+
+  it('is set once something due at the start of today has been done', () => {
+    expect(cleared([habit('run', daily, loggedAt(today))])).toBe(true);
+    // Saturday is a weekly habit's last day
+    expect(cleared([habit('vacuum', { type: 'calendarWeek' }, loggedAt(today))])).toBe(true);
+    expect(cleared([], [category('Fitness', daily, [habit('bike', none, loggedAt(today))])])).toBe(true);
+  });
+
+  it('isn\'t set when nothing was due today, even with entries today', () => {
+    // A monthly habit with weeks to spare, done early
+    expect(cleared([habit('budget', { type: 'calendarMonth' }, loggedAt(today))])).toBe(false);
+    // An every-N-days habit still covered by yesterday's entry, done again today
+    expect(cleared([habit('water plants', { type: 'everyNDays', days: 3 }, loggedAt(yesterday, today))])).toBe(false);
+    expect(cleared([habit('run', daily)])).toBe(false);
+  });
+
+  it('is set alongside whatever is still due', () => {
+    const list = buildDueList([], [habit('run', daily, loggedAt(today)), habit('stretch', daily)], {}, user, now);
+    expect(list.clearedToday).toBe(true);
+    expect(ids(list.dueHabits)).toEqual(['stretch']);
+  });
 });
 
 describe('listRowStatus', () => {
@@ -173,6 +219,14 @@ describe('listRowStatus', () => {
     // Done 8 days ago: due in 2 days, the stretch the Agenda calls upcoming
     expect(listRowStatus(everyTenDays, [at('2026-09-25T09:00:00Z')], user, { habit: true }, now)).toEqual({ done: 1, needed: 1, period: null, dueInDays: 2 });
     expect(listRowStatus(everyTenDays, [at('2026-09-20T09:00:00Z')], user, { habit: true }, now)).toMatchObject({ done: 0, dueInDays: -3 });
+  });
+
+  it('gives the days left in the week or month for a weekly or monthly habit until it\'s done', () => {
+    const wednesday = at('2026-09-30T15:00:00Z');
+    const thriceWeekly: Cadence = { type: 'calendarWeek', times: 3 };
+    expect(listRowStatus(thriceWeekly, [at('2026-09-28T09:00:00Z')], user, { habit: true }, wednesday)).toEqual({ done: 1, needed: 3, period: 'weekly', dueInDays: 3 });
+    expect(listRowStatus({ type: 'calendarMonth' }, [], user, { habit: true }, now)).toMatchObject({ done: 0, dueInDays: 28 });
+    expect(listRowStatus({ type: 'calendarWeek' }, [at('2026-09-28T09:00:00Z')], user, { habit: true }, wednesday)).toMatchObject({ done: 1, dueInDays: null });
   });
 
   it('checks a habit with no cadence once it has an entry today', () => {

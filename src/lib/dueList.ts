@@ -1,4 +1,4 @@
-import { cadenceProgress, cadenceStatus, daysUntilDue, DEFAULT_CADENCE, NO_CADENCE, parseCadence, type Cadence, type ProgressPeriod } from './cadence';
+import { agendaStatus, cadenceProgress, cadenceStatus, daysUntilDue, dueAtStartOfDay, DEFAULT_CADENCE, NO_CADENCE, parseCadence, type Cadence, type ProgressPeriod } from './cadence';
 import type { HabitListItem } from './types';
 
 // A category as the Agenda page needs it: its cadence, and its habits with their recent entries
@@ -17,7 +17,7 @@ export interface CategoryTree extends CategoryWithHabits {
 }
 
 // What a row shows: how far along it is toward done, in the ring that logs it (see LogRing), and
-// for one that counts down, how far off it's due, beside its calendar (see RowStatus). On the Agenda
+// for one that counts down or is due by the end of its week or month, how far off it's due, beside its calendar (see RowStatus). On the Agenda
 // that's only rows not yet done (see buildDueList); the Habits pages show every row (see listRowStatus).
 export interface RowStatus {
   // Entries counting toward done for now, of how many it takes, e.g. 2 of 3 this week, or 0 or 1 of 1
@@ -28,7 +28,8 @@ export interface RowStatus {
   // The period they're counted over, for one that takes several entries a day, week, or month
   period: ProgressPeriod | null;
   // For one that counts down (every N days) and has been done before, days until it's due:
-  // positive before then, 0 on the day, negative once overdue
+  // positive before then, 0 on the day, negative once overdue. For a weekly or monthly one not done
+  // yet, days left after today in its week or month. (See daysUntilDue.)
   dueInDays: number | null;
 }
 
@@ -105,7 +106,8 @@ export function listRowStatus(
   };
 }
 
-// Something done for now that's due again soon, in `dueInDays` days
+// Something not due yet that will be in `dueInDays` days: done, but due again soon, or a weekly or
+// monthly one with days left to do it in (see agendaStatus)
 export type Upcoming<T> = { item: T; dueInDays: number };
 
 export interface DueList {
@@ -117,10 +119,13 @@ export interface DueList {
   doneCategories: DueCategory[];
   // What each due or upcoming habit's row shows beside its calendar, by habit id
   statuses: Record<string, RowStatus>;
+  // Whether anything due at the start of today has since been done, so an empty Due Now was earned
+  // rather than just having nothing in it
+  clearedToday: boolean;
 }
 
 // What the Agenda page shows: every habit and category with a cadence, split into those due, those
-// done but due again soon (upcoming), and those done for now (see cadenceStatus), in the order of
+// not due yet but soon (upcoming), and those done for now (see agendaStatus), in the order of
 // the user's category tree (uncategorized habits last).
 // Done-ness counts everyone's entries, so a shared habit is done when anyone does it.
 //
@@ -135,7 +140,7 @@ export function buildDueList(
 ): DueList {
   const datesOf = (habit: HabitListItem) => entryDates(habit, latestLogDates);
 
-  const list: DueList = { dueHabits: [], upcomingHabits: [], doneHabits: [], dueCategories: [], upcomingCategories: [], doneCategories: [], statuses: {} };
+  const list: DueList = { dueHabits: [], upcomingHabits: [], doneHabits: [], dueCategories: [], upcomingCategories: [], doneCategories: [], statuses: {}, clearedToday: false };
 
   const rowStatus = (cadence: Cadence, dates: Date[]): RowStatus => ({
     ...(cadenceProgress(cadence, dates, user, now) ?? { done: 0, needed: 1, period: null }),
@@ -146,7 +151,8 @@ export function buildDueList(
     const cadence = parseCadence(habit.cadence);
     if (cadence.type === 'none') return;
     const dates = datesOf(habit);
-    const status = cadenceStatus(cadence, dates, user, now);
+    const status = agendaStatus(cadence, dates, user, now);
+    if (status.state !== 'due' && dueAtStartOfDay(cadence, dates, user, now)) list.clearedToday = true;
     if (status.state === 'done') {
       list.doneHabits.push(habit);
       return;
@@ -164,7 +170,8 @@ export function buildDueList(
     const sections = pickerSections(category.habits, children);
     const item: DueCategory = { id: category.id, name: category.name, icon: category.icon, cadence, habits, sections };
     const dates = habits.flatMap(datesOf);
-    const status = cadenceStatus(cadence, dates, user, now);
+    const status = agendaStatus(cadence, dates, user, now);
+    if (status.state !== 'due' && dueAtStartOfDay(cadence, dates, user, now)) list.clearedToday = true;
     if (status.state === 'due') list.dueCategories.push({ ...item, status: rowStatus(cadence, dates) });
     else if (status.state === 'upcoming') list.upcomingCategories.push({ item: { ...item, status: rowStatus(cadence, dates) }, dueInDays: status.dueInDays });
     else list.doneCategories.push(item);

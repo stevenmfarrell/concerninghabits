@@ -5,6 +5,8 @@ import Icon from '../components/Icon';
 import { SortableHabitList } from './categories/[id]/SortableLists';
 import SmartEntry from './SmartEntry';
 import EmptyState from '@/components/EmptyState';
+import DueNowCleared from '@/components/DueNowCleared';
+import SmoothHeight from '@/components/SmoothHeight';
 import CategoryRow from '@/components/CategoryRow';
 import CategoryHoldToLog from '@/components/logging/CategoryHoldToLog';
 import LogRing from '@/components/logging/LogRing';
@@ -81,8 +83,10 @@ function DoneChips({ habits, categories }: { habits: HabitListItem[]; categories
 }
 
 // Agenda: every habit and category with a cadence, in three sections: due now (on or past when
-// it's due), upcoming (done, but an every-N-days one due again soon; still loggable, since doing it
-// early restarts its count), and done, as chips. Habits and categories without a cadence aren't
+// it's due; a weekly or monthly one only on its last day), upcoming (an every-N-days
+// one done but due again soon, still loggable since doing it early restarts its count, or a weekly
+// or monthly one not yet done with days to spare), and done, as chips. Due Now emptied today by doing
+// everything in it shows the hobbit hole (see DueNowCleared). Habits and categories without a cadence aren't
 // here; they're on the Habits page.
 export default async function AgendaPage() {
   const user = await getDefaultUser();
@@ -93,7 +97,7 @@ export default async function AgendaPage() {
     getPeople(),
   ]);
 
-  const { dueHabits, upcomingHabits, doneHabits, dueCategories, upcomingCategories, doneCategories, statuses } = buildDueList(categories, uncategorized, latestLogDates, user);
+  const { dueHabits, upcomingHabits, doneHabits, dueCategories, upcomingCategories, doneCategories, statuses, clearedToday } = buildDueList(categories, uncategorized, latestLogDates, user);
   const anyDue = dueHabits.length > 0 || dueCategories.length > 0;
   const anyUpcoming = upcomingHabits.length > 0 || upcomingCategories.length > 0;
   const anyDone = doneHabits.length > 0 || doneCategories.length > 0;
@@ -123,14 +127,18 @@ export default async function AgendaPage() {
         </EmptyState>
       ) : (
         <>
-          <PaneSection title="Due Now" empty={!anyDue && 'Nothing due right now.'}>
-            {dueHabits.length > 0 && (
-              <SortableHabitList items={dueHabits} statuses={statuses} user={user} people={people} dndContextId="due-habits" bare holdToLog showCadence leavesWhenDone />
-            )}
-            {dueCategories.length > 0 && (
-              <CategoryList categories={dueCategories} user={user} />
-            )}
-          </PaneSection>
+          {/* Eased, so rows dropped by a refresh, or swapped for the reward, don't jolt what's below */}
+          <SmoothHeight>
+            {/* Emptied today by doing what was due, it's a reward; otherwise there was just nothing due */}
+            <PaneSection title="Due Now" empty={!anyDue && (clearedToday ? <DueNowCleared /> : 'Nothing due right now.')}>
+              {dueHabits.length > 0 && (
+                <SortableHabitList items={dueHabits} statuses={statuses} user={user} people={people} dndContextId="due-habits" bare holdToLog showCadence leavesWhenDone />
+              )}
+              {dueCategories.length > 0 && (
+                <CategoryList categories={dueCategories} user={user} />
+              )}
+            </PaneSection>
+          </SmoothHeight>
 
           {anyUpcoming && (
             <PaneSection title="Upcoming">

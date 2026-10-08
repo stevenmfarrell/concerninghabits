@@ -61,8 +61,9 @@ interface CadenceRule<C extends Cadence> {
   // The period its entries are counted over, for showing progress through it, e.g. "2/3 weekly";
   // null for a cadence that's done with one entry, or never
   period: ProgressPeriod | null;
-  // Whether it's shown counting down to when it's next due (e.g. "in 3 days"), since its due date
-  // moves with each entry rather than following the calendar
+  // Whether it counts down to when it's next due (e.g. "in 3 days"), since its due date moves with
+  // each entry rather than following the calendar. (One due by the end of its period shows the days
+  // left in it instead: see daysUntilDue.)
   countsDown: boolean;
   // The days an entry made on civil day `day` counts toward
   covers(cadence: C, day: Date, context: CadenceContext): DayRange;
@@ -70,6 +71,9 @@ interface CadenceRule<C extends Cadence> {
   needed(cadence: C): number;
   // How many days before it's due again a done habit counts as upcoming (0: never upcoming)
   upcomingDays(cadence: C): number;
+  // Whether it only needs doing by the end of its period (a calendar week or month), so until then
+  // it isn't pressing yet: see agendaStatus
+  dueByPeriodEnd: boolean;
 }
 
 function addDays(day: Date, days: number) {
@@ -102,6 +106,7 @@ const RULES: { [T in CadenceType]: CadenceRule<Extract<Cadence, { type: T }>> } 
     covers: (_, day) => justThatDay(day),
     needed: c => c.timesPerDay,
     upcomingDays: () => 0,
+    dueByPeriodEnd: false,
   },
   everyNDays: {
     describe: c => `Every ${c.days} days`,
@@ -113,6 +118,7 @@ const RULES: { [T in CadenceType]: CadenceRule<Extract<Cadence, { type: T }>> } 
     // exact in floating point: 15 * 0.2 rounds up to 4). Not for 3 days or fewer, where it would be
     // upcoming nearly as soon as it's done.
     upcomingDays: c => (c.days > 3 ? Math.ceil(c.days / 5) : 0),
+    dueByPeriodEnd: false,
   },
   calendarWeek: {
     describe: c => timesPer(c.times, 'Weekly'),
@@ -124,6 +130,7 @@ const RULES: { [T in CadenceType]: CadenceRule<Extract<Cadence, { type: T }>> } 
     },
     needed: c => c.times ?? 1,
     upcomingDays: () => 0,
+    dueByPeriodEnd: true,
   },
   calendarMonth: {
     describe: c => timesPer(c.times, 'Monthly'),
@@ -135,6 +142,7 @@ const RULES: { [T in CadenceType]: CadenceRule<Extract<Cadence, { type: T }>> } 
     }),
     needed: c => c.times ?? 1,
     upcomingDays: () => 0,
+    dueByPeriodEnd: true,
   },
   none: {
     describe: () => 'No set cadence',
@@ -143,6 +151,7 @@ const RULES: { [T in CadenceType]: CadenceRule<Extract<Cadence, { type: T }>> } 
     covers: (_, day) => justThatDay(day),
     needed: () => Infinity,
     upcomingDays: () => 0,
+    dueByPeriodEnd: false,
   },
 };
 
@@ -223,15 +232,28 @@ export function cadenceProgress(
   return { done: Math.min(countingToday(cadence, logDates, user, now).counting.length, needed), needed, period };
 }
 
-// For a cadence that counts down (see countsDown), how many days until it's next due: positive
-// before then, 0 on the day, negative once overdue. Null for other cadences, or with no entries yet.
+// How many days after today the period today falls in ends, for a cadence due by its end (see
+// dueByPeriodEnd): 0 on its last day
+function daysToPeriodEnd(cadence: Cadence, today: Date, context: CadenceContext) {
+  return Math.round((cadenceCovers(cadence, today, context).to.getTime() - today.getTime()) / DAY_MS);
+}
+
+// How many days until it's due: for a cadence that counts down (see countsDown), until it's next
+// due, positive before then, 0 on the day, negative once overdue; for one due by the end of its week
+// or month (see dueByPeriodEnd) and not done yet, until that period's last day. Null for other
+// cadences, before a countdown's first entry, or once a week or month is done.
 export function daysUntilDue(
   cadence: Cadence,
   logDates: Date[],
   user: { timeZone: string; bedtime: string; weekStartsOn: string },
   now = new Date(),
 ): number | null {
-  if (!ruleFor(cadence).countsDown || logDates.length === 0) return null;
+  const rule = ruleFor(cadence);
+  if (rule.dueByPeriodEnd) {
+    const { today, counting } = countingToday(cadence, logDates, user, now);
+    return counting.length < entriesNeeded(cadence) ? daysToPeriodEnd(cadence, today, user) : null;
+  }
+  if (!rule.countsDown || logDates.length === 0) return null;
   const offset = parseBedtimeOffsetMinutes(user.bedtime);
   const today = toCivilDate(now, user.timeZone, offset);
   // Due the day after the last day the latest entry counts for
@@ -252,6 +274,37 @@ export function cadenceStatus(
   const lastCovered = Math.max(...counting.map(({ to }) => to.getTime()));
   const dueInDays = Math.round((lastCovered - today.getTime()) / DAY_MS) + 1;
   return dueInDays <= upcomingDays(cadence) ? { state: 'upcoming', dueInDays } : { state: 'done' };
+}
+
+// Where a habit (or category) goes on the Agenda: like cadenceStatus, except that one due by the end
+// of its calendar week or month (see dueByPeriodEnd) isn't due until the period's last day, however
+// many entries it still needs (they can all be logged on one day). Until then it's upcoming,
+// `dueInDays` before it's due.
+export function agendaStatus(
+  cadence: Cadence,
+  logDates: Date[],
+  user: { timeZone: string; bedtime: string; weekStartsOn: string },
+  now = new Date(),
+): CadenceStatus {
+  const status = cadenceStatus(cadence, logDates, user, now);
+  if (status.state !== 'due' || !ruleFor(cadence).dueByPeriodEnd) return status;
+
+  const { today } = countingToday(cadence, logDates, user, now);
+  const dueInDays = daysToPeriodEnd(cadence, today, user);
+  return dueInDays > 0 ? { state: 'upcoming', dueInDays } : status;
+}
+
+// Whether it was due on the Agenda at the start of today, before any of today's entries
+export function dueAtStartOfDay(
+  cadence: Cadence,
+  logDates: Date[],
+  user: { timeZone: string; bedtime: string; weekStartsOn: string },
+  now = new Date(),
+) {
+  const offset = parseBedtimeOffsetMinutes(user.bedtime);
+  const today = toCivilDate(now, user.timeZone, offset);
+  const beforeToday = logDates.filter(date => toCivilDate(date, user.timeZone, offset) < today);
+  return agendaStatus(cadence, beforeToday, user, now).state === 'due';
 }
 
 // Whether a habit is done for now (upcoming counts as done)

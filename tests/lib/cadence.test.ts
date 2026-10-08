@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cadenceFromSuggestion, cadenceProgress, cadenceStatus, describeCadence, isHabitComplete, parseCadence, startOfWeek, upcomingDays, withTimes, type Cadence } from '@/lib/cadence';
+import { agendaStatus, cadenceFromSuggestion, cadenceProgress, cadenceStatus, describeCadence, isHabitComplete, parseCadence, startOfWeek, upcomingDays, withTimes, type Cadence } from '@/lib/cadence';
 import { civilDayKey, parseCivilDayKey } from '@/lib/timezone';
 
 const user = { timeZone: 'UTC', bedtime: '00:00', weekStartsOn: 'sunday' };
@@ -125,6 +125,41 @@ describe('cadenceStatus', () => {
     expect(status({ type: 'daily', timesPerDay: 1 }, [at('2026-10-03T09:00:00Z')])).toEqual({ state: 'done' });
     // Done this week, and the week ends tomorrow
     expect(status({ type: 'calendarWeek' }, [at('2026-09-28T09:00:00Z')])).toEqual({ state: 'done' });
+  });
+});
+
+describe('agendaStatus', () => {
+  const status = (cadence: Cadence, logs: Date[], when = now, who = user) => agendaStatus(cadence, logs, who, when);
+  const weekly: Cadence = { type: 'calendarWeek' };
+  const monthly: Cadence = { type: 'calendarMonth' };
+
+  it('is due for a weekly habit not done yet only on the last day of the week', () => {
+    // Saturday is the last day of a Sunday-start week
+    expect(status(weekly, [])).toEqual({ state: 'due' });
+    // Wednesday: due Saturday
+    expect(status(weekly, [], at('2026-09-30T15:00:00Z'))).toEqual({ state: 'upcoming', dueInDays: 3 });
+    // In a Monday-start week, Saturday has a day to spare
+    expect(status(weekly, [], now, { ...user, weekStartsOn: 'monday' })).toEqual({ state: 'upcoming', dueInDays: 1 });
+  });
+
+  it('is due for a monthly habit not done yet only on the last day of the month', () => {
+    expect(status(monthly, [])).toEqual({ state: 'upcoming', dueInDays: 28 });
+    expect(status(monthly, [], at('2026-10-31T15:00:00Z'))).toEqual({ state: 'due' });
+    // Last month's entry doesn't help
+    expect(status(monthly, [at('2026-09-30T09:00:00Z')], at('2026-10-30T15:00:00Z'))).toEqual({ state: 'upcoming', dueInDays: 1 });
+  });
+
+  it('is due for a several-times-a-week habit only on the last day, however many entries it still needs', () => {
+    const thriceWeekly: Cadence = { type: 'calendarWeek', times: 3 };
+    // Thursday, with none done: two days to spare, since all three can be logged Saturday
+    expect(status(thriceWeekly, [], at('2026-10-01T15:00:00Z'))).toEqual({ state: 'upcoming', dueInDays: 2 });
+    expect(status(thriceWeekly, [at('2026-09-28T09:00:00Z')])).toEqual({ state: 'due' });
+  });
+
+  it('is done once a weekly or monthly habit is met, and leaves other cadences as cadenceStatus has them', () => {
+    expect(status(weekly, [at('2026-09-28T09:00:00Z')], at('2026-09-30T15:00:00Z'))).toEqual({ state: 'done' });
+    expect(status({ type: 'daily', timesPerDay: 1 }, [])).toEqual({ state: 'due' });
+    expect(status({ type: 'everyNDays', days: 14 }, [at('2026-09-22T09:00:00Z')])).toEqual({ state: 'upcoming', dueInDays: 3 });
   });
 });
 
