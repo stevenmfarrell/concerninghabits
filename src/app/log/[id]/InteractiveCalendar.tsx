@@ -12,6 +12,8 @@ export default function InteractiveCalendar(props: {
   people?: Record<string, Person>;
   weeks: number;
   cadence: Cadence;
+  // The days it was skipped, as civil day keys
+  skippedDays: string[];
   mobileMonthsPerColumn: number;
   desktopMonthsPerColumn: number;
   bedtime: string;
@@ -62,10 +64,10 @@ export default function InteractiveCalendar(props: {
     <>
       {/* Centered, but from the start when wider than the page, so its overflow scrolls rather than being cut off */}
       <div className="hidden sm:flex w-full justify-center-safe">
-        <ActivityCalendar dates={dates} loggedBy={loggedBy} people={props.people} weeks={props.weeks} cadence={props.cadence} size="md" monthsPerColumn={props.desktopMonthsPerColumn} bedtime={props.bedtime} weekStartsOn={props.weekStartsOn} timeZone={props.timeZone} onDateClick={handleDateClick} />
+        <ActivityCalendar dates={dates} loggedBy={loggedBy} people={props.people} weeks={props.weeks} cadence={props.cadence} skippedDays={props.skippedDays} size="md" monthsPerColumn={props.desktopMonthsPerColumn} bedtime={props.bedtime} weekStartsOn={props.weekStartsOn} timeZone={props.timeZone} onDateClick={handleDateClick} />
       </div>
       <div className="flex sm:hidden w-full justify-center-safe">
-        <ActivityCalendar dates={dates} loggedBy={loggedBy} people={props.people} weeks={props.weeks} cadence={props.cadence} size="md" monthsPerColumn={props.mobileMonthsPerColumn} bedtime={props.bedtime} weekStartsOn={props.weekStartsOn} timeZone={props.timeZone} onDateClick={handleDateClick} />
+        <ActivityCalendar dates={dates} loggedBy={loggedBy} people={props.people} weeks={props.weeks} cadence={props.cadence} skippedDays={props.skippedDays} size="md" monthsPerColumn={props.mobileMonthsPerColumn} bedtime={props.bedtime} weekStartsOn={props.weekStartsOn} timeZone={props.timeZone} onDateClick={handleDateClick} />
       </div>
     </>
   );

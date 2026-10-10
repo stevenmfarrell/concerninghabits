@@ -20,31 +20,40 @@ const FLICK_MIN_DISTANCE = 32;
 // How far a finger moves before the gesture counts as a swipe or a scroll, whichever way it went
 // (and stops counting as a hold)
 const AXIS_LOCK = 8;
-// Where a swiped row rests while its action finishes, so the spinner shows behind it
-const BUSY_OFFSET = 80;
+// How far a swipeable row slides open while its hidden swipe button has the keyboard's focus, to
+// show what it does
+const PEEK_OFFSET = 112;
 
-// A list row with an action done by a gesture, while a tap still follows the row's link:
+// A row's second action, done by swiping it to the left (see RowGesture)
+export interface RowSwipe {
+  onCommit: () => unknown;
+  // For the hidden button that does the same, e.g. "Skip Running today"
+  label: string;
+  // What the row slides away over, e.g. an icon and "Skip today", in `on-inverse` colors
+  reveal: ReactNode;
+}
+
+// A list row with actions done by gestures, while a tap still follows the row's link:
 // - `hold` (on by default): pressing and holding it fills the row with a tint from the left, emerald
 //   (or a category's blue, with `tone="category"`), calling `onCommit` once it's full; the tint
 //   stays until a promise `onCommit` returns settles. Lifting or moving first drains it away.
-// - `swipe`: swiping it to the left slides it away over that color with `icon` on it, calling
-//   `onCommit` when let go past the threshold, or flicked quickly. Short of the threshold it springs
-//   back. If `onCommit` returns a promise, the row stays partway open over the icon (which should
-//   show a spinner while `busy`) until it settles.
+// - `swipe`: swiping it to the left slides it over a dark band showing `swipe.reveal`, calling
+//   `swipe.onCommit` when let go past the threshold, or flicked quickly. Short of the threshold it
+//   springs back. Sending the row on its way is up to `swipe.onCommit` (see swipeAway); otherwise it
+//   springs back once a promise that returns settles.
 // Vertical drags are left to scrolling. On a touch screen, a hidden button labeled `label` does the
-// same without the gesture, e.g. with a screen reader or a keyboard: focused from the keyboard, it
-// rings the row (and slides a swipeable one partway open). With a mouse, the row has a visible
-// button for this instead (see pointerOnly). `hiddenButton={false}` leaves the hidden one out, for a
-// row with a visible button of its own that does the same everywhere (e.g. an Agenda row's ring, see
-// LogRing).
-export default function RowGesture({ onCommit, label, icon, tone = 'accent', hold = true, swipe = false, busy = false, hiddenButton = true, children }: {
+// hold's action without the gesture, e.g. with a screen reader or a keyboard: focused from the
+// keyboard, it rings the row. A swipeable row has a second hidden button for the swipe's action,
+// which slides the row partway open while focused. With a mouse, the row has a visible button for
+// the hold's action instead (see pointerOnly). `hiddenButton={false}` leaves the hold's hidden one
+// out, for a row with a visible button of its own that does the same everywhere (e.g. an Agenda
+// row's ring, see LogRing).
+export default function RowGesture({ onCommit, label, tone = 'accent', hold = true, swipe, busy = false, hiddenButton = true, children }: {
   onCommit: () => unknown;
   label: string;
-  // What a swipe reveals
-  icon?: ReactNode;
   tone?: 'accent' | 'category';
   hold?: boolean;
-  swipe?: boolean;
+  swipe?: RowSwipe;
   busy?: boolean;
   hiddenButton?: boolean;
   children: ReactNode;
@@ -53,8 +62,8 @@ export default function RowGesture({ onCommit, label, icon, tone = 'accent', hol
   const [dragging, setDragging] = useState(false);
   const [armed, setArmed] = useState(false);
   const [threshold, setThreshold] = useState(MIN_THRESHOLD);
-  // Whether the hidden button has the keyboard's focus
-  const [focused, setFocused] = useState(false);
+  // Which hidden button has the keyboard's focus, if either
+  const [focused, setFocused] = useState<'hold' | 'swipe' | null>(null);
 
   const rowRef = useRef<HTMLDivElement>(null);
   // Where the gesture started, which way it's going, and its recent positions, for a swipe's speed
@@ -178,11 +187,9 @@ export default function RowGesture({ onCommit, label, icon, tone = 'accent', hol
     // After the click a mouse fires on release, so it can't land on a sheet the action opens (and
     // close it straight away)
     await new Promise(resolve => setTimeout(resolve));
-    const result = onCommit();
-    if (result instanceof Promise) {
-      setOffset(-BUSY_OFFSET);
-      await result;
-    }
+    navigator.vibrate?.(15);
+    // Held where it was let go meanwhile, for the action to send it on its way from there
+    await swipe?.onCommit();
     setOffset(0);
   };
 
@@ -193,19 +200,20 @@ export default function RowGesture({ onCommit, label, icon, tone = 'accent', hol
     e.stopPropagation();
   };
 
-  const shownOffset = offset || (swipe && focused ? -BUSY_OFFSET : 0);
-  const progress = focused ? 1 : Math.min(1, -offset / threshold);
+  const peeking = focused === 'swipe';
+  const shownOffset = offset || (peeking ? -PEEK_OFFSET : 0);
+  const progress = peeking ? 1 : Math.min(1, -offset / threshold);
   const fillColor = tone === 'category' ? 'bg-category/20' : 'bg-accent/20';
 
   return (
     <div ref={rowRef} className="relative overflow-hidden">
       {swipe && (
-        <div className={`absolute inset-0 ${tone === 'category' ? 'bg-category text-on-category' : 'bg-accent text-on-accent'} flex items-center justify-end pane-inset-r`} aria-hidden="true">
+        <div className="absolute inset-0 bg-inverse text-on-inverse flex items-center justify-end pane-inset-r" aria-hidden="true">
           <span
-            className={`p-2 -m-2 rounded-full transition-transform duration-150 ${focused ? 'ring-2 ring-current' : ''}`}
-            style={{ opacity: busy ? 1 : 0.4 + progress * 0.6, transform: `scale(${armed ? 1.15 : 0.85 + progress * 0.15})` }}
+            className={`inline-flex items-center gap-2 px-2 py-1 -mx-2 rounded-full origin-right transition-transform duration-150 ${peeking ? 'ring-2 ring-current' : ''}`}
+            style={{ opacity: 0.4 + progress * 0.6, transform: `scale(${armed ? 1.1 : 0.85 + progress * 0.15})` }}
           >
-            {icon}
+            {swipe.reveal}
           </span>
         </div>
       )}
@@ -234,8 +242,8 @@ export default function RowGesture({ onCommit, label, icon, tone = 'accent', hol
         {hold && (
           <div ref={fillRef} className={`absolute inset-0 pointer-events-none origin-left ${fillColor}`} style={{ transform: 'scaleX(0)' }} aria-hidden="true" />
         )}
-        {/* A ring around the row while the hidden button has the keyboard's focus */}
-        {focused && !swipe && <div className="absolute inset-0 pointer-events-none ring-2 ring-inset ring-focus" aria-hidden="true" />}
+        {/* A ring around the row while the hold's hidden button has the keyboard's focus */}
+        {focused === 'hold' && <div className="absolute inset-0 pointer-events-none ring-2 ring-inset ring-focus" aria-hidden="true" />}
       </div>
       {hiddenButton && (
         <button
@@ -243,10 +251,23 @@ export default function RowGesture({ onCommit, label, icon, tone = 'accent', hol
           className="sr-only pointer-fine:hidden"
           onClick={onCommit}
           disabled={busy}
-          onFocus={e => setFocused(e.currentTarget.matches(':focus-visible'))}
-          onBlur={() => setFocused(false)}
+          onFocus={e => setFocused(e.currentTarget.matches(':focus-visible') ? 'hold' : null)}
+          onBlur={() => setFocused(null)}
         >
           {label}
+        </button>
+      )}
+      {swipe && (
+        // Everywhere, not just on a touch screen: a mouse can swipe too, but the row shows no sign of it
+        <button
+          type="button"
+          className="sr-only"
+          onClick={() => swipe.onCommit()}
+          disabled={busy}
+          onFocus={e => setFocused(e.currentTarget.matches(':focus-visible') ? 'swipe' : null)}
+          onBlur={() => setFocused(null)}
+        >
+          {swipe.label}
         </button>
       )}
     </div>

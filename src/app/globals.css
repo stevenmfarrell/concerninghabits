@@ -293,6 +293,11 @@
     padding-left: calc(max(var(--pane-gutter), calc((100% - var(--pane-width, 100%)) / 2 + var(--pane-gutter))) + 4rem);
   }
 }
+/* An activity calendar's day excused by a skip, with no entries of its own: stripes of the pale
+   done-for-the-period shade, so it reads as neither done nor missed */
+@utility activity-skipped {
+  background-image: repeating-linear-gradient(135deg, var(--accent-period) 0 1.5px, transparent 1.5px 3px);
+}
 
 body {
   background: var(--canvas);

@@ -3,7 +3,7 @@
 import type { ReactNode } from 'react';
 import { LogIconButton } from './LogHabitButton';
 import LogEntrySheet from './LogEntrySheet';
-import RowGesture from './RowGesture';
+import RowGesture, { type RowSwipe } from './RowGesture';
 import { POINTER_ONLY } from './pointerOnly';
 import { useHabitLogger, type HabitLogger, type LoggableHabit } from './useHabitLogger';
 import type { Leaving } from './zoomAway';
@@ -13,10 +13,12 @@ import type { Leaving } from './zoomAway';
 // With a mouse, the row keeps its Log button too: `children` is given it, to place in the row, and
 // the logger, for a row with a button of its own that logs it everywhere instead (`ownButton`, e.g.
 // an Agenda row's ring, see LogRing). `leave` sends the row away once it's done (see useHabitLogger).
-export default function HoldToLog({ habit, ownButton = false, leave, children }: {
+// `swipe` is a second action, done by swiping the row to the left (e.g. skipping it, on the Agenda).
+export default function HoldToLog({ habit, ownButton = false, leave, swipe, children }: {
   habit: LoggableHabit;
   ownButton?: boolean;
   leave?: () => Leaving | undefined;
+  swipe?: RowSwipe;
   children: (logButton: ReactNode, logger: HabitLogger) => ReactNode;
 }) {
   const logger = useHabitLogger(habit, { leave });
@@ -28,6 +30,7 @@ export default function HoldToLog({ habit, ownButton = false, leave, children }:
         label={logger.hasForm ? `Log ${habit.name} (opens a form)` : `Log ${habit.name}`}
         busy={logger.busy}
         hiddenButton={!ownButton}
+        swipe={swipe}
       >
         {children(ownButton ? null : <span className={POINTER_ONLY}><LogIconButton logger={logger} /></span>, logger)}
       </RowGesture>

@@ -15,7 +15,7 @@ import HabitChart from './HabitChart';
 import ExportCsvButton from './ExportCsvButton';
 import { formatLogValue } from '../../../lib/format';
 import { parseBedtimeOffsetMinutes, toCivilDate } from '../../../lib/timezone';
-import { parseCadence } from '@/lib/cadence';
+import { parseCadence, skipState } from '@/lib/cadence';
 import { calendarStart } from '@/lib/calendarRange';
 import type { HabitSchema } from '@/lib/types';
 import { fieldTitle, type HabitFormProperties } from '@/components/widgets/habitForm';
@@ -113,8 +113,11 @@ export default async function HabitPage(props: { params: Promise<{ id: string }>
     if (savedPeriod) defaultChartPeriods[chart.id] = savedPeriod;
   });
 
+  const cadence = parseCadence(habit.cadence);
+  const skip = skipState(cadence, logs.map(l => l.createdAt), user, new Date(), habit.skippedDays);
+
   return (
-    <LogClient habit={habit} user={user} people={allPeople} categories={categories} reminder={reminder}>
+    <LogClient habit={habit} user={user} people={allPeople} categories={categories} reminder={reminder} skip={skip}>
       {!presence.hasLogs ? (
         <EmptyState title="No logs here yet">
           Time to step out your front door and start an adventure. Log your first entry!
@@ -128,7 +131,8 @@ export default async function HabitPage(props: { params: Promise<{ id: string }>
                 logs={filteredLogs.map(l => ({ id: l.id, createdAt: l.createdAt, userId: l.userId }))}
                 people={people}
                 weeks={weeks}
-                cadence={parseCadence(habit.cadence)}
+                cadence={cadence}
+                skippedDays={habit.skippedDays}
                 mobileMonthsPerColumn={mobileMonthsPerColumn}
                 desktopMonthsPerColumn={desktopMonthsPerColumn}
                 bedtime={user.bedtime}

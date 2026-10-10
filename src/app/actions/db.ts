@@ -102,7 +102,7 @@ async function assertValidParent(userId: string, parentId: string, categoryId?: 
 }
 
 // A user's habits in one list (a category, uncategorized), in that user's saved order,
-// each with the recent log times its mini calendar shows. Logs are everyone's, not just the
+// each with the recent log times its mini calendar shows, and the days it was skipped. Logs are everyone's, not just the
 // viewer's: a shared habit's history is the whole household's.
 const habitListRows = (logsCutoff: Date) => ({
   orderBy: [{ order: 'asc' }, { habit: { name: 'asc' } }],
@@ -110,6 +110,8 @@ const habitListRows = (logsCutoff: Date) => ({
     habit: {
       include: {
         logs: { where: { createdAt: { gte: logsCutoff } }, select: { createdAt: true, userId: true } },
+        // All of them, not just recent ones: there are few, and an every-N-days skip can count for months
+        skips: { select: { day: true } },
         _count: { select: { members: true } },
       }
     }
@@ -351,17 +353,44 @@ export async function getHabit(id: string) {
   const user = await getDefaultUser();
   const membership = await prisma.habitMember.findUnique({
     where: { habitId_userId: { habitId: id, userId: user.id } },
-    include: { habit: { include: { members: { select: { userId: true }, orderBy: { createdAt: 'asc' } } } } }
+    include: { habit: { include: { members: { select: { userId: true }, orderBy: { createdAt: 'asc' } }, skips: { select: { day: true } } } } }
   });
   if (!membership) return null;
-  const { habit: { members, ...habit }, categoryId, aiContext } = membership;
+  const { habit: { members, skips, ...habit }, categoryId, aiContext } = membership;
   return {
     ...habit,
     categoryId,
     aiContext,
     isOwner: habit.userId === user.id,
     memberIds: members.map(m => m.userId),
+    skippedDays: skips.map(s => s.day),
   };
+}
+
+// Skips the habit for today, the viewer's day: it counts toward the habit's cadence like an entry
+// today would (see skipState). Anyone who has the habit can, the same as logging it.
+export async function skipHabit(habitId: string) {
+  const user = await getDefaultUser();
+  await getMembership(user.id, habitId);
+  const day = civilDayKey(toCivilDate(new Date(), user.timeZone, parseBedtimeOffsetMinutes(user.bedtime)));
+  await prisma.habitSkip.upsert({
+    where: { habitId_day: { habitId, day } },
+    create: { habitId, day, userId: user.id },
+    update: {},
+  });
+  revalidateLists();
+  revalidatePath(`/log/${habitId}`);
+  return day;
+}
+
+// Takes back a skip, made on `day` (a civil day key, see skipHabit)
+export async function unskipHabit(habitId: string, day: string) {
+  const user = await getDefaultUser();
+  await getMembership(user.id, habitId);
+  if (!parseCivilDayKey(day)) throw new Error('Invalid day');
+  await prisma.habitSkip.deleteMany({ where: { habitId, day } });
+  revalidateLists();
+  revalidatePath(`/log/${habitId}`);
 }
 
 export async function logHabitEvent(habitId: string, payload: Record<string, unknown>, createdAt?: Date) {

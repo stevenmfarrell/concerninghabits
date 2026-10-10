@@ -68,13 +68,20 @@ export async function dueReminders(user: ReminderUser, now: Date): Promise<Candi
     select: { habitId: true, createdAt: true },
   });
 
+  const skips = await prisma.habitSkip.findMany({
+    where: { habitId: { in: memberships.map(m => m.habit.id) } },
+    select: { habitId: true, day: true },
+  });
+
   const candidates: Candidate[] = [];
   for (const { remindAt, habit } of memberships) {
     const cadence = parseCadence(habit.cadence);
     if (cadence.type === 'none') continue;
     const dates = logs.filter(l => l.habitId === habit.id).map(l => l.createdAt);
-    // Only what the Agenda shows as due now: a weekly or monthly one only on its last day
-    if (agendaStatus(cadence, dates, user, now).state !== 'due') continue;
+    const skippedDays = skips.filter(s => s.habitId === habit.id).map(s => s.day);
+    // Only what the Agenda shows as due now: a weekly or monthly one only on its last day, and
+    // nothing skipped or on a day off
+    if (agendaStatus(cadence, dates, user, now, skippedDays).state !== 'due') continue;
     const { learned, progress } = learnedTimeFor(habit.cadence, dates, user, now);
     const { at, manual } = nudgeTime(remindAt, learned, user.bedtime);
     candidates.push({ habitId: habit.id, name: habit.name, at, manual, usual: learned.kind === 'learned' ? learned.usual : null, progress });
@@ -93,7 +100,7 @@ export async function dueReminders(user: ReminderUser, now: Date): Promise<Candi
 }
 
 // Whether the user's last IGNORED_LIMIT reminders about a habit all went unanswered: it wasn't
-// logged (by anyone, for a shared habit) on the day each was sent
+// logged (by anyone, for a shared habit) or skipped on the day each was sent
 async function ignoredTooOften(user: ReminderUser, habitId: string) {
   const recent = await prisma.reminderSent.findMany({
     where: { userId: user.id, habitId },
@@ -107,7 +114,10 @@ async function ignoredTooOften(user: ReminderUser, habitId: string) {
     (await prisma.habitLog.findMany({ where: { habitId, createdAt: { gte: since } }, select: { createdAt: true } }))
       .map(l => civilDayKey(toCivilDate(l.createdAt, user.timeZone, offset))),
   );
-  return shouldMute(recent.map(r => loggedDays.has(r.day)));
+  const skippedDays = new Set(
+    (await prisma.habitSkip.findMany({ where: { habitId, day: { in: recent.map(r => r.day) } }, select: { day: true } })).map(s => s.day),
+  );
+  return shouldMute(recent.map(r => loggedDays.has(r.day) || skippedDays.has(r.day)));
 }
 
 // Sends each user what's due for them now, and records it so it isn't sent again today

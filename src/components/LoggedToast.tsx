@@ -1,10 +1,10 @@
 'use client';
 
 import toast, { type Toast } from 'react-hot-toast';
-import { Check, X } from 'lucide-react';
+import { Check, SkipForward, X } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/Button';
-import { deleteHabitLog } from '@/app/actions/db';
+import { deleteHabitLog, unskipHabit } from '@/app/actions/db';
 import { formatLogValue } from '@/lib/format';
 
 type SchemaProperties = Record<string, { title?: string; 'x-widget'?: string; 'x-unit'?: string }> | undefined;
@@ -62,6 +62,31 @@ export function showLoggedToast(entry: LoggedEntry, { onUndone, toastId }: { onU
     id: toastId,
     duration: entry.source ? AUTOMATIC_DURATION_MS : MANUAL_DURATION_MS,
   });
+}
+
+// Confirms a habit just skipped (e.g. swiped away on the Agenda), with an Undo that takes the skip
+// back. `label` says what was skipped, e.g. "Skipped today"; `day` is the skip's (see skipHabit).
+export function showSkippedToast({ habitId, habitName, label, day }: { habitId: string; habitName: string; label: string; day: string }) {
+  const undo = async (t: Toast) => {
+    toast.dismiss(t.id);
+    try {
+      await unskipHabit(habitId, day);
+      toast.success('Skip undone.');
+    } catch (err) {
+      toast.error(`Failed to undo: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    }
+  };
+
+  toast.custom(t => (
+    <ToastCard
+      t={t}
+      icon={<SkipForward className="w-4 h-4" strokeWidth={2.5} />}
+      iconClassName="bg-on-inverse/15 text-on-inverse"
+      title={habitName}
+      detail={label}
+      onUndo={() => undo(t)}
+    />
+  ), { duration: MANUAL_DURATION_MS });
 }
 
 function ToastCard({ t, icon, iconClassName, title, detail, values, onUndo }: {

@@ -1,7 +1,7 @@
 'use client';
 
 import { civilDayKey, parseBedtimeOffsetMinutes, toCivilDate } from '@/lib/timezone';
-import { cadenceCovers, DEFAULT_CADENCE, entriesNeeded, startOfWeek, type Cadence } from '@/lib/cadence';
+import { cadenceCovers, DEFAULT_CADENCE, entriesNeeded, skippedCovers, startOfWeek, type Cadence } from '@/lib/cadence';
 import { ACTIVITY_PALETTES, activityShade, type ActivityColor } from '@/lib/activityShade';
 import { calendarStart } from '@/lib/calendarRange';
 import type { Person } from '@/lib/userColors';
@@ -38,6 +38,9 @@ interface ActivityCalendarProps {
   people?: Record<string, Person>;
   // Fill color for logged days: emerald for a habit, blue for a category's combined calendar
   color?: ActivityColor;
+  // The days a habit was skipped, as civil day keys. Each marks the days it covers by the cadence
+  // (its week, for a weekly habit) that aren't done by entries.
+  skippedDays?: string[];
 }
 
 // A cell's fill for the people who logged that day: their color, or equal diagonal bands of each
@@ -50,7 +53,7 @@ function personFill(ids: string[], people: Record<string, Person>) {
 }
 
 // All dates below are civil dates (UTC midnight for a day in `timeZone`), so only UTC methods are used.
-export default function ActivityCalendar({ dates, timeZone, weeks = 5, cadence = DEFAULT_CADENCE, density, size = 'sm', monthsPerColumn = 4, bedtime = '00:00', weekStartsOn = 'sunday', emptyColor = 'bg-surface-muted', futureColor = 'bg-transparent border border-line-subtle', onDateClick, loggedBy, people, color = 'emerald' }: ActivityCalendarProps) {
+export default function ActivityCalendar({ dates, timeZone, weeks = 5, cadence = DEFAULT_CADENCE, density, size = 'sm', monthsPerColumn = 4, bedtime = '00:00', weekStartsOn = 'sunday', emptyColor = 'bg-surface-muted', futureColor = 'bg-transparent border border-line-subtle', onDateClick, loggedBy, people, color = 'emerald', skippedDays }: ActivityCalendarProps) {
   const bedtimeOffsetMinutes = parseBedtimeOffsetMinutes(bedtime);
   const startsMonday = weekStartsOn === 'monday';
   const colorByPerson = !!(loggedBy && people);
@@ -127,6 +130,15 @@ export default function ActivityCalendar({ dates, timeZone, weeks = 5, cadence =
     }
   });
 
+  // Days excused by a skip, of those shown
+  const skippedKeys = new Set<string>();
+  for (const { from, to } of skippedCovers(effectiveCadence, skippedDays ?? [], { weekStartsOn })) {
+    const last = to < endDate ? to : endDate;
+    for (const covered = new Date(from > startDate ? from : startDate); covered <= last; covered.setUTCDate(covered.getUTCDate() + 1)) {
+      skippedKeys.add(civilDayKey(covered));
+    }
+  }
+
   // Loggers in account order (the order of `people`), so a day's color bands are always arranged
   // the same way.
   const personOrder = Object.keys(people ?? {});
@@ -150,7 +162,7 @@ export default function ActivityCalendar({ dates, timeZone, weeks = 5, cadence =
       for (let d = 0; d < 7; d++) {
         const day = cellAt(w, d);
         if (!day) {
-          grid.push({ isNull: true, date: today, count: 0, counting: 0, isFuture: false, isPeriodCompleted: false, loggers: [] as string[], isNewMonthLeft: false, isNewMonthRight: false, isNewMonthTop: false, isNewMonthBottom: false, w, d });
+          grid.push({ isNull: true, date: today, count: 0, counting: 0, isFuture: false, isPeriodCompleted: false, isSkipped: false, loggers: [] as string[], isNewMonthLeft: false, isNewMonthRight: false, isNewMonthTop: false, isNewMonthBottom: false, w, d });
           continue;
         }
         
@@ -162,6 +174,8 @@ export default function ActivityCalendar({ dates, timeZone, weeks = 5, cadence =
         // A day with no entries of its own that's done anyway, by entries elsewhere in its week,
         // month or N days
         const isPeriodCompleted = count === 0 && counting >= needed;
+        // A day with no entries of its own, not done by others, that a skip excuses
+        const isSkipped = count === 0 && !isPeriodCompleted && !isFuture && skippedKeys.has(key);
 
         // Who to color this cell for: whoever logged that day, or for a day done by entries on
         // other days, whoever made those
@@ -181,14 +195,15 @@ export default function ActivityCalendar({ dates, timeZone, weeks = 5, cadence =
 
         const isToday = civilDayKey(day) === civilDayKey(today);
         
-        grid.push({ isNull: false, date: day, count, counting, isFuture, isPeriodCompleted, loggers, isNewMonthLeft, isNewMonthRight, isNewMonthTop, isNewMonthBottom, w, d, isToday });
+        grid.push({ isNull: false, date: day, count, counting, isFuture, isPeriodCompleted, isSkipped, loggers, isNewMonthLeft, isNewMonthRight, isNewMonthTop, isNewMonthBottom, w, d, isToday });
       }
     }
     return grid;
   });
 
-  const getBackgroundColor = (count: number, counting: number, isFuture: boolean, isPeriodCompleted: boolean) => {
+  const getBackgroundColor = (count: number, counting: number, isFuture: boolean, isPeriodCompleted: boolean, isSkipped: boolean) => {
     if (isFuture) return futureColor;
+    if (isSkipped) return `${emptyColor} activity-skipped`;
     if (count > 0) {
       if (shadeTarget > 1) return activityShade(counting, shadeTarget, color);
       return ACTIVITY_PALETTES[color].done;
@@ -300,12 +315,12 @@ export default function ActivityCalendar({ dates, timeZone, weeks = 5, cadence =
                   return (
                     <div
                       key={i}
-                      title={cell.isFuture ? undefined : `${cell.date.toLocaleDateString('en-US', { timeZone: 'UTC' })}: ${cell.count} logs${loggerNames ? ` (${loggerNames})` : ''}`}
+                      title={cell.isFuture ? undefined : `${cell.date.toLocaleDateString('en-US', { timeZone: 'UTC' })}: ${cell.isSkipped ? 'skipped' : `${cell.count} logs`}${loggerNames ? ` (${loggerNames})` : ''}`}
                       onClick={() => {
                         if (onDateClick && !cell.isFuture) onDateClick(cell.date);
                       }}
                       style={personStyle}
-                      className={`${cellClass} transition-colors relative z-10 flex items-center justify-center ${personStyle ? '' : getBackgroundColor(cell.count, cell.counting, cell.isFuture, cell.isPeriodCompleted)} ${onDateClick && !cell.isFuture ? 'cursor-pointer hover:opacity-80' : ''}`}
+                      className={`${cellClass} transition-colors relative z-10 flex items-center justify-center ${personStyle ? '' : getBackgroundColor(cell.count, cell.counting, cell.isFuture, cell.isPeriodCompleted, cell.isSkipped)} ${onDateClick && !cell.isFuture ? 'cursor-pointer hover:opacity-80' : ''}`}
                     >
                       {cell.isToday && todayDotClass && (
                         <div className={`rounded-full ${cell.count > 0 ? 'bg-white' : 'bg-ink-muted'} ${todayDotClass}`} />

@@ -1,15 +1,16 @@
 'use client';
 
-import React, { useOptimistic, useRef, useState } from 'react';
+import React, { startTransition, useOptimistic, useRef, useState } from 'react';
 import Link from 'next/link';
 import { DndContext, closestCenter, DragOverlay } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, ChevronRight, ClipboardList } from 'lucide-react';
+import { GripVertical, ChevronRight, ClipboardList, SkipForward } from 'lucide-react';
+import toast from 'react-hot-toast';
 import Icon from '../../../components/Icon';
 import ActivityCalendar from '../../../components/ActivityCalendar';
 import { reorderCategories } from '../../actions/db';
-import { reorderHabits } from '../../actions/db';
+import { reorderHabits, skipHabit } from '../../actions/db';
 import { NO_CADENCE, parseCadence } from '@/lib/cadence';
 import type { RowStatus as Status } from '@/lib/dueList';
 import type { HabitListItem, SessionUser, SubcategoryListItem } from '@/lib/types';
@@ -19,8 +20,9 @@ import LogHabitButton from '@/components/logging/LogHabitButton';
 import HoldToLog from '@/components/logging/HoldToLog';
 import LogRing from '@/components/logging/LogRing';
 import type { HabitLogger } from '@/components/logging/useHabitLogger';
-import { zoomAway } from '@/components/logging/zoomAway';
-import RowGesture from '@/components/logging/RowGesture';
+import { swipeAway, zoomAway } from '@/components/logging/zoomAway';
+import RowGesture, { type RowSwipe } from '@/components/logging/RowGesture';
+import { showSkippedToast } from '@/components/LoggedToast';
 import CategoryLogDialog from '@/components/logging/CategoryLogDialog';
 import { POINTER_ONLY } from '@/components/logging/pointerOnly';
 import RowStatus from '@/components/RowStatus';
@@ -178,7 +180,8 @@ export function SortableCategoryItemList({ items: initialItems, statuses, user, 
 
 // `status` is what the Agenda and Habits pages show: a ring at the row's start that logs it on a tap
 // (see LogRing), in place of its Log button, and beside its calendar how far off it's due (see
-// RowStatus). With `leavesWhenDone` (the Agenda), an entry that makes it done sends the row away.
+// RowStatus). With `leavesWhenDone` (the Agenda), an entry that makes it done sends the row away, and
+// one that can be skipped (its status's `skip`) is skipped by swiping it to the left, going the same way.
 // `nested` indents the row under its subcategory's header, its name lined up with the subcategory's
 // `holdToLog` logs the row by pressing and holding it (see HoldToLog), keeping its Log button only
 // with a mouse, and gives it more room (as tall as a category row, with or without a ring).
@@ -189,6 +192,35 @@ const SortableHabitItem = ({ habit, status, user, people, isOverlay, isReorderin
   const rowRef = useRef<HTMLDivElement | null>(null);
   // An entry that makes it done sends the row away, on to the Agenda's Done chips
   const leave = () => (leavesWhenDone && status && status.done + 1 >= status.needed ? zoomAway(rowRef.current) : undefined);
+
+  // Gone from the moment it's swiped, before the server's asked, and put back if that fails. The
+  // skip is only made once the row's gone, and the page is rendered again without it in the same
+  // transition, before the toast offers an Undo: an Undo while the skip's still on its way would be
+  // overtaken by it, bringing the row back only for the skip to take it away again.
+  const skipLabels = leavesWhenDone ? status?.skip : undefined;
+  const swipe: RowSwipe | undefined = skipLabels && {
+    label: `${skipLabels.skip}: ${habit.name}`,
+    reveal: (
+      <>
+        <SkipForward className="w-5 h-5" strokeWidth={2.5} />
+        <span className="text-sm font-semibold">{skipLabels.skip}</span>
+      </>
+    ),
+    onCommit: () => new Promise<void>(resolve => {
+      startTransition(async () => {
+        const leaving = swipeAway(rowRef.current);
+        await leaving?.finished.catch(() => {});
+        try {
+          const day = await skipHabit(habit.id);
+          showSkippedToast({ habitId: habit.id, habitName: habit.name, label: skipLabels.skipped, day });
+        } catch (err) {
+          leaving?.cancel();
+          toast.error(`Failed to skip: ${err instanceof Error ? err.message : 'Unknown error'}`);
+        }
+        resolve();
+      });
+    }),
+  };
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -254,6 +286,7 @@ const SortableHabitItem = ({ habit, status, user, people, isOverlay, isReorderin
                 emptyColor="bg-surface-strong/70"
                 futureColor="bg-transparent"
                 cadence={cadence}
+                skippedDays={habit.skips?.map(skip => skip.day)}
                 bedtime={user.bedtime} 
                 weekStartsOn={user.weekStartsOn}
                 timeZone={user.timeZone}
@@ -282,7 +315,7 @@ const SortableHabitItem = ({ habit, status, user, people, isOverlay, isReorderin
       style={style}
       className="relative bg-surface"
     >
-      {holdToLog && !isReordering ? <HoldToLog habit={habit} ownButton={!!status} leave={leave}>{renderContent}</HoldToLog> : renderContent()}
+      {holdToLog && !isReordering ? <HoldToLog habit={habit} ownButton={!!status} leave={leave} swipe={swipe}>{renderContent}</HoldToLog> : renderContent()}
     </div>
   );
 };

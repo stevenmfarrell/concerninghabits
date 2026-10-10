@@ -82,7 +82,7 @@ describe('buildDueList', () => {
     const water = habit('water', { type: 'daily', timesPerDay: 4 }, [today, today, yesterday].map(createdAt => ({ createdAt, userId: 'me' })));
     const list = buildDueList([], [water, habit('run', daily)], {}, user, now);
     expect(ids(list.dueHabits)).toEqual(['water', 'run']);
-    expect(list.statuses).toEqual({
+    expect(list.statuses).toMatchObject({
       water: { done: 2, needed: 4, period: 'daily', dueInDays: null },
       // Once a day: a single entry to go
       run: { done: 0, needed: 1, period: null, dueInDays: null },
@@ -116,7 +116,7 @@ describe('buildDueList', () => {
       habit('never', everyThreeDays),
     ], {}, user, now);
     const single = { done: 0, needed: 1, period: null };
-    expect(list.statuses).toEqual({
+    expect(list.statuses).toMatchObject({
       'due today': { ...single, dueInDays: 0 },
       overdue: { ...single, dueInDays: -2 },
       never: { ...single, dueInDays: null },
@@ -163,7 +163,7 @@ describe('buildDueList', () => {
     expect(ids(list.dueHabits)).toEqual(['budget']);
     expect(list.upcomingCategories.map(u => [u.item.id, u.dueInDays])).toEqual([['Chores', 3]]);
     // Counting down to Saturday
-    expect(list.statuses.vacuum).toEqual({ done: 0, needed: 1, period: null, dueInDays: 3 });
+    expect(list.statuses.vacuum).toMatchObject({ done: 0, needed: 1, period: null, dueInDays: 3 });
 
     // Saturday is the week's last day
     const saturday = buildDueList([category('Chores', weekly, [habit('vacuum', weekly)])], [], {}, user, now);
@@ -236,5 +236,41 @@ describe('listRowStatus', () => {
 
   it('never checks a category with no cadence', () => {
     expect(listRowStatus(none, [today], user, { habit: false }, now)).toEqual({ done: 0, needed: 0, period: null, dueInDays: null });
+  });
+});
+
+describe('skips on the Agenda', () => {
+  const skipped = (h: HabitListItem, ...days: string[]): HabitListItem => ({ ...h, skips: days.map(day => ({ day })) });
+
+  it('puts a habit skipped today with the done ones, marked as skipped, without earning the cleared reward', () => {
+    const list = buildDueList([], [skipped(habit('run', daily), '2026-10-03'), habit('stretch', daily)], {}, user, now);
+    expect(ids(list.dueHabits)).toEqual(['stretch']);
+    expect(ids(list.doneHabits)).toEqual(['run']);
+    expect(list.skippedHabitIds).toEqual(['run']);
+    expect(list.clearedToday).toBe(false);
+  });
+
+  it('doesn\'t mark a habit done by an entry as skipped', () => {
+    const list = buildDueList([], [habit('run', daily, [{ createdAt: today, userId: 'me' }])], {}, user, now);
+    expect(list.skippedHabitIds).toEqual([]);
+    expect(list.clearedToday).toBe(true);
+  });
+
+  it('says what a skip is called for a due or upcoming habit that can be skipped, for swiping it away', () => {
+    const wednesday = new Date('2026-09-30T15:00:00Z');
+    const list = buildDueList([], [
+      habit('run', daily),
+      habit('vacuum', { type: 'calendarWeek', times: 2 }),
+      // A day off: upcoming, but nothing to skip today
+      habit('gym', { type: 'weekdays', days: [1, 5] }),
+    ], {}, user, wednesday);
+    expect(list.statuses.run.skip).toEqual({ skip: 'Skip today', skipped: 'Skipped today' });
+    expect(list.statuses.vacuum.skip).toEqual({ skip: 'Skip this week', skipped: 'Skipped this week' });
+    expect(list.statuses.gym.skip).toBeUndefined();
+  });
+
+  it('counts skips in a habit row\'s status on the Habits pages', () => {
+    expect(listRowStatus(daily, [], user, { habit: true, skippedDays: ['2026-10-03'] }, now)).toEqual({ done: 1, needed: 1, period: null, dueInDays: null });
+    expect(listRowStatus(daily, [], user, { habit: true }, now)).toEqual({ done: 0, needed: 1, period: null, dueInDays: null });
   });
 });

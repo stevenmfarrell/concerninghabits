@@ -144,4 +144,29 @@ describe('runReminderTick', () => {
     }
     expect(mine()).toHaveLength(IGNORED_LIMIT + 1);
   });
+
+  it('says nothing about a habit skipped today', async () => {
+    const habitId = await createHabit(user.id, 'Floss', [], { remindAt: '21:00' });
+    await prisma.habitSkip.create({ data: { habitId, userId: user.id, day: '2026-10-20' } });
+    await runReminderTick(at(20, 21, 0));
+    expect(mine()).toEqual([]);
+  });
+
+  it('says nothing about a weekday habit on its days off', async () => {
+    // October 20th 2026 is a Tuesday; Mondays, Wednesdays and Fridays only
+    await createHabit(user.id, 'Gym', [], { remindAt: '21:00' }, JSON.stringify({ type: 'weekdays', days: [1, 3, 5] }));
+    await runReminderTick(at(20, 21, 0));
+    expect(mine()).toEqual([]);
+    await runReminderTick(at(21, 21, 0));
+    expect(mine()).toHaveLength(1);
+  });
+
+  it('counts a reminder answered by a skip that day', async () => {
+    const habitId = await createHabit(user.id, 'Floss', [], { remindAt: '21:00' });
+    for (let day = 10; day < 10 + IGNORED_LIMIT + 1; day++) {
+      await runReminderTick(at(day, 21, 0));
+      if (day === 12) await prisma.habitSkip.create({ data: { habitId, userId: user.id, day: '2026-10-12' } });
+    }
+    expect(mine()).toHaveLength(IGNORED_LIMIT + 1);
+  });
 });

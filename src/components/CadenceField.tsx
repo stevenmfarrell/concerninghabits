@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Select from './Select';
-import { CADENCE_TYPES, withTimes, type Cadence, type CadenceType } from '@/lib/cadence';
+import { CADENCE_TYPES, WEEKDAYS, withTimes, type Cadence, type CadenceType } from '@/lib/cadence';
 import { INPUT_SM } from '@/components/ui/Input';
 
 // Each cadence as the editor offers it: its name in the picker, and what it starts as when picked.
@@ -10,6 +10,7 @@ import { INPUT_SM } from '@/components/ui/Input';
 const CADENCE_OPTIONS: { [T in CadenceType]: { label: string; initial: () => Extract<Cadence, { type: T }> } } = {
   daily: { label: 'Daily', initial: () => ({ type: 'daily', timesPerDay: 1 }) },
   everyNDays: { label: 'Every N days', initial: () => ({ type: 'everyNDays', days: 2 }) },
+  weekdays: { label: 'On certain days', initial: () => ({ type: 'weekdays', days: [1, 2, 3, 4, 5] }) },
   calendarWeek: { label: 'Weekly', initial: () => ({ type: 'calendarWeek' }) },
   calendarMonth: { label: 'Monthly', initial: () => ({ type: 'calendarMonth' }) },
   none: { label: 'No set cadence', initial: () => ({ type: 'none' }) },
@@ -57,6 +58,8 @@ export function CadenceSettings({ value, onChange, disabled }: { value: Cadence;
           disabled={disabled}
         />
       );
+    case 'weekdays':
+      return <WeekdayPicker key="weekdays" days={value.days} onChange={days => onChange({ ...value, days })} disabled={disabled} />;
     case 'calendarWeek':
       return (
         <CadenceNumber
@@ -124,6 +127,41 @@ function CadenceNumber({ label, help, value, min, max, onChange, disabled }: { l
         />
       </label>
       <p className="text-xs text-ink-muted mt-1">{help}</p>
+    </div>
+  );
+}
+
+// The days of the week a weekday cadence is on, as a row of toggles, Sunday first (the order they're
+// stored in). At least one stays on: turning off the last does nothing.
+function WeekdayPicker({ days, onChange, disabled }: { days: number[]; onChange: (days: number[]) => void; disabled?: boolean }) {
+  const toggle = (day: number) => {
+    const next = days.includes(day) ? days.filter(d => d !== day) : [...days, day].sort((a, b) => a - b);
+    if (next.length > 0) onChange(next);
+  };
+
+  return (
+    <div className="mt-4 animate-in fade-in slide-in-from-top-2">
+      <p className="text-sm font-semibold text-ink-secondary mb-2" id="weekday-picker-label">On these days</p>
+      <div className="flex gap-1.5" role="group" aria-labelledby="weekday-picker-label">
+        {WEEKDAYS.map(({ day, name, letter }) => {
+          const on = days.includes(day);
+          return (
+            <button
+              key={day}
+              type="button"
+              onClick={() => toggle(day)}
+              disabled={disabled}
+              aria-pressed={on}
+              aria-label={name}
+              title={name}
+              className={`w-10 h-10 rounded-full text-sm font-semibold transition-colors disabled:opacity-50 ${on ? 'bg-accent text-on-accent hover:bg-accent-hover' : 'bg-surface-subtle text-ink-muted border border-line-subtle hover:bg-surface-muted'}`}
+            >
+              {letter}
+            </button>
+          );
+        })}
+      </div>
+      <p className="text-xs text-ink-muted mt-2">It&apos;s due on each of these days, and not on the others.</p>
     </div>
   );
 }

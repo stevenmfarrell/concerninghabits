@@ -30,6 +30,7 @@ model User {
   sessions            Session[]
   pushSubscriptions   PushSubscription[]
   remindersSent       ReminderSent[]
+  habitSkips          HabitSkip[]
 }
 
 model Session {
@@ -64,6 +65,7 @@ model Habit {
   members          HabitMember[]
   logs             HabitLog[]
   remindersSent    ReminderSent[]
+  skips            HabitSkip[]
   createdAt        DateTime       @default(now())
 
   @@index([userId])
@@ -131,6 +133,23 @@ model HabitLog {
 
   // History, calendars, and heatmaps all read a habit's logs by date range
   @@index([habitId, createdAt])
+  @@index([userId])
+}
+
+// A day a habit was skipped (e.g. sick, traveling), as a civil day key ("2026-10-09") in the time
+// zone of whoever skipped it. It excuses the habit without being an entry, however many entries it
+// takes: a daily or every-N-days habit's day, a weekly one's week (see skips in src/lib/cadence.ts). Like entries, it's the habit's, not one member's: anyone who has
+// the habit can skip it, for everyone.
+model HabitSkip {
+  habitId   String
+  habit     Habit    @relation(fields: [habitId], references: [id], onDelete: Cascade)
+  day       String
+  // Who skipped it
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@id([habitId, day])
   @@index([userId])
 }
 

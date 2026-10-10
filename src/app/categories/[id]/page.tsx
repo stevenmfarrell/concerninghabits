@@ -14,7 +14,7 @@ import { NO_CADENCE, parseCadence } from '@/lib/cadence';
 import { UNCATEGORIZED_ID } from '@/lib/constants';
 import { SortableCategoryItemList } from './SortableLists';
 import { DEFAULT_CATEGORY_ICON } from '@/lib/constants';
-import { entryDates, listRowStatus, type RowStatus } from '@/lib/dueList';
+import { entryDates, listRowStatus, skippedDaysOf, type RowStatus } from '@/lib/dueList';
 import type { HabitListItem } from '@/lib/types';
 
 // A category's page: its cadence, its habits and subcategories, and an activity calendar of all
@@ -56,7 +56,7 @@ export default async function CategoryLogPage(props: { params: Promise<{ id: str
   // Every row's ring, by id: each habit's, and each subcategory's from its habits' entries
   const statuses: Record<string, RowStatus> = {};
   const addHabitStatus = (habit: HabitListItem) => {
-    statuses[habit.id] = listRowStatus(parseCadence(habit.cadence), entryDates(habit, latestLogDates), user, { habit: true });
+    statuses[habit.id] = listRowStatus(parseCadence(habit.cadence), entryDates(habit, latestLogDates), user, { habit: true, skippedDays: skippedDaysOf(habit) });
   };
   category.habits.forEach(addHabitStatus);
   for (const child of isTopLevel ? category.children : []) {

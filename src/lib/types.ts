@@ -36,6 +36,8 @@ export interface HabitListItem {
   userId: string;
   order?: number | null;
   logs?: { createdAt: Date; userId: string }[];
+  // The days it was skipped, as civil day keys (see HabitSkip)
+  skips?: { day: string }[];
   // How many people have this habit (1 unless it's shared)
   memberCount?: number;
   // The viewer's own notes on the habit, for voice and photo logging from the row's Log button
