@@ -1,7 +1,7 @@
 'use client';
 
 import { civilDayKey, parseBedtimeOffsetMinutes, toCivilDate } from '@/lib/timezone';
-import { cadenceCovers, DEFAULT_CADENCE, entriesNeeded, skippedCovers, startOfWeek, type Cadence } from '@/lib/cadence';
+import { cadenceCovers, DEFAULT_CADENCE, entriesNeeded, postpones, skippedCovers, startOfWeek, type Cadence } from '@/lib/cadence';
 import { ACTIVITY_PALETTES, activityShade, type ActivityColor } from '@/lib/activityShade';
 import { calendarStart } from '@/lib/calendarRange';
 import type { Person } from '@/lib/userColors';
@@ -315,7 +315,7 @@ export default function ActivityCalendar({ dates, timeZone, weeks = 5, cadence =
                   return (
                     <div
                       key={i}
-                      title={cell.isFuture ? undefined : `${cell.date.toLocaleDateString('en-US', { timeZone: 'UTC' })}: ${cell.isSkipped ? 'skipped' : `${cell.count} logs`}${loggerNames ? ` (${loggerNames})` : ''}`}
+                      title={cell.isFuture ? undefined : `${cell.date.toLocaleDateString('en-US', { timeZone: 'UTC' })}: ${cell.isSkipped ? (postpones(effectiveCadence) ? 'postponed' : 'skipped') : `${cell.count} logs`}${loggerNames ? ` (${loggerNames})` : ''}`}
                       onClick={() => {
                         if (onDateClick && !cell.isFuture) onDateClick(cell.date);
                       }}

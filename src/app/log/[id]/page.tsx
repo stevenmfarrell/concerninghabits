@@ -15,7 +15,7 @@ import HabitChart from './HabitChart';
 import ExportCsvButton from './ExportCsvButton';
 import { formatLogValue } from '../../../lib/format';
 import { parseBedtimeOffsetMinutes, toCivilDate } from '../../../lib/timezone';
-import { parseCadence, skipState } from '@/lib/cadence';
+import { parseCadence, postpones, skipState } from '@/lib/cadence';
 import { calendarStart } from '@/lib/calendarRange';
 import type { HabitSchema } from '@/lib/types';
 import { fieldTitle, type HabitFormProperties } from '@/components/widgets/habitForm';
@@ -117,7 +117,7 @@ export default async function HabitPage(props: { params: Promise<{ id: string }>
   const skip = skipState(cadence, logs.map(l => l.createdAt), user, new Date(), habit.skippedDays);
 
   return (
-    <LogClient habit={habit} user={user} people={allPeople} categories={categories} reminder={reminder} skip={skip}>
+    <LogClient habit={habit} user={user} people={allPeople} categories={categories} reminder={reminder} skip={skip} postpones={postpones(cadence)}>
       {!presence.hasLogs ? (
         <EmptyState title="No logs here yet">
           Time to step out your front door and start an adventure. Log your first entry!

@@ -32,8 +32,8 @@ export interface RowStatus {
   // yet, days left after today in its week or month. (See daysUntilDue.)
   dueInDays: number | null;
   // For an Agenda habit that can be skipped now, what that's called, e.g. "Skip today" and
-  // "Skipped today", for swiping it away (see skipState)
-  skip?: { skip: string; skipped: string };
+  // "Skipped today", or "Postpone 2 days", for swiping it away (see skipLabels)
+  skip?: { skip: string; skipped: string; postpones: boolean };
 }
 
 // A category with a cadence on the Agenda page, with every habit counting toward it (a top-level
@@ -107,8 +107,11 @@ export function listRowStatus(
     return listRowStatus(DEFAULT_CADENCE, dates, user, { habit }, now);
   }
   const progress = cadenceProgress(cadence, dates, user, now, skippedDays);
+  const status = cadenceStatus(cadence, dates, user, now, skippedDays);
+  // Upcoming only because a skip put it off (an every-N-days habit) isn't done, as on the Agenda
+  const done = status.state === 'done' || (status.state === 'upcoming' && cadenceStatus(cadence, dates, user, now).state !== 'due');
   return {
-    ...(progress ?? { done: cadenceStatus(cadence, dates, user, now, skippedDays).state === 'due' ? 0 : 1, needed: 1, period: null }),
+    ...(progress ?? { done: done ? 1 : 0, needed: 1, period: null }),
     dueInDays: daysUntilDue(cadence, dates, user, now, skippedDays),
   };
 }

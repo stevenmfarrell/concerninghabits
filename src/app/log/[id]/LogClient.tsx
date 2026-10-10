@@ -44,7 +44,7 @@ function prefillFrom(searchParams: URLSearchParams, properties: HabitFormPropert
 // no form on the tap or opens the entry sheet for one with a form (see useHabitLogger), with a way to
 // skip it under it while it's due (`skip`, see skipState). The habit's
 // history comes in as `children`, below the button: sections of the page's pane.
-export default function LogClient({ habit, user, people, categories, reminder, skip, children }: { habit: HabitDetail, user: SessionUser, people: Record<string, Person>, categories: CategoryOption[], reminder: { status: ReminderStatus; hasDevice: boolean } | null, skip: SkipState | null, children: ReactNode }) {
+export default function LogClient({ habit, user, people, categories, reminder, skip, postpones, children }: { habit: HabitDetail, user: SessionUser, people: Record<string, Person>, categories: CategoryOption[], reminder: { status: ReminderStatus; hasDevice: boolean } | null, skip: SkipState | null, postpones: boolean, children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -268,7 +268,7 @@ export default function LogClient({ habit, user, people, categories, reminder, s
               <CalendarClock className="w-6 h-6" strokeWidth={2.5} />
             </Button>
           </div>
-          {skip && <SkipButton habitId={habit.id} skip={skip} />}
+          {skip && <SkipButton habitId={habit.id} skip={skip} postpones={postpones} />}
         </div>
       </div>
 

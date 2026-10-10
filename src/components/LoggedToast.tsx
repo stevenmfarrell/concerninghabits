@@ -1,7 +1,7 @@
 'use client';
 
 import toast, { type Toast } from 'react-hot-toast';
-import { Check, SkipForward, X } from 'lucide-react';
+import { CalendarChevronsRight, Check, SkipForward, X } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/Button';
 import { deleteHabitLog, unskipHabit } from '@/app/actions/db';
@@ -65,13 +65,14 @@ export function showLoggedToast(entry: LoggedEntry, { onUndone, toastId }: { onU
 }
 
 // Confirms a habit just skipped (e.g. swiped away on the Agenda), with an Undo that takes the skip
-// back. `label` says what was skipped, e.g. "Skipped today"; `day` is the skip's (see skipHabit).
-export function showSkippedToast({ habitId, habitName, label, day }: { habitId: string; habitName: string; label: string; day: string }) {
+// back. `label` says what was skipped, e.g. "Skipped today" or "Postponed 2 days"; `day` is the
+// skip's (see skipHabit). `postpones` is for a skip that puts the habit off (see postpones).
+export function showSkippedToast({ habitId, habitName, label, day, postpones = false }: { habitId: string; habitName: string; label: string; day: string; postpones?: boolean }) {
   const undo = async (t: Toast) => {
     toast.dismiss(t.id);
     try {
       await unskipHabit(habitId, day);
-      toast.success('Skip undone.');
+      toast.success(postpones ? 'Postponement undone.' : 'Skip undone.');
     } catch (err) {
       toast.error(`Failed to undo: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }
@@ -80,7 +81,7 @@ export function showSkippedToast({ habitId, habitName, label, day }: { habitId: 
   toast.custom(t => (
     <ToastCard
       t={t}
-      icon={<SkipForward className="w-4 h-4" strokeWidth={2.5} />}
+      icon={postpones ? <CalendarChevronsRight className="w-4 h-4" strokeWidth={2.5} /> : <SkipForward className="w-4 h-4" strokeWidth={2.5} />}
       iconClassName="bg-on-inverse/15 text-on-inverse"
       title={habitName}
       detail={label}

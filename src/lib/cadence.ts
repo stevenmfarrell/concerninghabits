@@ -90,10 +90,11 @@ interface CadenceRule<C extends Cadence> {
   // Whether it's meant to be done on civil day `day` at all; every day when left out. On a day it
   // isn't, it's never due, only upcoming until its next day (see cadenceStatus).
   scheduled?(cadence: C, day: Date): boolean;
-  // What a skip excuses, for the button that makes one: "Skip today", "Skip this week". A skip counts
-  // like an entry made that day would (see covers), however many entries it takes, unless
-  // skipCovers says otherwise. Null for a cadence with nothing to skip.
-  skips: 'today' | 'this week' | 'this month' | null;
+  // What a skip is called, before and after, for the button that makes one: "Skip today" and
+  // "Skipped today", "Skip this week", "Postpone 2 days". A skip counts like an entry made that day
+  // would (see covers), however many entries it takes, unless skipCovers says otherwise. Null for a
+  // cadence with nothing to skip.
+  skips(cadence: C): { skip: string; skipped: string } | null;
   // The days a skip made on civil day `day` excuses, when that's less than an entry would cover
   skipCovers?(cadence: C, day: Date): DayRange;
 }
@@ -110,6 +111,13 @@ export function startOfWeek(day: Date, weekStartsOn: string) {
 }
 
 const justThatDay = (day: Date): DayRange => ({ from: day, to: day });
+
+// 20% of a number of days, rounded up to whole days (N / 5 rather than N * 0.2, which isn't exact in
+// floating point: 15 * 0.2 rounds up to 4)
+const fifthOf = (days: number) => Math.ceil(days / 5);
+
+// A skip's labels for what it excuses, e.g. "today": "Skip today" and "Skipped today"
+const skipping = (what: string) => ({ skip: `Skip ${what}`, skipped: `Skipped ${what}` });
 
 const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 // As short as each day can be and still be told apart: one letter where that's enough, two for the
@@ -154,7 +162,7 @@ const RULES: { [T in CadenceType]: CadenceRule<Extract<Cadence, { type: T }>> } 
     needed: c => c.timesPerDay,
     upcomingDays: () => 0,
     dueByPeriodEnd: false,
-    skips: 'today',
+    skips: () => skipping('today'),
   },
   everyNDays: {
     describe: c => `Every ${c.days} days`,
@@ -162,15 +170,18 @@ const RULES: { [T in CadenceType]: CadenceRule<Extract<Cadence, { type: T }>> } 
     countsDown: true,
     covers: (c, day) => ({ from: day, to: addDays(day, c.days - 1) }),
     needed: () => 1,
-    // The last 20% of the stretch, rounded up to whole days (N / 5 rather than N * 0.2, which isn't
-    // exact in floating point: 15 * 0.2 rounds up to 4). Not for 3 days or fewer, where it would be
-    // upcoming nearly as soon as it's done.
-    upcomingDays: c => (c.days > 3 ? Math.ceil(c.days / 5) : 0),
+    // The last 20% of the stretch. Not for 3 days or fewer, where it would be upcoming nearly as soon
+    // as it's done.
+    upcomingDays: c => (c.days > 3 ? fifthOf(c.days) : 0),
     dueByPeriodEnd: false,
-    // Only the day it's made: it's due again the next day, rather than starting the count over as an
-    // entry would, which could put it off for weeks
-    skips: 'today',
-    skipCovers: (_, day) => justThatDay(day),
+    // For 20% of the stretch from the day it's made, then it's due again, rather than starting the
+    // count over as an entry would, which could put it off for weeks: a day for every 5 days or
+    // fewer, 2 for every 10, 6 for every 30. Since it puts off when it's due, it's called postponing.
+    skips: c => {
+      const days = fifthOf(c.days) === 1 ? 'a day' : `${fifthOf(c.days)} days`;
+      return { skip: `Postpone ${days}`, skipped: `Postponed ${days}` };
+    },
+    skipCovers: (c, day) => ({ from: day, to: addDays(day, fifthOf(c.days) - 1) }),
   },
   weekdays: {
     describe: c => describeWeekdays(c.days),
@@ -182,7 +193,7 @@ const RULES: { [T in CadenceType]: CadenceRule<Extract<Cadence, { type: T }>> } 
     upcomingDays: () => 0,
     dueByPeriodEnd: false,
     scheduled: (c, day) => c.days.includes(day.getUTCDay()),
-    skips: 'today',
+    skips: () => skipping('today'),
   },
   calendarWeek: {
     describe: c => timesPer(c.times, 'Weekly'),
@@ -195,7 +206,7 @@ const RULES: { [T in CadenceType]: CadenceRule<Extract<Cadence, { type: T }>> } 
     needed: c => c.times ?? 1,
     upcomingDays: () => 0,
     dueByPeriodEnd: true,
-    skips: 'this week',
+    skips: () => skipping('this week'),
   },
   calendarMonth: {
     describe: c => timesPer(c.times, 'Monthly'),
@@ -208,7 +219,7 @@ const RULES: { [T in CadenceType]: CadenceRule<Extract<Cadence, { type: T }>> } 
     needed: c => c.times ?? 1,
     upcomingDays: () => 0,
     dueByPeriodEnd: true,
-    skips: 'this month',
+    skips: () => skipping('this month'),
   },
   none: {
     describe: () => 'No set cadence',
@@ -218,7 +229,7 @@ const RULES: { [T in CadenceType]: CadenceRule<Extract<Cadence, { type: T }>> } 
     needed: () => Infinity,
     upcomingDays: () => 0,
     dueByPeriodEnd: false,
-    skips: null,
+    skips: () => null,
   },
 };
 
@@ -268,12 +279,13 @@ const daysBetween = (from: Date, to: Date) => Math.round((to.getTime() - from.ge
 // - due: not enough entries count toward today (not logged today as often as it needs, this week
 //   or month, or within its last N days), and it's meant to be done today
 // - upcoming: done, but due again within its upcoming window (see upcomingDays), `dueInDays` from now;
-//   or not done, but not meant to be done until its next day (a weekday habit's day off)
+//   or not done, but not meant to be done until its next day (a weekday habit's day off); or skipped
+//   and put off until the skip runs out (an every-N-days habit)
 // - done: done, and not due again for a while
 // Days follow the user's time zone and bedtime, the same as the activity calendars. `logDates` are
 // the entries that count, and `skippedDays` the days it was skipped on, as civil day keys
 // ("2026-10-09"): a skip counts for what an entry that day would (see skips), however many it takes,
-// and a day it excuses is done.
+// and a day it excuses is done, or for an every-N-days habit, upcoming: its skip puts it off.
 export type CadenceStatus = { state: 'due' } | { state: 'upcoming'; dueInDays: number } | { state: 'done' };
 
 // Today as a civil date, the days each entry that counts toward today covers, and the days each
@@ -292,7 +304,7 @@ function countingToday(cadence: Cadence, logDates: Date[], user: CadenceUser, no
 // The days each skip covers (see skips), with the day it was made on
 function skipRanges(cadence: Cadence, skippedDays: readonly string[], user: CadenceContext) {
   const rule = ruleFor(cadence);
-  if (!rule.skips) return [];
+  if (!rule.skips(cadence)) return [];
   return skippedDays.flatMap(key => {
     const day = parseCivilDayKey(key);
     if (!day) return [];
@@ -355,8 +367,13 @@ export function daysUntilDue(cadence: Cadence, logDates: Date[], user: CadenceUs
 export function cadenceStatus(cadence: Cadence, logDates: Date[], user: CadenceUser, now = new Date(), skippedDays: readonly string[] = []): CadenceStatus {
   const { today, counting, excusing } = countingToday(cadence, logDates, user, now, skippedDays);
   if (counting.length < entriesNeeded(cadence)) {
-    // Skipped: done for today, however soon it's due again (an every-N-days one, tomorrow)
-    if (excusing.length > 0) return { state: 'done' };
+    if (excusing.length > 0) {
+      // Skipped: one that counts down is put off, so it's upcoming until the skip runs out; any other
+      // is done for now
+      if (!postpones(cadence)) return { state: 'done' };
+      const lastExcused = Math.max(...excusing.map(({ range }) => range.to.getTime()));
+      return { state: 'upcoming', dueInDays: Math.round((lastExcused - today.getTime()) / DAY_MS) + 1 };
+    }
     // Not meant to be done today: due on its next day instead
     const ahead = daysToNextScheduled(cadence, today);
     return ahead ? { state: 'upcoming', dueInDays: ahead } : { state: 'due' };
@@ -398,16 +415,21 @@ export function isHabitComplete(cadence: Cadence, logDates: Date[], user: Cadenc
 
 // What can be done about skipping a habit now: skip it (`skippedDay` null), while it isn't done and
 // is meant to be done today; or undo the skip that's excusing it, made on `skippedDay`. `label` is
-// for the button, e.g. "Skip this week", "Skipped today". Null when there's nothing to skip: it's
+// for the button, e.g. "Skip this week", "Skipped today", "Postpone 2 days". Null when there's nothing to skip: it's
 // done, it's a day off, or its cadence has none.
 export type SkipState = { label: string; skippedDay: string | null };
 
 // What a skip is called for a cadence, before and after, e.g. "Skip this week" and "Skipped this
-// week"; null for one that can't be skipped
-export function skipLabels(cadence: Cadence): { skip: string; skipped: string } | null {
-  const { skips } = ruleFor(cadence);
-  return skips ? { skip: `Skip ${skips}`, skipped: `Skipped ${skips}` } : null;
+// week", and whether it's a postponement (see postpones); null for one that can't be skipped
+export function skipLabels(cadence: Cadence): { skip: string; skipped: string; postpones: boolean } | null {
+  const labels = ruleFor(cadence).skips(cadence);
+  return labels ? { ...labels, postpones: postpones(cadence) } : null;
 }
+
+// Whether skipping it puts it off rather than excusing it, so it's called postponing, with its own
+// icon: one that counts down to when it's due (every N days) is upcoming until its skip runs out,
+// rather than done (see cadenceStatus)
+export const postpones = (cadence: Cadence) => ruleFor(cadence).countsDown;
 
 export function skipState(cadence: Cadence, logDates: Date[], user: CadenceUser, now = new Date(), skippedDays: readonly string[] = []): SkipState | null {
   const labels = skipLabels(cadence);

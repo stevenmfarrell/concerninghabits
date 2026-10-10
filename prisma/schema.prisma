@@ -138,7 +138,8 @@ model HabitLog {
 
 // A day a habit was skipped (e.g. sick, traveling), as a civil day key ("2026-10-09") in the time
 // zone of whoever skipped it. It excuses the habit without being an entry, however many entries it
-// takes: a daily or every-N-days habit's day, a weekly one's week (see skips in src/lib/cadence.ts). Like entries, it's the habit's, not one member's: anyone who has
+// takes: a daily habit's day, a weekly one's week, a fifth of an every-N-days one's stretch (see
+// skips in src/lib/cadence.ts). Like entries, it's the habit's, not one member's: anyone who has
 // the habit can skip it, for everyone.
 model HabitSkip {
   habitId   String

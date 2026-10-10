@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { DndContext, closestCenter, DragOverlay } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, ChevronRight, ClipboardList, SkipForward } from 'lucide-react';
+import { CalendarChevronsRight, GripVertical, ChevronRight, ClipboardList, SkipForward } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Icon from '../../../components/Icon';
 import ActivityCalendar from '../../../components/ActivityCalendar';
@@ -181,7 +181,8 @@ export function SortableCategoryItemList({ items: initialItems, statuses, user, 
 // `status` is what the Agenda and Habits pages show: a ring at the row's start that logs it on a tap
 // (see LogRing), in place of its Log button, and beside its calendar how far off it's due (see
 // RowStatus). With `leavesWhenDone` (the Agenda), an entry that makes it done sends the row away, and
-// one that can be skipped (its status's `skip`) is skipped by swiping it to the left, going the same way.
+// one that can be skipped (its status's `skip`) is skipped (or postponed) by swiping it to the left,
+// going the same way.
 // `nested` indents the row under its subcategory's header, its name lined up with the subcategory's
 // `holdToLog` logs the row by pressing and holding it (see HoldToLog), keeping its Log button only
 // with a mouse, and gives it more room (as tall as a category row, with or without a ring).
@@ -202,7 +203,7 @@ const SortableHabitItem = ({ habit, status, user, people, isOverlay, isReorderin
     label: `${skipLabels.skip}: ${habit.name}`,
     reveal: (
       <>
-        <SkipForward className="w-5 h-5" strokeWidth={2.5} />
+        {skipLabels.postpones ? <CalendarChevronsRight className="w-5 h-5" strokeWidth={2.5} /> : <SkipForward className="w-5 h-5" strokeWidth={2.5} />}
         <span className="text-sm font-semibold">{skipLabels.skip}</span>
       </>
     ),
@@ -212,7 +213,7 @@ const SortableHabitItem = ({ habit, status, user, people, isOverlay, isReorderin
         await leaving?.finished.catch(() => {});
         try {
           const day = await skipHabit(habit.id);
-          showSkippedToast({ habitId: habit.id, habitName: habit.name, label: skipLabels.skipped, day });
+          showSkippedToast({ habitId: habit.id, habitName: habit.name, label: skipLabels.skipped, day, postpones: skipLabels.postpones });
         } catch (err) {
           leaving?.cancel();
           toast.error(`Failed to skip: ${err instanceof Error ? err.message : 'Unknown error'}`);

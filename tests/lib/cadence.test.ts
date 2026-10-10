@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { agendaStatus, cadenceFromSuggestion, cadenceProgress, cadenceSchema, cadenceStatus, daysUntilDue, describeCadence, dueAtStartOfDay, isHabitComplete, parseCadence, skippedCovers, skipState, startOfWeek, upcomingDays, withTimes, type Cadence } from '@/lib/cadence';
+import { postpones, skipLabels, agendaStatus, cadenceFromSuggestion, cadenceProgress, cadenceSchema, cadenceStatus, daysUntilDue, describeCadence, dueAtStartOfDay, isHabitComplete, parseCadence, skippedCovers, skipState, startOfWeek, upcomingDays, withTimes, type Cadence } from '@/lib/cadence';
 import { civilDayKey, parseCivilDayKey } from '@/lib/timezone';
 
 const user = { timeZone: 'UTC', bedtime: '00:00', weekStartsOn: 'sunday' };
@@ -315,14 +315,31 @@ describe('skips', () => {
     const everyFourDays: Cadence = { type: 'everyNDays', days: 4 };
     const longAgo = [at('2026-09-01T09:00:00Z')];
     expect(cadenceStatus(everyFourDays, longAgo, user, now)).toEqual({ state: 'due' });
-    // Skipped today: done for today, though due again tomorrow
-    expect(cadenceStatus(everyFourDays, longAgo, user, now, ['2026-10-03'])).toEqual({ state: 'done' });
-    expect(agendaStatus(everyFourDays, longAgo, user, now, ['2026-10-03'])).toEqual({ state: 'done' });
+    // Skipped today: put off until tomorrow, so upcoming
+    expect(cadenceStatus(everyFourDays, longAgo, user, now, ['2026-10-03'])).toEqual({ state: 'upcoming', dueInDays: 1 });
+    expect(agendaStatus(everyFourDays, longAgo, user, now, ['2026-10-03'])).toEqual({ state: 'upcoming', dueInDays: 1 });
+    expect(isHabitComplete(everyFourDays, longAgo, user, now, ['2026-10-03'])).toBe(true);
     expect(daysUntilDue(everyFourDays, longAgo, user, now, ['2026-10-03'])).toBe(1);
     // Skipped yesterday: due today, not overdue from the last entry
     expect(cadenceStatus(everyFourDays, longAgo, user, now, ['2026-10-02'])).toEqual({ state: 'due' });
     expect(daysUntilDue(everyFourDays, longAgo, user, now, ['2026-10-02'])).toBe(0);
     expect(skippedCovers(everyFourDays, ['2026-10-02'], user).map(({ from, to }) => [civilDayKey(from), civilDayKey(to)])).toEqual([['2026-10-02', '2026-10-02']]);
+  });
+
+  it('excuse a longer every-N-days habit for a fifth of its stretch, rounded up', () => {
+    const everyTenDays: Cadence = { type: 'everyNDays', days: 10 };
+    const longAgo = [at('2026-09-01T09:00:00Z')];
+    const skipped = ['2026-10-03'];
+    // Skipped Saturday: upcoming Saturday and Sunday, due again Monday
+    expect(cadenceStatus(everyTenDays, longAgo, user, now, skipped)).toEqual({ state: 'upcoming', dueInDays: 2 });
+    expect(cadenceStatus(everyTenDays, longAgo, user, at('2026-10-04T15:00:00Z'), skipped)).toEqual({ state: 'upcoming', dueInDays: 1 });
+    expect(cadenceStatus(everyTenDays, longAgo, user, at('2026-10-05T15:00:00Z'), skipped)).toEqual({ state: 'due' });
+    expect(daysUntilDue(everyTenDays, longAgo, user, now, skipped)).toBe(2);
+    expect(daysUntilDue(everyTenDays, longAgo, user, at('2026-10-05T15:00:00Z'), skipped)).toBe(0);
+    // Every 30 days: 6 days
+    expect(daysUntilDue({ type: 'everyNDays', days: 30 }, longAgo, user, now, skipped)).toBe(6);
+    // 15 / 5 is exactly 3, not rounded up to 4
+    expect(daysUntilDue({ type: 'everyNDays', days: 15 }, longAgo, user, now, skipped)).toBe(3);
   });
 
   it('excuse a weekday habit on its day', () => {
@@ -357,15 +374,24 @@ describe('skipState', () => {
     expect(skipState({ type: 'calendarWeek', times: 2 }, [at('2026-09-28T09:00:00Z')], user, now)).toEqual({ label: 'Skip this week', skippedDay: null });
     // A weekly habit can be skipped before its last day, while it isn't done
     expect(skipState({ type: 'calendarMonth' }, [], user, now)).toEqual({ label: 'Skip this month', skippedDay: null });
-    expect(skipState({ type: 'everyNDays', days: 3 }, [], user, now)).toEqual({ label: 'Skip today', skippedDay: null });
+    expect(skipState({ type: 'everyNDays', days: 3 }, [], user, now)).toEqual({ label: 'Postpone a day', skippedDay: null });
+    expect(skipState({ type: 'everyNDays', days: 10 }, [], user, now)).toEqual({ label: 'Postpone 2 days', skippedDay: null });
+    expect(skipState({ type: 'everyNDays', days: 10 }, [], user, at('2026-10-04T15:00:00Z'), ['2026-10-03'])).toEqual({ label: 'Postponed 2 days', skippedDay: '2026-10-03' });
   });
 
   it('offers to undo the skip that\'s excusing it', () => {
     expect(skipState(daily, [], user, now, ['2026-10-03'])).toEqual({ label: 'Skipped today', skippedDay: '2026-10-03' });
     expect(skipState({ type: 'calendarWeek' }, [], user, now, ['2026-09-29'])).toEqual({ label: 'Skipped this week', skippedDay: '2026-09-29' });
-    expect(skipState({ type: 'everyNDays', days: 3 }, [], user, now, ['2026-10-03'])).toEqual({ label: 'Skipped today', skippedDay: '2026-10-03' });
+    expect(skipState({ type: 'everyNDays', days: 3 }, [], user, now, ['2026-10-03'])).toEqual({ label: 'Postponed a day', skippedDay: '2026-10-03' });
     // Yesterday's skip doesn't excuse today
-    expect(skipState({ type: 'everyNDays', days: 3 }, [], user, now, ['2026-10-02'])).toEqual({ label: 'Skip today', skippedDay: null });
+    expect(skipState({ type: 'everyNDays', days: 3 }, [], user, now, ['2026-10-02'])).toEqual({ label: 'Postpone a day', skippedDay: null });
+  });
+
+  it('calls skipping an every-N-days habit postponing it, since it puts it off', () => {
+    expect(skipLabels({ type: 'everyNDays', days: 30 })).toEqual({ skip: 'Postpone 6 days', skipped: 'Postponed 6 days', postpones: true });
+    expect(skipLabels({ type: 'daily', timesPerDay: 1 })).toEqual({ skip: 'Skip today', skipped: 'Skipped today', postpones: false });
+    expect(postpones({ type: 'calendarWeek' })).toBe(false);
+    expect(skipLabels({ type: 'none' })).toBeNull();
   });
 
   it('has nothing to offer once it\'s done, on a day off, or with no cadence', () => {

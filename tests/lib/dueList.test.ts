@@ -250,6 +250,14 @@ describe('skips on the Agenda', () => {
     expect(list.clearedToday).toBe(false);
   });
 
+  it('puts an every-N-days habit skipped today in Upcoming, counting down to when the skip runs out, with nothing more to skip', () => {
+    const list = buildDueList([], [skipped(habit('floss', { type: 'everyNDays', days: 10 }), '2026-10-03')], {}, user, now);
+    expect(list.upcomingHabits.map(u => [u.item.id, u.dueInDays])).toEqual([['floss', 2]]);
+    expect(list.statuses.floss).toEqual({ done: 0, needed: 1, period: null, dueInDays: 2 });
+    expect(list.skippedHabitIds).toEqual([]);
+    expect(list.clearedToday).toBe(false);
+  });
+
   it('doesn\'t mark a habit done by an entry as skipped', () => {
     const list = buildDueList([], [habit('run', daily, [{ createdAt: today, userId: 'me' }])], {}, user, now);
     expect(list.skippedHabitIds).toEqual([]);
@@ -264,13 +272,17 @@ describe('skips on the Agenda', () => {
       // A day off: upcoming, but nothing to skip today
       habit('gym', { type: 'weekdays', days: [1, 5] }),
     ], {}, user, wednesday);
-    expect(list.statuses.run.skip).toEqual({ skip: 'Skip today', skipped: 'Skipped today' });
-    expect(list.statuses.vacuum.skip).toEqual({ skip: 'Skip this week', skipped: 'Skipped this week' });
+    expect(list.statuses.run.skip).toEqual({ skip: 'Skip today', skipped: 'Skipped today', postpones: false });
+    expect(list.statuses.vacuum.skip).toEqual({ skip: 'Skip this week', skipped: 'Skipped this week', postpones: false });
     expect(list.statuses.gym.skip).toBeUndefined();
   });
 
   it('counts skips in a habit row\'s status on the Habits pages', () => {
     expect(listRowStatus(daily, [], user, { habit: true, skippedDays: ['2026-10-03'] }, now)).toEqual({ done: 1, needed: 1, period: null, dueInDays: null });
     expect(listRowStatus(daily, [], user, { habit: true }, now)).toEqual({ done: 0, needed: 1, period: null, dueInDays: null });
+    // An every-N-days habit put off by a skip isn't done, while one done by an entry is
+    const everyTenDays: Cadence = { type: 'everyNDays', days: 10 };
+    expect(listRowStatus(everyTenDays, [], user, { habit: true, skippedDays: ['2026-10-03'] }, now)).toEqual({ done: 0, needed: 1, period: null, dueInDays: 2 });
+    expect(listRowStatus(everyTenDays, [new Date('2026-09-25T09:00:00Z')], user, { habit: true }, now)).toEqual({ done: 1, needed: 1, period: null, dueInDays: 2 });
   });
 });

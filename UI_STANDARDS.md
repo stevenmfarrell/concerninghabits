@@ -85,6 +85,7 @@ Icons are lucide's (`lucide-react`). One meaning gets one icon everywhere, so a 
 | Automation (submit URL, Home Assistant) | `Zap` | |
 | Reminders | `AlarmClock`, `AlarmClockOff` when one is off or paused | `Bell` |
 | Skip a habit for now (today, this week), or skipped | `SkipForward` | `Ban`, `X` (those read as cancel or delete) |
+| Postpone an every-N-days habit (its skip puts it off), or postponed | `CalendarChevronsRight` | `SkipForward` (that's excusing it), `CalendarClock` (that's backdating) |
 | Back | `ArrowLeft` | |
 | Drill into a row | `ChevronRight` at the row's end | |
 | Open a page from inside a row that does something else on tap | `ArrowRight` | `ExternalLink` (that means leaving the app) |
