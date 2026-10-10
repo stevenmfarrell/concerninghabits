@@ -6,6 +6,7 @@ import QuillIconWavy from '@/components/QuillIconWavy';
 import { IconButton } from '@/components/ui/IconButton';
 import CategoryLogDialog from './CategoryLogDialog';
 import RowGesture from './RowGesture';
+import { useSkipSwipe } from './skipping';
 import { POINTER_ONLY } from './pointerOnly';
 import LogRing from './LogRing';
 import { zoomAway } from './zoomAway';
@@ -16,9 +17,10 @@ import type { PickerSection } from '@/lib/dueList';
 // button at the row's end opens it too, lined up with habit rows' Log buttons. With the row's
 // `status` (the Agenda and Habits pages), a ring at its start opens it on a tap instead, everywhere
 // (see LogRing), filling as soon as a habit's picked. With `leavesWhenDone` (the Agenda), the row
-// zooms away once that makes it done (see zoomAway).
+// zooms away once that makes it done (see zoomAway), and one that can be skipped now (its status's
+// `skip`) is skipped (or postponed) by swiping it to the left, going the same way.
 export default function CategoryHoldToLog({ category, row, leavesWhenDone = false }: {
-  category: { name: string; icon: string | null; sections: PickerSection[] };
+  category: { id: string; name: string; icon: string | null; sections: PickerSection[] };
   row: CategoryRowProps;
   leavesWhenDone?: boolean;
 }) {
@@ -37,9 +39,11 @@ export default function CategoryHoldToLog({ category, row, leavesWhenDone = fals
     return leavesWhenDone && status.done + pending + 1 >= status.needed ? zoomAway(rowRef.current) : undefined;
   };
 
+  const swipe = useSkipSwipe({ kind: 'category', id: category.id, name: category.name }, leavesWhenDone ? status?.skip : undefined, rowRef);
+
   return (
     <div ref={rowRef}>
-      <RowGesture onCommit={open} label={label} tone="category" hiddenButton={!status}>
+      <RowGesture onCommit={open} label={label} tone="category" hiddenButton={!status} swipe={swipe}>
         {status ? (
           <CategoryRow {...row} leading={<LogRing status={status} pending={pending} label={label} onClick={open} color="blue" />} />
         ) : (

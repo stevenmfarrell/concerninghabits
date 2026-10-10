@@ -10,7 +10,8 @@ import HorizonToggle from '@/components/HorizonToggle';
 import CategoryMenu from './CategoryMenu';
 import CategoryCadence from './CategoryCadence';
 import EmptyState from '@/components/EmptyState';
-import { NO_CADENCE, parseCadence } from '@/lib/cadence';
+import { NO_CADENCE, parseCadence, postpones, skipState } from '@/lib/cadence';
+import SkipButton from '@/components/SkipButton';
 import { UNCATEGORIZED_ID } from '@/lib/constants';
 import { SortableCategoryItemList } from './SortableLists';
 import { DEFAULT_CATEGORY_ICON } from '@/lib/constants';
@@ -49,8 +50,14 @@ export default async function CategoryLogPage(props: { params: Promise<{ id: str
 
   const isTopLevel = category.parentId === null;
   const cadence = parseCadence(category.cadence, NO_CADENCE);
-  // Shaded by the category's cadence when it has one, otherwise by how many of its habits were logged
-  const calendarShading = cadence.type === 'none' ? { density: Math.max(habitCount, 1) } : { cadence };
+  const skippedDays = skippedDaysOf(category);
+  // Shaded by the category's cadence when it has one, with its skips, otherwise by how many of its
+  // habits were logged
+  const calendarShading = cadence.type === 'none' ? { density: Math.max(habitCount, 1) } : { cadence, skippedDays };
+  // Skipping it (its own cadence), or undoing that, under its cadence while it's due, as a habit's
+  // page has (see SkipButton)
+  const categoryDates = [...category.habits, ...(isTopLevel ? category.children.flatMap(c => c.habits) : [])].flatMap(h => entryDates(h, latestLogDates));
+  const skip = category.id === UNCATEGORIZED_ID ? null : skipState(cadence, categoryDates, user, new Date(), skippedDays);
   const calendarProps = { dates, weeks, ...calendarShading, size: 'md' as const, bedtime: user.bedtime, weekStartsOn: user.weekStartsOn, timeZone: user.timeZone, color: 'blue' as const };
 
   // Every row's ring, by id: each habit's, and each subcategory's from its habits' entries
@@ -61,7 +68,7 @@ export default async function CategoryLogPage(props: { params: Promise<{ id: str
   category.habits.forEach(addHabitStatus);
   for (const child of isTopLevel ? category.children : []) {
     child.habits.forEach(addHabitStatus);
-    statuses[child.id] = listRowStatus(parseCadence(child.cadence, NO_CADENCE), child.habits.flatMap(h => entryDates(h, latestLogDates)), user, { habit: false });
+    statuses[child.id] = listRowStatus(parseCadence(child.cadence, NO_CADENCE), child.habits.flatMap(h => entryDates(h, latestLogDates)), user, { habit: false, skippedDays: skippedDaysOf(child) });
   }
 
   // Direct habits and subcategories share one order sequence. On ties, habits come first.
@@ -94,8 +101,11 @@ export default async function CategoryLogPage(props: { params: Promise<{ id: str
       }
     >
       {category.id !== UNCATEGORIZED_ID && (
-        <div className={`${PANE_INSET} py-4 flex justify-center`}>
-          <CategoryCadence categoryId={category.id} cadence={cadence} weekStartsOn={user.weekStartsOn} />
+        <div className={`${PANE_INSET} py-4 space-y-2`}>
+          <div className="flex justify-center">
+            <CategoryCadence categoryId={category.id} cadence={cadence} weekStartsOn={user.weekStartsOn} />
+          </div>
+          {skip && <SkipButton target={{ kind: 'category', id: category.id, name: category.name }} skip={skip} postpones={postpones(cadence)} />}
         </div>
       )}
 

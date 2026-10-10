@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { prisma } from '@/lib/prisma';
 import { cookieJar, setSessionCookie } from '../setup';
-import { deleteHabit, getHabit, getUncategorizedHabits, saveHabit, setHabitSharing, skipHabit, unskipHabit } from '@/app/actions/db';
+import { createCategory, deleteCategory, deleteHabit, getCategoriesWithHierarchy, getCategory, getHabit, getUncategorizedHabits, saveHabit, setHabitSharing, skipCategory, skipHabit, unskipCategory, unskipHabit } from '@/app/actions/db';
 import { TIMEZONE_COOKIE, civilDayKey, toCivilDate } from '@/lib/timezone';
 
 const testSchema = { type: 'object' as const, properties: {} };
@@ -63,5 +63,45 @@ describe('skipping a habit', () => {
     await skipHabit(habit.id);
     await deleteHabit(habit.id);
     expect(await prisma.habitSkip.count({ where: { habitId: habit.id } })).toBe(0);
+  });
+});
+
+describe('skipping a category', () => {
+  let owner: Awaited<ReturnType<typeof createTestUser>>;
+  const today = () => civilDayKey(toCivilDate(new Date(), 'UTC'));
+
+  beforeEach(async () => {
+    owner = await createTestUser('Owner');
+    setSessionCookie(owner.sessionId);
+    cookieJar.set(TIMEZONE_COOKIE, 'UTC');
+  });
+
+  it('skips it for today, shown with it and its subcategories, and takes it back', async () => {
+    const fitness = await createCategory('Fitness');
+    const cardio = await createCategory('Cardio', undefined, fitness.id);
+    expect(await skipCategory(fitness.id)).toBe(today());
+    await skipCategory(cardio.id);
+    const [listed] = (await getCategoriesWithHierarchy()).filter(c => c.id === fitness.id);
+    expect(listed.skips).toEqual([{ day: today() }]);
+    expect(listed.children[0].skips).toEqual([{ day: today() }]);
+    expect((await getCategory(fitness.id))?.skips).toEqual([{ day: today() }]);
+
+    await unskipCategory(fitness.id, today());
+    expect((await getCategory(fitness.id))?.skips).toEqual([]);
+    await expect(unskipCategory(fitness.id, 'not a day')).rejects.toThrow('Invalid day');
+  });
+
+  it('doesn\'t let anyone else skip it', async () => {
+    const fitness = await createCategory('Fitness');
+    setSessionCookie((await createTestUser('Other')).sessionId);
+    await expect(skipCategory(fitness.id)).rejects.toThrow('Unauthorized');
+    await expect(unskipCategory(fitness.id, today())).rejects.toThrow('Unauthorized');
+  });
+
+  it('goes with the category when it\'s deleted', async () => {
+    const fitness = await createCategory('Fitness');
+    await skipCategory(fitness.id);
+    await deleteCategory(fitness.id);
+    expect(await prisma.categorySkip.count({ where: { categoryId: fitness.id } })).toBe(0);
   });
 });

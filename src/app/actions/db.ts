@@ -130,6 +130,9 @@ function withHabits<C extends { habitMembers: HabitListMembership[] }>({ habitMe
   return { ...category, habits: habitMembers.map(toHabitListItem) };
 }
 
+// The days a category was skipped (see CategorySkip), all of them, as for a habit's
+const categorySkips = { select: { day: true } } as const;
+
 export async function getCategoriesWithHierarchy() {
   const user = await getDefaultUser();
   // Only the 4-week row calendars read this, but the cutoff is generous so it stays
@@ -141,9 +144,10 @@ export async function getCategoriesWithHierarchy() {
     include: {
       children: {
         orderBy: [{ order: 'asc' }, { name: 'asc' }],
-        include: { habitMembers: habitListRows(logsCutoff) }
+        include: { habitMembers: habitListRows(logsCutoff), skips: categorySkips }
       },
-      habitMembers: habitListRows(logsCutoff)
+      habitMembers: habitListRows(logsCutoff),
+      skips: categorySkips
     }
   });
   return categories.map(category => ({ ...withHabits(category), children: category.children.map(withHabits) }));
@@ -166,6 +170,8 @@ export async function getCategory(id: string, weeks: number = MAX_HISTORY_WEEKS)
       parent: null,
       children: [] as never[],
       habits,
+      // Never skipped: it has no cadence
+      skips: [] as { day: string }[],
     };
   }
 
@@ -175,9 +181,10 @@ export async function getCategory(id: string, weeks: number = MAX_HISTORY_WEEKS)
     include: {
       children: {
         orderBy: [{ order: 'asc' }, { name: 'asc' }],
-        include: { habitMembers: habitListRows(logsCutoff) }
+        include: { habitMembers: habitListRows(logsCutoff), skips: categorySkips }
       },
       habitMembers: habitListRows(logsCutoff),
+      skips: categorySkips,
       parent: true
     }
   });
@@ -367,12 +374,17 @@ export async function getHabit(id: string) {
   };
 }
 
+// Today for the user, as a civil day key (their time zone, with their bedtime ending the day)
+function todayKey(user: { timeZone: string; bedtime: string }) {
+  return civilDayKey(toCivilDate(new Date(), user.timeZone, parseBedtimeOffsetMinutes(user.bedtime)));
+}
+
 // Skips the habit for today, the viewer's day: it counts toward the habit's cadence like an entry
 // today would (see skipState). Anyone who has the habit can, the same as logging it.
 export async function skipHabit(habitId: string) {
   const user = await getDefaultUser();
   await getMembership(user.id, habitId);
-  const day = civilDayKey(toCivilDate(new Date(), user.timeZone, parseBedtimeOffsetMinutes(user.bedtime)));
+  const day = todayKey(user);
   await prisma.habitSkip.upsert({
     where: { habitId_day: { habitId, day } },
     create: { habitId, day, userId: user.id },
@@ -391,6 +403,32 @@ export async function unskipHabit(habitId: string, day: string) {
   await prisma.habitSkip.deleteMany({ where: { habitId, day } });
   revalidateLists();
   revalidatePath(`/log/${habitId}`);
+}
+
+// Skips the category for today (see CategorySkip): its own cadence, not its habits'. Owner only, as
+// a category always is.
+export async function skipCategory(categoryId: string) {
+  const user = await getDefaultUser();
+  await getOwnedCategory(user.id, categoryId);
+  const day = todayKey(user);
+  await prisma.categorySkip.upsert({
+    where: { categoryId_day: { categoryId, day } },
+    create: { categoryId, day },
+    update: {},
+  });
+  revalidateLists();
+  revalidatePath(`/categories/${categoryId}`);
+  return day;
+}
+
+// Takes back a category's skip, made on `day` (a civil day key, see skipCategory)
+export async function unskipCategory(categoryId: string, day: string) {
+  const user = await getDefaultUser();
+  await getOwnedCategory(user.id, categoryId);
+  if (!parseCivilDayKey(day)) throw new Error('Invalid day');
+  await prisma.categorySkip.deleteMany({ where: { categoryId, day } });
+  revalidateLists();
+  revalidatePath(`/categories/${categoryId}`);
 }
 
 export async function logHabitEvent(habitId: string, payload: Record<string, unknown>, createdAt?: Date) {

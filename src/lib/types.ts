@@ -50,6 +50,8 @@ export interface SubcategoryListItem {
   icon: string | null;
   // Its own cadence as stored, JSON (see parseCadence), or none
   cadence?: string;
+  // The days it was skipped, as civil day keys (see CategorySkip)
+  skips?: { day: string }[];
   order?: number | null;
   habits?: HabitListItem[];
 }

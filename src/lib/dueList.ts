@@ -10,6 +10,8 @@ interface CategoryWithHabits {
   // Its place among its parent's direct habits and subcategories, which share one order sequence
   order?: number | null;
   habits: HabitListItem[];
+  // The days it was skipped, as civil day keys (see CategorySkip)
+  skips?: { day: string }[];
 }
 
 export interface CategoryTree extends CategoryWithHabits {
@@ -48,6 +50,8 @@ export interface DueCategory {
   status?: RowStatus;
   // The same habits laid out to pick one to log from (see pickerSections)
   sections: PickerSection[];
+  // The days it was skipped, as civil day keys, for its calendar
+  skippedDays: string[];
 }
 
 // A run of a category's own habits (`subcategory` null), or one subcategory's habits under its name
@@ -88,13 +92,13 @@ export function entryDates(habit: HabitListItem, latestLogDates: Record<string, 
   return dates;
 }
 
-// The days a habit was skipped, as civil day keys
-export const skippedDaysOf = (habit: HabitListItem) => (habit.skips ?? []).map(s => s.day);
+// The days a habit or category was skipped, as civil day keys
+export const skippedDaysOf = (item: { skips?: { day: string }[] }) => (item.skips ?? []).map(s => s.day);
 
 // A row's status on the Habits pages, which list everything, done or not: done once its cadence is
 // met for now (an every-N-days one until it's due again), or for a habit with no cadence (`habit`),
-// once it has an entry today. A category with no cadence is never done. A habit's `skippedDays`
-// count toward its cadence (see skipState); a habit with no cadence can't be skipped.
+// once it has an entry today. A category with no cadence is never done. `skippedDays`, a habit's or
+// a category's own, count toward its cadence (see skipState); with no cadence, there's nothing to skip.
 export function listRowStatus(
   cadence: Cadence,
   dates: Date[],
@@ -129,8 +133,10 @@ export interface DueList {
   doneCategories: DueCategory[];
   // What each due or upcoming habit's row shows beside its calendar, by habit id
   statuses: Record<string, RowStatus>;
-  // The done habits that are only done because they were skipped, for their chips to say so
+  // The done habits and categories that are only done because they were skipped, for their chips
+  // to say so
   skippedHabitIds: string[];
+  skippedCategoryIds: string[];
   // Whether anything due at the start of today has since been done, so an empty Due Now was earned
   // rather than just having nothing in it. Skipping something doesn't earn it.
   clearedToday: boolean;
@@ -152,21 +158,34 @@ export function buildDueList(
 ): DueList {
   const datesOf = (habit: HabitListItem) => entryDates(habit, latestLogDates);
 
-  const list: DueList = { dueHabits: [], upcomingHabits: [], doneHabits: [], dueCategories: [], upcomingCategories: [], doneCategories: [], statuses: {}, skippedHabitIds: [], clearedToday: false };
+  const list: DueList = { dueHabits: [], upcomingHabits: [], doneHabits: [], dueCategories: [], upcomingCategories: [], doneCategories: [], statuses: {}, skippedHabitIds: [], skippedCategoryIds: [], clearedToday: false };
 
-  const rowStatus = (cadence: Cadence, dates: Date[], skippedDays: string[] = []): RowStatus => ({
-    ...(cadenceProgress(cadence, dates, user, now, skippedDays) ?? { done: 0, needed: 1, period: null }),
-    dueInDays: daysUntilDue(cadence, dates, user, now, skippedDays),
-  });
+  // A due or upcoming row's status, with what a skip's called if it can be skipped now (for
+  // swiping it away)
+  const rowStatus = (cadence: Cadence, dates: Date[], skippedDays: string[]): RowStatus => {
+    const canSkip = skipState(cadence, dates, user, now, skippedDays)?.skippedDay === null;
+    return {
+      ...(cadenceProgress(cadence, dates, user, now, skippedDays) ?? { done: 0, needed: 1, period: null }),
+      dueInDays: daysUntilDue(cadence, dates, user, now, skippedDays),
+      ...(canSkip ? { skip: skipLabels(cadence)! } : {}),
+    };
+  };
+
+  // Where a habit or category goes, and whether that's only because it was skipped. Doing something
+  // due at the start of today earns the cleared reward; skipping it doesn't.
+  const place = (cadence: Cadence, dates: Date[], skippedDays: string[]) => {
+    const status = agendaStatus(cadence, dates, user, now, skippedDays);
+    const skipped = !!skipState(cadence, dates, user, now, skippedDays)?.skippedDay;
+    if (status.state !== 'due' && !skipped && dueAtStartOfDay(cadence, dates, user, now, skippedDays)) list.clearedToday = true;
+    return { status, skipped };
+  };
 
   const addHabit = (habit: HabitListItem) => {
     const cadence = parseCadence(habit.cadence);
     if (cadence.type === 'none') return;
     const dates = datesOf(habit);
     const skippedDays = skippedDaysOf(habit);
-    const status = agendaStatus(cadence, dates, user, now, skippedDays);
-    const skipped = !!skipState(cadence, dates, user, now, skippedDays)?.skippedDay;
-    if (status.state !== 'due' && !skipped && dueAtStartOfDay(cadence, dates, user, now, skippedDays)) list.clearedToday = true;
+    const { status, skipped } = place(cadence, dates, skippedDays);
     if (status.state === 'done') {
       list.doneHabits.push(habit);
       if (skipped) list.skippedHabitIds.push(habit.id);
@@ -174,8 +193,7 @@ export function buildDueList(
     }
     if (status.state === 'due') list.dueHabits.push(habit);
     else list.upcomingHabits.push({ item: habit, dueInDays: status.dueInDays });
-    const canSkip = skipState(cadence, dates, user, now, skippedDays)?.skippedDay === null;
-    list.statuses[habit.id] = { ...rowStatus(cadence, dates, skippedDays), ...(canSkip ? { skip: skipLabels(cadence)! } : {}) };
+    list.statuses[habit.id] = rowStatus(cadence, dates, skippedDays);
   };
 
   // `children` is a top-level category's subcategories, whose habits count toward it too
@@ -184,13 +202,16 @@ export function buildDueList(
     if (cadence.type === 'none') return;
     const habits = [...category.habits, ...children.flatMap(child => child.habits)];
     const sections = pickerSections(category.habits, children);
-    const item: DueCategory = { id: category.id, name: category.name, icon: category.icon, cadence, habits, sections };
+    const item: DueCategory = { id: category.id, name: category.name, icon: category.icon, cadence, habits, sections, skippedDays: skippedDaysOf(category) };
     const dates = habits.flatMap(datesOf);
-    const status = agendaStatus(cadence, dates, user, now);
-    if (status.state !== 'due' && dueAtStartOfDay(cadence, dates, user, now)) list.clearedToday = true;
-    if (status.state === 'due') list.dueCategories.push({ ...item, status: rowStatus(cadence, dates) });
-    else if (status.state === 'upcoming') list.upcomingCategories.push({ item: { ...item, status: rowStatus(cadence, dates) }, dueInDays: status.dueInDays });
-    else list.doneCategories.push(item);
+    const skippedDays = skippedDaysOf(category);
+    const { status, skipped } = place(cadence, dates, skippedDays);
+    if (status.state === 'due') list.dueCategories.push({ ...item, status: rowStatus(cadence, dates, skippedDays) });
+    else if (status.state === 'upcoming') list.upcomingCategories.push({ item: { ...item, status: rowStatus(cadence, dates, skippedDays) }, dueInDays: status.dueInDays });
+    else {
+      list.doneCategories.push(item);
+      if (skipped) list.skippedCategoryIds.push(category.id);
+    }
   };
 
   for (const category of categories) {

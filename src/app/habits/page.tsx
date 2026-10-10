@@ -10,16 +10,16 @@ import { PanePage, PaneSection } from '@/components/Pane';
 import { IconLinkButton } from '@/components/ui/IconButton';
 import { UNCATEGORIZED_ID, UNCATEGORIZED_ICON } from '@/lib/constants';
 import { NO_CADENCE, parseCadence } from '@/lib/cadence';
-import { entryDates, listRowStatus, pickerSections, type PickerSection } from '@/lib/dueList';
+import { entryDates, listRowStatus, pickerSections, skippedDaysOf, type PickerSection } from '@/lib/dueList';
 import { DEFAULT_CATEGORY_ICON } from '@/lib/constants';
 
 // A category's row, with a ring that opens a picker of its habits to log, as does holding the row
 // (see CategoryHoldToLog). One with no habits has nothing to log, so its ring can't be tapped.
-function HoldableCategoryRow({ row, sections }: { row: CategoryRowProps; sections: PickerSection[] }) {
+function HoldableCategoryRow({ id, row, sections }: { id: string; row: CategoryRowProps; sections: PickerSection[] }) {
   if (sections.length === 0) {
     return <CategoryRow {...row} leading={row.status && <LogRing status={row.status} label="No habits to log" color="blue" disabled />} />;
   }
-  return <CategoryHoldToLog category={{ name: row.name, icon: row.icon, sections }} row={row} />;
+  return <CategoryHoldToLog category={{ id, name: row.name, icon: row.icon, sections }} row={row} />;
 }
 
 // Habits: every category (and uncategorized habits) to browse, with recent activity. What's due
@@ -41,7 +41,8 @@ export default async function HabitsPage() {
         name: cat.name,
         icon: cat.icon || DEFAULT_CATEGORY_ICON,
         cadence,
-        status: listRowStatus(cadence, habits.flatMap(h => entryDates(h, latestLogDates)), user, { habit: false }),
+        status: listRowStatus(cadence, habits.flatMap(h => entryDates(h, latestLogDates)), user, { habit: false, skippedDays: skippedDaysOf(cat) }),
+        skippedDays: skippedDaysOf(cat),
         habitCount: habits.length,
         dates: habits.flatMap(h => h.logs.map(l => l.createdAt)),
         sections: pickerSections(cat.habits, cat.children),
@@ -81,6 +82,7 @@ export default async function HabitsPage() {
         {categoryRows.map(cat => (
           <HoldableCategoryRow
             key={cat.id}
+            id={cat.id}
             sections={cat.sections}
             row={{
               href: `/categories/${cat.id}`,
@@ -90,6 +92,7 @@ export default async function HabitsPage() {
               habitCount: cat.habitCount,
               showCadence: true,
               cadence: cat.cadence,
+              skippedDays: cat.skippedDays,
               status: cat.status,
               bedtime: user.bedtime,
               weekStartsOn: user.weekStartsOn,
@@ -99,6 +102,7 @@ export default async function HabitsPage() {
         ))}
         {uncategorized.length > 0 && (
           <HoldableCategoryRow
+            id={UNCATEGORIZED_ID}
             sections={[{ subcategory: null, habits: uncategorized }]}
             row={{
               href: `/categories/${UNCATEGORIZED_ID}`,

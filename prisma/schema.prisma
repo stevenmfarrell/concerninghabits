@@ -103,20 +103,21 @@ model HabitMember {
 }
 
 model Category {
-  id           String        @id @default(uuid())
+  id           String         @id @default(uuid())
   name         String
   icon         String?
   userId       String
-  user         User          @relation(fields: [userId], references: [id])
+  user         User           @relation(fields: [userId], references: [id])
   habitMembers HabitMember[]
   parentId     String?
-  order        Int           @default(0)
+  order        Int            @default(0)
   // How often the user means to do something in this category (any of its habits, its
   // subcategories' included), as JSON (see src/lib/cadence.ts). No cadence unless they set one.
-  cadence      String        @default("{\"type\":\"none\"}")
-  parent       Category?     @relation("Subcategories", fields: [parentId], references: [id])
-  children     Category[]    @relation("Subcategories")
-  createdAt    DateTime      @default(now())
+  cadence      String         @default("{\"type\":\"none\"}")
+  parent       Category?      @relation("Subcategories", fields: [parentId], references: [id])
+  children     Category[]     @relation("Subcategories")
+  skips        CategorySkip[]
+  createdAt    DateTime       @default(now())
 
   @@index([userId, parentId])
   @@index([parentId])
@@ -152,6 +153,18 @@ model HabitSkip {
 
   @@id([habitId, day])
   @@index([userId])
+}
+
+// A day a category with a cadence was skipped (or for an every-N-days one, postponed), as a civil
+// day key like HabitSkip's. It excuses the category's own cadence (see skips in src/lib/cadence.ts),
+// not its habits, which have their own; and a habit's skip doesn't count toward its category.
+model CategorySkip {
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  day        String
+  createdAt  DateTime @default(now())
+
+  @@id([categoryId, day])
 }
 
 model RateLimit {

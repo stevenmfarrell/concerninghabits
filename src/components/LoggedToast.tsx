@@ -1,10 +1,11 @@
 'use client';
 
 import toast, { type Toast } from 'react-hot-toast';
-import { CalendarChevronsRight, Check, SkipForward, X } from 'lucide-react';
+import { Check, X } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/Button';
-import { deleteHabitLog, unskipHabit } from '@/app/actions/db';
+import { deleteHabitLog } from '@/app/actions/db';
+import { SkipIcon, unskip, type SkipTarget } from '@/components/logging/skipping';
 import { formatLogValue } from '@/lib/format';
 
 type SchemaProperties = Record<string, { title?: string; 'x-widget'?: string; 'x-unit'?: string }> | undefined;
@@ -64,14 +65,14 @@ export function showLoggedToast(entry: LoggedEntry, { onUndone, toastId }: { onU
   });
 }
 
-// Confirms a habit just skipped (e.g. swiped away on the Agenda), with an Undo that takes the skip
-// back. `label` says what was skipped, e.g. "Skipped today" or "Postponed 2 days"; `day` is the
-// skip's (see skipHabit). `postpones` is for a skip that puts the habit off (see postpones).
-export function showSkippedToast({ habitId, habitName, label, day, postpones = false }: { habitId: string; habitName: string; label: string; day: string; postpones?: boolean }) {
+// Confirms a habit or category just skipped (e.g. swiped away on the Agenda), with an Undo that
+// takes the skip back. `label` says what was skipped, e.g. "Skipped today" or "Postponed 2 days";
+// `day` is the skip's (see skipHabit). `postpones` is for a skip that puts it off (see postpones).
+export function showSkippedToast({ target, label, day, postpones = false }: { target: SkipTarget; label: string; day: string; postpones?: boolean }) {
   const undo = async (t: Toast) => {
     toast.dismiss(t.id);
     try {
-      await unskipHabit(habitId, day);
+      await unskip(target, day);
       toast.success(postpones ? 'Postponement undone.' : 'Skip undone.');
     } catch (err) {
       toast.error(`Failed to undo: ${err instanceof Error ? err.message : 'Unknown error'}`);
@@ -81,9 +82,9 @@ export function showSkippedToast({ habitId, habitName, label, day, postpones = f
   toast.custom(t => (
     <ToastCard
       t={t}
-      icon={postpones ? <CalendarChevronsRight className="w-4 h-4" strokeWidth={2.5} /> : <SkipForward className="w-4 h-4" strokeWidth={2.5} />}
+      icon={<SkipIcon postpones={postpones} className="w-4 h-4" />}
       iconClassName="bg-on-inverse/15 text-on-inverse"
-      title={habitName}
+      title={target.name}
       detail={label}
       onUndo={() => undo(t)}
     />

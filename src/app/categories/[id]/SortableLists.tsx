@@ -1,16 +1,15 @@
 'use client';
 
-import React, { startTransition, useOptimistic, useRef, useState } from 'react';
+import React, { useOptimistic, useRef, useState } from 'react';
 import Link from 'next/link';
 import { DndContext, closestCenter, DragOverlay } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { CalendarChevronsRight, GripVertical, ChevronRight, ClipboardList, SkipForward } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { GripVertical, ChevronRight, ClipboardList } from 'lucide-react';
 import Icon from '../../../components/Icon';
 import ActivityCalendar from '../../../components/ActivityCalendar';
 import { reorderCategories } from '../../actions/db';
-import { reorderHabits, skipHabit } from '../../actions/db';
+import { reorderHabits } from '../../actions/db';
 import { NO_CADENCE, parseCadence } from '@/lib/cadence';
 import type { RowStatus as Status } from '@/lib/dueList';
 import type { HabitListItem, SessionUser, SubcategoryListItem } from '@/lib/types';
@@ -20,9 +19,9 @@ import LogHabitButton from '@/components/logging/LogHabitButton';
 import HoldToLog from '@/components/logging/HoldToLog';
 import LogRing from '@/components/logging/LogRing';
 import type { HabitLogger } from '@/components/logging/useHabitLogger';
-import { swipeAway, zoomAway } from '@/components/logging/zoomAway';
-import RowGesture, { type RowSwipe } from '@/components/logging/RowGesture';
-import { showSkippedToast } from '@/components/LoggedToast';
+import { zoomAway } from '@/components/logging/zoomAway';
+import RowGesture from '@/components/logging/RowGesture';
+import { useSkipSwipe } from '@/components/logging/skipping';
 import CategoryLogDialog from '@/components/logging/CategoryLogDialog';
 import { POINTER_ONLY } from '@/components/logging/pointerOnly';
 import RowStatus from '@/components/RowStatus';
@@ -194,34 +193,9 @@ const SortableHabitItem = ({ habit, status, user, people, isOverlay, isReorderin
   // An entry that makes it done sends the row away, on to the Agenda's Done chips
   const leave = () => (leavesWhenDone && status && status.done + 1 >= status.needed ? zoomAway(rowRef.current) : undefined);
 
-  // Gone from the moment it's swiped, before the server's asked, and put back if that fails. The
-  // skip is only made once the row's gone, and the page is rendered again without it in the same
-  // transition, before the toast offers an Undo: an Undo while the skip's still on its way would be
-  // overtaken by it, bringing the row back only for the skip to take it away again.
+  // On the Agenda, swiped to the left to skip it, while it can be (its status's `skip`)
   const skipLabels = leavesWhenDone ? status?.skip : undefined;
-  const swipe: RowSwipe | undefined = skipLabels && {
-    label: `${skipLabels.skip}: ${habit.name}`,
-    reveal: (
-      <>
-        {skipLabels.postpones ? <CalendarChevronsRight className="w-5 h-5" strokeWidth={2.5} /> : <SkipForward className="w-5 h-5" strokeWidth={2.5} />}
-        <span className="text-sm font-semibold">{skipLabels.skip}</span>
-      </>
-    ),
-    onCommit: () => new Promise<void>(resolve => {
-      startTransition(async () => {
-        const leaving = swipeAway(rowRef.current);
-        await leaving?.finished.catch(() => {});
-        try {
-          const day = await skipHabit(habit.id);
-          showSkippedToast({ habitId: habit.id, habitName: habit.name, label: skipLabels.skipped, day, postpones: skipLabels.postpones });
-        } catch (err) {
-          leaving?.cancel();
-          toast.error(`Failed to skip: ${err instanceof Error ? err.message : 'Unknown error'}`);
-        }
-        resolve();
-      });
-    }),
-  };
+  const swipe = useSkipSwipe({ kind: 'habit', id: habit.id, name: habit.name }, skipLabels, rowRef);
 
   const style = {
     transform: CSS.Transform.toString(transform),

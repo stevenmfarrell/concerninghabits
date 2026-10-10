@@ -21,7 +21,7 @@ import LogButtonIcon from '@/components/logging/LogButtonIcon';
 import LogEntrySheet from '@/components/logging/LogEntrySheet';
 import { useHabitLogger } from '@/components/logging/useHabitLogger';
 import ShareDialog from './ShareDialog';
-import SkipButton from './SkipButton';
+import SkipButton from '@/components/SkipButton';
 import HabitDetails from './HabitDetails';
 import { useCsvImport } from './useCsvImport';
 import { MENU_ITEM, MENU_PANEL, MenuBackdrop } from '@/components/ui/Menu';
@@ -268,7 +268,7 @@ export default function LogClient({ habit, user, people, categories, reminder, s
               <CalendarClock className="w-6 h-6" strokeWidth={2.5} />
             </Button>
           </div>
-          {skip && <SkipButton habitId={habit.id} skip={skip} postpones={postpones} />}
+          {skip && <SkipButton target={{ kind: 'habit', id: habit.id, name: habit.name }} skip={skip} postpones={postpones} />}
         </div>
       </div>
 

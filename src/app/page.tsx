@@ -33,6 +33,7 @@ function CategoryList({ categories, user }: { categories: DueCategory[]; user: S
           dates: category.habits.flatMap(h => (h.logs ?? []).map(l => l.createdAt)),
           habitCount: category.habits.length,
           cadence: category.cadence,
+          skippedDays: category.skippedDays,
           status: category.status,
           alignWithHabitRows: true,
           bedtime: user.bedtime,
@@ -51,8 +52,8 @@ function CategoryList({ categories, user }: { categories: DueCategory[]; user: S
 // What's done for now, as small chips: white, with the check (and border) in the habit's emerald or
 // the category's blue, so they don't look like the rows above. They can't be held to log, which
 // is what keeps something done from being logged twice by accident; each links to its page, where it
-// can still be logged. A habit that's done because it was skipped has the skip icon in place of the
-// check. Links styled as chips, not buttons, so they don't use LinkButton.
+// can still be logged. A habit or category that's done because it was skipped has the skip icon in
+// place of the check. Links styled as chips, not buttons, so they don't use LinkButton.
 function DoneChips({ habits, categories, skippedIds }: { habits: HabitListItem[]; categories: DueCategory[]; skippedIds: string[] }) {
   return (
     <ul className="flex flex-wrap gap-2" aria-label="Done">
@@ -60,9 +61,11 @@ function DoneChips({ habits, categories, skippedIds }: { habits: HabitListItem[]
         <li key={category.id}>
           <Link
             href={`/categories/${category.id}`}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface border border-category-line text-sm font-medium text-ink-secondary hover:bg-surface-subtle transition-colors"
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface border ${skippedIds.includes(category.id) ? 'border-line' : 'border-category-line'} text-sm font-medium text-ink-secondary hover:bg-surface-subtle transition-colors`}
           >
-            <Check className="w-3.5 h-3.5 shrink-0 text-category-ink" strokeWidth={3} />
+            {skippedIds.includes(category.id)
+              ? <SkipForward className="w-3.5 h-3.5 shrink-0 text-ink-muted" strokeWidth={2.5} aria-label="Skipped" />
+              : <Check className="w-3.5 h-3.5 shrink-0 text-category-ink" strokeWidth={3} />}
             <Icon name={category.icon || DEFAULT_CATEGORY_ICON} className="w-3.5 h-3.5 shrink-0 text-category-ink" />
             <span className="truncate max-w-[14rem]">{category.name}</span>
           </Link>
@@ -100,7 +103,7 @@ export default async function AgendaPage() {
     getPeople(),
   ]);
 
-  const { dueHabits, upcomingHabits, doneHabits, dueCategories, upcomingCategories, doneCategories, statuses, skippedHabitIds, clearedToday } = buildDueList(categories, uncategorized, latestLogDates, user);
+  const { dueHabits, upcomingHabits, doneHabits, dueCategories, upcomingCategories, doneCategories, statuses, skippedHabitIds, skippedCategoryIds, clearedToday } = buildDueList(categories, uncategorized, latestLogDates, user);
   const anyDue = dueHabits.length > 0 || dueCategories.length > 0;
   const anyUpcoming = upcomingHabits.length > 0 || upcomingCategories.length > 0;
   const anyDone = doneHabits.length > 0 || doneCategories.length > 0;
@@ -169,7 +172,7 @@ export default async function AgendaPage() {
               <PaneHeading>Done</PaneHeading>
               {/* On the stone rather than white, since they aren't a list */}
               <div className={`${PANE_INSET} py-3`}>
-                <DoneChips habits={doneHabits} categories={doneCategories} skippedIds={skippedHabitIds} />
+                <DoneChips habits={doneHabits} categories={doneCategories} skippedIds={[...skippedHabitIds, ...skippedCategoryIds]} />
               </div>
             </section>
           )}

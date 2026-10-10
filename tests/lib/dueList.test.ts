@@ -277,6 +277,35 @@ describe('skips on the Agenda', () => {
     expect(list.statuses.gym.skip).toBeUndefined();
   });
 
+  it('skips a category by its own cadence, leaving its habits as they are', () => {
+    const thriceWeekly: Cadence = { type: 'calendarWeek', times: 3 };
+    const fitness = { ...category('Fitness', thriceWeekly, [habit('run', daily)]), skips: [{ day: '2026-09-29' }] };
+    const list = buildDueList([fitness], [], {}, user, now);
+    expect(ids(list.doneCategories)).toEqual(['Fitness']);
+    expect(list.skippedCategoryIds).toEqual(['Fitness']);
+    // Its habit is still due: the category's skip isn't the habit's
+    expect(ids(list.dueHabits)).toEqual(['run']);
+    expect(list.clearedToday).toBe(false);
+  });
+
+  it('says what a category\'s skip is called while it can be skipped, and doesn\'t count its habits\' skips', () => {
+    const fitness = category('Fitness', daily, [skipped(habit('run', none), '2026-10-03')]);
+    const list = buildDueList([fitness], [], {}, user, now);
+    expect(ids(list.dueCategories)).toEqual(['Fitness']);
+    expect(list.dueCategories[0].status?.skip).toEqual({ skip: 'Skip today', skipped: 'Skipped today', postpones: false });
+  });
+
+  it('puts an every-N-days category that\'s postponed in Upcoming', () => {
+    const plants = { ...category('Plants', { type: 'everyNDays', days: 10 }, [habit('water', none)]), skips: [{ day: '2026-10-03' }] };
+    const list = buildDueList([plants], [], {}, user, now);
+    expect(list.upcomingCategories.map(u => [u.item.id, u.dueInDays])).toEqual([['Plants', 2]]);
+    expect(list.upcomingCategories[0].item.skippedDays).toEqual(['2026-10-03']);
+  });
+
+  it('counts a category\'s skips in its row\'s status on the Habits pages', () => {
+    expect(listRowStatus(daily, [], user, { habit: false, skippedDays: ['2026-10-03'] }, now)).toEqual({ done: 1, needed: 1, period: null, dueInDays: null });
+  });
+
   it('counts skips in a habit row\'s status on the Habits pages', () => {
     expect(listRowStatus(daily, [], user, { habit: true, skippedDays: ['2026-10-03'] }, now)).toEqual({ done: 1, needed: 1, period: null, dueInDays: null });
     expect(listRowStatus(daily, [], user, { habit: true }, now)).toEqual({ done: 0, needed: 1, period: null, dueInDays: null });
