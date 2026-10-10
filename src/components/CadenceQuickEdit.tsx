@@ -11,9 +11,10 @@ export const PILL = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full b
 // A cadence as a pill (e.g. "Every 3 days") that opens a dialog to change it, for a habit or a
 // category. Without `onSave` it's shown but can't be changed, e.g. a shared habit's cadence for
 // someone other than its owner, with `lockedTitle` saying why. `saveLabel` names the dialog's
-// button (see QuickEditDialog).
-export default function CadenceQuickEdit({ cadence, onSave, lockedTitle, saveLabel }: {
+// button (see QuickEditDialog). `weekStartsOn` is the user's, for the days of the week.
+export default function CadenceQuickEdit({ cadence, weekStartsOn, onSave, lockedTitle, saveLabel }: {
   cadence: Cadence;
+  weekStartsOn: string;
   onSave?: (cadence: Cadence) => Promise<void>;
   lockedTitle?: string;
   saveLabel?: string;
@@ -24,7 +25,7 @@ export default function CadenceQuickEdit({ cadence, onSave, lockedTitle, saveLab
     return (
       <span className={`${PILL} bg-surface-subtle border-line-subtle text-ink-muted`} title={lockedTitle}>
         <Repeat className="w-4 h-4 shrink-0" />
-        {describeCadence(cadence)}
+        {describeCadence(cadence, { weekStartsOn })}
         <Lock className="w-3 h-3 shrink-0" aria-label={lockedTitle} />
       </span>
     );
@@ -39,14 +40,14 @@ export default function CadenceQuickEdit({ cadence, onSave, lockedTitle, saveLab
         title="Change cadence"
       >
         <Repeat className="w-4 h-4 shrink-0" />
-        {describeCadence(cadence)}
+        {describeCadence(cadence, { weekStartsOn })}
       </button>
-      {editing && <CadenceDialog initial={cadence} onSave={onSave} saveLabel={saveLabel} onClose={() => setEditing(false)} />}
+      {editing && <CadenceDialog initial={cadence} weekStartsOn={weekStartsOn} onSave={onSave} saveLabel={saveLabel} onClose={() => setEditing(false)} />}
     </>
   );
 }
 
-function CadenceDialog({ initial, onSave, saveLabel, onClose }: { initial: Cadence; onSave: (cadence: Cadence) => Promise<void>; saveLabel?: string; onClose: () => void }) {
+function CadenceDialog({ initial, weekStartsOn, onSave, saveLabel, onClose }: { initial: Cadence; weekStartsOn: string; onSave: (cadence: Cadence) => Promise<void>; saveLabel?: string; onClose: () => void }) {
   const [cadence, setCadence] = useState(initial);
 
   return (
@@ -58,7 +59,7 @@ function CadenceDialog({ initial, onSave, saveLabel, onClose }: { initial: Caden
       saveLabel={saveLabel}
     >
       <CadencePicker value={cadence} onChange={setCadence} />
-      <CadenceSettings value={cadence} onChange={setCadence} />
+      <CadenceSettings value={cadence} onChange={setCadence} weekStartsOn={weekStartsOn} />
     </QuickEditDialog>
   );
 }

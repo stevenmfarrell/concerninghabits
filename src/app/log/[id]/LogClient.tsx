@@ -235,7 +235,7 @@ export default function LogClient({ habit, user, people, categories, reminder, s
       <div className={`${PANE_INSET} py-4 space-y-6`}>
         {habit.description && <p className="text-ink-secondary text-center">{habit.description}</p>}
 
-        <HabitDetails habit={habit} categories={categories} reminder={reminder} bedtime={user.bedtime} />
+        <HabitDetails habit={habit} categories={categories} reminder={reminder} bedtime={user.bedtime} weekStartsOn={user.weekStartsOn} />
 
         {habit.isOwner && sharedWith.length > 0 && (
           <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5 -mt-2 text-xs text-ink-muted">

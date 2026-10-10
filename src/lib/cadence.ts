@@ -69,8 +69,9 @@ interface DayRange {
 // How a cadence works. Everything else (whether a habit is done, how a calendar shades a day)
 // is worked out from these, so a new cadence only has to answer them.
 interface CadenceRule<C extends Cadence> {
-  // For people, e.g. "3× daily", "Every 3 days"
-  describe(cadence: C): string;
+  // For people, e.g. "3× daily", "Every 3 days", with days of the week in the order the user's
+  // weeks run
+  describe(cadence: C, context: CadenceContext): string;
   // The period its entries are counted over, for showing progress through it, e.g. "2/3 weekly";
   // null for a cadence that's done with one entry, or never
   period: ProgressPeriod | null;
@@ -123,16 +124,31 @@ const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', '
 // As short as each day can be and still be told apart: one letter where that's enough, two for the
 // pairs sharing a first letter (Tuesday and Thursday, Saturday and Sunday)
 const WEEKDAY_ABBREVIATIONS = ['Su', 'M', 'Tu', 'W', 'Th', 'F', 'Sa'];
-export const WEEKDAYS = WEEKDAY_NAMES.map((name, day) => ({ day, name, abbreviation: WEEKDAY_ABBREVIATIONS[day], letter: name[0] }));
+const WEEKDAYS = WEEKDAY_NAMES.map((name, day) => ({ day, name, abbreviation: WEEKDAY_ABBREVIATIONS[day], letter: name[0] }));
 
-// Days of the week for people, e.g. "M,W,F", "Every Tuesday", "Weekdays"
-function describeWeekdays(days: number[]) {
+// The days of the week in the order the user's weeks run, Sunday or Monday first. Only for showing
+// them: a weekday cadence stores its days by number (0 always Sunday) in Sunday-first order whatever
+// the user's week start, so changing it never changes which days a habit is on.
+export function weekdaysInOrder(weekStartsOn: string) {
+  return weekStartsOn === 'monday' ? [...WEEKDAYS.slice(1), WEEKDAYS[0]] : WEEKDAYS;
+}
+
+// A weekday cadence's days with `day` turned on or off, in the order they're stored (see
+// weekdaysInOrder). Turning off the last day leaves it on, since a cadence needs at least one.
+export function toggleWeekday(days: number[], day: number) {
+  const next = days.includes(day) ? days.filter(d => d !== day) : [...days, day];
+  return next.length > 0 ? next.sort((a, b) => a - b) : days;
+}
+
+// Days of the week for people, e.g. "M,W,F", "Every Tuesday", "Weekdays", in the order the user's
+// weeks run
+function describeWeekdays(days: number[], { weekStartsOn }: CadenceContext) {
   const key = days.join();
   if (key === '1,2,3,4,5') return 'Weekdays';
   if (key === '0,6') return 'Weekends';
   if (days.length === 7) return 'Every day';
   if (days.length === 1) return `Every ${WEEKDAY_NAMES[days[0]]}`;
-  return days.map(day => WEEKDAYS[day].abbreviation).join(',');
+  return weekdaysInOrder(weekStartsOn).filter(({ day }) => days.includes(day)).map(({ abbreviation }) => abbreviation).join(',');
 }
 
 // The first of a weekday cadence's days after civil day `day`
@@ -184,7 +200,7 @@ const RULES: { [T in CadenceType]: CadenceRule<Extract<Cadence, { type: T }>> } 
     skipCovers: (c, day) => ({ from: day, to: addDays(day, fifthOf(c.days) - 1) }),
   },
   weekdays: {
-    describe: c => describeWeekdays(c.days),
+    describe: (c, context) => describeWeekdays(c.days, context),
     period: null,
     countsDown: false,
     // Until the next of its days, so a day off after a day it was done reads as done too
@@ -239,7 +255,7 @@ function ruleFor<C extends Cadence>(cadence: C) {
   return RULES[cadence.type] as unknown as CadenceRule<C>;
 }
 
-export const describeCadence = (cadence: Cadence) => ruleFor(cadence).describe(cadence);
+export const describeCadence = (cadence: Cadence, context: CadenceContext) => ruleFor(cadence).describe(cadence, context);
 export const cadenceCovers = (cadence: Cadence, day: Date, context: CadenceContext) => ruleFor(cadence).covers(cadence, day, context);
 export const entriesNeeded = (cadence: Cadence) => ruleFor(cadence).needed(cadence);
 export const upcomingDays = (cadence: Cadence) => ruleFor(cadence).upcomingDays(cadence);

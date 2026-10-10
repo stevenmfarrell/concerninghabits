@@ -77,6 +77,8 @@ interface HabitEditorProps {
   // For the viewer's reminder (see HabitDraft.reminder): what's been learned about when they log
   // it, their bedtime to show times by, and whether any of their devices get reminders
   reminderContext?: { status: ReminderStatus; bedtime: string; hasDevice: boolean };
+  // The viewer's week start, for the days of the week in the cadence picker
+  weekStartsOn: string;
 }
 
 // Whether the form's voice and photo logging are on: on unless the schema turns them off
@@ -98,7 +100,7 @@ function comparable(draft: HabitDraft) {
 // The habit editor, for creating, editing, and a shared habit's own settings, as sections of a pane
 // page (see Pane): where it's filed and how often it's due as pills at the top, then the habit's
 // name, what its form records, then settings rarely touched, folded away with a summary. Changes are saved from a bar above the bottom nav, which shows once there's something to save.
-export default function HabitEditor({ mode, initial, owner, onSave, remove, saveBarExtra, onChangeTitle, categories: initialCategories, entries, reminderContext }: HabitEditorProps) {
+export default function HabitEditor({ mode, initial, owner, onSave, remove, saveBarExtra, onChangeTitle, categories: initialCategories, entries, reminderContext, weekStartsOn }: HabitEditorProps) {
   const isOwner = mode !== 'shared';
 
   const [title, setTitle] = useState(initial.title);
@@ -241,6 +243,7 @@ export default function HabitEditor({ mode, initial, owner, onSave, remove, save
         />
         <CadenceQuickEdit
           cadence={cadence}
+          weekStartsOn={weekStartsOn}
           onSave={isOwner ? async next => setCadence(next) : undefined}
           lockedTitle="Set by the habit's owner"
           saveLabel="Done"

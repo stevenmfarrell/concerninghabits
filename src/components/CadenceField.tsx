@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Select from './Select';
-import { CADENCE_TYPES, WEEKDAYS, withTimes, type Cadence, type CadenceType } from '@/lib/cadence';
+import { CADENCE_TYPES, toggleWeekday, weekdaysInOrder, withTimes, type Cadence, type CadenceType } from '@/lib/cadence';
 import { INPUT_SM } from '@/components/ui/Input';
 
 // Each cadence as the editor offers it: its name in the picker, and what it starts as when picked.
@@ -30,7 +30,8 @@ export function CadencePicker({ value, onChange, disabled }: { value: Cadence; o
   );
 }
 
-export function CadenceSettings({ value, onChange, disabled }: { value: Cadence; onChange: (cadence: Cadence) => void; disabled?: boolean }) {
+// `weekStartsOn` is the user's, to lay out the days of the week as their weeks run
+export function CadenceSettings({ value, onChange, disabled, weekStartsOn }: { value: Cadence; onChange: (cadence: Cadence) => void; disabled?: boolean; weekStartsOn: string }) {
   switch (value.type) {
     case 'daily':
       return (
@@ -59,7 +60,7 @@ export function CadenceSettings({ value, onChange, disabled }: { value: Cadence;
         />
       );
     case 'weekdays':
-      return <WeekdayPicker key="weekdays" days={value.days} onChange={days => onChange({ ...value, days })} disabled={disabled} />;
+      return <WeekdayPicker key="weekdays" days={value.days} onChange={days => onChange({ ...value, days })} disabled={disabled} weekStartsOn={weekStartsOn} />;
     case 'calendarWeek':
       return (
         <CadenceNumber
@@ -131,19 +132,20 @@ function CadenceNumber({ label, help, value, min, max, onChange, disabled }: { l
   );
 }
 
-// The days of the week a weekday cadence is on, as a row of toggles, Sunday first (the order they're
-// stored in). At least one stays on: turning off the last does nothing.
-function WeekdayPicker({ days, onChange, disabled }: { days: number[]; onChange: (days: number[]) => void; disabled?: boolean }) {
+// The days of the week a weekday cadence is on, as a row of toggles in the order the user's weeks
+// run. Only the layout follows it: the days are stored by number whichever way round it is (see
+// toggleWeekday). At least one stays on: turning off the last does nothing.
+function WeekdayPicker({ days, onChange, disabled, weekStartsOn }: { days: number[]; onChange: (days: number[]) => void; disabled?: boolean; weekStartsOn: string }) {
   const toggle = (day: number) => {
-    const next = days.includes(day) ? days.filter(d => d !== day) : [...days, day].sort((a, b) => a - b);
-    if (next.length > 0) onChange(next);
+    const next = toggleWeekday(days, day);
+    if (next !== days) onChange(next);
   };
 
   return (
     <div className="mt-4 animate-in fade-in slide-in-from-top-2">
       <p className="text-sm font-semibold text-ink-secondary mb-2" id="weekday-picker-label">On these days</p>
       <div className="flex gap-1.5" role="group" aria-labelledby="weekday-picker-label">
-        {WEEKDAYS.map(({ day, name, letter }) => {
+        {weekdaysInOrder(weekStartsOn).map(({ day, name, letter }) => {
           const on = days.includes(day);
           return (
             <button

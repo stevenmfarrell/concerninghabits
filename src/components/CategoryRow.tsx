@@ -63,7 +63,7 @@ export default function CategoryRow({ href, name, icon, subtitle, showCadence, d
               {leading && <Icon name={icon} className="w-4 h-4 shrink-0 text-category-ink" />}
               <span className="truncate">{name}</span>
             </h3>
-            {showCadence ? cadence.type !== 'none' && <CadenceLabel cadence={cadence} /> : subtitle && <p className="text-sm text-ink-muted">{subtitle}</p>}
+            {showCadence ? cadence.type !== 'none' && <CadenceLabel cadence={cadence} weekStartsOn={weekStartsOn} /> : subtitle && <p className="text-sm text-ink-muted">{subtitle}</p>}
           </div>
         </div>
 

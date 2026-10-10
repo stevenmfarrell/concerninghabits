@@ -95,7 +95,7 @@ export default async function CategoryLogPage(props: { params: Promise<{ id: str
     >
       {category.id !== UNCATEGORIZED_ID && (
         <div className={`${PANE_INSET} py-4 flex justify-center`}>
-          <CategoryCadence categoryId={category.id} cadence={cadence} />
+          <CategoryCadence categoryId={category.id} cadence={cadence} weekStartsOn={user.weekStartsOn} />
         </div>
       )}
 

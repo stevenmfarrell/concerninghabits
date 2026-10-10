@@ -13,12 +13,14 @@ import type { CategoryOption, HabitDetail } from '@/lib/types';
 // A habit's category, cadence and reminder, under its name on its page, each changeable on the spot.
 // Any member can file the habit in their own categories and set their own reminder; only the owner
 // can change its cadence, which is the same for everyone it's shared with. A habit with no cadence
-// is never due, so never late, and has no reminder to show.
-export default function HabitDetails({ habit, categories, reminder, bedtime }: {
+// is never due, so never late, and has no reminder to show. `bedtime` and `weekStartsOn` are the
+// viewer's.
+export default function HabitDetails({ habit, categories, reminder, bedtime, weekStartsOn }: {
   habit: HabitDetail;
   categories: CategoryOption[];
   reminder: { status: ReminderStatus; hasDevice: boolean } | null;
   bedtime: string;
+  weekStartsOn: string;
 }) {
   const cadence = parseCadence(habit.cadence);
   return (
@@ -33,6 +35,7 @@ export default function HabitDetails({ habit, categories, reminder, bedtime }: {
       />
       <CadenceQuickEdit
         cadence={cadence}
+        weekStartsOn={weekStartsOn}
         onSave={habit.isOwner ? async next => {
           await setHabitCadence(habit.id, next);
           toast.success('Cadence changed');

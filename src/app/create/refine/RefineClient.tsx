@@ -30,7 +30,8 @@ function readDraft(): HabitDraft | null {
   return draftData ? JSON.parse(draftData) : null;
 }
 
-export default function RefineClient() {
+// `weekStartsOn` is the user's, for the cadence picker's days of the week
+export default function RefineClient({ weekStartsOn }: { weekStartsOn: string }) {
   const router = useRouter();
 
   const [draft] = useState<HabitDraft | null>(readDraft);
@@ -73,6 +74,7 @@ export default function RefineClient() {
 
       <HabitEditor
         mode="create"
+        weekStartsOn={weekStartsOn}
         initial={{
           title: draft.schema?.title || '',
           description: draft.schema?.description || '',

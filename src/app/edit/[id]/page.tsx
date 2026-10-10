@@ -41,6 +41,7 @@ export default async function EditPage({ params }: { params: Promise<{ id: strin
         entries={logs.map(l => ({ id: l.id, createdAt: l.createdAt, payload: l.payload, userId: l.userId }))}
         reminder={reminder}
         bedtime={user.bedtime}
+        weekStartsOn={user.weekStartsOn}
       />
     </PanePage>
   );

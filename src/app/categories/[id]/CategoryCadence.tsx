@@ -5,11 +5,13 @@ import CadenceQuickEdit from '@/components/CadenceQuickEdit';
 import { setCategoryCadence } from '../../actions/db';
 import type { Cadence } from '@/lib/cadence';
 
-// A category's cadence on its page, changeable on the spot (a category is always its user's own)
-export default function CategoryCadence({ categoryId, cadence }: { categoryId: string; cadence: Cadence }) {
+// A category's cadence on its page, changeable on the spot (a category is always its user's own).
+// `weekStartsOn` is the user's, for the days of the week.
+export default function CategoryCadence({ categoryId, cadence, weekStartsOn }: { categoryId: string; cadence: Cadence; weekStartsOn: string }) {
   return (
     <CadenceQuickEdit
       cadence={cadence}
+      weekStartsOn={weekStartsOn}
       onSave={async next => {
         await setCategoryCadence(categoryId, next);
         toast.success('Cadence changed');

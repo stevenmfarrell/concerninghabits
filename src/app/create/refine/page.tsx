@@ -1,12 +1,9 @@
-'use client';
+import { getDefaultUser } from '../../actions/db';
+import RefineLoader from './RefineLoader';
 
-import dynamic from 'next/dynamic';
-import RefineLoading from './RefineLoading';
-
-// The draft lives in sessionStorage, which doesn't exist on the server, so skip server rendering
-// entirely: rendering it there would always differ from the browser's first render (a hydration mismatch).
-const RefineClient = dynamic(() => import('./RefineClient'), { ssr: false, loading: () => <RefineLoading /> });
-
-export default function RefineHabit() {
-  return <RefineClient />;
+// The draft is only rendered in the browser (see RefineLoader); the user's preferences it needs come
+// from here
+export default async function RefineHabit() {
+  const user = await getDefaultUser();
+  return <RefineLoader weekStartsOn={user.weekStartsOn} />;
 }

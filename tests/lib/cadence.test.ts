@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { postpones, skipLabels, agendaStatus, cadenceFromSuggestion, cadenceProgress, cadenceSchema, cadenceStatus, daysUntilDue, describeCadence, dueAtStartOfDay, isHabitComplete, parseCadence, skippedCovers, skipState, startOfWeek, upcomingDays, withTimes, type Cadence } from '@/lib/cadence';
+import { postpones, skipLabels, toggleWeekday, weekdaysInOrder, agendaStatus, cadenceFromSuggestion, cadenceProgress, cadenceSchema, cadenceStatus, daysUntilDue, describeCadence, dueAtStartOfDay, isHabitComplete, parseCadence, skippedCovers, skipState, startOfWeek, upcomingDays, withTimes, type Cadence } from '@/lib/cadence';
 import { civilDayKey, parseCivilDayKey } from '@/lib/timezone';
 
 const user = { timeZone: 'UTC', bedtime: '00:00', weekStartsOn: 'sunday' };
@@ -211,14 +211,14 @@ describe('cadenceFromSuggestion', () => {
 
 describe('describeCadence', () => {
   it('describes each cadence for people', () => {
-    expect(describeCadence({ type: 'daily', timesPerDay: 1 })).toBe('Daily');
-    expect(describeCadence({ type: 'daily', timesPerDay: 3 })).toBe('3× daily');
-    expect(describeCadence({ type: 'everyNDays', days: 3 })).toBe('Every 3 days');
-    expect(describeCadence({ type: 'calendarWeek' })).toBe('Weekly');
-    expect(describeCadence({ type: 'calendarMonth' })).toBe('Monthly');
-    expect(describeCadence({ type: 'calendarWeek', times: 3 })).toBe('3× weekly');
-    expect(describeCadence({ type: 'calendarMonth', times: 2 })).toBe('2× monthly');
-    expect(describeCadence({ type: 'none' })).toBe('No set cadence');
+    expect(describeCadence({ type: 'daily', timesPerDay: 1 }, user)).toBe('Daily');
+    expect(describeCadence({ type: 'daily', timesPerDay: 3 }, user)).toBe('3× daily');
+    expect(describeCadence({ type: 'everyNDays', days: 3 }, user)).toBe('Every 3 days');
+    expect(describeCadence({ type: 'calendarWeek' }, user)).toBe('Weekly');
+    expect(describeCadence({ type: 'calendarMonth' }, user)).toBe('Monthly');
+    expect(describeCadence({ type: 'calendarWeek', times: 3 }, user)).toBe('3× weekly');
+    expect(describeCadence({ type: 'calendarMonth', times: 2 }, user)).toBe('2× monthly');
+    expect(describeCadence({ type: 'none' }, user)).toBe('No set cadence');
   });
 });
 
@@ -264,12 +264,35 @@ describe('weekday cadence', () => {
   });
 
   it('describes its days', () => {
-    expect(describeCadence(mwf)).toBe('M,W,F');
-    expect(describeCadence({ type: 'weekdays', days: [0, 1, 2, 4, 5] })).toBe('Su,M,Tu,Th,F');
-    expect(describeCadence({ type: 'weekdays', days: [1, 2, 3, 4, 5] })).toBe('Weekdays');
-    expect(describeCadence({ type: 'weekdays', days: [0, 6] })).toBe('Weekends');
-    expect(describeCadence({ type: 'weekdays', days: [2] })).toBe('Every Tuesday');
-    expect(describeCadence({ type: 'weekdays', days: [0, 1, 2, 3, 4, 5, 6] })).toBe('Every day');
+    expect(describeCadence(mwf, user)).toBe('M,W,F');
+    expect(describeCadence({ type: 'weekdays', days: [0, 1, 2, 4, 5] }, user)).toBe('Su,M,Tu,Th,F');
+    expect(describeCadence({ type: 'weekdays', days: [1, 2, 3, 4, 5] }, user)).toBe('Weekdays');
+    expect(describeCadence({ type: 'weekdays', days: [0, 6] }, user)).toBe('Weekends');
+    expect(describeCadence({ type: 'weekdays', days: [2] }, user)).toBe('Every Tuesday');
+    expect(describeCadence({ type: 'weekdays', days: [0, 1, 2, 3, 4, 5, 6] }, user)).toBe('Every day');
+  });
+
+  it('lists its days in the order the user\'s weeks run', () => {
+    const sundayAndMonday: Cadence = { type: 'weekdays', days: [0, 1, 4] };
+    expect(describeCadence(sundayAndMonday, user)).toBe('Su,M,Th');
+    expect(describeCadence(sundayAndMonday, { weekStartsOn: 'monday' })).toBe('M,Th,Su');
+    expect(weekdaysInOrder('monday').map(d => d.day)).toEqual([1, 2, 3, 4, 5, 6, 0]);
+    expect(weekdaysInOrder('sunday').map(d => d.day)).toEqual([0, 1, 2, 3, 4, 5, 6]);
+  });
+
+  it('keeps the same days whichever day the user\'s weeks start on', () => {
+    // The days are stored by number, Sunday first, however the picker lays them out
+    expect(toggleWeekday([1, 3, 5], 0)).toEqual([0, 1, 3, 5]);
+    expect(toggleWeekday([0, 1, 3, 5], 0)).toEqual([1, 3, 5]);
+    expect(cadenceSchema.safeParse({ type: 'weekdays', days: toggleWeekday([1, 3, 5], 0) }).success).toBe(true);
+    // Turning off the last day leaves it on
+    expect(toggleWeekday([3], 3)).toEqual([3]);
+    // The same habit is due on the same day for a Sunday-start and a Monday-start week
+    const sundays: Cadence = { type: 'weekdays', days: [0] };
+    const sunday = at('2026-10-04T15:00:00Z');
+    expect(agendaStatus(sundays, [], user, sunday)).toEqual({ state: 'due' });
+    expect(agendaStatus(sundays, [], { ...user, weekStartsOn: 'monday' }, sunday)).toEqual({ state: 'due' });
+    expect(agendaStatus(sundays, [], { ...user, weekStartsOn: 'monday' }, now)).toEqual({ state: 'upcoming', dueInDays: 1 });
   });
 
   it('only accepts each day once, in order', () => {

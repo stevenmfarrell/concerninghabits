@@ -19,13 +19,15 @@ import type { Person } from '@/lib/userColors';
 // with, just their own category and notes for AI. Saving goes back to the habit's page.
 // `entries` are the habit's recent entries, to preview a calculated field's values with.
 // `reminder` is the viewer's own reminder for it (see getHabitReminder), with their bedtime.
-export default function EditClient({ habit, owner, categories, entries, reminder, bedtime }: {
+// `weekStartsOn` is the viewer's, for the cadence picker's days of the week.
+export default function EditClient({ habit, owner, categories, entries, reminder, bedtime, weekStartsOn }: {
   habit: HabitDetail;
   owner: Person | undefined;
   categories: CategoryOption[];
   entries: ChartEntry[];
   reminder: { status: ReminderStatus; hasDevice: boolean } | null;
   bedtime: string;
+  weekStartsOn: string;
 }) {
   const router = useRouter();
   const habitHref = `/log/${habit.id}`;
@@ -94,6 +96,7 @@ export default function EditClient({ habit, owner, categories, entries, reminder
       categories={categories}
       entries={entries}
       reminderContext={reminder ? { ...reminder, bedtime } : undefined}
+      weekStartsOn={weekStartsOn}
     />
   );
 }

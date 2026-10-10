@@ -95,7 +95,7 @@ const SortableSubcategoryItem = ({ sub, statuses, user, people, isOverlay, isReo
             <span className="truncate">{sub.name}</span>
           </h3>
           {status
-            ? cadence.type !== 'none' && <CadenceLabel cadence={cadence} />
+            ? cadence.type !== 'none' && <CadenceLabel cadence={cadence} weekStartsOn={user.weekStartsOn} />
             : <p className="text-xs text-ink-muted truncate mt-0.5">{subHabits.length} habits</p>}
         </div>
         {/* With a mouse, the picker's button takes its place */}
@@ -273,7 +273,7 @@ const SortableHabitItem = ({ habit, status, user, people, isOverlay, isReorderin
               )}
             </div>
             {/* None for a habit with no cadence */}
-            {showCadence && cadence.type !== 'none' && <CadenceLabel cadence={cadence} />}
+            {showCadence && cadence.type !== 'none' && <CadenceLabel cadence={cadence} weekStartsOn={user.weekStartsOn} />}
           </div>
           <div className={`shrink-0 flex items-center ${holdToLog ? 'gap-4' : 'gap-3'}`}>
             {status && <RowStatus days={status.dueInDays} />}
