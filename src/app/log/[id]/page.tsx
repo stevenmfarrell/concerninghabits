@@ -1,4 +1,6 @@
 import { getCategories, getHabit, getHabitLogs, getHabitLogPresence, deleteHabitLog, getDefaultUser, getPeople } from '../../actions/db';
+import { getHabitReminder } from '../../actions/reminders';
+import HabitReminder from '@/components/reminders/HabitReminder';
 import PersonLabel from '@/components/PersonLabel';
 import HorizonToggle from '@/components/HorizonToggle';
 import { isSharedHabit } from '@/lib/userColors';
@@ -28,7 +30,7 @@ export default async function HabitPage(props: { params: Promise<{ id: string }>
   const searchParams = await props.searchParams;
   const { id } = params;
 
-  const [user, habit, logs, presence, allPeople, categories] = await Promise.all([
+  const [user, habit, logs, presence, allPeople, categories, reminder] = await Promise.all([
     getDefaultUser(),
     getHabit(id),
     // These reject if the viewer can't see the habit, in which case getHabit returns null and the
@@ -37,6 +39,7 @@ export default async function HabitPage(props: { params: Promise<{ id: string }>
     getHabitLogPresence(id).catch(() => null),
     getPeople(),
     getCategories(),
+    getHabitReminder(id),
   ]);
 
   if (!habit || !logs || !presence) {
@@ -262,6 +265,11 @@ export default async function HabitPage(props: { params: Promise<{ id: string }>
             </div>
           </section>
         </>
+      )}
+
+      {/* Only a habit with a cadence is ever due, so only one with a cadence can run late */}
+      {reminder && parseCadence(habit.cadence).type !== 'none' && (
+        <HabitReminder habitId={habit.id} status={reminder.status} bedtime={user.bedtime} hasDevice={reminder.hasDevice} />
       )}
     </LogClient>
   );

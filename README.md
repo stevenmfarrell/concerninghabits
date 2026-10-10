@@ -89,6 +89,12 @@ services:
       # - MQTT_USERNAME=your-username
       # - MQTT_PASSWORD=your-password
       # - MQTT_TOPIC_PREFIX=concerninghabits
+
+      # Optional: reminders (Web Push). Keys are generated and stored in the database on first use;
+      # set these only to supply your own. The subject defaults to the first admin's email.
+      # - VAPID_PUBLIC_KEY=...
+      # - VAPID_PRIVATE_KEY=...
+      # - VAPID_SUBJECT=mailto:you@example.com
     volumes:
       - concerning-habits_data:/app/data
     restart: unless-stopped
@@ -108,6 +114,10 @@ services:
 volumes:
   concerning-habits_data:
 ```
+
+### Reminders
+
+Habit reminders are Web Push notifications, turned on per device under Settings → Reminders and per habit on its page. Browsers only allow push over **https** (or `localhost`), so serve the app behind a reverse proxy with TLS to use them. On iPhone and iPad, the app must be added to the Home Screen first.
 
 ### Running the App
 

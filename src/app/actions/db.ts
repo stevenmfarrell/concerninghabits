@@ -58,14 +58,21 @@ const getRequestUser = cache(async (allowNeedsUpdate: boolean) => {
     redirect('/update-password');
   }
 
-  return { ...user, timeZone: await getRequestTimeZone() };
+  // Kept on the user too, for reminders, which are sent with no request to read it from. Only
+  // written when the browser reports a different one (e.g. after traveling).
+  const reported = await getReportedTimeZone();
+  if (reported && reported !== user.timeZone) {
+    await prisma.user.update({ where: { id: user.id }, data: { timeZone: reported } });
+  }
+
+  return { ...user, timeZone: reported ?? Intl.DateTimeFormat().resolvedOptions().timeZone };
 });
 
-// The viewer's time zone, reported by the browser in a cookie (see TimeZoneSync). Until the
-// browser has reported it, fall back to the server's time zone.
-async function getRequestTimeZone() {
+// The viewer's time zone, reported by the browser in a cookie (see TimeZoneSync), or null until
+// the browser has reported it, when pages fall back to the server's time zone
+async function getReportedTimeZone() {
   const timeZone = (await cookies()).get(TIMEZONE_COOKIE)?.value;
-  return isValidTimeZone(timeZone) ? timeZone : Intl.DateTimeFormat().resolvedOptions().timeZone;
+  return isValidTimeZone(timeZone) ? timeZone : null;
 }
 
 // The Agenda page and the Habits page both list habits with their recent entries, so anything that

@@ -8,23 +8,28 @@ datasource db {
 }
 
 model User {
-  id                  String        @id @default(uuid())
+  id                  String             @id @default(uuid())
   name                String
-  email               String        @unique
+  email               String             @unique
   passwordHash        String
-  isAdmin             Boolean       @default(false)
+  isAdmin             Boolean            @default(false)
   habitLogs           HabitLog[]
   habits              Habit[]
   habitMemberships    HabitMember[]
   categories          Category[]
-  bedtime             String        @default("01:00")
-  weekStartsOn        String        @default("sunday")
-  useEmojiTitle       Boolean       @default(true)
+  bedtime             String             @default("01:00")
+  weekStartsOn        String             @default("sunday")
+  useEmojiTitle       Boolean            @default(true)
   emojiModifier       String?
-  passwordNeedsUpdate Boolean       @default(false)
-  unitSystem          String        @default("imperial")
-  createdAt           DateTime      @default(now())
+  passwordNeedsUpdate Boolean            @default(false)
+  unitSystem          String             @default("imperial")
+  // The time zone the user's browser last reported (see TimeZoneSync), for reminders, which are
+  // sent with no request to read it from
+  timeZone            String?
+  createdAt           DateTime           @default(now())
   sessions            Session[]
+  pushSubscriptions   PushSubscription[]
+  remindersSent       ReminderSent[]
 }
 
 model Session {
@@ -38,27 +43,28 @@ model Session {
 }
 
 model Habit {
-  publishToMqtt    Boolean       @default(false)
-  id               String        @id @default(uuid())
+  publishToMqtt    Boolean        @default(false)
+  id               String         @id @default(uuid())
   name             String
   description      String?
   schema           String
   // Superseded by `cadence` and no longer read or written; kept until a later migration drops it
-  frequency        String        @default("daily")
+  frequency        String         @default("daily")
   // How often the habit is meant to be done, as JSON (see src/lib/cadence.ts)
-  cadence          String        @default("{\"type\":\"daily\",\"timesPerDay\":1}")
+  cadence          String         @default("{\"type\":\"daily\",\"timesPerDay\":1}")
   // Values worked out from each entry's fields (e.g. pace from duration and distance), as a JSON
   // array (see src/lib/calculatedFields.ts)
-  calculatedFields String        @default("[]")
+  calculatedFields String         @default("[]")
   // Charts the owner made of its entries (several lines, rolled up by period), as a JSON array (see
   // src/lib/charts.ts). Each field also gets a chart of its own, which isn't stored.
-  charts           String        @default("[]")
+  charts           String         @default("[]")
   // The habit's owner: the only user who can edit, share, or delete it
   userId           String
-  user             User          @relation(fields: [userId], references: [id])
+  user             User           @relation(fields: [userId], references: [id])
   members          HabitMember[]
   logs             HabitLog[]
-  createdAt        DateTime      @default(now())
+  remindersSent    ReminderSent[]
+  createdAt        DateTime       @default(now())
 
   @@index([userId])
 }
@@ -67,19 +73,27 @@ model Habit {
 // that user's own category tree. Placement is per user, since each person files a shared habit
 // into their own categories.
 model HabitMember {
-  habitId    String
-  habit      Habit     @relation(fields: [habitId], references: [id], onDelete: Cascade)
-  userId     String
-  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  categoryId String?
-  category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  order      Int       @default(0)
+  habitId       String
+  habit         Habit     @relation(fields: [habitId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  categoryId    String?
+  category      Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  order         Int       @default(0)
   // No longer used (the Due page replaced favorites); kept until a later migration drops it
-  isFavorite Boolean   @default(false)
+  isFavorite    Boolean   @default(false)
   // The user's own notes on how they do this habit (e.g. "my bike commute is 4 miles, 30 minutes"),
   // given to the AI when matching and filling in their entries
-  aiContext  String?
-  createdAt  DateTime  @default(now())
+  aiContext     String?
+  // Whether this user gets a reminder when they're running late on this habit (see
+  // src/lib/reminders.ts), and at what time ("HH:MM") if they set one rather than letting it be
+  // learned from when the habit is usually logged
+  remind        Boolean   @default(false)
+  remindAt      String?
+  // When reminders for it were paused after going unanswered several times in a row; null while
+  // they're active. Turning them back on clears it.
+  remindMutedAt DateTime?
+  createdAt     DateTime  @default(now())
 
   @@id([habitId, userId])
   @@index([userId, categoryId])
@@ -124,4 +138,38 @@ model RateLimit {
   identifier String   @id
   count      Int      @default(1)
   resetTime  DateTime
+}
+
+// A browser or device the user turned on reminders for (a Web Push subscription)
+model PushSubscription {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+// A reminder sent to a user about a habit on one of their days (a civil day key, "2026-10-09"), so
+// each habit is mentioned at most once a day. Habits sent together share `sentAt`, which is how the
+// day's notifications are counted against the daily limit.
+model ReminderSent {
+  userId  String
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  habitId String
+  habit   Habit    @relation(fields: [habitId], references: [id], onDelete: Cascade)
+  day     String
+  sentAt  DateTime @default(now())
+
+  @@id([userId, habitId, day])
+  @@index([userId, day])
+}
+
+// Values the server generates once and keeps, e.g. its Web Push (VAPID) keys
+model AppSetting {
+  key   String @id
+  value String
 }

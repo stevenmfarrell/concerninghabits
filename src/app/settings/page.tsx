@@ -1,7 +1,7 @@
 import { getDefaultUser } from '../actions/db';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
-import { ChevronRight, FolderTree, Users, Sliders, LogOut, KeyRound } from 'lucide-react';
+import { Bell, ChevronRight, FolderTree, Users, Sliders, LogOut, KeyRound } from 'lucide-react';
 import Icon from '../../components/Icon';
 import PageHeader from '@/components/PageHeader';
 import { PANE_INSET, PanePage, PaneSection } from '@/components/Pane';
@@ -54,6 +54,7 @@ export default async function SettingsPage() {
 
       <PaneSection title="Preferences">
         <SettingsLink href="/settings/preferences" icon={<Sliders className="w-5 h-5" />} title="Personal Preferences" description="Theme, bedtime, calendar start day, emojis" />
+        <SettingsLink href="/settings/reminders" icon={<Bell className="w-5 h-5" />} title="Reminders" description="Nudges when you're running late on a habit" />
         <SettingsLink href="/settings/categories" icon={<FolderTree className="w-5 h-5" />} title="Manage Categories" />
         {user.isAdmin && (
           <SettingsLink href="/settings/users" icon={<Users className="w-5 h-5" />} title="Family Users" description="Add or remove family members" />

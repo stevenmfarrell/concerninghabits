@@ -83,6 +83,7 @@ Icons are lucide's (`lucide-react`). One meaning gets one icon everywhere, so a 
 | Log at another date and time (backdate) | `CalendarClock` | `History` (reads as the History tab) |
 | Copy a link | `Link2` | |
 | Automation (submit URL, Home Assistant) | `Zap` | |
+| Reminders (`BellOff` while one is paused) | `Bell` | |
 | Back | `ArrowLeft` | |
 | Drill into a row | `ChevronRight` at the row's end | |
 | Open a page from inside a row that does something else on tap | `ArrowRight` | `ExternalLink` (that means leaving the app) |
