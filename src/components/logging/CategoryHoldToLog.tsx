@@ -6,6 +6,7 @@ import QuillIconWavy from '@/components/QuillIconWavy';
 import { IconButton } from '@/components/ui/IconButton';
 import CategoryLogDialog from './CategoryLogDialog';
 import RowGesture from './RowGesture';
+import { HealthMark } from '@/components/HealthPlant';
 import { useSkipSwipe } from './skipping';
 import { POINTER_ONLY } from './pointerOnly';
 import LogRing from './LogRing';
@@ -18,11 +19,14 @@ import type { PickerSection } from '@/lib/dueList';
 // `status` (the Agenda and Habits pages), a ring at its start opens it on a tap instead, everywhere
 // (see LogRing), filling as soon as a habit's picked. With `leavesWhenDone` (the Agenda), the row
 // zooms away once that makes it done (see zoomAway), and one that can be skipped now (its status's
-// `skip`) is skipped (or postponed) by swiping it to the left, going the same way.
-export default function CategoryHoldToLog({ category, row, leavesWhenDone = false }: {
+// `skip`) is skipped (or postponed) by swiping it to the left, going the same way. With `health`
+// (the Habits page), its health is at its start instead of a ring (see HealthMark), and it keeps the
+// button at its end.
+export default function CategoryHoldToLog({ category, row, leavesWhenDone = false, health = false }: {
   category: { id: string; name: string; icon: string | null; sections: PickerSection[] };
   row: CategoryRowProps;
   leavesWhenDone?: boolean;
+  health?: boolean;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const open = () => setIsOpen(true);
@@ -31,10 +35,12 @@ export default function CategoryHoldToLog({ category, row, leavesWhenDone = fals
   // Entries being logged from the picker that the page doesn't show yet (see useHabitLogger)
   const [pending, addPending] = useOptimistic(0, (count, added: number) => count + added);
   const { status } = row;
+  // Its ring, which opens the picker in place of the button at its end
+  const ring = !!status && !health;
 
   // As a habit in it starts logging, in that entry's transition
   const leave = () => {
-    if (!status) return undefined;
+    if (!ring) return undefined;
     addPending(1);
     return leavesWhenDone && status.done + pending + 1 >= status.needed ? zoomAway(rowRef.current) : undefined;
   };
@@ -43,12 +49,13 @@ export default function CategoryHoldToLog({ category, row, leavesWhenDone = fals
 
   return (
     <div ref={rowRef}>
-      <RowGesture onCommit={open} label={label} tone="category" hiddenButton={!status} swipe={swipe}>
-        {status ? (
+      <RowGesture onCommit={open} label={label} tone="category" hiddenButton={!ring} swipe={swipe}>
+        {ring ? (
           <CategoryRow {...row} leading={<LogRing status={status} pending={pending} label={label} onClick={open} color="blue" />} />
         ) : (
           <CategoryRow
             {...row}
+            leading={health ? <HealthMark consistency={status?.consistency} /> : undefined}
             action={
               <span className={POINTER_ONLY}>
                 <IconButton variant="category-soft" onClick={open} title={label} aria-label={label} className="w-16 h-10">

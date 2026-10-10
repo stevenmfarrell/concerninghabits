@@ -12,6 +12,8 @@ import CategoryCadence from './CategoryCadence';
 import EmptyState from '@/components/EmptyState';
 import { NO_CADENCE, parseCadence, postpones, skipState } from '@/lib/cadence';
 import SkipButton from '@/components/SkipButton';
+import HealthHeader from '@/components/HealthPlant';
+import { consistency, CONSISTENCY_HISTORY_WEEKS } from '@/lib/consistency';
 import { UNCATEGORIZED_ID } from '@/lib/constants';
 import { SortableCategoryItemList } from './SortableLists';
 import { DEFAULT_CATEGORY_ICON } from '@/lib/constants';
@@ -20,7 +22,7 @@ import type { HabitListItem } from '@/lib/types';
 
 // A category's page: its cadence, its habits and subcategories, and an activity calendar of all
 // their entries over the chosen horizon, like a habit's page. Its rows are laid out like the
-// Agenda's, each with a ring to log it that checks once it's done (see listRowStatus).
+// Agenda's, but with each one's health at its start where the Agenda has a ring (see HealthMark).
 export default async function CategoryLogPage(props: { params: Promise<{ id: string }>, searchParams: Promise<{ reorder?: string, horizon?: string }> }) {
   const params = await props.params;
   const searchParams = await props.searchParams;
@@ -34,9 +36,9 @@ export default async function CategoryLogPage(props: { params: Promise<{ id: str
   const mobileMonthsPerColumn = weeks === 52 ? 7 : 4;
   const desktopMonthsPerColumn = weeks === 52 ? 5 : 4;
 
-  // At least 6 weeks of entries, whatever the calendar shows, so a month's entries all count toward
-  // the rings; the latest entries are for an every-N-days cadence's older ones
-  const [category, people, latestLogDates] = await Promise.all([getCategory(params.id, Math.max(weeks, 6)), getPeople(), getLatestLogDates()]);
+  // Enough entries, whatever the calendar shows, for each row's consistency (and so a month's entries
+  // all count toward the rings); the latest entries are for an every-N-days cadence's older ones
+  const [category, people, latestLogDates] = await Promise.all([getCategory(params.id, Math.max(weeks, CONSISTENCY_HISTORY_WEEKS)), getPeople(), getLatestLogDates()]);
 
   if (!category) return notFound();
 
@@ -58,17 +60,18 @@ export default async function CategoryLogPage(props: { params: Promise<{ id: str
   // page has (see SkipButton)
   const categoryDates = [...category.habits, ...(isTopLevel ? category.children.flatMap(c => c.habits) : [])].flatMap(h => entryDates(h, latestLogDates));
   const skip = category.id === UNCATEGORIZED_ID ? null : skipState(cadence, categoryDates, user, new Date(), skippedDays);
+  const categoryConsistency = 'createdAt' in category ? consistency(cadence, categoryDates, user, { createdAt: category.createdAt, skippedDays }) : null;
   const calendarProps = { dates, weeks, ...calendarShading, size: 'md' as const, bedtime: user.bedtime, weekStartsOn: user.weekStartsOn, timeZone: user.timeZone, color: 'blue' as const };
 
   // Every row's ring, by id: each habit's, and each subcategory's from its habits' entries
   const statuses: Record<string, RowStatus> = {};
   const addHabitStatus = (habit: HabitListItem) => {
-    statuses[habit.id] = listRowStatus(parseCadence(habit.cadence), entryDates(habit, latestLogDates), user, { habit: true, skippedDays: skippedDaysOf(habit) });
+    statuses[habit.id] = listRowStatus(parseCadence(habit.cadence), entryDates(habit, latestLogDates), user, { habit: true, skippedDays: skippedDaysOf(habit), createdAt: habit.createdAt });
   };
   category.habits.forEach(addHabitStatus);
   for (const child of isTopLevel ? category.children : []) {
     child.habits.forEach(addHabitStatus);
-    statuses[child.id] = listRowStatus(parseCadence(child.cadence, NO_CADENCE), child.habits.flatMap(h => entryDates(h, latestLogDates)), user, { habit: false, skippedDays: skippedDaysOf(child) });
+    statuses[child.id] = listRowStatus(parseCadence(child.cadence, NO_CADENCE), child.habits.flatMap(h => entryDates(h, latestLogDates)), user, { habit: false, skippedDays: skippedDaysOf(child), createdAt: child.createdAt });
   }
 
   // Direct habits and subcategories share one order sequence. On ties, habits come first.
@@ -101,11 +104,18 @@ export default async function CategoryLogPage(props: { params: Promise<{ id: str
       }
     >
       {category.id !== UNCATEGORIZED_ID && (
-        <div className={`${PANE_INSET} py-4 space-y-2`}>
-          <div className="flex justify-center">
-            <CategoryCadence categoryId={category.id} cadence={cadence} weekStartsOn={user.weekStartsOn} />
-          </div>
-          {skip && <SkipButton target={{ kind: 'category', id: category.id, name: category.name }} skip={skip} postpones={postpones(cadence)} />}
+        // Its health, with its cadence and skipping it beside it, as a habit's page has its own
+        <div className={`${PANE_INSET} py-4`}>
+          <HealthHeader
+            consistency={categoryConsistency}
+            noun="Category"
+            bottom={
+              <>
+                <CategoryCadence categoryId={category.id} cadence={cadence} weekStartsOn={user.weekStartsOn} />
+                {skip && <SkipButton target={{ kind: 'category', id: category.id, name: category.name }} skip={skip} postpones={postpones(cadence)} />}
+              </>
+            }
+          />
         </div>
       )}
 

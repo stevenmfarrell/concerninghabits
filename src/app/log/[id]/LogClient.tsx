@@ -16,12 +16,12 @@ import type { CategoryOption, HabitDetail, SessionUser } from '@/lib/types';
 import type { Person } from '@/lib/userColors';
 import type { ReminderStatus } from '@/lib/reminders';
 import type { SkipState } from '@/lib/cadence';
+import type { Consistency } from '@/lib/consistency';
 import PersonLabel from '@/components/PersonLabel';
 import LogButtonIcon from '@/components/logging/LogButtonIcon';
 import LogEntrySheet from '@/components/logging/LogEntrySheet';
 import { useHabitLogger } from '@/components/logging/useHabitLogger';
 import ShareDialog from './ShareDialog';
-import SkipButton from '@/components/SkipButton';
 import HabitDetails from './HabitDetails';
 import { useCsvImport } from './useCsvImport';
 import { MENU_ITEM, MENU_PANEL, MenuBackdrop } from '@/components/ui/Menu';
@@ -41,10 +41,11 @@ function prefillFrom(searchParams: URLSearchParams, properties: HabitFormPropert
 }
 
 // The top of a habit's page: its header and menu, and the Log Habit button, which logs a habit with
-// no form on the tap or opens the entry sheet for one with a form (see useHabitLogger), with a way to
-// skip it under it while it's due (`skip`, see skipState). The habit's
+// no form on the tap or opens the entry sheet for one with a form (see useHabitLogger). Its health
+// (`consistency`) and skipping it while it's due (`skip`, see skipState) are with its pills above
+// (see HabitDetails). The habit's
 // history comes in as `children`, below the button: sections of the page's pane.
-export default function LogClient({ habit, user, people, categories, reminder, skip, postpones, children }: { habit: HabitDetail, user: SessionUser, people: Record<string, Person>, categories: CategoryOption[], reminder: { status: ReminderStatus; hasDevice: boolean } | null, skip: SkipState | null, postpones: boolean, children: ReactNode }) {
+export default function LogClient({ habit, user, people, categories, reminder, skip, postpones, consistency, children }: { habit: HabitDetail, user: SessionUser, people: Record<string, Person>, categories: CategoryOption[], reminder: { status: ReminderStatus; hasDevice: boolean } | null, skip: SkipState | null, postpones: boolean, consistency: Consistency | null, children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -235,7 +236,7 @@ export default function LogClient({ habit, user, people, categories, reminder, s
       <div className={`${PANE_INSET} py-4 space-y-6`}>
         {habit.description && <p className="text-ink-secondary text-center">{habit.description}</p>}
 
-        <HabitDetails habit={habit} categories={categories} reminder={reminder} bedtime={user.bedtime} weekStartsOn={user.weekStartsOn} />
+        <HabitDetails habit={habit} categories={categories} reminder={reminder} consistency={consistency} skip={skip} postpones={postpones} bedtime={user.bedtime} weekStartsOn={user.weekStartsOn} />
 
         {habit.isOwner && sharedWith.length > 0 && (
           <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5 -mt-2 text-xs text-ink-muted">
@@ -250,25 +251,22 @@ export default function LogClient({ habit, user, people, categories, reminder, s
           </div>
         )}
 
-        <div className="space-y-2">
-          {/* Split like the Agenda page's smart entry button: log now, or pick an earlier time */}
-          <div className="flex">
-            <Button size="xl" onClick={logger.start} disabled={logger.busy} className="flex-1 rounded-r-none">
-              <LogButtonIcon hasForm={logger.hasForm} busy={logger.busy} size="lg" />
-              {logger.busy ? 'Logging...' : 'Log Habit'}
-            </Button>
-            <Button
-              size="xl"
-              onClick={() => logger.openSheet({ backdate: true })}
-              disabled={logger.busy}
-              title="Backdate log"
-              aria-label="Backdate log"
-              className="rounded-l-none px-5! border-l border-accent-hover"
-            >
-              <CalendarClock className="w-6 h-6" strokeWidth={2.5} />
-            </Button>
-          </div>
-          {skip && <SkipButton target={{ kind: 'habit', id: habit.id, name: habit.name }} skip={skip} postpones={postpones} />}
+        {/* Split like the Agenda page's smart entry button: log now, or pick an earlier time */}
+        <div className="flex">
+          <Button size="xl" onClick={logger.start} disabled={logger.busy} className="flex-1 rounded-r-none">
+            <LogButtonIcon hasForm={logger.hasForm} busy={logger.busy} size="lg" />
+            {logger.busy ? 'Logging...' : 'Log Habit'}
+          </Button>
+          <Button
+            size="xl"
+            onClick={() => logger.openSheet({ backdate: true })}
+            disabled={logger.busy}
+            title="Backdate log"
+            aria-label="Backdate log"
+            className="rounded-l-none px-5! border-l border-accent-hover"
+          >
+            <CalendarClock className="w-6 h-6" strokeWidth={2.5} />
+          </Button>
         </div>
       </div>
 

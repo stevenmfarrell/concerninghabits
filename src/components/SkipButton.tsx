@@ -3,14 +3,15 @@
 import { useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { Button } from '@/components/ui/Button';
 import { SkipIcon, skip as skipTarget, unskip, type SkipTarget } from '@/components/logging/skipping';
 import type { SkipState } from '@/lib/cadence';
+import { PILL } from '@/components/CadenceQuickEdit';
 
-// On a habit's or category's page: skips it for now (e.g. "Skip today", "Skip this week") while
-// it's due, so a sick day or a trip doesn't count against it, or for one that `postpones` (see
-// postpones), puts it off ("Postpone 2 days"); or, once skipped, says so with an Undo.
-// The page refreshes through the actions' revalidation, which swaps one for the other.
+// On a habit's or category's page, a pill beside its cadence (see HealthHeader): skips it for now
+// (e.g. "Skip today", "Skip this week") while it's due, so a sick day or a trip doesn't count against
+// it, or for one that `postpones` (see postpones), puts it off ("Postpone 2 days"). Once skipped, the
+// pill says so and undoes it: one tap either way. The page refreshes through the actions'
+// revalidation, which swaps one for the other.
 export default function SkipButton({ target, skip, postpones }: { target: SkipTarget; skip: SkipState; postpones: boolean }) {
   const [busy, setBusy] = useState(false);
 
@@ -26,26 +27,29 @@ export default function SkipButton({ target, skip, postpones }: { target: SkipTa
   };
 
   const icon = busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <SkipIcon postpones={postpones} className="w-4 h-4" />;
+  const day = skip.skippedDay;
 
-  if (skip.skippedDay) {
-    const day = skip.skippedDay;
-    return (
-      <div className="flex items-center justify-center gap-2 text-sm text-ink-muted">
-        {icon}
-        <span>{skip.label}</span>
-        <Button variant="ghost" size="sm" onClick={() => run(() => unskip(target, day), 'Failed to undo')} disabled={busy}>
-          Undo
-        </Button>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex justify-center">
-      <Button variant="ghost" size="sm" onClick={() => run(() => skipTarget(target), postpones ? 'Failed to postpone' : 'Failed to skip')} disabled={busy}>
-        {icon}
-        {skip.label}
-      </Button>
-    </div>
+  return day ? (
+    <button
+      type="button"
+      onClick={() => run(() => unskip(target, day), 'Failed to undo')}
+      disabled={busy}
+      className={`${PILL} bg-surface-subtle border-line-subtle text-ink-muted hover:bg-surface-muted`}
+      aria-label={`${skip.label}. Undo`}
+    >
+      {icon}
+      {skip.label}
+      <span className="text-ink-secondary">· Undo</span>
+    </button>
+  ) : (
+    <button
+      type="button"
+      onClick={() => run(() => skipTarget(target), postpones ? 'Failed to postpone' : 'Failed to skip')}
+      disabled={busy}
+      className={`${PILL} bg-surface border-line text-ink-secondary hover:bg-surface-subtle`}
+    >
+      {icon}
+      {skip.label}
+    </button>
   );
 }

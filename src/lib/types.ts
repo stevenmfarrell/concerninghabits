@@ -38,6 +38,8 @@ export interface HabitListItem {
   logs?: { createdAt: Date; userId: string }[];
   // The days it was skipped, as civil day keys (see HabitSkip)
   skips?: { day: string }[];
+  // When it was created, which its consistency is counted from (see consistency)
+  createdAt?: Date;
   // How many people have this habit (1 unless it's shared)
   memberCount?: number;
   // The viewer's own notes on the habit, for voice and photo logging from the row's Log button
@@ -52,6 +54,8 @@ export interface SubcategoryListItem {
   cadence?: string;
   // The days it was skipped, as civil day keys (see CategorySkip)
   skips?: { day: string }[];
+  // When it was created, which its consistency is counted from (see consistency)
+  createdAt?: Date;
   order?: number | null;
   habits?: HabitListItem[];
 }

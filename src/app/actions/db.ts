@@ -133,11 +133,11 @@ function withHabits<C extends { habitMembers: HabitListMembership[] }>({ habitMe
 // The days a category was skipped (see CategorySkip), all of them, as for a habit's
 const categorySkips = { select: { day: true } } as const;
 
-export async function getCategoriesWithHierarchy() {
+// `weeks` bounds how far back logs are fetched: enough for the 4-week row calendars by default, or
+// more for a caller that looks further back (the Habits page, for each category's consistency)
+export async function getCategoriesWithHierarchy(weeks = 5) {
   const user = await getDefaultUser();
-  // Only the 4-week row calendars read this, but the cutoff is generous so it stays
-  // correct if a caller ever asks for a longer view.
-  const logsCutoff = getRecentLogsCutoff(5);
+  const logsCutoff = getRecentLogsCutoff(weeks);
   const categories = await prisma.category.findMany({
     where: { userId: user.id, parentId: null },
     orderBy: [{ order: 'asc' }, { name: 'asc' }],

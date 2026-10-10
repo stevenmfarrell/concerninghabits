@@ -256,6 +256,13 @@ function ruleFor<C extends Cadence>(cadence: C) {
 }
 
 export const describeCadence = (cadence: Cadence, context: CadenceContext) => ruleFor(cadence).describe(cadence, context);
+// Whether it's meant to be done on civil day `day` at all (see scheduled): only a weekday cadence's
+// days, otherwise every day
+export const isScheduled = (cadence: Cadence, day: Date) => ruleFor(cadence).scheduled?.(cadence, day) ?? true;
+// Whether it counts down to when it's next due (every N days), rather than following the calendar
+export const countsDown = (cadence: Cadence) => ruleFor(cadence).countsDown;
+// Whether it only needs doing by the end of its week or month (see dueByPeriodEnd)
+export const dueByPeriodEnd = (cadence: Cadence) => ruleFor(cadence).dueByPeriodEnd;
 export const cadenceCovers = (cadence: Cadence, day: Date, context: CadenceContext) => ruleFor(cadence).covers(cadence, day, context);
 export const entriesNeeded = (cadence: Cadence) => ruleFor(cadence).needed(cadence);
 export const upcomingDays = (cadence: Cadence) => ruleFor(cadence).upcomingDays(cadence);
@@ -445,7 +452,7 @@ export function skipLabels(cadence: Cadence): { skip: string; skipped: string; p
 // Whether skipping it puts it off rather than excusing it, so it's called postponing, with its own
 // icon: one that counts down to when it's due (every N days) is upcoming until its skip runs out,
 // rather than done (see cadenceStatus)
-export const postpones = (cadence: Cadence) => ruleFor(cadence).countsDown;
+export const postpones = (cadence: Cadence) => countsDown(cadence);
 
 export function skipState(cadence: Cadence, logDates: Date[], user: CadenceUser, now = new Date(), skippedDays: readonly string[] = []): SkipState | null {
   const labels = skipLabels(cadence);

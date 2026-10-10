@@ -1,5 +1,6 @@
 import { agendaStatus, cadenceProgress, cadenceStatus, daysUntilDue, dueAtStartOfDay, DEFAULT_CADENCE, NO_CADENCE, parseCadence, skipLabels, skipState, type Cadence, type ProgressPeriod } from './cadence';
 import type { HabitListItem } from './types';
+import { consistency as consistencyOf, type Consistency } from './consistency';
 
 // A category as the Agenda page needs it: its cadence, and its habits with their recent entries
 interface CategoryWithHabits {
@@ -36,6 +37,9 @@ export interface RowStatus {
   // For an Agenda habit that can be skipped now, what that's called, e.g. "Skip today" and
   // "Skipped today", or "Postpone 2 days", for swiping it away (see skipLabels)
   skip?: { skip: string; skipped: string; postpones: boolean };
+  // On the Habits pages, how consistently it's been kept up lately (see consistency); null for one
+  // with no cadence. Not on the Agenda, which is for what to do today.
+  consistency?: Consistency | null;
 }
 
 // A category with a cadence on the Agenda page, with every habit counting toward it (a top-level
@@ -99,16 +103,19 @@ export const skippedDaysOf = (item: { skips?: { day: string }[] }) => (item.skip
 // met for now (an every-N-days one until it's due again), or for a habit with no cadence (`habit`),
 // once it has an entry today. A category with no cadence is never done. `skippedDays`, a habit's or
 // a category's own, count toward its cadence (see skipState); with no cadence, there's nothing to skip.
+// With when it was created (`createdAt`), it says how consistently it's been kept up too, from
+// `dates` reaching back CONSISTENCY_HISTORY_WEEKS.
 export function listRowStatus(
   cadence: Cadence,
   dates: Date[],
   user: { timeZone: string; bedtime: string; weekStartsOn: string },
-  { habit, skippedDays = [] }: { habit: boolean; skippedDays?: string[] },
+  { habit, skippedDays = [], createdAt }: { habit: boolean; skippedDays?: string[]; createdAt?: Date },
   now = new Date(),
 ): RowStatus {
+  const consistency = createdAt ? { consistency: consistencyOf(cadence, dates, user, { createdAt, skippedDays }, now) } : {};
   if (cadence.type === 'none') {
-    if (!habit) return { done: 0, needed: 0, period: null, dueInDays: null };
-    return listRowStatus(DEFAULT_CADENCE, dates, user, { habit }, now);
+    if (!habit) return { done: 0, needed: 0, period: null, dueInDays: null, ...consistency };
+    return { ...listRowStatus(DEFAULT_CADENCE, dates, user, { habit }, now), ...consistency };
   }
   const progress = cadenceProgress(cadence, dates, user, now, skippedDays);
   const status = cadenceStatus(cadence, dates, user, now, skippedDays);
@@ -117,6 +124,7 @@ export function listRowStatus(
   return {
     ...(progress ?? { done: done ? 1 : 0, needed: 1, period: null }),
     dueInDays: daysUntilDue(cadence, dates, user, now, skippedDays),
+    ...consistency,
   };
 }
 

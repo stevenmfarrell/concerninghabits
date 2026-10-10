@@ -2,7 +2,7 @@ import { getCategoriesWithHierarchy, getDefaultUser, getLatestLogDates, getUncat
 import { Plus, FolderTree } from 'lucide-react';
 import CategoryRow, { type CategoryRowProps } from '@/components/CategoryRow';
 import CategoryHoldToLog from '@/components/logging/CategoryHoldToLog';
-import LogRing from '@/components/logging/LogRing';
+import { HealthMark } from '@/components/HealthPlant';
 import { LinkButton } from '@/components/ui/Button';
 import EmptyState from '@/components/EmptyState';
 import PageHeader from '@/components/PageHeader';
@@ -12,25 +12,27 @@ import { UNCATEGORIZED_ID, UNCATEGORIZED_ICON } from '@/lib/constants';
 import { NO_CADENCE, parseCadence } from '@/lib/cadence';
 import { entryDates, listRowStatus, pickerSections, skippedDaysOf, type PickerSection } from '@/lib/dueList';
 import { DEFAULT_CATEGORY_ICON } from '@/lib/constants';
+import { CONSISTENCY_HISTORY_WEEKS } from '@/lib/consistency';
 
-// A category's row, with a ring that opens a picker of its habits to log, as does holding the row
-// (see CategoryHoldToLog). One with no habits has nothing to log, so its ring can't be tapped.
+// A category's row, with its health at its start (see HealthMark), that opens a picker of its habits
+// to log by holding the row, or with a mouse its button (see CategoryHoldToLog). One with no habits
+// has nothing to log.
 function HoldableCategoryRow({ id, row, sections }: { id: string; row: CategoryRowProps; sections: PickerSection[] }) {
   if (sections.length === 0) {
-    return <CategoryRow {...row} leading={row.status && <LogRing status={row.status} label="No habits to log" color="blue" disabled />} />;
+    return <CategoryRow {...row} leading={<HealthMark consistency={row.status?.consistency} />} />;
   }
-  return <CategoryHoldToLog category={{ id, name: row.name, icon: row.icon, sections }} row={row} />;
+  return <CategoryHoldToLog category={{ id, name: row.name, icon: row.icon, sections }} row={row} health />;
 }
 
 // Habits: every category (and uncategorized habits) to browse, with recent activity. What's due
 // lives on the Agenda page; this is where everything else is found. Its rows are laid out like the
-// Agenda's, a ring at the start of each to log a habit in it, and its cadence under its name, but
-// they stay when they're done, their rings checked (see listRowStatus).
+// Agenda's, but with each one's health at its start where the Agenda has a ring (see HealthMark),
+// so the two don't look alike: these are for seeing how things are going, not what to do now.
 export default async function HabitsPage() {
   const user = await getDefaultUser();
-  // The 4-week calendars and the rings read entries here (5 weeks, so a month's entries count); the
-  // latest entries are for an every-N-days cadence's older ones
-  const [categories, uncategorized, latestLogDates] = await Promise.all([getCategoriesWithHierarchy(), getUncategorizedHabits(5), getLatestLogDates()]);
+  // The 4-week calendars and the rings read entries here (5 weeks, so a month's entries count), and a
+  // category's consistency further back; the latest entries are for an every-N-days cadence's older ones
+  const [categories, uncategorized, latestLogDates] = await Promise.all([getCategoriesWithHierarchy(CONSISTENCY_HISTORY_WEEKS), getUncategorizedHabits(5), getLatestLogDates()]);
 
   const categoryRows = categories
     .map(cat => {
@@ -41,7 +43,7 @@ export default async function HabitsPage() {
         name: cat.name,
         icon: cat.icon || DEFAULT_CATEGORY_ICON,
         cadence,
-        status: listRowStatus(cadence, habits.flatMap(h => entryDates(h, latestLogDates)), user, { habit: false, skippedDays: skippedDaysOf(cat) }),
+        status: listRowStatus(cadence, habits.flatMap(h => entryDates(h, latestLogDates)), user, { habit: false, skippedDays: skippedDaysOf(cat), createdAt: cat.createdAt }),
         skippedDays: skippedDaysOf(cat),
         habitCount: habits.length,
         dates: habits.flatMap(h => h.logs.map(l => l.createdAt)),

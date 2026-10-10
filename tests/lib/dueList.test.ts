@@ -302,6 +302,16 @@ describe('skips on the Agenda', () => {
     expect(list.upcomingCategories[0].item.skippedDays).toEqual(['2026-10-03']);
   });
 
+  it('says how consistently a row\'s been kept up on the Habits pages, given when it was created', () => {
+    const created = new Date('2026-08-01T09:00:00Z');
+    const everyDay = Array.from({ length: 70 }, (_, i) => new Date(Date.UTC(2026, 9, 2 - i, 9)));
+    expect(listRowStatus(daily, everyDay, user, { habit: true, createdAt: created }, now).consistency).toEqual({ level: 'thriving', score: 1, trend: null });
+    // Nothing's expected of one with no cadence, so it has none
+    expect(listRowStatus(none, everyDay, user, { habit: true, createdAt: created }, now).consistency).toBeNull();
+    // Not without when it was created (e.g. the Agenda, which doesn't show it)
+    expect(listRowStatus(daily, everyDay, user, { habit: true }, now).consistency).toBeUndefined();
+  });
+
   it('counts a category\'s skips in its row\'s status on the Habits pages', () => {
     expect(listRowStatus(daily, [], user, { habit: false, skippedDays: ['2026-10-03'] }, now)).toEqual({ done: 1, needed: 1, period: null, dueInDays: null });
   });

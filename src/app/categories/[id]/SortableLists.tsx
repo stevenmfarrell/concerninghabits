@@ -26,6 +26,7 @@ import CategoryLogDialog from '@/components/logging/CategoryLogDialog';
 import { POINTER_ONLY } from '@/components/logging/pointerOnly';
 import RowStatus from '@/components/RowStatus';
 import CadenceLabel from '@/components/CadenceLabel';
+import { HealthMark } from '@/components/HealthPlant';
 import QuillIconWavy from '@/components/QuillIconWavy';
 
 import { Users } from 'lucide-react';
@@ -44,8 +45,9 @@ interface SortableRowProps {
 // the header picks one of its habits to log, as a category row does (see CategoryLogDialog), with a
 // button for it at the row's end with a mouse. With `statuses` (its own and its habits', by id), it
 // has a ring in place of its icon's tile instead, as big as its habits', that opens the picker on a
-// tap (see LogRing), with its cadence under its name, and its habits have rings too.
-const SortableSubcategoryItem = ({ sub, statuses, user, people, isOverlay, isReordering }: SortableRowProps & { sub: SubcategoryListItem; statuses?: Record<string, Status> }) => {
+// tap (see LogRing), with its cadence under its name, and its habits have rings too; or with
+// `health`, its health in that place instead (see HealthMark), and its habits' too.
+const SortableSubcategoryItem = ({ sub, statuses, health, user, people, isOverlay, isReordering }: SortableRowProps & { sub: SubcategoryListItem; statuses?: Record<string, Status>; health?: boolean }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: sub.id });
   const [pickerOpen, setPickerOpen] = useState(false);
 
@@ -59,6 +61,8 @@ const SortableSubcategoryItem = ({ sub, statuses, user, people, isOverlay, isReo
   const holdable = subHabits.length > 0 && !isReordering && !isOverlay;
   const label = `Log a habit in ${sub.name}`;
   const status = statuses?.[sub.id];
+  // Its ring, which opens the picker in place of the picker's button
+  const ring = !!status && !health;
   const cadence = parseCadence(sub.cadence, NO_CADENCE);
   // Entries being logged from the picker that the page doesn't show yet (see useHabitLogger)
   const [pending, addPending] = useOptimistic(0, (count, added: number) => count + added);
@@ -72,7 +76,7 @@ const SortableSubcategoryItem = ({ sub, statuses, user, people, isOverlay, isReo
           <GripVertical className="w-5 h-5" />
         </div>
       )}
-      {status && (
+      {ring && (
         <LogRing
           status={status}
           pending={pending}
@@ -82,6 +86,7 @@ const SortableSubcategoryItem = ({ sub, statuses, user, people, isOverlay, isReo
           color="blue"
         />
       )}
+      {status && health && <HealthMark consistency={status.consistency} />}
       <Link href={`/categories/${sub.id}`} className="flex-1 flex items-center gap-3 min-w-0 after:absolute after:inset-0">
         {!status && (
           <div className="w-8 h-8 rounded-lg bg-category-soft-strong flex items-center justify-center text-category-ink-strong shrink-0">
@@ -98,9 +103,9 @@ const SortableSubcategoryItem = ({ sub, statuses, user, people, isOverlay, isReo
             : <p className="text-xs text-ink-muted truncate mt-0.5">{subHabits.length} habits</p>}
         </div>
         {/* With a mouse, the picker's button takes its place */}
-        <ChevronRight className={`w-5 h-5 shrink-0 text-ink-faint group-hover/header:text-category-ink transition-colors ${holdable && !status ? 'pointer-fine:hidden' : ''}`} />
+        <ChevronRight className={`w-5 h-5 shrink-0 text-ink-faint group-hover/header:text-category-ink transition-colors ${holdable && !ring ? 'pointer-fine:hidden' : ''}`} />
       </Link>
-      {holdable && !status && (
+      {holdable && !ring && (
         <span className={`${POINTER_ONLY} relative z-10`}>
           <IconButton variant="category-soft" onClick={() => setPickerOpen(true)} title={label} aria-label={label} className="w-16 h-10">
             <QuillIconWavy className="w-5 h-5" strokeWidth={2.5} />
@@ -113,20 +118,20 @@ const SortableSubcategoryItem = ({ sub, statuses, user, people, isOverlay, isReo
   const content = (
     <div className={`flex flex-col relative w-full ${isOverlay ? 'shadow-2xl scale-[1.02] z-50 rounded-2xl' : ''}`}>
       {holdable ? (
-        <RowGesture onCommit={() => setPickerOpen(true)} label={label} tone="category" hiddenButton={!status}>
+        <RowGesture onCommit={() => setPickerOpen(true)} label={label} tone="category" hiddenButton={!ring}>
           {header}
         </RowGesture>
       ) : header}
 
       {/* Habits */}
       {!isOverlay && subHabits.length > 0 && (
-        <SortableHabitList items={subHabits} statuses={statuses} user={user} people={people} isReordering={isReordering} dndContextId={`habits-dnd-${sub.id}`} bare nested holdToLog showCadence={!!statuses} />
+        <SortableHabitList items={subHabits} statuses={statuses} health={health} user={user} people={people} isReordering={isReordering} dndContextId={`habits-dnd-${sub.id}`} bare nested holdToLog showCadence={!!statuses} />
       )}
       {pickerOpen && (
         <CategoryLogDialog
           category={{ name: sub.name, icon: sub.icon, sections: [{ subcategory: null, habits: subHabits }] }}
           onClose={() => setPickerOpen(false)}
-          leave={status ? () => void addPending(1) : undefined}
+          leave={ring ? () => void addPending(1) : undefined}
         />
       )}
     </div>
@@ -143,8 +148,8 @@ type CategoryItem =
 // A category's direct habits and subcategories, sorted together so either can be placed above the other,
 // as one list of rows: each subcategory is a tinted header row with its habits under it. Habits are
 // logged by pressing and holding their rows (see HoldToLog), and a subcategory's header by holding
-// it. With `statuses` (the habits' and subcategories', by id), each row has a ring at its start too,
-// that logs it on a tap and checks once it's done (see LogRing), and its cadence under its name.
+// it. With `statuses` (the habits' and subcategories', by id), each row has its health at its start
+// (see HealthMark) and its cadence under its name.
 export function SortableCategoryItemList({ items: initialItems, statuses, user, people, isReordering }: { items: CategoryItem[], statuses?: Record<string, Status>, user: SessionUser, people: Record<string, Person>, isReordering?: boolean }) {
   const { items, activeId, sensors, handleDragStart, handleDragCancel, handleDragEnd } = useReorderableList(initialItems, async (newItems) => {
     // Habits and subcategories share one order sequence within this category
@@ -164,13 +169,13 @@ export function SortableCategoryItemList({ items: initialItems, statuses, user, 
       <DndContext id="category-items-dnd-context" sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={handleDragCancel}>
         <SortableContext items={items.map(i => i.id)} strategy={verticalListSortingStrategy}>
           {items.map(item => item.type === 'habit'
-            ? <SortableHabitItem key={item.id} habit={item.data} status={statuses?.[item.id]} user={user} people={people} isReordering={isReordering} holdToLog showCadence={!!statuses} />
-            : <SortableSubcategoryItem key={item.id} sub={item.data} statuses={statuses} user={user} people={people} isReordering={isReordering} />
+            ? <SortableHabitItem key={item.id} habit={item.data} status={statuses?.[item.id]} health user={user} people={people} isReordering={isReordering} holdToLog showCadence={!!statuses} />
+            : <SortableSubcategoryItem key={item.id} sub={item.data} statuses={statuses} health user={user} people={people} isReordering={isReordering} />
           )}
         </SortableContext>
         <DragOverlay>
-          {activeItem?.type === 'habit' && <SortableHabitItem habit={activeItem.data} status={statuses?.[activeItem.id]} user={user} people={people} isOverlay isReordering={isReordering} holdToLog showCadence={!!statuses} />}
-          {activeItem?.type === 'subcategory' && <SortableSubcategoryItem sub={activeItem.data} statuses={statuses} user={user} people={people} isOverlay isReordering={isReordering} />}
+          {activeItem?.type === 'habit' && <SortableHabitItem habit={activeItem.data} status={statuses?.[activeItem.id]} health user={user} people={people} isOverlay isReordering={isReordering} holdToLog showCadence={!!statuses} />}
+          {activeItem?.type === 'subcategory' && <SortableSubcategoryItem sub={activeItem.data} statuses={statuses} health user={user} people={people} isOverlay isReordering={isReordering} />}
         </DragOverlay>
       </DndContext>
     </div>
@@ -179,7 +184,8 @@ export function SortableCategoryItemList({ items: initialItems, statuses, user, 
 
 // `status` is what the Agenda and Habits pages show: a ring at the row's start that logs it on a tap
 // (see LogRing), in place of its Log button, and beside its calendar how far off it's due (see
-// RowStatus). With `leavesWhenDone` (the Agenda), an entry that makes it done sends the row away, and
+// RowStatus). With `health` (the category page), its health is at its start instead (see
+// HealthMark), and it keeps its Log button. With `leavesWhenDone` (the Agenda), an entry that makes it done sends the row away, and
 // one that can be skipped (its status's `skip`) is skipped (or postponed) by swiping it to the left,
 // going the same way.
 // `nested` indents the row under its subcategory's header, its name lined up with the subcategory's
@@ -187,7 +193,9 @@ export function SortableCategoryItemList({ items: initialItems, statuses, user, 
 // with a mouse, and gives it more room (as tall as a category row, with or without a ring).
 // `showCadence` puts the habit's cadence under its name (e.g.
 // "EVERY 3 DAYS"), as the Agenda page does
-const SortableHabitItem = ({ habit, status, user, people, isOverlay, isReordering, nested, holdToLog, showCadence, leavesWhenDone }: SortableRowProps & { habit: HabitListItem; status?: Status; nested?: boolean; holdToLog?: boolean; showCadence?: boolean; leavesWhenDone?: boolean }) => {
+const SortableHabitItem = ({ habit, status, health, user, people, isOverlay, isReordering, nested, holdToLog, showCadence, leavesWhenDone }: SortableRowProps & { habit: HabitListItem; status?: Status; health?: boolean; nested?: boolean; holdToLog?: boolean; showCadence?: boolean; leavesWhenDone?: boolean }) => {
+  // Its ring, which logs it in place of its Log button
+  const ring = !!status && !health;
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: habit.id });
   const rowRef = useRef<HTMLDivElement | null>(null);
   // An entry that makes it done sends the row away, on to the Agenda's Done chips
@@ -221,7 +229,7 @@ const SortableHabitItem = ({ habit, status, user, people, isOverlay, isReorderin
           </div>
         )}
         {/* Without a logger (while reordering), just for show, so the row doesn't shift */}
-        {status && (
+        {ring && (
           <LogRing
             status={status}
             pending={logger?.pending}
@@ -230,6 +238,7 @@ const SortableHabitItem = ({ habit, status, user, people, isOverlay, isReorderin
             disabled={!logger || logger.busy}
           />
         )}
+        {status && health && <HealthMark consistency={status.consistency} />}
         {/* Stretched over the whole row (its ::after), so the row's padding is tappable too */}
         <Link href={`/log/${habit.id}`} className="flex-1 flex flex-wrap sm:flex-nowrap items-center gap-3 sm:gap-6 min-w-0 w-full justify-between after:absolute after:inset-0">
           <div className="flex-1 min-w-0">
@@ -239,7 +248,7 @@ const SortableHabitItem = ({ habit, status, user, people, isOverlay, isReorderin
               </h3>
               {/* The ring has no room for the Log button's form icon, so it's here: a tap on the ring
                   opens a form rather than logging (its label says so for screen readers) */}
-              {status && logger?.hasForm && (
+              {ring && logger?.hasForm && (
                 <ClipboardList className="w-4 h-4 text-ink-subtle shrink-0" aria-hidden="true" />
               )}
               {(habit.memberCount ?? 1) > 1 && (
@@ -290,7 +299,7 @@ const SortableHabitItem = ({ habit, status, user, people, isOverlay, isReorderin
       style={style}
       className="relative bg-surface"
     >
-      {holdToLog && !isReordering ? <HoldToLog habit={habit} ownButton={!!status} leave={leave} swipe={swipe}>{renderContent}</HoldToLog> : renderContent()}
+      {holdToLog && !isReordering ? <HoldToLog habit={habit} ownButton={ring} leave={leave} swipe={swipe}>{renderContent}</HoldToLog> : renderContent()}
     </div>
   );
 };
@@ -299,8 +308,9 @@ const SortableHabitItem = ({ habit, status, user, people, isOverlay, isReorderin
 // `bare` leaves out the list's own card, for a list laid straight on a page's pane; `nested` indents
 // its rows under a subcategory's header. `holdToLog` logs a row by pressing and holding it rather than with a Log
 // button. `showCadence` puts each habit's cadence under its name, and `leavesWhenDone` sends a row
-// away once an entry makes it done (see SortableHabitItem).
-export function SortableHabitList({ items: initialItems, statuses, user, people, isReordering, dndContextId = "habits-dnd-context", bare = false, nested = false, holdToLog = false, showCadence = false, leavesWhenDone = false }: { items: HabitListItem[], statuses?: Record<string, Status>, user: SessionUser, people: Record<string, Person>, isReordering?: boolean, dndContextId?: string, bare?: boolean, nested?: boolean, holdToLog?: boolean, showCadence?: boolean, leavesWhenDone?: boolean }) {
+// away once an entry makes it done. `health` shows each row's health in place of its ring (see
+// SortableHabitItem).
+export function SortableHabitList({ items: initialItems, statuses, health = false, user, people, isReordering, dndContextId = "habits-dnd-context", bare = false, nested = false, holdToLog = false, showCadence = false, leavesWhenDone = false }: { items: HabitListItem[], statuses?: Record<string, Status>, health?: boolean, user: SessionUser, people: Record<string, Person>, isReordering?: boolean, dndContextId?: string, bare?: boolean, nested?: boolean, holdToLog?: boolean, showCadence?: boolean, leavesWhenDone?: boolean }) {
   const { items, activeId, sensors, handleDragStart, handleDragCancel, handleDragEnd } = useReorderableList(initialItems, async (newItems) => {
     const updates = newItems.map((item, index) => ({ id: item.id, order: index }));
     await reorderHabits(updates);
@@ -312,10 +322,10 @@ export function SortableHabitList({ items: initialItems, statuses, user, people,
     <div className={bare ? "divide-y divide-line-subtle flex flex-col w-full" : "bg-surface rounded-2xl shadow-sm border border-line-subtle overflow-hidden divide-y divide-line-subtle flex flex-col"}>
       <DndContext id={dndContextId} sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={handleDragCancel}>
         <SortableContext items={items.map(i => i.id)} strategy={verticalListSortingStrategy}>
-          {items.map(habit => <SortableHabitItem key={habit.id} habit={habit} status={statuses?.[habit.id]} user={user} people={people} isReordering={isReordering} nested={nested} holdToLog={holdToLog} showCadence={showCadence} leavesWhenDone={leavesWhenDone} />)}
+          {items.map(habit => <SortableHabitItem key={habit.id} habit={habit} status={statuses?.[habit.id]} health={health} user={user} people={people} isReordering={isReordering} nested={nested} holdToLog={holdToLog} showCadence={showCadence} leavesWhenDone={leavesWhenDone} />)}
         </SortableContext>
         <DragOverlay>
-          {activeItem ? <SortableHabitItem habit={activeItem} user={user} people={people} status={statuses?.[activeItem.id]} isOverlay isReordering={isReordering} nested={nested} showCadence={showCadence} /> : null}
+          {activeItem ? <SortableHabitItem habit={activeItem} user={user} people={people} status={statuses?.[activeItem.id]} health={health} isOverlay isReordering={isReordering} nested={nested} showCadence={showCadence} /> : null}
         </DragOverlay>
       </DndContext>
     </div>
