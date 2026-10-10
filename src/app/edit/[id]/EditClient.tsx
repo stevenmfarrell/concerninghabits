@@ -4,6 +4,9 @@ import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { UserMinus, Trash2 } from 'lucide-react';
 import { deleteHabit, leaveHabit, setHabitAiContext, setHabitCategory, updateHabit } from '../../actions/db';
+import { setHabitReminder } from '../../actions/reminders';
+import { reminderDraftOf } from '@/components/reminders/ReminderSettings';
+import type { ReminderStatus } from '@/lib/reminders';
 import HabitEditor, { type HabitDraft, type RemoveAction } from '@/components/HabitEditor';
 import { parseHabitSchema } from '@/components/widgets/habitForm';
 import { parseCadence } from '@/lib/cadence';
@@ -15,7 +18,15 @@ import type { Person } from '@/lib/userColors';
 // A habit's edit page, below its header: the full editor for its owner, or for someone it's shared
 // with, just their own category and notes for AI. Saving goes back to the habit's page.
 // `entries` are the habit's recent entries, to preview a calculated field's values with.
-export default function EditClient({ habit, owner, categories, entries }: { habit: HabitDetail; owner: Person | undefined; categories: CategoryOption[]; entries: ChartEntry[] }) {
+// `reminder` is the viewer's own reminder for it (see getHabitReminder), with their bedtime.
+export default function EditClient({ habit, owner, categories, entries, reminder, bedtime }: {
+  habit: HabitDetail;
+  owner: Person | undefined;
+  categories: CategoryOption[];
+  entries: ChartEntry[];
+  reminder: { status: ReminderStatus; hasDevice: boolean } | null;
+  bedtime: string;
+}) {
   const router = useRouter();
   const habitHref = `/log/${habit.id}`;
 
@@ -28,6 +39,7 @@ export default function EditClient({ habit, owner, categories, entries }: { habi
     publishToMqtt: habit.publishToMqtt,
     aiContext: habit.aiContext || '',
     calculatedFields: parseCalculatedFields(habit.calculatedFields),
+    reminder: reminder ? reminderDraftOf(reminder.status) : undefined,
   };
 
   const handleSave = async (draft: HabitDraft) => {
@@ -37,6 +49,10 @@ export default function EditClient({ habit, owner, categories, entries }: { habi
       // All someone it's shared with can change
       if (draft.categoryId !== initial.categoryId) await setHabitCategory(habit.id, draft.categoryId || null);
       if (draft.aiContext.trim() !== initial.aiContext) await setHabitAiContext(habit.id, draft.aiContext);
+    }
+    // Everyone's own, owner or not
+    if (draft.reminder && JSON.stringify(draft.reminder) !== JSON.stringify(initial.reminder)) {
+      await setHabitReminder(habit.id, draft.reminder.enabled, draft.reminder.remindAt);
     }
     toast.success('Changes saved');
     router.push(habitHref);
@@ -69,6 +85,15 @@ export default function EditClient({ habit, owner, categories, entries }: { habi
       };
 
   return (
-    <HabitEditor mode={habit.isOwner ? 'edit' : 'shared'} initial={initial} owner={owner} onSave={handleSave} remove={remove} categories={categories} entries={entries} />
+    <HabitEditor
+      mode={habit.isOwner ? 'edit' : 'shared'}
+      initial={initial}
+      owner={owner}
+      onSave={handleSave}
+      remove={remove}
+      categories={categories}
+      entries={entries}
+      reminderContext={reminder ? { ...reminder, bedtime } : undefined}
+    />
   );
 }

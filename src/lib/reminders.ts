@@ -32,6 +32,9 @@ export const GROUP_WAIT = 30;
 // No nudge is ever later than this before the end of the day, after which the habit would count as
 // missed rather than late
 export const END_OF_DAY_MARGIN = 15;
+// When to nudge about a habit whose usual time can't be learned (too little history, or times all
+// over the place) and that has no time set
+export const DEFAULT_REMIND_AT = '19:00';
 // At most this many notifications a day, however many habits run late
 export const MAX_PER_DAY = 3;
 // Reminders for a habit pause after this many in a row went unanswered (it wasn't logged that day)
@@ -64,6 +67,12 @@ export function dayMinute(instant: Date, timeZone: string, bedtime: string) {
   const parts = getMinuteFormatter(timeZone).formatToParts(instant);
   const part = (type: Intl.DateTimeFormatPartTypes) => Number(parts.find(p => p.type === type)?.value);
   return toDayMinute(part('hour') * 60 + part('minute'), bedtime);
+}
+
+// A day minute as a 24-hour time, the form a time input and `remindAt` take ("23:40")
+export function clockTimeOf(minute: number, bedtime: string) {
+  const clock = (Math.round(minute) + parseBedtimeOffsetMinutes(bedtime)) % MINUTES_PER_DAY;
+  return `${String(Math.floor(clock / 60)).padStart(2, '0')}:${String(clock % 60).padStart(2, '0')}`;
 }
 
 // A day minute as a time on the clock, e.g. "11:40 PM"
@@ -111,13 +120,13 @@ export function usualTimeSamples(logDates: Date[], entryIndex: number, user: Use
 // When a habit counts as running late, worked out from its past times (day minutes)
 export type LearnedTime =
   | { kind: 'learned'; usual: number; lateAt: number }
-  // Logged on fewer than MIN_SAMPLES days so far
-  | { kind: 'tooFew'; samples: number }
+  // Logged on fewer than MIN_SAMPLES days so far; `latest` is the latest time among them, if any
+  | { kind: 'tooFew'; samples: number; latest: number | null }
   // Logged at times too spread out to have a usual one (see MAX_SPREAD)
   | { kind: 'irregular' };
 
 export function learnUsualTime(samples: number[]): LearnedTime {
-  if (samples.length < MIN_SAMPLES) return { kind: 'tooFew', samples: samples.length };
+  if (samples.length < MIN_SAMPLES) return { kind: 'tooFew', samples: samples.length, latest: samples.length ? Math.max(...samples) : null };
   const sorted = [...samples].sort((a, b) => a - b);
   const usual = percentile(sorted, 0.5);
   const late = percentile(sorted, LATE_PERCENTILE);
@@ -125,12 +134,22 @@ export function learnUsualTime(samples: number[]): LearnedTime {
   return { kind: 'learned', usual, lateAt: Math.min(Math.max(late, usual + MIN_LATE_MARGIN), LATEST_NUDGE) };
 }
 
-// When to nudge about a habit today, as a day minute: the time the user set ("HH:MM"), or else
-// when it runs late by its learned time. Null if neither is known.
-export function nudgeTime(remindAt: string | null, learned: LearnedTime, bedtime: string): { at: number; manual: boolean } | null {
+// Where a habit's nudge time comes from: the time the user set, its learned usual time, or the
+// default for when neither is known
+export type NudgeSource = 'set' | 'learned' | 'default';
+
+// When to nudge about a habit today, as a day minute: the time the user set ("HH:MM"), else when it
+// runs late by its learned time, else DEFAULT_REMIND_AT. The default moves later for a habit whose
+// few entries so far came later than it, so something done at bedtime isn't nudged at 7pm while
+// its usual time is still being learned. A set or default time is kept to (`manual`); a learned one
+// waits to group with others (see pickNudge).
+export function nudgeTime(remindAt: string | null, learned: LearnedTime, bedtime: string): { at: number; manual: boolean; source: NudgeSource } {
   const clock = parseClockTime(remindAt);
-  if (clock !== null) return { at: toDayMinute(clock, bedtime), manual: true };
-  return learned.kind === 'learned' ? { at: learned.lateAt, manual: false } : null;
+  if (clock !== null) return { at: toDayMinute(clock, bedtime), manual: true, source: 'set' };
+  if (learned.kind === 'learned') return { at: learned.lateAt, manual: false, source: 'learned' };
+  const fallback = toDayMinute(parseClockTime(DEFAULT_REMIND_AT)!, bedtime);
+  const afterLatest = learned.kind === 'tooFew' && learned.latest !== null ? learned.latest + MIN_LATE_MARGIN : 0;
+  return { at: Math.min(Math.max(fallback, afterLatest), LATEST_NUDGE), manual: true, source: 'default' };
 }
 
 // How far through today a habit done several times a day is, e.g. 3 of 8 glasses of water. Its
@@ -209,28 +228,30 @@ export interface ReminderStatus {
 // Whether a reminder will actually be sent: on, and not paused for going unanswered
 export const reminderActive = (status: ReminderStatus) => status.enabled && !status.muted;
 
-// A line on what a habit's reminder does, or why it can't yet, for its settings
+// A line on what a habit's reminder does, for its settings
 export function describeReminder(status: ReminderStatus, bedtime: string) {
   const { learned, progress } = status;
   if (status.enabled && status.muted) return `Paused after ${IGNORED_LIMIT} reminders in a row went unanswered. Turn it back on to resume.`;
-  if (!status.enabled) return "Get a nudge when you're running late on this, judged by when you usually log it.";
-  const clock = parseClockTime(status.remindAt);
-  if (clock !== null) {
-    const time = formatDayMinute(toDayMinute(clock, bedtime), bedtime);
-    return progress
-      ? `If you aren't at ${progress.needed} by ${time} on a day it's due, you'll get a nudge.`
-      : `If it isn't logged by ${time} on a day it's due, you'll get a nudge.`;
-  }
+  if (!status.enabled) return 'No reminder. Usual time nudges you when you’re later than you usually log it; Set time nudges you at a time you pick.';
+
+  const nudge = nudgeTime(status.remindAt, learned, bedtime);
+  const time = formatDayMinute(nudge.at, bedtime);
+  // A set or default time is for the whole day's entries; a learned one for the next entry
+  const unlessDone = progress
+    ? `If you aren't at ${progress.needed} by ${time} on a day it's due, you'll get a nudge.`
+    : `If it isn't logged by ${time} on a day it's due, you'll get a nudge.`;
+
+  if (nudge.source === 'set') return unlessDone;
   if (learned.kind === 'learned') {
-    const [usual, late] = [formatDayMinute(learned.usual, bedtime), formatDayMinute(learned.lateAt, bedtime)];
+    const usual = formatDayMinute(learned.usual, bedtime);
     // A habit done several times a day is judged entry by entry, so this moves on as the day goes
     return progress
-      ? `You're usually at ${progress.done + 1} of ${progress.needed} by ${usual}. If you aren't by ${late}, you'll get a nudge. This moves on with each entry you log.`
-      : `You usually log this around ${usual}. If it isn't logged by ${late} on a day it's due, you'll get a nudge.`;
+      ? `You're usually at ${progress.done + 1} of ${progress.needed} by ${usual}. If you aren't by ${time}, you'll get a nudge. This moves on with each entry you log.`
+      : `You usually log this around ${usual}. ${unlessDone}`;
   }
   if (learned.kind === 'tooFew') {
     const what = progress ? `reach ${progress.done + 1} of ${progress.needed}` : 'do this';
-    return `Still learning when you usually ${what} (seen on ${learned.samples} of the ${MIN_SAMPLES} days it needs). Until then, set a time to get reminders.`;
+    return `${unlessDone} Once it's been logged on ${MIN_SAMPLES} days (${learned.samples} so far), it'll go by when you usually ${what} instead.`;
   }
-  return 'Your times for this vary too much to tell when you’re late. Set a time to get reminders.';
+  return `${unlessDone} Your times for this vary too much to learn a usual one.`;
 }

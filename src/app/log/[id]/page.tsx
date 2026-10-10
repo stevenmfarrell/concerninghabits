@@ -1,6 +1,5 @@
 import { getCategories, getHabit, getHabitLogs, getHabitLogPresence, deleteHabitLog, getDefaultUser, getPeople } from '../../actions/db';
 import { getHabitReminder } from '../../actions/reminders';
-import HabitReminder from '@/components/reminders/HabitReminder';
 import PersonLabel from '@/components/PersonLabel';
 import HorizonToggle from '@/components/HorizonToggle';
 import { isSharedHabit } from '@/lib/userColors';
@@ -115,7 +114,7 @@ export default async function HabitPage(props: { params: Promise<{ id: string }>
   });
 
   return (
-    <LogClient habit={habit} user={user} people={allPeople} categories={categories}>
+    <LogClient habit={habit} user={user} people={allPeople} categories={categories} reminder={reminder}>
       {!presence.hasLogs ? (
         <EmptyState title="No logs here yet">
           Time to step out your front door and start an adventure. Log your first entry!
@@ -265,11 +264,6 @@ export default async function HabitPage(props: { params: Promise<{ id: string }>
             </div>
           </section>
         </>
-      )}
-
-      {/* Only a habit with a cadence is ever due, so only one with a cadence can run late */}
-      {reminder && parseCadence(habit.cadence).type !== 'none' && (
-        <HabitReminder habitId={habit.id} status={reminder.status} bedtime={user.bedtime} hasDevice={reminder.hasDevice} />
       )}
     </LogClient>
   );

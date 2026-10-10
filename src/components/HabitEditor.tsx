@@ -15,6 +15,7 @@ import HabitFormOverview, { CalculatedFieldsOverview, FormPreviewButton } from '
 import FieldEditorSheet from './FieldEditorSheet';
 import CalculatedFieldSheet from './CalculatedFieldSheet';
 import PersonLabel from './PersonLabel';
+import ReminderSettings, { reminderSummary, type ReminderDraft } from './reminders/ReminderSettings';
 import { Button } from './ui/Button';
 import { Toggle } from './ui/Toggle';
 import { PANE_INSET, PANE_SURFACE, PaneHeading, PaneSection } from './Pane';
@@ -24,6 +25,7 @@ import { fieldsUsed, isFormulaInput, parseExpression, type CalculatedField } fro
 import type { ChartEntry } from '@/lib/charts';
 import type { CategoryOption, HabitSchema } from '@/lib/types';
 import type { Person } from '@/lib/userColors';
+import type { ReminderStatus } from '@/lib/reminders';
 import { MAX_NAME_LENGTH, MAX_DESCRIPTION_LENGTH } from '@/lib/constants';
 
 // Everything the editor edits about a habit. `schema` carries the form's own settings (its title,
@@ -38,6 +40,8 @@ export interface HabitDraft {
   aiContext: string;
   // Values worked out from each entry's fields (see calculatedFields.ts)
   calculatedFields: CalculatedField[];
+  // The viewer's own reminder for it, once it exists (not when creating one)
+  reminder?: ReminderDraft;
 }
 
 // - create: a new habit, before it's saved (the refine page)
@@ -70,6 +74,9 @@ interface HabitEditorProps {
   onChangeTitle?: (title: string) => void;
   // The habit's recent entries, to preview a calculated field's values with
   entries?: ChartEntry[];
+  // For the viewer's reminder (see HabitDraft.reminder): what's been learned about when they log
+  // it, their bedtime to show times by, and whether any of their devices get reminders
+  reminderContext?: { status: ReminderStatus; bedtime: string; hasDevice: boolean };
 }
 
 // Whether the form's voice and photo logging are on: on unless the schema turns them off
@@ -91,7 +98,7 @@ function comparable(draft: HabitDraft) {
 // The habit editor, for creating, editing, and a shared habit's own settings, as sections of a pane
 // page (see Pane): where it's filed and how often it's due as pills at the top, then the habit's
 // name, what its form records, then settings rarely touched, folded away with a summary. Changes are saved from a bar above the bottom nav, which shows once there's something to save.
-export default function HabitEditor({ mode, initial, owner, onSave, remove, saveBarExtra, onChangeTitle, categories: initialCategories, entries }: HabitEditorProps) {
+export default function HabitEditor({ mode, initial, owner, onSave, remove, saveBarExtra, onChangeTitle, categories: initialCategories, entries, reminderContext }: HabitEditorProps) {
   const isOwner = mode !== 'shared';
 
   const [title, setTitle] = useState(initial.title);
@@ -104,6 +111,7 @@ export default function HabitEditor({ mode, initial, owner, onSave, remove, save
   const [publishToMqtt, setPublishToMqtt] = useState(initial.publishToMqtt);
   const [aiContext, setAiContext] = useState(initial.aiContext);
   const [calculatedFields, setCalculatedFields] = useState<CalculatedField[]>(initial.calculatedFields);
+  const [reminder, setReminder] = useState(initial.reminder);
   // Bumped by Discard, to remount fields that keep their own state (e.g. a cadence's typed number)
   const [resetKey, setResetKey] = useState(0);
 
@@ -137,6 +145,7 @@ export default function HabitEditor({ mode, initial, owner, onSave, remove, save
     publishToMqtt,
     aiContext,
     calculatedFields,
+    reminder,
   };
   const dirty = comparable(draft) !== comparable(initial);
   const busy = saving || removing;
@@ -197,6 +206,7 @@ export default function HabitEditor({ mode, initial, owner, onSave, remove, save
     setPublishToMqtt(initial.publishToMqtt);
     setAiContext(initial.aiContext);
     setCalculatedFields(initial.calculatedFields);
+    setReminder(initial.reminder);
     setResetKey(k => k + 1);
   };
 
@@ -351,6 +361,20 @@ export default function HabitEditor({ mode, initial, owner, onSave, remove, save
             <AiContextField value={aiContext} onChange={setAiContext} disabled={busy} />
           </div>
         </CollapsibleSection>
+
+        {/* Only a habit with a cadence is ever due, so only one with a cadence can run late */}
+        {reminder && reminderContext && cadence.type !== 'none' && (
+          <CollapsibleSection title="Reminder" summary={reminderSummary(reminderContext.status, reminder, reminderContext.bedtime)}>
+            <ReminderSettings
+              status={reminderContext.status}
+              draft={reminder}
+              onChange={setReminder}
+              bedtime={reminderContext.bedtime}
+              hasDevice={reminderContext.hasDevice}
+              disabled={busy}
+            />
+          </CollapsibleSection>
+        )}
 
         {isOwner && mqttConfigured && (
           <CollapsibleSection title="Integrations" summary={publishToMqtt ? 'Publishing entries to Home Assistant' : 'None on'}>

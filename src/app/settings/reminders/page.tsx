@@ -7,7 +7,7 @@ import DeviceReminders from '@/components/reminders/DeviceReminders';
 import { describeReminder, IGNORED_LIMIT, MAX_PER_DAY } from '@/lib/reminders';
 
 // Reminders: turning them on for this device, and the habits they're on for, each linking to its
-// page, where they're turned on or off
+// editor, where they're turned on or off
 export default async function RemindersPage() {
   const { habits, bedtime } = await getReminderOverview();
 
@@ -23,9 +23,9 @@ export default async function RemindersPage() {
         <DeviceReminders />
       </PaneSection>
 
-      <PaneSection title="Habits" empty={habits.length === 0 && 'No reminders yet. Turn one on from a habit’s page.'}>
+      <PaneSection title="Habits" empty={habits.length === 0 && 'No reminders yet. Turn one on in a habit’s Edit Habit, under More settings.'}>
         {habits.map(habit => (
-          <Link key={habit.id} href={`/log/${habit.id}`} className={`flex items-center justify-between gap-3 ${PANE_INSET} py-3 hover:bg-surface-subtle transition-colors group`}>
+          <Link key={habit.id} href={`/edit/${habit.id}`} className={`flex items-center justify-between gap-3 ${PANE_INSET} py-3 hover:bg-surface-subtle transition-colors group`}>
             <div className="min-w-0">
               <div className="font-semibold text-ink text-sm truncate">{habit.name}</div>
               <div className="text-xs text-ink-muted">{describeReminder(habit.status, bedtime)}</div>

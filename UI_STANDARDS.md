@@ -83,7 +83,7 @@ Icons are lucide's (`lucide-react`). One meaning gets one icon everywhere, so a 
 | Log at another date and time (backdate) | `CalendarClock` | `History` (reads as the History tab) |
 | Copy a link | `Link2` | |
 | Automation (submit URL, Home Assistant) | `Zap` | |
-| Reminders (`BellOff` while one is paused) | `Bell` | |
+| Reminders | `AlarmClock`, `AlarmClockOff` when one is off or paused | `Bell` |
 | Back | `ArrowLeft` | |
 | Drill into a row | `ChevronRight` at the row's end | |
 | Open a page from inside a row that does something else on tap | `ArrowRight` | `ExternalLink` (that means leaving the app) |
@@ -159,7 +159,7 @@ A page's background is always the body's `stone-50`. Lists sit on white running 
 - The whole row is the tap target, padding included. When a row's padding sits outside its link (because the row also holds a button or a drag handle), stretch the link over the row: `relative` on the row, `after:absolute after:inset-0` on the link, and `relative z-10` on the buttons and handles so they stay above it.
 - Without cards to group them, nesting is shown by indenting: a subcategory's habits (`SortableHabitList nested`) line up under the subcategory's name.
 - A form is sections like any other page: settings as rows (`pane-inset py-3`), text inputs in a `PANE_SURFACE` block, and its buttons on the stone below. The habit editor (`src/components/HabitEditor.tsx`) and the New Habit page are the examples.
-- A habit's category and cadence are pills (`CategoryQuickEdit`, `CadenceQuickEdit`), centered on the stone under the header, each opening a small dialog to change it. That holds wherever they appear: the habit's page and the category page save on the spot, while the editor passes `saveLabel="Done"` and only changes its draft. Toasts about a saved change belong to the caller, not the dialog.
+- A habit's category and cadence are pills (`CategoryQuickEdit`, `CadenceQuickEdit`), centered on the stone under the header, each opening a small dialog to change it. On the habit's page, the viewer's reminder joins them (`ReminderQuickEdit`). That holds wherever they appear: the habit's page and the category page save on the spot, while the editor passes `saveLabel="Done"` and only changes its draft. Toasts about a saved change belong to the caller, not the dialog.
 - A form field is a `PaneField` row (label, optional description, then the control), and a text input uses the classes from `src/components/ui/Input.tsx` (see Text inputs below). Something added to a list (a field, a category, a user) is a last row with a `+` and emerald text, not a `Button`.
 - Every page uses panes now. Don't add a page made of `rounded-2xl` cards.
 

@@ -69,6 +69,7 @@ export async function setHabitReminder(habitId: string, enabled: boolean, remind
     data: { remind: enabled, remindAt: time, remindMutedAt: null },
   });
   revalidatePath(`/log/${habitId}`);
+  revalidatePath(`/edit/${habitId}`);
   revalidatePath('/settings/reminders');
 }
 

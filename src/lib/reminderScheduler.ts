@@ -76,9 +76,8 @@ export async function dueReminders(user: ReminderUser, now: Date): Promise<Candi
     // Only what the Agenda shows as due now: a weekly or monthly one only on its last day
     if (agendaStatus(cadence, dates, user, now).state !== 'due') continue;
     const { learned, progress } = learnedTimeFor(habit.cadence, dates, user, now);
-    const nudge = nudgeTime(remindAt, learned, user.bedtime);
-    if (!nudge) continue;
-    candidates.push({ habitId: habit.id, name: habit.name, ...nudge, usual: learned.kind === 'learned' ? learned.usual : null, progress });
+    const { at, manual } = nudgeTime(remindAt, learned, user.bedtime);
+    candidates.push({ habitId: habit.id, name: habit.name, at, manual, usual: learned.kind === 'learned' ? learned.usual : null, progress });
   }
 
   const picked = pickNudge(candidates, dayMinute(now, user.timeZone, user.bedtime), notificationsToday);

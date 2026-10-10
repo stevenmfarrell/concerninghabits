@@ -1,4 +1,5 @@
-import { getCategories, getHabit, getHabitLogs, getPeople } from '../../actions/db';
+import { getCategories, getDefaultUser, getHabit, getHabitLogs, getPeople } from '../../actions/db';
+import { getHabitReminder } from '../../actions/reminders';
 import EditClient from './EditClient';
 import PageHeader from '@/components/PageHeader';
 import { PanePage } from '@/components/Pane';
@@ -8,13 +9,15 @@ const PREVIEW_WEEKS = 13;
 
 export default async function EditPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [habit, people, categories, logs] = await Promise.all([
+  const [user, habit, people, categories, logs, reminder] = await Promise.all([
+    getDefaultUser(),
     getHabit(id),
     getPeople(),
     getCategories(),
     // The last few months of entries, to preview calculated fields with. Rejects without access,
     // when getHabit returns null and the page 404s below.
     getHabitLogs(id, PREVIEW_WEEKS).catch(() => []),
+    getHabitReminder(id),
   ]);
 
   if (!habit) {
@@ -36,6 +39,8 @@ export default async function EditPage({ params }: { params: Promise<{ id: strin
         owner={people[habit.userId]}
         categories={categories}
         entries={logs.map(l => ({ id: l.id, createdAt: l.createdAt, payload: l.payload, userId: l.userId }))}
+        reminder={reminder}
+        bedtime={user.bedtime}
       />
     </PanePage>
   );

@@ -11,6 +11,14 @@ import { SERVICE_WORKER_URL } from '@/components/SWUnregister';
 // - denied: the user blocked notifications for the site, which only they can undo, in the browser
 export type PushState = 'loading' | 'insecure' | 'needsInstall' | 'unsupported' | 'denied' | 'off' | 'on';
 
+// Why this device can't get reminders, and what to do about it
+export const PUSH_UNAVAILABLE: Partial<Record<PushState, string>> = {
+  insecure: 'Notifications need the app to be served over https.',
+  needsInstall: 'On iPhone and iPad, add this app to your Home Screen (Share, then Add to Home Screen) and open it from there to get reminders.',
+  unsupported: "This browser can't show notifications from web apps.",
+  denied: "Notifications are blocked for this site. Allow them in your browser's site settings, then come back here.",
+};
+
 function urlBase64ToUint8Array(base64: string) {
   const padded = (base64 + '='.repeat((4 - (base64.length % 4)) % 4)).replace(/-/g, '+').replace(/_/g, '/');
   return Uint8Array.from(atob(padded), c => c.charCodeAt(0));

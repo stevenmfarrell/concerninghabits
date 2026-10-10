@@ -14,6 +14,7 @@ import { parseHabitSchema, type HabitFormProperties } from '@/components/widgets
 import { takePendingSmartEntry } from '@/lib/pendingSmartEntry';
 import type { CategoryOption, HabitDetail, SessionUser } from '@/lib/types';
 import type { Person } from '@/lib/userColors';
+import type { ReminderStatus } from '@/lib/reminders';
 import PersonLabel from '@/components/PersonLabel';
 import LogButtonIcon from '@/components/logging/LogButtonIcon';
 import LogEntrySheet from '@/components/logging/LogEntrySheet';
@@ -40,7 +41,7 @@ function prefillFrom(searchParams: URLSearchParams, properties: HabitFormPropert
 // The top of a habit's page: its header and menu, and the Log Habit button, which logs a habit with
 // no form on the tap or opens the entry sheet for one with a form (see useHabitLogger). The habit's
 // history comes in as `children`, below the button: sections of the page's pane.
-export default function LogClient({ habit, user, people, categories, children }: { habit: HabitDetail, user: SessionUser, people: Record<string, Person>, categories: CategoryOption[], children: ReactNode }) {
+export default function LogClient({ habit, user, people, categories, reminder, children }: { habit: HabitDetail, user: SessionUser, people: Record<string, Person>, categories: CategoryOption[], reminder: { status: ReminderStatus; hasDevice: boolean } | null, children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -231,7 +232,7 @@ export default function LogClient({ habit, user, people, categories, children }:
       <div className={`${PANE_INSET} py-4 space-y-6`}>
         {habit.description && <p className="text-ink-secondary text-center">{habit.description}</p>}
 
-        <HabitDetails habit={habit} categories={categories} />
+        <HabitDetails habit={habit} categories={categories} reminder={reminder} bedtime={user.bedtime} />
 
         {habit.isOwner && sharedWith.length > 0 && (
           <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5 -mt-2 text-xs text-ink-muted">

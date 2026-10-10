@@ -41,7 +41,7 @@ describe('usualTimeSamples', () => {
 
 describe('learnUsualTime', () => {
   it('needs enough days to learn from', () => {
-    expect(learnUsualTime([600, 610])).toEqual({ kind: 'tooFew', samples: 2 });
+    expect(learnUsualTime([600, 610])).toEqual({ kind: 'tooFew', samples: 2, latest: 610 });
   });
 
   it('runs late at the 80th percentile', () => {
@@ -64,12 +64,23 @@ describe('learnUsualTime', () => {
 
 describe('nudgeTime', () => {
   it('prefers a set time, counted from the bedtime', () => {
-    expect(nudgeTime('21:00', { kind: 'irregular' }, '01:00')).toEqual({ at: 20 * 60, manual: true });
+    expect(nudgeTime('21:00', { kind: 'irregular' }, '01:00')).toEqual({ at: 20 * 60, manual: true, source: 'set' });
   });
 
-  it('falls back to the learned time, or none', () => {
-    expect(nudgeTime(null, { kind: 'learned', usual: 600, lateAt: 650 }, '01:00')).toEqual({ at: 650, manual: false });
-    expect(nudgeTime(null, { kind: 'tooFew', samples: 1 }, '01:00')).toBeNull();
+  it('falls back to the learned time', () => {
+    expect(nudgeTime(null, { kind: 'learned', usual: 600, lateAt: 650 }, '01:00')).toEqual({ at: 650, manual: false, source: 'learned' });
+  });
+
+  it('defaults to 7pm without enough history, or with times all over the place', () => {
+    const sevenPm = 18 * 60; // with a 01:00 bedtime
+    expect(nudgeTime(null, { kind: 'tooFew', samples: 0, latest: null }, '01:00')).toEqual({ at: sevenPm, manual: true, source: 'default' });
+    expect(nudgeTime(null, { kind: 'tooFew', samples: 2, latest: 600 }, '01:00')).toMatchObject({ at: sevenPm });
+    expect(nudgeTime(null, { kind: 'irregular' }, '01:00')).toMatchObject({ at: sevenPm });
+  });
+
+  it('moves the default later for a habit whose few entries came later', () => {
+    // Two entries so far, the later at 11:40pm: nudged at midnight, not 7pm
+    expect(nudgeTime(null, { kind: 'tooFew', samples: 2, latest: 22 * 60 + 40 }, '01:00')).toMatchObject({ at: 23 * 60 });
   });
 });
 
@@ -140,8 +151,13 @@ describe('describeReminder', () => {
       .toBe("You're usually at 4 of 8 by 1:00 PM. If you aren't by 1:30 PM, you'll get a nudge. This moves on with each entry you log.");
     expect(describeReminder({ enabled: true, remindAt: '21:00', muted: false, learned, progress }, '01:00'))
       .toBe("If you aren't at 8 by 9:00 PM on a day it's due, you'll get a nudge.");
-    expect(describeReminder({ enabled: true, remindAt: null, muted: false, learned: { kind: 'tooFew', samples: 2 }, progress }, '01:00'))
-      .toMatch(/^Still learning when you usually reach 4 of 8 \(seen on 2 of the 5 days/);
+    expect(describeReminder({ enabled: true, remindAt: null, muted: false, learned: { kind: 'tooFew', samples: 2, latest: null }, progress }, '01:00'))
+      .toBe("If you aren't at 8 by 7:00 PM on a day it's due, you'll get a nudge. Once it's been logged on 5 days (2 so far), it'll go by when you usually reach 4 of 8 instead.");
+  });
+
+  it('explains the default time while it\'s still learning', () => {
+    expect(describeReminder({ enabled: true, remindAt: null, muted: false, learned: { kind: 'tooFew', samples: 1, latest: 600 }, progress: null }, '01:00'))
+      .toBe("If it isn't logged by 7:00 PM on a day it's due, you'll get a nudge. Once it's been logged on 5 days (1 so far), it'll go by when you usually do this instead.");
   });
 
   it('says when it\'s paused', () => {

@@ -97,6 +97,23 @@ describe('runReminderTick', () => {
     expect(mine()).toHaveLength(1);
   });
 
+  it('nudges at 7pm while there isn\'t enough history to learn from', async () => {
+    await createHabit(user.id, 'New habit', [at(18, 9), at(19, 9)]);
+    await runReminderTick(at(20, 18, 59));
+    expect(mine()).toEqual([]);
+    await runReminderTick(at(20, 19, 0));
+    expect(mine()).toEqual([expect.objectContaining({ title: 'New habit', body: 'Not logged yet today.' })]);
+  });
+
+  it('waits past 7pm for a new habit whose few entries so far came later', async () => {
+    await createHabit(user.id, 'New meds', [at(18, 23, 40), at(19, 23, 30)]);
+    await runReminderTick(at(20, 19, 0));
+    await runReminderTick(at(20, 23, 59));
+    expect(mine()).toEqual([]);
+    await runReminderTick(at(21, 0, 0)); // midnight, still the 20th by the 01:00 bedtime
+    expect(mine()).toHaveLength(1);
+  });
+
   it('leaves alone a habit with reminders off', async () => {
     await createHabit(user.id, 'Meds', usuallyAt2340, { remind: false });
     await runReminderTick(at(21, 0, 30));
