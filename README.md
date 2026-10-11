@@ -6,7 +6,7 @@ Concerning Habits is an AI-powered, highly customizable habit tracking progressi
 
 - Node.js (v20.9+)
 - npm
-- A Google Gemini API key (for AI multimodal and schema features)
+- An AI model for the AI features: a Google Gemini API key by default, or another provider or a local model (see [Choosing an AI Model](#choosing-an-ai-model))
 
 ## Getting Started
 
@@ -16,7 +16,7 @@ Concerning Habits is an AI-powered, highly customizable habit tracking progressi
    ```
 
 2. **Set up Environment Variables:**
-   Create a `.env` file in the root of the project and add your Google Gemini API key, plus a TypeSafe API key for the dashboard's "I did..." voice capture (it matches what you said to one of your habits):
+   Create a `.env` file in the root of the project and add your Google Gemini API key (or [another model](#choosing-an-ai-model)), plus a TypeSafe API key for the dashboard's "I did..." voice capture (it matches what you said to one of your habits):
    ```env
    DATABASE_URL="file:./dev.db"
    GOOGLE_GENERATIVE_AI_API_KEY="your-api-key-here"
@@ -37,6 +37,23 @@ Concerning Habits is an AI-powered, highly customizable habit tracking progressi
 
 5. **Open the App:**
    Navigate to [http://localhost:3000](http://localhost:3000) in your browser.
+
+## Choosing an AI Model
+
+Designing a habit's form, filling in entries from what you say, type or photograph, and suggesting charts and formulas all use one model, set with `AI_MODEL` as `<provider>:<model>`. It defaults to `google:gemini-flash-lite-latest`.
+
+| Provider | Example `AI_MODEL` | Also set |
+| --- | --- | --- |
+| Google Gemini | `google:gemini-flash-lite-latest` | `GOOGLE_GENERATIVE_AI_API_KEY` |
+| Anthropic | `anthropic:claude-haiku-4-5` | `ANTHROPIC_API_KEY` |
+| OpenAI | `openai:gpt-5-mini` | `OPENAI_API_KEY` |
+| Local / OpenAI-compatible | `local:qwen3:8b` | `AI_BASE_URL`, and `AI_API_KEY` if the server needs one |
+
+`local` works with any server that speaks the OpenAI chat API: Ollama (`AI_BASE_URL=http://localhost:11434/v1`), LM Studio (`http://localhost:1234/v1`), llama.cpp's server, vLLM, LiteLLM or OpenRouter. From inside Docker, reach a server on the host at `host.docker.internal` rather than `localhost`. A few things to know about local models:
+
+- Every request asks for a JSON answer matching a schema. Small models get this wrong more often, designing a habit's form most of all, so prefer a model of around 8B parameters or more.
+- Logging from a photo needs a model that accepts images.
+- Matching what you say on the dashboard ("I did...") to one of your habits uses TypeSafe's Jev, not this model, so it still needs `TYPESAFE_API_KEY`.
 
 ## Database Management
 
@@ -79,8 +96,10 @@ services:
     ports:
       - "3000:3000"
     environment:
-      # Add your Gemini API key for AI features
+      # Add your Gemini API key for AI features, or choose another model (see "Choosing an AI Model")
       - GOOGLE_GENERATIVE_AI_API_KEY=your-google-gemini-api-key
+      # - AI_MODEL=local:qwen3:8b
+      # - AI_BASE_URL=http://host.docker.internal:11434/v1
       # Add your TypeSafe API key for the dashboard's "I did..." voice capture
       - TYPESAFE_API_KEY=your-typesafe-api-key
       
@@ -142,7 +161,7 @@ Both answer `201` with the new entry. A key can make 600 requests an hour, and r
 ### Running the App
 
 1. Ensure you have Docker and Docker Compose installed.
-2. Provide your `GOOGLE_GENERATIVE_AI_API_KEY` and `TYPESAFE_API_KEY` in the `docker-compose.yml`.
+2. Provide your `GOOGLE_GENERATIVE_AI_API_KEY` (or [another model's settings](#choosing-an-ai-model)) and `TYPESAFE_API_KEY` in the `docker-compose.yml`.
 3. Start the container in detached mode:
    ```bash
    docker compose up -d

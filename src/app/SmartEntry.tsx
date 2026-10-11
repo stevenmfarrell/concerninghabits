@@ -21,7 +21,7 @@ import { isNetworkError } from '@/lib/offline/sync';
 // The dashboard's main button: say or type what you did, or a habit you want to start. Jev picks
 // which habit it's about (or a new one) and whether it reports something done. Something done on an
 // existing habit is filled in and logged right here (or finished on the habit's page if it needs
-// more than was said); a new habit is drafted by Gemini for the user to review, with the input as
+// more than was said); a new habit is drafted by the AI model for the user to review, with the input as
 // its first entry when it was something done. When Jev isn't sure which habit, the user picks from its top candidates instead.
 export default function SmartEntry({ size }: { size?: ButtonSize }) {
   const router = useRouter();

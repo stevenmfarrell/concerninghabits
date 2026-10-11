@@ -1,11 +1,10 @@
 // What turns something said or typed into an entry: Jev matching it to one of the user's habits,
-// and Gemini filling in the habit's form from it. For the dashboard's smart entry and voice logging
-// (see habit.ts) and the API (see src/app/api), so each takes the user rather than reading the
-// session. Not actions themselves, since a client could then pass any user: only imported by server
-// code.
+// and the AI model (see aiModel.ts) filling in the habit's form from it. For the dashboard's smart
+// entry and voice logging (see habit.ts) and the API (see src/app/api), so each takes the user
+// rather than reading the session. Not actions themselves, since a client could then pass any user:
+// only imported by server code.
 
 import { generateObject } from 'ai';
-import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { choice, noul, TypeSafeClient, type ChoiceCriteria } from '@typesafe-ai/sdk';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
@@ -13,12 +12,9 @@ import { aiRequestProblem } from '@/lib/aiLimits';
 import { fieldsOf } from '@/lib/formFields';
 import { parseHabitSchema } from '@/lib/habitSchema';
 import type { HabitSchema } from '@/lib/types';
-import { AI_MODEL, aiContextPrompt, formFillSystem } from '@/lib/aiPrompts';
+import { aiContextPrompt, formFillSystem } from '@/lib/aiPrompts';
+import { aiModel } from '@/lib/aiModel';
 import { createHabitLog, getMembership } from './internal';
-
-export const google = createGoogleGenerativeAI({
-  apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
-});
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- the AI's values, checked when logged
 export type ParsedLog = { success: boolean; data?: Record<string, any>; error?: string };
@@ -27,7 +23,7 @@ export type ParsedLog = { success: boolean; data?: Record<string, any>; error?: 
 export async function extractFromTranscript(schemaStr: string, transcript: string, aiContext?: string | null): Promise<ParsedLog> {
   try {
     const { object } = await generateObject({
-      model: google(AI_MODEL),
+      model: aiModel(),
       schema: z.record(z.string(), z.any()),
       system: formFillSystem('transcript'),
       prompt: `Form Schema:\n${schemaStr}${aiContextPrompt(aiContext)}\n\nVoice Transcript:\n"${transcript}"`,
@@ -41,7 +37,7 @@ export async function extractFromTranscript(schemaStr: string, transcript: strin
 }
 
 // Created on first use rather than at import, since the constructor throws without
-// TYPESAFE_API_KEY and that shouldn't break the Gemini-only actions.
+// TYPESAFE_API_KEY and that shouldn't break the actions that only use the AI model.
 let typesafe: TypeSafeClient | undefined;
 function getTypeSafe() {
   return (typesafe ??= new TypeSafeClient());

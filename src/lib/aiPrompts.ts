@@ -6,9 +6,6 @@ import { isFormulaInput, isYesNo, type CalculatedField } from './calculatedField
 import { fieldsOf } from './formFields';
 import type { HabitSchema } from './types';
 
-// The model every request uses
-export const AI_MODEL = 'gemini-flash-lite-latest';
-
 // How durations are stored, for writing a formula with them
 const DURATIONS_IN_MINUTES = `Durations are stored as total minutes, so e.g. a pace in minutes per mile is \`duration / distance\`, and a speed in miles per hour is \`distance / (duration / 60)\`.`;
 

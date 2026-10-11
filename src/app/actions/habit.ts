@@ -4,7 +4,7 @@ import { generateObject } from 'ai';
 import { z } from 'zod';
 import { getCategories } from './categories';
 import { getHabit } from './habits';
-import { extractFromTranscript, fillFromInput, google, interpretInput, logFromInput, type Interpretation, type ParsedLog } from './smartEntry';
+import { extractFromTranscript, fillFromInput, interpretInput, logFromInput, type Interpretation, type ParsedLog } from './smartEntry';
 import { getDefaultUser } from './user';
 import { buildCategoryChoices } from '@/lib/categoryChoices';
 import type { HabitSchema } from '@/lib/types';
@@ -15,7 +15,8 @@ import { fieldsOf } from '@/lib/formFields';
 import { aiRequestProblem } from '@/lib/aiLimits';
 import { habitSchemaProblem, jsonBytes, parseHabitSchema } from '@/lib/habitSchema';
 import { MAX_AI_CONTEXT_LENGTH } from '@/lib/constants';
-import { AI_MODEL, aiContextPrompt, calculatedFieldSystem, chartSystem, describeFormulaInputs, formFillSystem, habitSchemaSystem, tidyDraftField } from '@/lib/aiPrompts';
+import { aiModel } from '@/lib/aiModel';
+import { aiContextPrompt, calculatedFieldSystem, chartSystem, describeFormulaInputs, formFillSystem, habitSchemaSystem, tidyDraftField } from '@/lib/aiPrompts';
 
 export async function generateHabitSchema(prompt: string, currentSchema?: HabitSchema) {
   const user = await getDefaultUser();
@@ -33,7 +34,7 @@ export async function generateHabitSchema(prompt: string, currentSchema?: HabitS
 
   try {
     const { object } = await generateObject({
-      model: google(AI_MODEL),
+      model: aiModel(),
       maxRetries: 0,
       system: habitSchemaSystem(user, currentSchema),
       prompt: `User instructions: ${prompt}`,
@@ -97,7 +98,7 @@ export async function parseImageLog(schemaStr: string, base64Image: string, aiCo
     const base64Data = base64Image.split(',')[1];
     
     const { object } = await generateObject({
-      model: google(AI_MODEL),
+      model: aiModel(),
       schema: z.record(z.string(), z.any()),
       system: formFillSystem('image'),
       messages: [
@@ -181,7 +182,7 @@ export async function generateCalculatedField(request: string, schema: HabitSche
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const { object } = await generateObject({
-        model: google(AI_MODEL),
+        model: aiModel(),
         maxRetries: 0,
         system,
         prompt: `User request: ${request}${feedback}`,
@@ -258,7 +259,7 @@ export async function generateChart(habitId: string, request: string, current?: 
     let object: z.infer<typeof outputSchema>;
     try {
       ({ object } = await generateObject({
-        model: google(AI_MODEL),
+        model: aiModel(),
         maxRetries: 0,
         system,
         prompt: `User request: ${request}${feedback}`,
