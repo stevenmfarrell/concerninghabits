@@ -54,3 +54,33 @@ describe('category names and icons', () => {
     expect((await prisma.category.findUnique({ where: { id: category.id } }))?.name).toBe('Fitness');
   });
 });
+
+describe('updateHabit', () => {
+  beforeEach(async () => {
+    const user = await prisma.user.create({
+      data: { name: 'Filer', email: `filer-${crypto.randomUUID()}@example.test`, passwordHash: 'x' },
+    });
+    const session = await prisma.session.create({ data: { userId: user.id, expiresAt: new Date(Date.now() + 60 * 60 * 1000) } });
+    setSessionCookie(session.id);
+  });
+
+  const membership = (habitId: string) => prisma.habitMember.findFirstOrThrow({ where: { habitId } });
+
+  it('files the habit at the end of a new category\'s list, and leaves it in place when the category is the same', async () => {
+    const reading = await createCategory('Reading');
+    const habit = await saveHabit('Read', '', testSchema);
+
+    await updateHabit(habit.id, 'Read', '', testSchema, reading.id, undefined, false, 'Paperbacks');
+    expect(await membership(habit.id)).toMatchObject({ categoryId: reading.id, order: 9999, aiContext: 'Paperbacks' });
+
+    await prisma.habitMember.updateMany({ where: { habitId: habit.id }, data: { order: 2 } });
+    await updateHabit(habit.id, 'Read more', '', testSchema, reading.id);
+    expect(await membership(habit.id)).toMatchObject({ categoryId: reading.id, order: 2, aiContext: null });
+  });
+
+  it('refuses a category the user doesn\'t have, changing nothing', async () => {
+    const habit = await saveHabit('Read', '', testSchema);
+    await expect(updateHabit(habit.id, 'Renamed', '', testSchema, 'no-such-category')).rejects.toThrow();
+    expect((await prisma.habit.findUnique({ where: { id: habit.id } }))?.name).toBe('Read');
+  });
+});

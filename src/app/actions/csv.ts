@@ -5,7 +5,7 @@ import { MAX_CSV_IMPORT_ROWS } from '@/lib/constants';
 import { parseEntryValues, parseHabitSchema } from '@/lib/habitSchema';
 import { encodeCsv, parseCsv } from '@/lib/csv';
 import { fieldsOf } from '@/lib/formFields';
-import { revalidateEntries, getMembership, payloadSizeProblem } from './internal';
+import { revalidateEntries, getMembership, sanitizeLogPayload } from './internal';
 import { getDefaultUser } from './user';
 
 export async function exportHabitLogsCsv(habitId: string) {
@@ -97,16 +97,20 @@ export async function importHabitLogsCsv(habitId: string, csvText: string) {
       }
     });
 
-    const sizeProblem = payloadSizeProblem(payload);
-    if (sizeProblem) {
-      errors.push(`Row ${rowNum}: ${sizeProblem}.`);
+    // Checked the same as an entry logged in the app: the form's own fields, its rules, and the size
+    // limit (see sanitizeLogPayload). A row that doesn't pass is skipped, saying why.
+    let values: Record<string, unknown>;
+    try {
+      values = sanitizeLogPayload(habit, payload);
+    } catch (error) {
+      errors.push(`Row ${rowNum}: ${error instanceof Error ? error.message : 'its values aren\'t valid'}.`);
       return;
     }
 
     toCreate.push({
       habitId,
       userId: user.id,
-      payload: JSON.stringify(payload),
+      payload: JSON.stringify(values),
       ...(createdAt ? { createdAt } : {})
     });
   });

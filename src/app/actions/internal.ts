@@ -126,11 +126,15 @@ export async function getOwnedHabit(userId: string, habitId: string) {
 // end of that list if it's changing lists.
 export async function fileHabit(userId: string, habitId: string, categoryId: string | null) {
   const membership = await getMembership(userId, habitId);
-  if (membership.categoryId === categoryId) return;
-  await prisma.habitMember.update({
-    where: { habitId_userId: { habitId, userId } },
-    data: { categoryId, order: END_OF_LIST_ORDER }
-  });
+  const change = filingChange(membership.categoryId, categoryId);
+  if (!change) return;
+  await prisma.habitMember.update({ where: { habitId_userId: { habitId, userId } }, data: change });
+}
+
+// What filing a membership now in `current` into `categoryId` changes about it (see fileHabit), or
+// null when it's already there
+export function filingChange(current: string | null, categoryId: string | null) {
+  return current === categoryId ? null : { categoryId, order: END_OF_LIST_ORDER };
 }
 
 // An entry's values with any keys the habit's own schema doesn't define dropped, validated against
@@ -152,7 +156,7 @@ export function sanitizeLogPayload(habit: { schema: string }, payload: Record<st
 }
 
 // Why an entry's values are too big to store (see MAX_LOG_PAYLOAD_BYTES), or null if they fit
-export function payloadSizeProblem(payload: Record<string, unknown>) {
+function payloadSizeProblem(payload: Record<string, unknown>) {
   const bytes = Buffer.byteLength(JSON.stringify(payload), 'utf8');
   if (bytes <= MAX_LOG_PAYLOAD_BYTES) return null;
   return `This entry is too long (${(bytes / 1024).toFixed(1)} KB; the limit is ${MAX_LOG_PAYLOAD_BYTES / 1024} KB)`;

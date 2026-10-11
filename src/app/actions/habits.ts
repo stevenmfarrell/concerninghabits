@@ -8,7 +8,7 @@ import { habitSchemaProblem } from '@/lib/habitSchema';
 import { DEFAULT_CADENCE, type Cadence } from '@/lib/cadence';
 import type { HabitSchema } from '@/lib/types';
 import type { CalculatedField } from '@/lib/calculatedFields';
-import { cadenceJson, END_OF_LIST_ORDER, revalidateLists, getOwnedCategory, habitListRows, toHabitListItem, getRecentLogsCutoff, getMembership, getOwnedHabit, fileHabit, checkCalculatedFields } from './internal';
+import { cadenceJson, END_OF_LIST_ORDER, revalidateLists, getOwnedCategory, habitListRows, toHabitListItem, getRecentLogsCutoff, getMembership, getOwnedHabit, fileHabit, checkCalculatedFields, filingChange } from './internal';
 import { getDefaultUser } from './user';
 
 // A habit's name, description and form checked, since they come from the browser
@@ -27,25 +27,21 @@ export async function saveHabit(name: string, description: string, schema: Habit
   const normalizedAiContext = normalizeAiContext(aiContext);
   const checkedCalculatedFields = checkCalculatedFields(calculatedFields, schema);
 
-  try {
-    const habit = await prisma.habit.create({
-      data: {
-        name,
-        description,
-        schema: JSON.stringify(schema),
-        cadence: cadenceJson(cadence),
-        calculatedFields: JSON.stringify(checkedCalculatedFields),
-        publishToMqtt,
-        userId: user.id,
-        members: { create: { userId: user.id, categoryId: categoryId || null, order: END_OF_LIST_ORDER, aiContext: normalizedAiContext } },
-      }
-    });
+  const habit = await prisma.habit.create({
+    data: {
+      name,
+      description,
+      schema: JSON.stringify(schema),
+      cadence: cadenceJson(cadence),
+      calculatedFields: JSON.stringify(checkedCalculatedFields),
+      publishToMqtt,
+      userId: user.id,
+      members: { create: { userId: user.id, categoryId: categoryId || null, order: END_OF_LIST_ORDER, aiContext: normalizedAiContext } },
+    }
+  });
 
-    revalidateLists();
-    return habit;
-  } catch (error) {
-    throw new Error("Prisma Create Error: " + (error instanceof Error ? error.message : String(error)));
-  }
+  revalidateLists();
+  return habit;
 }
 
 // When each of the user's habits was last logged, by anyone. List rows only carry the last few
@@ -113,8 +109,11 @@ export async function updateHabit(id: string, name: string, description: string,
   const normalizedAiContext = normalizeAiContext(aiContext);
   const checkedCalculatedFields = calculatedFields && checkCalculatedFields(calculatedFields, schema);
 
-  try {
-    const habit = await prisma.habit.update({
+  const membership = await getMembership(user.id, id);
+
+  // The habit and the owner's own filing of it and notes for the AI, all saved or none
+  const [habit] = await prisma.$transaction([
+    prisma.habit.update({
       where: { id },
       data: {
         name,
@@ -124,19 +123,16 @@ export async function updateHabit(id: string, name: string, description: string,
         ...(checkedCalculatedFields ? { calculatedFields: JSON.stringify(checkedCalculatedFields) } : {}),
         publishToMqtt,
       }
-    });
-    await fileHabit(user.id, id, categoryId || null);
-    await prisma.habitMember.update({
+    }),
+    prisma.habitMember.update({
       where: { habitId_userId: { habitId: id, userId: user.id } },
-      data: { aiContext: normalizedAiContext },
-    });
+      data: { aiContext: normalizedAiContext, ...filingChange(membership.categoryId, categoryId || null) },
+    }),
+  ]);
 
-    revalidateLists();
-    revalidatePath(`/log/${id}`);
-    return habit;
-  } catch (error) {
-    throw new Error("Prisma Update Error: " + (error instanceof Error ? error.message : String(error)));
-  }
+  revalidateLists();
+  revalidatePath(`/log/${id}`);
+  return habit;
 }
 
 // Deletes the habit for everyone it's shared with, including every member's entries (owner only)

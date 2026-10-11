@@ -59,4 +59,14 @@ describe('updateHabitLog', () => {
     expect(result.imported).toBe(1);
     expect(result.errors).toEqual([expect.stringMatching(/^Row 3: This entry is too long/)]);
   });
+
+  it('checks imported rows against the form the same as a logged entry, skipping any that fail', async () => {
+    // Row 3 leaves out the required distance, and row 4's isn't a number, so it's left out too
+    const result = await importHabitLogsCsv(habitId, `Date,Distance,notes\n2026-01-01,3,fine\n2026-01-02,,no distance\n2026-01-03,far,not a number\n`);
+    expect(result.imported).toBe(1);
+    expect(result.skipped).toBe(2);
+    expect(result.errors).toEqual([expect.stringMatching(/^Row 3: Invalid log data: .*distance/i), expect.stringMatching(/^Row 4: Invalid log data: .*distance/i)]);
+    const imported = await prisma.habitLog.findMany({ where: { habitId } });
+    expect(imported.map(log => JSON.parse(log.payload))).toContainEqual({ distance: 3, notes: 'fine' });
+  });
 });
