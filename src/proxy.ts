@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { RETURN_TO_HEADER, RETURN_TO_PARAM, safeReturnTo, withReturnTo } from '@/lib/returnTo';
+import { LEGACY_VIEW_COOKIE } from '@/lib/viewPrefs';
 
 const publicRoutes = ['/login', '/setup'];
 
@@ -21,7 +22,13 @@ export default async function proxy(req: NextRequest) {
 
   const headers = new Headers(req.headers);
   headers.set(RETURN_TO_HEADER, requestedPath);
-  return NextResponse.next({ request: { headers } });
+  const response = NextResponse.next({ request: { headers } });
+  // Pages' views used to be remembered in a cookie per habit and chart, which the browser would
+  // keep sending for years; they're one cookie now (see viewPrefs), so the old ones are cleared
+  for (const { name } of req.cookies.getAll()) {
+    if (LEGACY_VIEW_COOKIE.test(name)) response.cookies.delete(name);
+  }
+  return response;
 }
 
 export const config = {

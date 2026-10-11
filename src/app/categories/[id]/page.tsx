@@ -11,6 +11,7 @@ import PageHeader from '@/components/PageHeader';
 import { PANE_INSET, PANE_SURFACE, PaneHeading, PanePage, PaneSection } from '@/components/Pane';
 import { LinkButton } from '@/components/ui/Button';
 import HorizonToggle from '@/components/HorizonToggle';
+import { pageView, parseHorizon, VIEWS_COOKIE } from '@/lib/viewPrefs';
 import CategoryMenu from './CategoryMenu';
 import CategoryCadence from './CategoryCadence';
 import EmptyState from '@/components/EmptyState';
@@ -33,8 +34,8 @@ export default async function CategoryLogPage(props: { params: Promise<{ id: str
   const isReordering = searchParams.reorder === 'true';
   const user = await getDefaultUser();
 
-  const cookieStore = await cookies();
-  const weeks = parseInt(searchParams.horizon || cookieStore.get(`horizon_${params.id}`)?.value || '26', 10);
+  // As the viewer last left this page (see viewPrefs), unless the address bar says otherwise
+  const weeks = parseHorizon(searchParams.horizon ?? pageView((await cookies()).get(VIEWS_COOKIE)?.value, params.id).horizon);
   // Use 7 and 5 to guarantee exactly 2 columns (mobile) and 3 columns (desktop)
   // even when the 52-week window bleeds into a 13th calendar month.
   const mobileMonthsPerColumn = weeks === 52 ? 7 : 4;
@@ -144,7 +145,7 @@ export default async function CategoryLogPage(props: { params: Promise<{ id: str
       )}
 
       <section>
-        <PaneHeading action={<HorizonToggle habitId={category.id} currentWeeks={weeks} />}>Activity</PaneHeading>
+        <PaneHeading action={<HorizonToggle pageId={category.id} currentWeeks={weeks} />}>Activity</PaneHeading>
         {/* Centered, but from the start when wider than the page, so its overflow scrolls rather than being cut off */}
         <div className={`${PANE_SURFACE} ${PANE_INSET} py-4 overflow-x-auto`}>
           <div className="hidden sm:flex w-full justify-center-safe">

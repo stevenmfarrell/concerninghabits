@@ -19,26 +19,12 @@ import { MENU_ITEM, MENU_PANEL, MENU_SEPARATOR, MenuBackdrop, menuOptionClasses 
 import { Button } from '@/components/ui/Button';
 import { IconButton } from '@/components/ui/IconButton';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
+import { rememberPageView } from '@/lib/viewPrefs';
 
 const CHART_TYPE_OPTIONS = [
   { value: 'bar' as const, label: 'Bar chart', icon: <BarChart2 className="w-4 h-4" /> },
   { value: 'line' as const, label: 'Line chart', icon: <LineChartIcon className="w-4 h-4" /> },
 ];
-
-// Saves which chart the habit's page shows, in a cookie for 10 years, so the server renders it next time
-function rememberChart(habitId: string, chartId: string) {
-  document.cookie = `chartField_${habitId}=${chartId}; path=/; max-age=315360000`;
-}
-
-function rememberChartType(habitId: string, chartId: string, type: 'line' | 'bar') {
-  document.cookie = `chartType_${habitId}_${chartId}=${type}; path=/; max-age=315360000`;
-}
-
-// The period a viewer switched a custom chart to (see periodChoices); null forgets it, so the chart
-// is shown by its own period again
-function rememberChartPeriod(habitId: string, chartId: string, choice: string | null) {
-  document.cookie = `chartPeriod_${habitId}_${chartId}=${choice ?? ''}; path=/; max-age=${choice ? 315360000 : 0}`;
-}
 
 // The habit's form and calculated fields, for its owner, who can add and change charts and
 // calculated fields from here
@@ -114,7 +100,7 @@ export default function HabitChart({
 
   const selectChart = (id: string) => {
     setSelectedChart(id);
-    rememberChart(habitId, id);
+    rememberPageView(habitId, { chart: id });
   };
 
   if (charts.length === 0 && !owner) return null;
@@ -158,9 +144,8 @@ export default function HabitChart({
     const result = await saveChart(habitId, { ...draft, id }, newCalculatedFields);
     // A kind chosen in the sheet replaces one picked for the chart from the Trends heading
     // So do its period: the chart starts on the one it was saved with
-    rememberChartType(habitId, result.showId, draft.kind);
+    rememberPageView(habitId, { chartTypes: { [result.showId]: draft.kind }, chartPeriods: { [result.showId]: null } });
     setChartTypes(prev => ({ ...prev, [result.showId]: draft.kind }));
-    rememberChartPeriod(habitId, result.showId, null);
     setChartPeriods(prev => {
       const next = { ...prev };
       delete next[result.showId];
@@ -277,7 +262,7 @@ export default function HabitChart({
               value={kind}
               onChange={type => {
                 setChartTypes(prev => ({ ...prev, [chartId]: type }));
-                rememberChartType(habitId, chartId, type);
+                rememberPageView(habitId, { chartTypes: { [chartId]: type } });
               }}
             />
           )}
@@ -322,7 +307,7 @@ export default function HabitChart({
                   value={choice?.id ?? periodChoiceId(chart.period)}
                   onChange={id => {
                     setChartPeriods(prev => ({ ...prev, [chartId]: id }));
-                    rememberChartPeriod(habitId, chartId, id);
+                    rememberPageView(habitId, { chartPeriods: { [chartId]: id } });
                   }}
                 />
               </div>

@@ -5,6 +5,7 @@ import { getDefaultUser, getPeople } from '@/app/actions/user';
 import { getHabitReminder } from '../../actions/reminders';
 import PersonLabel from '@/components/PersonLabel';
 import HorizonToggle from '@/components/HorizonToggle';
+import { pageView, parseHorizon, VIEWS_COOKIE } from '@/lib/viewPrefs';
 import { isSharedHabit } from '@/lib/userColors';
 import { notFound } from 'next/navigation';
 import { LinkButton } from '@/components/ui/Button';
@@ -55,12 +56,9 @@ export default async function HabitPage(props: { params: Promise<{ id: string }>
   // entries may predate `logs`, which only reaches back as far as the longest horizon.
   const people = isSharedHabit(habit.userId, habit.memberIds.length, logs) || presence.hasLogsFromOthers ? allPeople : undefined;
 
-  const cookieStore = await cookies();
-  const savedHorizon = cookieStore.get(`horizon_${id}`)?.value;
-  const savedChartField = cookieStore.get(`chartField_${id}`)?.value;
-  
-  const horizon = searchParams?.horizon || savedHorizon || '26';
-  const weeks = parseInt(horizon, 10);
+  // How the viewer last left this page (see viewPrefs), unless the address bar says otherwise
+  const saved = pageView((await cookies()).get(VIEWS_COOKIE)?.value, id);
+  const weeks = parseHorizon(searchParams?.horizon ?? saved.horizon);
   
   // To get 2 columns for 26 weeks, we need to wrap at 4 months, because 26 weeks spans ~7 calendar months.
   // To get 1 column for 13 weeks, we wrap at 4 months (spans ~4 calendar months).
@@ -101,18 +99,10 @@ export default async function HabitPage(props: { params: Promise<{ id: string }>
     ...parseCharts(habit.charts).map(chart => ({ ...chart, custom: true as const })),
     ...defaultCharts(chartFields),
   ];
-  // Lines or bars, as the viewer last picked for each chart (otherwise as the chart was made)
-  const defaultChartTypes: Record<string, 'line' | 'bar'> = {};
-  charts.forEach(chart => {
-    const savedType = cookieStore.get(`chartType_${habit.id}_${chart.id}`)?.value;
-    if (savedType === 'bar' || savedType === 'line') defaultChartTypes[chart.id] = savedType;
-  });
-  // And the period, for a custom chart the viewer switched to another one (see periodChoices)
-  const defaultChartPeriods: Record<string, string> = {};
-  charts.forEach(chart => {
-    const savedPeriod = chart.custom ? cookieStore.get(`chartPeriod_${habit.id}_${chart.id}`)?.value : undefined;
-    if (savedPeriod) defaultChartPeriods[chart.id] = savedPeriod;
-  });
+  // Lines or bars, as the viewer last picked for each chart (otherwise as the chart was made), and
+  // the period, for a custom chart the viewer switched to another one (see periodChoices)
+  const defaultChartTypes = saved.chartTypes ?? {};
+  const defaultChartPeriods = Object.fromEntries(Object.entries(saved.chartPeriods ?? {}).filter(([chartId]) => charts.some(c => c.id === chartId && c.custom)));
 
   const cadence = parseCadence(habit.cadence);
   const { skip } = evaluate(cadence, logs.map(l => l.createdAt), user, new Date(), habit.skippedDays);
@@ -128,7 +118,7 @@ export default async function HabitPage(props: { params: Promise<{ id: string }>
       ) : (
         <>
           <section>
-            <PaneHeading action={<HorizonToggle habitId={habit.id} currentWeeks={weeks} />}>Activity</PaneHeading>
+            <PaneHeading action={<HorizonToggle pageId={habit.id} currentWeeks={weeks} />}>Activity</PaneHeading>
             <div className={`${PANE_SURFACE} ${PANE_INSET} py-4 overflow-x-auto`}>
               <InteractiveCalendar
                 logs={filteredLogs.map(l => ({ id: l.id, createdAt: l.createdAt, userId: l.userId }))}
@@ -168,7 +158,7 @@ export default async function HabitPage(props: { params: Promise<{ id: string }>
               context={{ timeZone: user.timeZone, bedtimeOffsetMinutes, weekStartsOn: user.weekStartsOn, from: cutoffDate, to: today }}
               pageSize={pageSize}
               habitId={habit.id}
-              defaultSelectedChart={savedChartField && charts.some(c => c.id === savedChartField) ? savedChartField : charts[0]?.id}
+              defaultSelectedChart={saved.chart && charts.some(c => c.id === saved.chart) ? saved.chart : charts[0]?.id}
               defaultChartTypes={defaultChartTypes}
               defaultChartPeriods={defaultChartPeriods}
               owner={habit.isOwner ? { schema: schemaObj, calculatedFields } : undefined}
