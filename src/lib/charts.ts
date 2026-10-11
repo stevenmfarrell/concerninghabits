@@ -5,6 +5,7 @@ import { calculatedFieldProblem, calculateValue, choiceLists, isYesNo, type Calc
 import { formatDuration, formatLogValue } from './format';
 import { startOfWeek } from './cadence';
 import { addDays, toCivilDate } from './timezone';
+import { parseEntryValues } from './habitSchema';
 
 // How a plotted value is shown: a number, a duration in minutes (as h:mm:ss), yes or no (1 or 0),
 // one of a list of choices (its index in `choices`), or a share from 0 to 1 (as a percentage, e.g.
@@ -307,12 +308,8 @@ function round(value: number) {
 export function chartRows(spec: ChartShape, fields: PlottableField[], entries: ChartEntry[], context: ChartContext): ChartRow[] {
   const series = spec.series.map(s => ({ ...s, plotted: s.field === null ? null : fields.find(f => f.key === s.field) ?? null }));
   const parsed = entries.flatMap(entry => {
-    let payload: Record<string, unknown>;
-    try {
-      payload = JSON.parse(entry.payload);
-    } catch {
-      return [];
-    }
+    const payload = parseEntryValues(entry.payload);
+    if (!payload) return [];
     return [{
       entry,
       time: new Date(entry.createdAt).getTime(),
@@ -389,13 +386,8 @@ export interface ChartEntry {
 export function seriesPoints(entries: ChartEntry[], field: PlottableField) {
   return entries
     .flatMap(entry => {
-      let payload: Record<string, unknown>;
-      try {
-        payload = JSON.parse(entry.payload);
-      } catch {
-        return [];
-      }
-      const value = plottedValue(field, payload);
+      const payload = parseEntryValues(entry.payload);
+      const value = payload && plottedValue(field, payload);
       return value === null ? [] : [{ entry, date: new Date(entry.createdAt).getTime(), value }];
     })
     .sort((a, b) => a.date - b.date);

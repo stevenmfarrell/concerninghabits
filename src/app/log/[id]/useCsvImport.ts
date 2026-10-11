@@ -2,7 +2,7 @@
 
 import { useRef, useState } from 'react';
 import toast from 'react-hot-toast';
-import { importHabitLogsCsv } from '../../actions/db';
+import { importHabitLogsCsv } from '@/app/actions/csv';
 
 // CSV import: parse the picked file's rows against the habit's schema and report the outcome.
 export function useCsvImport(habitId: string, onImported: () => void) {

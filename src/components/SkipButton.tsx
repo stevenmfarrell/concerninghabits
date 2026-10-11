@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { skipToday, undoSkip } from '@/app/actions/db';
+import { skipToday, undoSkip } from '@/app/actions/skips';
 import { SkipIcon, type SkipTarget } from '@/components/logging/skipping';
 import type { SkipState } from '@/lib/cadence';
 import { PILL } from '@/components/CadenceQuickEdit';

@@ -1,19 +1,10 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { prisma } from '@/lib/prisma';
 import { setSessionCookie } from '../setup';
-import {
-  createCategory,
-  deleteCategory,
-  deleteHabitLog,
-  getHabit,
-  logHabitEvent,
-  reorderCategories,
-  reorderHabits,
-  saveHabit,
-  updateCategory,
-  updateHabit,
-  updateUserPreferences,
-} from '@/app/actions/db';
+import { createCategory, deleteCategory, reorderCategories, updateCategory } from '@/app/actions/categories';
+import { deleteHabitLog, logHabitEvent } from '@/app/actions/entries';
+import { getHabit, reorderHabits, saveHabit, updateHabit } from '@/app/actions/habits';
+import { updateUserPreferences } from '@/app/actions/user';
 
 const testSchema = { type: 'object' as const, properties: {} };
 

@@ -1,3 +1,5 @@
+import type { FieldSchema } from './formFields';
+
 export function formatDuration(totalMinutes: number): string {
   if (typeof totalMinutes !== 'number') return String(totalMinutes);
   
@@ -15,7 +17,7 @@ export function formatDuration(totalMinutes: number): string {
   }
 }
 
-export function formatLogValue(val: unknown, propSchema?: { 'x-widget'?: string; 'x-unit'?: string }): string {
+export function formatLogValue(val: unknown, propSchema?: Pick<FieldSchema, 'x-widget' | 'x-unit'>): string {
   if (val === undefined || val === null) return '';
   if (propSchema?.['x-widget'] === 'duration' && typeof val === 'number') {
     return formatDuration(val);

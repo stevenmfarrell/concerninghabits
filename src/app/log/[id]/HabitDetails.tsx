@@ -1,7 +1,7 @@
 'use client';
 
 import toast from 'react-hot-toast';
-import { setHabitCadence, setHabitCategory } from '../../actions/db';
+import { setHabitCadence, setHabitCategory } from '@/app/actions/habits';
 import { setHabitReminder } from '../../actions/reminders';
 import type { ReminderStatus } from '@/lib/reminders';
 import CadenceQuickEdit from '@/components/CadenceQuickEdit';

@@ -5,10 +5,12 @@ import Form from '@rjsf/core';
 import validator from '@rjsf/validator-ajv8';
 import { Loader2, Save } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { updateHabitLog } from '@/app/actions/db';
+import { updateHabitLog } from '@/app/actions/entries';
 import { Button } from '@/components/ui/Button';
 import BottomSheet from '@/components/BottomSheet';
-import { HABIT_FORM_WIDGETS, habitFormUiSchema, parseHabitSchema, type HabitFormProperties } from '@/components/widgets/habitForm';
+import { HABIT_FORM_WIDGETS, habitFormUiSchema } from '@/components/widgets/habitForm';
+import { fieldsOf } from '@/lib/formFields';
+import { parseHabitSchema } from '@/lib/habitSchema';
 import { INPUT } from '@/components/ui/Input';
 
 export interface EditableEntry {
@@ -32,8 +34,8 @@ export default function EditEntrySheet({ habit, entry, onClose }: {
   onClose: () => void;
 }) {
   const schema = parseHabitSchema(habit.schema);
-  const properties = schema.properties as HabitFormProperties | undefined;
-  const hasForm = Object.keys(properties ?? {}).length > 0;
+  const properties = fieldsOf(schema);
+  const hasForm = Object.keys(properties).length > 0;
 
   const initialTime = toInputValue(new Date(entry.createdAt));
   const [formData, setFormData] = useState<Record<string, unknown>>(entry.payload);

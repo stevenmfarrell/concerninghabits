@@ -47,13 +47,13 @@ export function computeDrop(
   const sourceParentId = source.parentId ?? null;
   const targetParentId = target.parentId ?? null;
   // Mirrors the server's "a category with subcategories can't be nested" rule
-  // (assertValidParent in src/app/actions/db.ts) — keep in sync with it.
+  // (assertValidParent in src/app/actions/internal.ts) — keep in sync with it.
   const sourceHasChildren = categories.some(c => c.parentId === source.id);
 
   // Drag right: nest into the row being hovered (or, over itself, into the category above).
   // `newParentId` is always `targetParentId ?? target.id` — i.e. always a top-level id — which is
   // what keeps this in sync with the server's "a parent must be top-level" rule (assertValidParent
-  // in src/app/actions/db.ts) without checking it explicitly here.
+  // in src/app/actions/internal.ts) without checking it explicitly here.
   if (deltaX > NEST_THRESHOLD && !sourceHasChildren) {
     if (target.id === source.id) {
       if (!sourceParentId) {

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH } from './constants';
+import type { HabitSchema } from './types';
 
 // Bounds on a habit's form definition, which everyone the habit is shared with renders, every entry
 // is checked against, and AI requests for the habit include
@@ -44,4 +45,26 @@ export function habitSchemaProblem(schema: unknown): string | null {
 
 export function jsonBytes(json: string) {
   return new TextEncoder().encode(json).length;
+}
+
+// A habit's form definition from its stored JSON (Habit.schema), or an empty one if it isn't valid.
+// Its fields are fieldsOf(schema).
+export function parseHabitSchema(raw: string | null | undefined): HabitSchema {
+  try {
+    const parsed = JSON.parse(raw || '{}');
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+// An entry's values from their stored JSON (HabitLog.payload), keyed by form field, or null if
+// they aren't valid: written by the app, but a bad row shouldn't take down a page that lists it
+export function parseEntryValues(raw: string | null | undefined): Record<string, unknown> | null {
+  try {
+    const parsed = JSON.parse(raw ?? '');
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
 }

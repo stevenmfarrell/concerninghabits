@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Download, Loader2 } from 'lucide-react';
 import { IconButton } from '@/components/ui/IconButton';
-import { exportHabitLogsCsv } from '../../actions/db';
+import { exportHabitLogsCsv } from '@/app/actions/csv';
 import toast from 'react-hot-toast';
 
 export default function ExportCsvButton({ habitId }: { habitId: string }) {

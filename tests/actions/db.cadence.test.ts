@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { prisma } from '@/lib/prisma';
 import { setSessionCookie } from '../setup';
-import { createCategory, saveHabit, setCategoryCadence, setHabitCadence, updateHabit } from '@/app/actions/db';
+import { createCategory, setCategoryCadence } from '@/app/actions/categories';
+import { saveHabit, setHabitCadence, updateHabit } from '@/app/actions/habits';
 import type { Cadence } from '@/lib/cadence';
 
 const testSchema = { type: 'object' as const, properties: {} };

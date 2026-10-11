@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { saveHabit } from '../../actions/db';
+import { saveHabit } from '@/app/actions/habits';
 import { setHabitReminder } from '../../actions/reminders';
 import HabitEditor, { type HabitDraft as EditorDraft } from '../../../components/HabitEditor';
 import { useRouter } from 'next/navigation';

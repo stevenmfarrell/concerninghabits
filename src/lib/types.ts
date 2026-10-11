@@ -1,13 +1,10 @@
 // Shared types derived from the server actions' own return types, so they can't drift from the
 // Prisma queries that produce them. Import with `import type` only — these erase at build time.
 import type { RJSFSchema } from '@rjsf/utils';
-import type {
-  getDefaultUser,
-  getCategories,
-  getCategory,
-  getHabit,
-  getHabitLogs,
-} from '@/app/actions/db';
+import type { getCategories, getCategory } from '@/app/actions/categories';
+import type { getHabitLogs } from '@/app/actions/entries';
+import type { getHabit } from '@/app/actions/habits';
+import type { getDefaultUser } from '@/app/actions/user';
 
 // A habit's form definition: an RJSF (draft-07) JSON schema plus this app's own extensions.
 export type HabitSchema = RJSFSchema & {

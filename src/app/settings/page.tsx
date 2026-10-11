@@ -1,4 +1,4 @@
-import { getDefaultUser } from '../actions/db';
+import { getDefaultUser } from '@/app/actions/user';
 import { getVacation } from '../actions/vacation';
 import { describeVacation } from '@/lib/vacation';
 import Link from 'next/link';

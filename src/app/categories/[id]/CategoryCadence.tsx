@@ -2,7 +2,7 @@
 
 import toast from 'react-hot-toast';
 import CadenceQuickEdit from '@/components/CadenceQuickEdit';
-import { setCategoryCadence } from '../../actions/db';
+import { setCategoryCadence } from '@/app/actions/categories';
 import type { Cadence } from '@/lib/cadence';
 
 // A category's cadence on its page, changeable on the spot (a category is always its user's own).

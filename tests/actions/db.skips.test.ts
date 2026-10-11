@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { prisma } from '@/lib/prisma';
 import { cookieJar, setSessionCookie } from '../setup';
-import { createCategory, deleteCategory, deleteHabit, getCategoriesWithHierarchy, getCategory, getHabit, getUncategorizedHabits, saveHabit, setHabitSharing, skipToday, undoSkip } from '@/app/actions/db';
+import { createCategory, deleteCategory, getCategoriesWithHierarchy, getCategory } from '@/app/actions/categories';
+import { deleteHabit, getHabit, getUncategorizedHabits, saveHabit, setHabitSharing } from '@/app/actions/habits';
+import { skipToday, undoSkip } from '@/app/actions/skips';
 import { TIMEZONE_COOKIE, civilDayKey, toCivilDate } from '@/lib/timezone';
 
 const testSchema = { type: 'object' as const, properties: {} };

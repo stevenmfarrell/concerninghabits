@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { createCategory } from '@/app/actions/db';
+import { createCategory } from '@/app/actions/categories';
 import CategorySelect from './CategorySelect';
 import NewCategoryInline from './NewCategoryInline';
 import QuickEditDialog from './QuickEditDialog';

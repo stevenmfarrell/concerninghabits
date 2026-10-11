@@ -1,5 +1,7 @@
 import { prisma } from './prisma';
 import { evaluate, parseCadence } from './cadence';
+import { fieldsOf } from './formFields';
+import { parseHabitSchema } from './habitSchema';
 import { civilDateFor, civilDayKey, DAY_MS, isValidTimeZone, todayKeyFor } from './timezone';
 import { currentVacation } from './vacation';
 import { dayMinute, learnUsualTime, nudgeTime, pickNudge, reminderMessage, shouldMute, usualTimeSamples, IGNORED_LIMIT, MAX_SAMPLES, type Candidate, type DayProgress, type LearnedTime } from './reminders';
@@ -156,11 +158,7 @@ export async function runReminderTick(now = new Date()) {
 
 async function hasForm(habitId: string) {
   const habit = await prisma.habit.findUnique({ where: { id: habitId }, select: { schema: true } });
-  try {
-    return Object.keys(JSON.parse(habit?.schema ?? '{}').properties ?? {}).length > 0;
-  } catch {
-    return true;
-  }
+  return Object.keys(fieldsOf(parseHabitSchema(habit?.schema))).length > 0;
 }
 
 // Starts the once-a-minute check. Kept on globalThis so a dev server's reloads don't start more.

@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react';
 import { cookies } from 'next/headers';
-import { getCategoriesWithHierarchy, getDefaultUser, getLatestLogDates, getPeople, getUncategorizedHabits } from '../actions/db';
+import { getCategoriesWithHierarchy } from '@/app/actions/categories';
+import { getLatestLogDates, getUncategorizedHabits } from '@/app/actions/habits';
+import { getDefaultUser, getPeople } from '@/app/actions/user';
 import { Plus } from 'lucide-react';
 import CategoryRow, { type CategoryRowProps } from '@/components/CategoryRow';
 import CategoryHoldToLog from '@/components/logging/CategoryHoldToLog';

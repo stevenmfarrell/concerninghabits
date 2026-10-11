@@ -1,4 +1,7 @@
-import { getCategories, getHabit, getHabitLogs, getHabitLogPresence, deleteHabitLog, getDefaultUser, getPeople } from '../../actions/db';
+import { getCategories } from '@/app/actions/categories';
+import { getHabitLogs, getHabitLogPresence, deleteHabitLog } from '@/app/actions/entries';
+import { getHabit } from '@/app/actions/habits';
+import { getDefaultUser, getPeople } from '@/app/actions/user';
 import { getHabitReminder } from '../../actions/reminders';
 import PersonLabel from '@/components/PersonLabel';
 import HorizonToggle from '@/components/HorizonToggle';
@@ -18,8 +21,9 @@ import { parseBedtimeOffsetMinutes, toCivilDate } from '../../../lib/timezone';
 import { evaluate, limitOf, parseCadence } from '@/lib/cadence';
 import { consistency } from '@/lib/consistency';
 import { calendarStart } from '@/lib/calendarRange';
-import type { HabitSchema } from '@/lib/types';
-import { fieldTitle, type HabitFormProperties } from '@/components/widgets/habitForm';
+import { fieldTitle } from '@/components/widgets/habitForm';
+import { fieldsOf } from '@/lib/formFields';
+import { parseEntryValues, parseHabitSchema } from '@/lib/habitSchema';
 import { parseCalculatedFields } from '@/lib/calculatedFields';
 import { defaultCharts, parseCharts, plottableFields, type ChartSpec } from '@/lib/charts';
 
@@ -86,13 +90,8 @@ export default async function HabitPage(props: { params: Promise<{ id: string }>
   const totalPages = Math.ceil(filteredLogs.length / pageSize);
   const paginatedLogs = filteredLogs.slice((page - 1) * pageSize, page * pageSize);
   
-  let schemaObj: HabitSchema = { type: 'object', properties: {} };
-  try {
-    schemaObj = JSON.parse(habit.schema || '{}');
-  } catch {
-    // Ignore JSON parse errors
-  }
-  const schemaProperties = schemaObj.properties as HabitFormProperties | undefined;
+  const schemaObj = parseHabitSchema(habit.schema);
+  const schemaProperties = fieldsOf(schemaObj);
 
   // What can be charted: the owner's custom charts, then a chart of each of the form's number
   // fields and the habit's calculated fields
@@ -187,7 +186,7 @@ export default async function HabitPage(props: { params: Promise<{ id: string }>
               ) : (
                 <ul className="divide-y divide-line-subtle">
                   {paginatedLogs.map((log) => {
-                    const payload = JSON.parse(log.payload);
+                    const payload = parseEntryValues(log.payload) ?? {};
                     const hasDetails = Object.keys(payload).length > 0;
                     const isHighlighted = searchParams?.highlight === log.id;
 
@@ -221,7 +220,7 @@ export default async function HabitPage(props: { params: Promise<{ id: string }>
                                   <span className="font-medium text-ink-secondary">
                                     {fieldTitle(key, schemaProperties)}:
                                   </span>{' '}
-                                  {formatLogValue(value, schemaProperties?.[key])}
+                                  {formatLogValue(value, schemaProperties[key])}
                                 </div>
                               ))}
                             </div>

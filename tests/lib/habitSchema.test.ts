@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { habitSchemaProblem, MAX_CHOICES, MAX_FORM_FIELDS } from '@/lib/habitSchema';
+import { habitSchemaProblem, MAX_CHOICES, MAX_FORM_FIELDS, parseEntryValues, parseHabitSchema } from '@/lib/habitSchema';
 
 const fields = (n: number) => Object.fromEntries(Array.from({ length: n }, (_, i) => [`field${i}`, { type: 'number', title: `Field ${i}` }]));
 
@@ -32,5 +32,27 @@ describe('habitSchemaProblem', () => {
     expect(habitSchemaProblem({ properties: { a: { type: 'null' } } })).not.toBeNull();
     expect(habitSchemaProblem({ properties: { a: 'not a field' } })).not.toBeNull();
     expect(habitSchemaProblem({ properties: { a: { type: 'string', default: 'x'.repeat(20_000) } } })).toBe('This form is too big to save');
+  });
+});
+
+describe('parseHabitSchema', () => {
+  it('reads a stored form, and falls back to an empty one for anything else', () => {
+    expect(parseHabitSchema('{"type":"object","properties":{"miles":{"type":"number"}}}')).toEqual({ type: 'object', properties: { miles: { type: 'number' } } });
+    expect(parseHabitSchema('')).toEqual({});
+    expect(parseHabitSchema(null)).toEqual({});
+    expect(parseHabitSchema('not json')).toEqual({});
+    expect(parseHabitSchema('[1, 2]')).toEqual({});
+    expect(parseHabitSchema('null')).toEqual({});
+  });
+});
+
+describe('parseEntryValues', () => {
+  it('reads an entry\'s values, or null when they aren\'t an object', () => {
+    expect(parseEntryValues('{"miles":3}')).toEqual({ miles: 3 });
+    expect(parseEntryValues('{}')).toEqual({});
+    expect(parseEntryValues('not json')).toBeNull();
+    expect(parseEntryValues('')).toBeNull();
+    expect(parseEntryValues('[3]')).toBeNull();
+    expect(parseEntryValues('null')).toBeNull();
   });
 });

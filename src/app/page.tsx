@@ -1,4 +1,6 @@
-import { getCategoriesWithHierarchy, getDefaultUser, getLatestLogDates, getPeople, getUncategorizedHabits } from './actions/db';
+import { getCategoriesWithHierarchy } from '@/app/actions/categories';
+import { getLatestLogDates, getUncategorizedHabits } from '@/app/actions/habits';
+import { getDefaultUser, getPeople } from '@/app/actions/user';
 import Link from 'next/link';
 import { Check, SkipForward } from 'lucide-react';
 import Icon from '../components/Icon';

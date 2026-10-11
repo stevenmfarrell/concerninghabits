@@ -1,4 +1,4 @@
-import { getDefaultUser } from '@/app/actions/db';
+import { getDefaultUser } from '@/app/actions/user';
 import { prisma } from '@/lib/prisma';
 import { redirect } from 'next/navigation';
 import ProvisionUserForm from './ProvisionUserForm';

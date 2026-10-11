@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { createCategory, updateCategory, deleteCategory, reorderCategories } from '../../actions/db';
+import { createCategory, updateCategory, deleteCategory, reorderCategories } from '@/app/actions/categories';
 import Icon from '../../../components/Icon';
 import IconPicker from '../../../components/IconPicker';
 import { Plus, Trash2, Pencil, Check, X, Loader2, GripVertical } from 'lucide-react';

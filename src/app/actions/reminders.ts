@@ -6,7 +6,7 @@ import { prisma } from '@/lib/prisma';
 import { getVapidKeys, REMINDER_TAG, sendPush } from '@/lib/push';
 import { habitReminderStatus } from '@/lib/reminderScheduler';
 import { isValidTimeZone } from '@/lib/timezone';
-import { getDefaultUser } from './db';
+import { getDefaultUser } from './user';
 
 // The key a browser needs to subscribe to this server's push messages
 export async function getPushPublicKey() {

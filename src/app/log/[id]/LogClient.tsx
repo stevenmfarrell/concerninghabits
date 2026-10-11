@@ -10,7 +10,8 @@ import { PANE_INSET, PanePage } from '@/components/Pane';
 import { Button } from '@/components/ui/Button';
 import { IconButton } from '@/components/ui/IconButton';
 import toast from 'react-hot-toast';
-import { parseHabitSchema, type HabitFormProperties } from '@/components/widgets/habitForm';
+import { fieldsOf, type FieldSchema } from '@/lib/formFields';
+import { parseHabitSchema } from '@/lib/habitSchema';
 import { takePendingSmartEntry } from '@/lib/pendingSmartEntry';
 import type { CategoryOption, HabitDetail, SessionUser } from '@/lib/types';
 import type { Person } from '@/lib/userColors';
@@ -30,10 +31,10 @@ import { MENU_ITEM, MENU_PANEL, MenuBackdrop } from '@/components/ui/Menu';
 // fields' types. Read through useSearchParams rather than window.location, which still holds the
 // previous page's URL when this renders during a client-side navigation (e.g. the redirect back
 // here after logging in).
-function prefillFrom(searchParams: URLSearchParams, properties: HabitFormProperties | undefined) {
+function prefillFrom(searchParams: URLSearchParams, properties: Record<string, FieldSchema>) {
   const data: Record<string, unknown> = {};
   searchParams.forEach((val, key) => {
-    const prop = properties?.[key];
+    const prop = properties[key];
     if (!prop) return;
     data[key] = prop.type === 'number' || prop.type === 'integer' ? Number(val) : prop.type === 'boolean' ? val === 'true' : val;
   });
@@ -55,7 +56,7 @@ export default function LogClient({ habit, user, people, categories, reminder, s
 
   const [menuOpen, setMenuOpen] = useState(false);
 
-  const [prefill] = useState(() => prefillFrom(searchParams, parseHabitSchema(habit.schema).properties as HabitFormProperties | undefined));
+  const [prefill] = useState(() => prefillFrom(searchParams, fieldsOf(parseHabitSchema(habit.schema))));
 
   // Logging happens here in place. Afterwards the address bar is cleared of prefill values (and of
   // the history's paging, which starts over at the new entry), so a refresh doesn't fill them in again.

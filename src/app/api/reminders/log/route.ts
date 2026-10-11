@@ -1,4 +1,4 @@
-import { logHabitEvent } from '@/app/actions/db';
+import { logHabitEvent } from '@/app/actions/entries';
 import { verifySession } from '@/lib/auth';
 import { z } from 'zod';
 

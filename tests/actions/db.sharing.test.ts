@@ -1,23 +1,9 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { prisma } from '@/lib/prisma';
 import { setSessionCookie } from '../setup';
-import {
-  createCategory,
-  deleteHabit,
-  deleteHabitLog,
-  getCategory,
-  getHabit,
-  getHabitLogs,
-  getUncategorizedHabits,
-  leaveHabit,
-  logHabitEvent,
-  reorderHabits,
-  saveHabit,
-  setHabitCategory,
-  setHabitSharing,
-  updateHabit,
-  updateHabitLog,
-} from '@/app/actions/db';
+import { createCategory, getCategory } from '@/app/actions/categories';
+import { deleteHabitLog, getHabitLogs, logHabitEvent, updateHabitLog } from '@/app/actions/entries';
+import { deleteHabit, getHabit, getUncategorizedHabits, leaveHabit, reorderHabits, saveHabit, setHabitCategory, setHabitSharing, updateHabit } from '@/app/actions/habits';
 import { deleteUser } from '@/app/actions/auth';
 import { UNCATEGORIZED_ID } from '@/lib/constants';
 

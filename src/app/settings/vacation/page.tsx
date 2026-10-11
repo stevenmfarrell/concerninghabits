@@ -1,4 +1,4 @@
-import { getDefaultUser } from '@/app/actions/db';
+import { getDefaultUser } from '@/app/actions/user';
 import { getVacation } from '@/app/actions/vacation';
 import PageHeader from '@/components/PageHeader';
 import { PANE_INSET, PanePage } from '@/components/Pane';

@@ -2,9 +2,10 @@
 
 import { startTransition, useEffect, useOptimistic, useState } from 'react';
 import toast from 'react-hot-toast';
-import { logHabitEvent } from '@/app/actions/db';
+import { logHabitEvent } from '@/app/actions/entries';
 import { showLoggedToast } from '@/components/LoggedToast';
-import { parseHabitSchema, type HabitFormProperties } from '@/components/widgets/habitForm';
+import { fieldsOf } from '@/lib/formFields';
+import { parseHabitSchema } from '@/lib/habitSchema';
 import { requestReopen, subscribeReopen, takeReopen } from './pendingReopen';
 import type { Leaving } from './zoomAway';
 
@@ -41,8 +42,8 @@ export function useHabitLogger(habit: LoggableHabit, { initialData = {}, onLogge
   leave?: () => Leaving | undefined;
 } = {}) {
   const schema = parseHabitSchema(habit.schema);
-  const properties = schema.properties as HabitFormProperties | undefined;
-  const hasForm = Object.keys(properties ?? {}).length > 0;
+  const properties = fieldsOf(schema);
+  const hasForm = Object.keys(properties).length > 0;
 
   const [formData, setFormData] = useState<Record<string, unknown>>(initialData);
   const [sheetOpen, setSheetOpen] = useState(false);

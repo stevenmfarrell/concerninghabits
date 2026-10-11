@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { prisma } from '@/lib/prisma';
 import { setSessionCookie } from '../setup';
-import { getHabit, getLoggableHabits, saveHabit, setHabitAiContext, setHabitSharing, updateHabit } from '@/app/actions/db';
+import { getHabit, getLoggableHabits, saveHabit, setHabitAiContext, setHabitSharing, updateHabit } from '@/app/actions/habits';
 import { MAX_AI_CONTEXT_LENGTH } from '@/lib/constants';
 
 const testSchema = { type: 'object' as const, properties: {} };

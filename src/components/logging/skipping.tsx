@@ -3,7 +3,7 @@
 import { startTransition, type RefObject } from 'react';
 import { CalendarChevronsRight, SkipForward } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { skipToday, type Skippable } from '@/app/actions/db';
+import { skipToday, type Skippable } from '@/app/actions/skips';
 import { showSkippedToast } from '@/components/LoggedToast';
 import type { RowSwipe } from './RowGesture';
 import { swipeAway } from './zoomAway';

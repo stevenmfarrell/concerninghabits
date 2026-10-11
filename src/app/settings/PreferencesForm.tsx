@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { updateUserPreferences } from '../actions/db';
+import { updateUserPreferences } from '@/app/actions/user';
 import { Loader2, Save, Smile } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';

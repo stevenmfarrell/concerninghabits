@@ -3,12 +3,12 @@
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { UserMinus, Trash2 } from 'lucide-react';
-import { deleteHabit, leaveHabit, setHabitAiContext, setHabitCategory, updateHabit } from '../../actions/db';
+import { deleteHabit, leaveHabit, setHabitAiContext, setHabitCategory, updateHabit } from '@/app/actions/habits';
 import { setHabitReminder } from '../../actions/reminders';
 import { reminderDraftOf } from '@/components/reminders/ReminderSettings';
 import type { ReminderStatus } from '@/lib/reminders';
 import HabitEditor, { type HabitDraft, type RemoveAction } from '@/components/HabitEditor';
-import { parseHabitSchema } from '@/components/widgets/habitForm';
+import { parseHabitSchema } from '@/lib/habitSchema';
 import { parseCadence } from '@/lib/cadence';
 import { parseCalculatedFields } from '@/lib/calculatedFields';
 import type { ChartEntry } from '@/lib/charts';

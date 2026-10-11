@@ -1,4 +1,4 @@
-import { getCategories } from '../../actions/db';
+import { getCategories } from '@/app/actions/categories';
 import CategoriesClient from './CategoriesClient';
 import PageHeader from '@/components/PageHeader';
 import { PanePage } from '@/components/Pane';

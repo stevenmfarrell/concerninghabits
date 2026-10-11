@@ -6,7 +6,7 @@ import toast from 'react-hot-toast';
 import { Button } from '@/components/ui/Button';
 import { Dialog, DialogFooter } from '@/components/ui/Dialog';
 import PersonLabel from '@/components/PersonLabel';
-import { setHabitSharing } from '../../actions/db';
+import { setHabitSharing } from '@/app/actions/habits';
 import type { Person } from '@/lib/userColors';
 
 interface ShareDialogProps {

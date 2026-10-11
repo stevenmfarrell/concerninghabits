@@ -7,7 +7,7 @@ import { ChevronRight, Eye, Plus } from 'lucide-react';
 import toast from 'react-hot-toast';
 import BottomSheet from './BottomSheet';
 import { Button } from './ui/Button';
-import { HABIT_FORM_WIDGETS, habitFormUiSchema, type HabitFormProperties } from './widgets/habitForm';
+import { HABIT_FORM_WIDGETS, habitFormUiSchema } from './widgets/habitForm';
 import type { HabitSchema } from '@/lib/types';
 import { describeField, fieldsOf } from '@/lib/formFields';
 import { calculatedFieldProblem, describeExpression, isYesNo, type CalculatedField } from '@/lib/calculatedFields';
@@ -75,7 +75,7 @@ export default function HabitFormOverview({ schema, onEditField, onAddField }: {
 // A button to try the habit's real form, in a pane like the one used to log it. Nothing is logged.
 export function FormPreviewButton({ schema, title }: { schema: HabitSchema; title: string }) {
   const [previewOpen, setPreviewOpen] = useState(false);
-  const properties = fieldsOf(schema) as HabitFormProperties;
+  const properties = fieldsOf(schema);
   const hasFields = Object.keys(properties).length > 0;
 
   return (

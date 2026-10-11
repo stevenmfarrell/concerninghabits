@@ -1,4 +1,4 @@
-import { getDefaultUser } from '@/app/actions/db';
+import { getDefaultUser } from '@/app/actions/user';
 import UpdatePasswordForm from './UpdatePasswordForm';
 import PageHeader from '@/components/PageHeader';
 import { PANE_INSET, PanePage } from '@/components/Pane';

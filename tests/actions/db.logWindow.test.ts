@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { prisma } from '@/lib/prisma';
 import { setSessionCookie } from '../setup';
-import { getHabitLogPresence, getHabitLogs, saveHabit, setHabitSharing } from '@/app/actions/db';
+import { getHabitLogPresence, getHabitLogs } from '@/app/actions/entries';
+import { saveHabit, setHabitSharing } from '@/app/actions/habits';
 
 const testSchema = { type: 'object' as const, properties: {} };
 

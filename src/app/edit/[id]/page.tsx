@@ -1,4 +1,7 @@
-import { getCategories, getDefaultUser, getHabit, getHabitLogs, getPeople } from '../../actions/db';
+import { getCategories } from '@/app/actions/categories';
+import { getHabitLogs } from '@/app/actions/entries';
+import { getHabit } from '@/app/actions/habits';
+import { getDefaultUser, getPeople } from '@/app/actions/user';
 import { getHabitReminder } from '../../actions/reminders';
 import EditClient from './EditClient';
 import PageHeader from '@/components/PageHeader';

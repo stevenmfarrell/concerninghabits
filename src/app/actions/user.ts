@@ -1,0 +1,80 @@
+'use server';
+
+import { prisma } from '@/lib/prisma';
+import { revalidatePath } from 'next/cache';
+import { cache } from 'react';
+import { verifySession } from '@/lib/auth';
+import { redirect } from 'next/navigation';
+import { userPreferencesSchema } from '@/lib/preferences';
+import { TIMEZONE_COOKIE, isValidTimeZone } from '@/lib/timezone';
+import { assignUserColors } from '@/lib/userColors';
+import { cookies, headers } from 'next/headers';
+import { RETURN_TO_HEADER, withReturnTo } from '@/lib/returnTo';
+import { revalidateLists } from './internal';
+
+export async function getDefaultUser(allowNeedsUpdate = false) {
+  return getRequestUser(allowNeedsUpdate);
+}
+
+// Memoized per request, since every action a page calls starts with getDefaultUser. Kept separate
+// because a 'use server' file may only export async functions, not the function cache() returns.
+const getRequestUser = cache(async (allowNeedsUpdate: boolean) => {
+  const session = await verifySession();
+  
+  if (!session?.userId) {
+    redirect(withReturnTo('/api/logout', (await headers()).get(RETURN_TO_HEADER)));
+  }
+
+  // The user record is passed to client components, so never include the password hash. With their
+  // vacations, on whose days everything of theirs counts as skipped (see CadenceUser).
+  const user = await prisma.user.findUnique({
+    where: { id: session.userId },
+    include: { categories: true, vacations: { select: { from: true, to: true } } },
+    omit: { passwordHash: true }
+  });
+
+  if (!user) {
+    redirect('/api/logout');
+  }
+
+  if (user.passwordNeedsUpdate && !allowNeedsUpdate) {
+    redirect('/update-password');
+  }
+
+  // Kept on the user too, for reminders, which are sent with no request to read it from. Only
+  // written when the browser reports a different one (e.g. after traveling).
+  const reported = await getReportedTimeZone();
+  if (reported && reported !== user.timeZone) {
+    await prisma.user.update({ where: { id: user.id }, data: { timeZone: reported } });
+  }
+
+  return { ...user, timeZone: reported ?? Intl.DateTimeFormat().resolvedOptions().timeZone };
+});
+
+// The viewer's time zone, reported by the browser in a cookie (see TimeZoneSync), or null until
+// the browser has reported it, when pages fall back to the server's time zone
+async function getReportedTimeZone() {
+  const timeZone = (await cookies()).get(TIMEZONE_COOKIE)?.value;
+  return isValidTimeZone(timeZone) ? timeZone : null;
+}
+
+export async function updateUserPreferences(prefs: { bedtime?: string, weekStartsOn?: string, useEmojiTitle?: boolean, unitSystem?: string, emojiModifier?: string | null }) {
+  const user = await getDefaultUser();
+  // Server action arguments come straight from the client; only allow known preference fields
+  const data = userPreferencesSchema.parse(prefs);
+  await prisma.user.update({
+    where: { id: user.id },
+    data
+  });
+  revalidatePath('/settings');
+  revalidateLists();
+}
+
+// Everyone on this instance with their display color as the current user sees it (green for
+// themselves), in account creation order. An instance is one household, so users can see each
+// other's names to share habits and read shared history.
+export async function getPeople() {
+  const user = await getDefaultUser();
+  const users = await prisma.user.findMany({ orderBy: { createdAt: 'asc' }, select: { id: true, name: true } });
+  return assignUserColors(users, user.id);
+}

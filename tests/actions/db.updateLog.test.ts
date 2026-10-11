@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { prisma } from '@/lib/prisma';
 import { setSessionCookie } from '../setup';
-import { importHabitLogsCsv, logHabitEvent, saveHabit, updateHabitLog } from '@/app/actions/db';
+import { importHabitLogsCsv } from '@/app/actions/csv';
+import { logHabitEvent, updateHabitLog } from '@/app/actions/entries';
+import { saveHabit } from '@/app/actions/habits';
 import { MAX_LOG_PAYLOAD_BYTES } from '@/lib/constants';
 import type { HabitSchema } from '@/lib/types';
 

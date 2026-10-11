@@ -59,7 +59,7 @@ describe('computeDrop: NEST_THRESHOLD boundary (drag right to nest)', () => {
 
   it('never nests a category that already has subcategories', () => {
     // Mirrors the server's "a category with subcategories can't be nested" rule
-    // (assertValidParent in src/app/actions/db.ts) — see the comment on sourceHasChildren below.
+    // (assertValidParent in src/app/actions/internal.ts) — see the comment on sourceHasChildren below.
     const result = computeDrop(categories, 'c', 'b', NEST_THRESHOLD + 1, 'after');
     expect(result?.mode).not.toBe('nest');
   });

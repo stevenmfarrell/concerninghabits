@@ -4,18 +4,19 @@ import toast, { type Toast } from 'react-hot-toast';
 import { Check, X } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/Button';
-import { deleteHabitLog, undoSkip } from '@/app/actions/db';
+import { deleteHabitLog } from '@/app/actions/entries';
+import { undoSkip } from '@/app/actions/skips';
 import { SkipIcon, type SkipTarget } from '@/components/logging/skipping';
+import { fieldTitle } from '@/components/widgets/habitForm';
 import { formatLogValue } from '@/lib/format';
-
-type SchemaProperties = Record<string, { title?: string; 'x-widget'?: string; 'x-unit'?: string }> | undefined;
+import type { FieldSchema } from '@/lib/formFields';
 
 export interface LoggedEntry {
   habitId: string;
   habitName: string;
   logId: string;
   data: Record<string, unknown>;
-  schemaProperties: SchemaProperties;
+  schemaProperties: Record<string, FieldSchema> | undefined;
   // How the entry was made when it wasn't typed in by hand, e.g. `From “ran a mile”`. Its presence
   // marks an automatic entry, which stays up longer so there's time to check it.
   source?: string;
@@ -46,7 +47,7 @@ export function showLoggedToast(entry: LoggedEntry, { onUndone, toastId }: { onU
   const listed = fields.slice(0, MAX_LISTED_FIELDS);
   // One line per field, so a long value (e.g. a note) is cut short on its own line rather than
   // pushing the fields after it out of the toast
-  const values = listed.map(([key, val]) => `${entry.schemaProperties?.[key]?.title || key} ${formatLogValue(val, entry.schemaProperties?.[key])}`);
+  const values = listed.map(([key, val]) => `${fieldTitle(key, entry.schemaProperties)} ${formatLogValue(val, entry.schemaProperties?.[key])}`);
   if (fields.length > listed.length) values.push(`+${fields.length - listed.length} more`);
 
   toast.custom(t => (

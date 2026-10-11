@@ -12,7 +12,7 @@ import QuillIconWavy from '@/components/QuillIconWavy';
 import SpeakOrType, { type SpeakOrTypeStatus } from '@/components/SpeakOrType';
 import { generateHabitSchema, interpretSmartEntry, logSmartEntry, prefillSmartEntry, type HabitCandidate } from './actions/habit';
 import { showLoggedToast } from '@/components/LoggedToast';
-import type { HabitFormProperties } from '@/components/widgets/habitForm';
+import { fieldsOf } from '@/lib/formFields';
 import { MENU_ITEM } from '@/components/ui/Menu';
 
 // The habit's log page with `data` as prefill params (see LogClient), to finish an entry there
@@ -56,7 +56,7 @@ export default function SmartEntry({ size }: { size?: ButtonSize }) {
           habitName: candidate.name,
           logId: result.logId,
           data: result.data,
-          schemaProperties: result.schema.properties as HabitFormProperties | undefined,
+          schemaProperties: fieldsOf(result.schema),
           source: `From “${input}”`,
         });
       } else {

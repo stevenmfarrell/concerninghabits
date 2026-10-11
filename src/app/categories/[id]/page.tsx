@@ -1,4 +1,6 @@
-import { getCategory, getDefaultUser, getLatestLogDates, getPeople } from '../../actions/db';
+import { getCategory } from '@/app/actions/categories';
+import { getLatestLogDates } from '@/app/actions/habits';
+import { getDefaultUser, getPeople } from '@/app/actions/user';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Plus } from 'lucide-react';

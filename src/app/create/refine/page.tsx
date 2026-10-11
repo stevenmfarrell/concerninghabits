@@ -1,4 +1,4 @@
-import { getDefaultUser } from '../../actions/db';
+import { getDefaultUser } from '@/app/actions/user';
 import { hasReminderDevice } from '../../actions/reminders';
 import RefineLoader from './RefineLoader';
 

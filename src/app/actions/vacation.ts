@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/prisma';
 import { todayKeyFor } from '@/lib/timezone';
 import { currentVacation, endVacation as endedVacation, vacationProblem } from '@/lib/vacation';
-import { getDefaultUser } from './db';
+import { getDefaultUser } from './user';
 
 // A vacation changes what's due, skipped and healthy everywhere
 function revalidateEverything() {

@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { prisma } from '@/lib/prisma';
 import { setSessionCookie } from '../setup';
-import { deleteCalculatedField, saveCalculatedField, saveHabit, setHabitSharing, updateHabit } from '@/app/actions/db';
+import { deleteCalculatedField, saveCalculatedField } from '@/app/actions/charts';
+import { saveHabit, setHabitSharing, updateHabit } from '@/app/actions/habits';
 import { parseCalculatedFields, type CalculatedField } from '@/lib/calculatedFields';
 import type { HabitSchema } from '@/lib/types';
 

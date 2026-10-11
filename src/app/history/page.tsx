@@ -1,13 +1,18 @@
 import Link from 'next/link';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { getCategoriesWithHierarchy, getDayEntries, getDefaultUser, getUncategorizedHabits } from '../actions/db';
+import { getCategoriesWithHierarchy } from '@/app/actions/categories';
+import { getDayEntries } from '@/app/actions/entries';
+import { getUncategorizedHabits } from '@/app/actions/habits';
+import { getDefaultUser } from '@/app/actions/user';
 import Icon from '@/components/Icon';
 import PageHeader from '@/components/PageHeader';
 import { PANE_INSET, PanePage, PaneSection } from '@/components/Pane';
 import EmptyState from '@/components/EmptyState';
 import { IconLinkButton } from '@/components/ui/IconButton';
 import { LinkButton } from '@/components/ui/Button';
-import { fieldTitle, parseHabitSchema, type HabitFormProperties } from '@/components/widgets/habitForm';
+import { fieldTitle } from '@/components/widgets/habitForm';
+import { fieldsOf, type FieldSchema } from '@/lib/formFields';
+import { parseHabitSchema } from '@/lib/habitSchema';
 import { civilDateFor, civilDayKey, parseCivilDayKey } from '@/lib/timezone';
 import { formatLogValue } from '@/lib/format';
 import { UNCATEGORIZED_ID, UNCATEGORIZED_ICON } from '@/lib/constants';
@@ -36,10 +41,10 @@ function firstLine(text: string) {
 // An entry's values as a line, e.g. "Distance 3 miles · Time 25:00", or null when it has none. A
 // value written over several lines (e.g. notes) shows only its first, the whole of it being on the
 // habit's page.
-function summarize(payload: Record<string, unknown>, properties: HabitFormProperties | undefined) {
+function summarize(payload: Record<string, unknown>, properties: Record<string, FieldSchema>) {
   const parts = Object.entries(payload)
     .filter(([, val]) => val !== undefined && val !== null && val !== '')
-    .map(([key, val]) => `${fieldTitle(key, properties)} ${firstLine(formatLogValue(val, properties?.[key]))}`);
+    .map(([key, val]) => `${fieldTitle(key, properties)} ${firstLine(formatLogValue(val, properties[key]))}`);
   return parts.length > 0 ? parts.join(' · ') : null;
 }
 
@@ -173,7 +178,7 @@ export default async function HistoryPage(props: { searchParams: Promise<{ day?:
 // One habit's entries on the day, oldest first, each with its time and any values. Links to the
 // habit's page.
 function HabitDay({ habit, entries, timeZone }: { habit: DayHabit; entries: DayEntry[]; timeZone: string }) {
-  const properties = parseHabitSchema(habit.schema).properties as HabitFormProperties | undefined;
+  const properties = fieldsOf(parseHabitSchema(habit.schema));
 
   return (
     <li>

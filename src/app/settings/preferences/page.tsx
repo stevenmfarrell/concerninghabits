@@ -1,4 +1,4 @@
-import { getDefaultUser } from '@/app/actions/db';
+import { getDefaultUser } from '@/app/actions/user';
 import PageHeader from '@/components/PageHeader';
 import { PanePage, PaneSection } from '@/components/Pane';
 import PreferencesForm from '../PreferencesForm';
