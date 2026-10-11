@@ -97,7 +97,7 @@ export default async function ApiKeysPage() {
           Say what you did in your own words. AI works out which habit it was and fills in the details, like the Agenda&apos;s &ldquo;I did&hellip;&rdquo; button. One shortcut that asks &ldquo;What did you do?&rdquo; can cover every habit.
         </p>
         <p className="text-ink-muted">
-          It only logs to a habit it&apos;s sure about, and never makes a new one. Otherwise it logs nothing and answers 422 with the habits it thought of, as <Code>candidates</Code>. Add <Code>&quot;at&quot;</Code>, a date and time like <Code>&quot;2026-10-11T07:30:00-07:00&quot;</Code>, for something done earlier. Each request counts toward your hourly AI limit.
+          It only logs to a habit it&apos;s sure about, and never makes a new one. Otherwise it logs nothing and answers 422 with the habits it thought of, as <Code>candidates</Code> (each one&apos;s <Code>probability</Code> is null when the server&apos;s habit matcher doesn&apos;t give one). Add <Code>&quot;at&quot;</Code>, a date and time like <Code>&quot;2026-10-11T07:30:00-07:00&quot;</Code>, for something done earlier. Each request counts toward your hourly AI limit.
         </p>
       </EndpointDoc>
 

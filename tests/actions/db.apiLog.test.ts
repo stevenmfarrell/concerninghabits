@@ -70,6 +70,8 @@ describe('logging through the API', () => {
   beforeEach(async () => {
     generateObject.mockReset();
     systemOne.mockReset();
+    // Matched by Jev, whatever the environment has set up
+    vi.stubEnv('HABIT_MATCHER', 'jev');
     owner = await createTestUser('Owner');
     member = await createTestUser('Member');
     outsider = await createTestUser('Outsider');
@@ -288,6 +290,18 @@ describe('logging through the API', () => {
       expect((await smart({ text: 'did 20 minutes of yoga' })).status).toBe(422);
       jevAnswers({ Run: 0.95, 'new habit': 0.05 }, 0.95, 0.02);
       expect((await smart({ text: 'I want to run more' })).status).toBe(422);
+      expect(await prisma.habitLog.count({ where: { userId: owner.user.id } })).toBe(0);
+    });
+
+    it('logs nothing when matching is turned off, offering the habits that share its words', async () => {
+      vi.stubEnv('HABIT_MATCHER', 'none');
+      const response = await smart({ text: 'went for a run' });
+      expect(response.status).toBe(422);
+      const body = await response.json();
+      expect(body.error).toMatch(/turned off/);
+      expect(body.candidates[0]).toEqual({ habitId: runId, name: 'Run', probability: null });
+      expect(systemOne).not.toHaveBeenCalled();
+      expect(generateObject).not.toHaveBeenCalled();
       expect(await prisma.habitLog.count({ where: { userId: owner.user.id } })).toBe(0);
     });
 

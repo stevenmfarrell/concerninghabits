@@ -48,12 +48,33 @@ export function parseModelSpec(spec: string): { provider: string; modelId: strin
   return { provider, modelId };
 }
 
+// What each provider needs set before it can make a request
+const REQUIRED_SETTING: Record<string, string> = {
+  google: 'GOOGLE_GENERATIVE_AI_API_KEY',
+  anthropic: 'ANTHROPIC_API_KEY',
+  openai: 'OPENAI_API_KEY',
+  local: 'AI_BASE_URL',
+};
+
+function modelSpec() {
+  return process.env.AI_MODEL?.trim() || DEFAULT_MODEL;
+}
+
+// Whether AI_MODEL is valid and its provider has what it needs, i.e. whether a request could be made
+export function aiModelConfigured(): boolean {
+  try {
+    return !!process.env[REQUIRED_SETTING[parseModelSpec(modelSpec()).provider]];
+  } catch {
+    return false;
+  }
+}
+
 // Made on first use rather than at import, so a misconfiguration shows up as an AI request failing
 // with a clear message instead of breaking the build or the pages that make no AI requests
 let model: LanguageModel | undefined;
 export function aiModel(): LanguageModel {
   if (!model) {
-    const { provider, modelId } = parseModelSpec(process.env.AI_MODEL?.trim() || DEFAULT_MODEL);
+    const { provider, modelId } = parseModelSpec(modelSpec());
     model = PROVIDERS[provider](modelId);
   }
   return model;

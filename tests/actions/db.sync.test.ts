@@ -51,6 +51,8 @@ describe('syncing changes made offline', () => {
   beforeEach(async () => {
     generateObject.mockReset();
     systemOne.mockReset();
+    // Matched by Jev, whatever the environment has set up
+    vi.stubEnv('HABIT_MATCHER', 'jev');
     owner = await createTestUser('Owner');
     outsider = await createTestUser('Outsider');
     setSessionCookie(owner.sessionId);

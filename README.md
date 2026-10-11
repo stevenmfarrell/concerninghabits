@@ -16,7 +16,7 @@ Concerning Habits is an AI-powered, highly customizable habit tracking progressi
    ```
 
 2. **Set up Environment Variables:**
-   Create a `.env` file in the root of the project and add your Google Gemini API key (or [another model](#choosing-an-ai-model)), plus a TypeSafe API key for the dashboard's "I did..." voice capture (it matches what you said to one of your habits):
+   Create a `.env` file in the root of the project and add your Google Gemini API key (or [another model](#choosing-an-ai-model)), plus, optionally, a TypeSafe API key for the dashboard's "I did..." voice capture (it matches what you said to one of your habits; without one, [the AI model or a simpler match is used](#matching-what-you-say-to-a-habit)):
    ```env
    DATABASE_URL="file:./dev.db"
    GOOGLE_GENERATIVE_AI_API_KEY="your-api-key-here"
@@ -53,9 +53,20 @@ Designing a habit's form, filling in entries from what you say, type or photogra
 
 - Every request asks for a JSON answer matching a schema. Small models get this wrong more often, designing a habit's form most of all, so prefer a model of around 8B parameters or more.
 - Logging from a photo needs a model that accepts images.
-- Matching what you say on the dashboard ("I did...") to one of your habits uses TypeSafe's Jev, not this model, so it still needs `TYPESAFE_API_KEY`.
+- Matching what you say to a habit can use this model too (see below).
 
-## Database Management
+### Matching What You Say to a Habit
+
+The Agenda's "I did..." button, `POST /api/log`, and "I did..." text queued while offline first work out which of your habits you meant. `HABIT_MATCHER` chooses how:
+
+| `HABIT_MATCHER` | How | Needs |
+| --- | --- | --- |
+| `jev` | TypeSafe's Jev. The most accurate, with calibrated confidence. | `TYPESAFE_API_KEY` |
+| `llm` | The model set by `AI_MODEL`. More likely to ask which habit you meant. | A working `AI_MODEL` |
+| `none` | No AI: "I did..." always asks, listing the habits that share words with what you said. `/api/log` and queued text without a habit log nothing, so log to a habit directly. | Nothing |
+
+Left unset, it's `jev` if `TYPESAFE_API_KEY` is set, otherwise `llm` if the AI model is set up, otherwise `none`. However they're matched, `/api/log` and queued text only log to a habit the matcher is sure of.
+
 
 To easily view, edit, and manage the underlying database records (Habits, Logs, Users, Categories), you can use Prisma Studio:
 
@@ -100,7 +111,7 @@ services:
       - GOOGLE_GENERATIVE_AI_API_KEY=your-google-gemini-api-key
       # - AI_MODEL=local:qwen3:8b
       # - AI_BASE_URL=http://host.docker.internal:11434/v1
-      # Add your TypeSafe API key for the dashboard's "I did..." voice capture
+      # Optional: a TypeSafe API key for matching "I did..." to a habit (see "Matching What You Say to a Habit")
       - TYPESAFE_API_KEY=your-typesafe-api-key
       
       # Optional: Home Assistant (MQTT) Integration
@@ -161,7 +172,7 @@ Both answer `201` with the new entry. A key can make 600 requests an hour, and r
 ### Running the App
 
 1. Ensure you have Docker and Docker Compose installed.
-2. Provide your `GOOGLE_GENERATIVE_AI_API_KEY` (or [another model's settings](#choosing-an-ai-model)) and `TYPESAFE_API_KEY` in the `docker-compose.yml`.
+2. Provide your `GOOGLE_GENERATIVE_AI_API_KEY` (or [another model's settings](#choosing-an-ai-model)) and, optionally, `TYPESAFE_API_KEY` in the `docker-compose.yml`.
 3. Start the container in detached mode:
    ```bash
    docker compose up -d

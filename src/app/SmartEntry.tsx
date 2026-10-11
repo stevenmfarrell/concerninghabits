@@ -18,11 +18,13 @@ import { prefillHref } from '@/lib/prefillHref';
 import { queueTextEntry } from '@/lib/offline/actions';
 import { isNetworkError } from '@/lib/offline/sync';
 
-// The dashboard's main button: say or type what you did, or a habit you want to start. Jev picks
-// which habit it's about (or a new one) and whether it reports something done. Something done on an
-// existing habit is filled in and logged right here (or finished on the habit's page if it needs
-// more than was said); a new habit is drafted by the AI model for the user to review, with the input as
-// its first entry when it was something done. When Jev isn't sure which habit, the user picks from its top candidates instead.
+// The dashboard's main button: say or type what you did, or a habit you want to start. The server's
+// habit matcher (Jev, the AI model, or shared words; see src/lib/habitMatcher.ts) picks which habit
+// it's about (or a new one) and whether it reports something done. Something done on an existing
+// habit is filled in and logged right here (or finished on the habit's page if it needs more than
+// was said); a new habit is drafted by the AI model for the user to review, with the input as its
+// first entry when it was something done. When the matcher isn't sure which habit, the user picks
+// from its top candidates instead.
 export default function SmartEntry({ size }: { size?: ButtonSize }) {
   const router = useRouter();
   // While the input is being matched or a new habit drafted: what's happening, and the input
@@ -116,10 +118,10 @@ export default function SmartEntry({ size }: { size?: ButtonSize }) {
         await proceed(result.candidates[0], input, result.didIt);
       } else {
         closePanel();
-        // Always offer a new habit, even when it's not among Jev's top candidates
+        // Always offer a new habit, even when it's not among the matcher's top candidates
         const candidates = result.candidates.some(c => !c.habitId)
           ? result.candidates
-          : [...result.candidates, { habitId: null, name: 'New habit', probability: 0 }];
+          : [...result.candidates, { habitId: null, name: 'New habit', probability: null }];
         setPicker({ input, candidates, didIt: result.didIt });
       }
     } catch (err) {
