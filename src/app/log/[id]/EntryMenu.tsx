@@ -6,15 +6,17 @@ import ConfirmDialog from '../../../components/ConfirmDialog';
 import { IconButton } from '@/components/ui/IconButton';
 import EditEntrySheet, { type EditableEntry } from './EditEntrySheet';
 import { MENU_ITEM, MENU_ITEM_DANGER, MENU_PANEL } from '@/components/ui/Menu';
+import toast from 'react-hot-toast';
+import { deleteEntry } from '@/lib/offline/actions';
 
 // Room the menu needs below its button to open downward: its own height, plus the bottom nav's
 const MENU_CLEARANCE = 200;
 
-// An entry's menu in the habit page's Log Entries table: edit its values or time, or delete it
-export default function EntryMenu({ habit, entry, deleteAction }: {
+// An entry's menu in the habit page's Log Entries table: edit its values or time, or delete it.
+// Either waits in the outbox when offline (see src/lib/offline).
+export default function EntryMenu({ habit, entry }: {
   habit: { id: string; name: string; schema: string };
   entry: EditableEntry;
-  deleteAction: () => void;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -78,9 +80,14 @@ export default function EntryMenu({ habit, entry, deleteAction }: {
         title="Delete Log Entry"
         message="Are you sure you want to delete this log entry? This cannot be undone."
         confirmText="Delete Entry"
-        onConfirm={() => {
-          deleteAction();
+        onConfirm={async () => {
           setShowConfirm(false);
+          try {
+            const { queued } = await deleteEntry(entry.id, habit);
+            if (queued) toast('Deleted on this device · syncs when you\'re back online', { icon: '📴' });
+          } catch (err) {
+            toast.error(`Failed to delete: ${err instanceof Error ? err.message : 'Unknown error'}`);
+          }
         }}
         onCancel={() => setShowConfirm(false)}
       />

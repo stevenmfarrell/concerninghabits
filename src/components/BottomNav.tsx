@@ -1,10 +1,13 @@
 'use client';
 
 import Link from 'next/link';
+import type { ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
 import { CalendarDays, LayoutGrid, ListChecks, Settings } from 'lucide-react';
 
-export default function BottomNav() {
+// The app's tabs along the bottom of the screen. `status` sits centered just above it, e.g. whether
+// there are changes waiting to sync (see SyncStatus).
+export default function BottomNav({ status }: { status?: ReactNode }) {
   const pathname = usePathname();
 
   // Hide bottom nav on auth screens
@@ -26,6 +29,7 @@ export default function BottomNav() {
       <div className="h-20 shrink-0" /> 
       
       <nav className="fixed bottom-0 left-0 right-0 z-50 bg-surface/80 backdrop-blur-md border-t border-line" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+        {status && <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2">{status}</div>}
         <div className="flex justify-around items-center h-16 px-2 sm:px-4 max-w-md mx-auto">
           {navItems.map((item) => {
             const Icon = item.icon;

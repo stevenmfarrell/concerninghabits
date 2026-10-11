@@ -116,6 +116,13 @@ const fifthOf = (days: number) => Math.ceil(days / 5);
 // A skip's labels for what it excuses, e.g. "today": "Skip today" and "Skipped today"
 const skipping = (what: string) => ({ skip: `Skip ${what}`, skipped: `Skipped ${what}` });
 
+// A skip button's label (see SkipState) once it's done, or undone: "Skip today" and "Skipped today",
+// "Postpone 2 days" and "Postponed 2 days" (see skipNames), e.g. for a skip made offline before the
+// server's said so
+export function toggledSkipLabel(label: string) {
+  return label.replace(/^(Skip|Postpone)(ped|d)? /, (_, verb: string, done?: string) => (done ? `${verb} ` : `${verb}${verb === 'Skip' ? 'ped' : 'd'} `));
+}
+
 const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 // As short as each day can be and still be told apart: one letter where that's enough, two for the
 // pairs sharing a first letter (Tuesday and Thursday, Saturday and Sunday)

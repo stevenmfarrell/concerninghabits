@@ -14,15 +14,9 @@ import { generateHabitSchema, interpretSmartEntry, logSmartEntry, prefillSmartEn
 import { showLoggedToast } from '@/components/LoggedToast';
 import { fieldsOf } from '@/lib/formFields';
 import { MENU_ITEM } from '@/components/ui/Menu';
-
-// The habit's log page with `data` as prefill params (see LogClient), to finish an entry there
-function prefillHref(habitId: string, data: Record<string, unknown>) {
-  const params = new URLSearchParams();
-  for (const [key, val] of Object.entries(data)) {
-    if (typeof val === 'string' || typeof val === 'number' || typeof val === 'boolean') params.set(key, String(val));
-  }
-  return params.size ? `/log/${habitId}?${params}` : `/log/${habitId}`;
-}
+import { prefillHref } from '@/lib/prefillHref';
+import { queueTextEntry } from '@/lib/offline/actions';
+import { isNetworkError } from '@/lib/offline/sync';
 
 // The dashboard's main button: say or type what you did, or a habit you want to start. Jev picks
 // which habit it's about (or a new one) and whether it reports something done. Something done on an
@@ -97,7 +91,20 @@ export default function SmartEntry({ size }: { size?: ButtonSize }) {
     }
   };
 
+  // Offline, what was said is kept to match to a habit and log once back online (see logToAnyHabit),
+  // since that takes the AI on the server
+  const keepForLater = async (input: string) => {
+    closePanel();
+    try {
+      await queueTextEntry(null, input);
+      toast(`“${input}” will be matched to a habit and logged once you're back online`, { icon: '📴', duration: 8000 });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Couldn\'t save it');
+    }
+  };
+
   const handleInput = async (input: string) => {
+    if (!navigator.onLine) return keepForLater(input);
     setStatus({ message: 'Matching to your habits...', input });
 
     try {
@@ -115,7 +122,8 @@ export default function SmartEntry({ size }: { size?: ButtonSize }) {
           : [...result.candidates, { habitId: null, name: 'New habit', probability: 0 }];
         setPicker({ input, candidates, didIt: result.didIt });
       }
-    } catch {
+    } catch (err) {
+      if (isNetworkError(err)) return keepForLater(input);
       closePanel();
       toast.error('Failed to connect to AI');
     }

@@ -12,6 +12,8 @@ import { cadenceSchema, type Cadence } from '@/lib/cadence';
 import type { HabitSchema } from '@/lib/types';
 import { calculatedFieldsSchema, type CalculatedField } from '@/lib/calculatedFields';
 import { fieldsOf } from '@/lib/formFields';
+import { parseCivilDayKey } from '@/lib/timezone';
+import type { Skippable } from './skips';
 
 // Habits placed in a list without a chosen position (new, newly shared, or moved to another
 // category) go to the end of it.
@@ -137,22 +139,50 @@ export function filingChange(current: string | null, categoryId: string | null) 
   return current === categoryId ? null : { categoryId, order: END_OF_LIST_ORDER };
 }
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// The entry already logged with `id` by `userId` on `habitId`, or null when there's none yet. An id
+// made by the browser (see src/lib/offline) can arrive more than once, e.g. when the answer to the
+// first try was lost with the connection, so logging it again finds this instead of a second entry.
+async function alreadyLogged(id: string, userId: string, habitId: string) {
+  const existing = await prisma.habitLog.findUnique({ where: { id } });
+  if (existing && (existing.userId !== userId || existing.habitId !== habitId)) throw new Error('That entry id is already used');
+  return existing;
+}
+
 // Logs an entry on a habit `user` has, as them: checked like any entry (see sanitizeLogPayload),
 // and published to MQTT when the habit is. Takes the user rather than reading the session, since
-// the API logs as whoever its key belongs to (see src/lib/apiKeys.ts).
-export async function createHabitLog(user: { id: string; name: string }, habitId: string, payload: Record<string, unknown>, createdAt?: Date) {
+// the API logs as whoever its key belongs to (see src/lib/apiKeys.ts). `id`, when given, is the
+// entry's id, made by the browser so it can be logged offline and sent later, as often as it takes:
+// an entry already logged with it is returned as it is.
+export async function createHabitLog(user: { id: string; name: string }, habitId: string, payload: Record<string, unknown>, createdAt?: Date, id?: string) {
+  if (id !== undefined && !UUID.test(id)) throw new Error('Invalid entry id');
+  if (createdAt && Number.isNaN(createdAt.getTime())) throw new Error('Invalid date');
   const { habit } = await getMembership(user.id, habitId);
+  if (id) {
+    const existing = await alreadyLogged(id, user.id, habitId);
+    if (existing) return existing;
+  }
 
   const sanitizedPayload = sanitizeLogPayload(habit, payload);
 
-  const log = await prisma.habitLog.create({
-    data: {
-      habitId,
-      userId: user.id,
-      payload: JSON.stringify(sanitizedPayload),
-      ...(createdAt ? { createdAt } : {})
-    }
-  });
+  let log;
+  try {
+    log = await prisma.habitLog.create({
+      data: {
+        ...(id ? { id } : {}),
+        habitId,
+        userId: user.id,
+        payload: JSON.stringify(sanitizedPayload),
+        ...(createdAt ? { createdAt } : {})
+      }
+    });
+  } catch (error) {
+    // The same entry arriving twice at once: the other one logged it
+    const existing = id && await alreadyLogged(id, user.id, habitId);
+    if (existing) return existing;
+    throw error;
+  }
 
   try {
     if (habit.publishToMqtt) {
@@ -165,6 +195,64 @@ export async function createHabitLog(user: { id: string; name: string }, habitId
 
   revalidateEntries(habitId);
   return log;
+}
+
+// Corrects an entry `userId` may change (see canChangeLog): its values, and its time when `createdAt`
+// is given. Not republished to MQTT, which announces new entries.
+export async function changeHabitLog(userId: string, logId: string, habitId: string, payload: Record<string, unknown>, createdAt?: Date) {
+  const log = await getChangeableLog(userId, logId, habitId);
+  if (createdAt && Number.isNaN(createdAt.getTime())) throw new Error('Invalid date');
+
+  await prisma.habitLog.update({
+    where: { id: logId },
+    data: {
+      payload: JSON.stringify(sanitizeLogPayload(log.habit, payload)),
+      ...(createdAt ? { createdAt } : {}),
+    },
+  });
+  revalidateEntries(habitId);
+}
+
+// Deletes an entry `userId` may change (see canChangeLog)
+export async function removeHabitLog(userId: string, logId: string, habitId: string) {
+  await getChangeableLog(userId, logId, habitId);
+  await prisma.habitLog.delete({ where: { id: logId } });
+  revalidateEntries(habitId);
+}
+
+// Checks `userId` can skip it, as anyone who has a habit can, the same as logging it, and only a
+// category's owner, as for anything about a category. Returns its page.
+async function skippablePage(userId: string, target: Skippable) {
+  if (target.kind === 'habit') {
+    await getMembership(userId, target.id);
+    return `/log/${target.id}`;
+  }
+  await getOwnedCategory(userId, target.id);
+  return `/categories/${target.id}`;
+}
+
+// Skips it on `day`, a civil day key (see HabitSkip): a habit's skip is the habit's, for everyone
+// who has it; a category's excuses its own cadence, not its habits'. Skipping it twice is one skip.
+export async function skipOn(userId: string, target: Skippable, day: string) {
+  if (!parseCivilDayKey(day)) throw new Error('Invalid day');
+  const page = await skippablePage(userId, target);
+  if (target.kind === 'habit') {
+    await prisma.habitSkip.upsert({ where: { habitId_day: { habitId: target.id, day } }, create: { habitId: target.id, day, userId }, update: {} });
+  } else {
+    await prisma.categorySkip.upsert({ where: { categoryId_day: { categoryId: target.id, day } }, create: { categoryId: target.id, day }, update: {} });
+  }
+  revalidateLists();
+  revalidatePath(page);
+}
+
+// Takes back its skip on `day` (see skipOn), if it has one
+export async function unskipOn(userId: string, target: Skippable, day: string) {
+  if (!parseCivilDayKey(day)) throw new Error('Invalid day');
+  const page = await skippablePage(userId, target);
+  if (target.kind === 'habit') await prisma.habitSkip.deleteMany({ where: { habitId: target.id, day } });
+  else await prisma.categorySkip.deleteMany({ where: { categoryId: target.id, day } });
+  revalidateLists();
+  revalidatePath(page);
 }
 
 // An entry's values with any keys the habit's own schema doesn't define dropped, validated against

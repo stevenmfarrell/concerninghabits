@@ -44,6 +44,10 @@ export function useImageLogging(habitSchema: string, aiContext: string | null, o
     // Reset input so the same file can be selected again if needed
     event.target.value = '';
 
+    if (!navigator.onLine) {
+      toast.error('Logging from a photo needs a connection. Fill in the form instead, and it\'ll sync later.');
+      return;
+    }
     const loadingToast = toast.loading('AI is analyzing your photo...');
     setIsProcessing(true);
 

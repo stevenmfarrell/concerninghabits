@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Noto_Emoji } from "next/font/google";
-import SWUnregister from "../components/SWUnregister";
+import ServiceWorkerSetup from "../components/ServiceWorkerSetup";
+import OfflineSync from "../components/OfflineSync";
+import SyncStatus from "../components/SyncStatus";
+import { verifySession } from "../lib/auth";
+import { prisma } from "../lib/prisma";
 import TimeZoneSync from "../components/TimeZoneSync";
 import ResumeReload from "../components/ResumeReload";
 import ThemeSync from "../components/ThemeSync";
@@ -43,7 +47,15 @@ export const viewport = {
   themeColor: "#047857", // emerald-700
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+// Who's signed in, as the outbox needs to know (see OfflineSync), or null on the sign-in pages
+async function outboxUser() {
+  const session = await verifySession();
+  if (!session) return null;
+  return prisma.user.findUnique({ where: { id: session.userId }, select: { id: true, bedtime: true } });
+}
+
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const user = await outboxUser();
   return (
     <html
       lang="en"
@@ -59,8 +71,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <Toaster position="bottom-center" containerStyle={{ bottom: 100 }} toastOptions={TOAST_OPTIONS} />
         <ToastLimit />
         <ToastTouchResume />
-        <BottomNav />
-        <SWUnregister />
+        <BottomNav status={user && <SyncStatus />} />
+        <ServiceWorkerSetup signedIn={!!user} />
+        <OfflineSync user={user} />
         <TimeZoneSync />
         <ResumeReload />
         <ThemeSync />

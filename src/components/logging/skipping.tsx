@@ -3,7 +3,8 @@
 import { startTransition, type RefObject } from 'react';
 import { CalendarChevronsRight, SkipForward } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { skipToday, type Skippable } from '@/app/actions/skips';
+import type { Skippable } from '@/app/actions/skips';
+import { skip } from '@/lib/offline/actions';
 import { showSkippedToast } from '@/components/LoggedToast';
 import type { RowSwipe } from './RowGesture';
 import { swipeAway } from './zoomAway';
@@ -46,8 +47,8 @@ export function useSkipSwipe(target: SkipTarget, labels: SkipLabels | undefined,
         const leaving = swipeAway(row.current);
         await leaving?.finished.catch(() => {});
         try {
-          const day = await skipToday(target);
-          showSkippedToast({ target, label: labels.skipped, day, postpones: labels.postpones });
+          const { day, queued } = await skip(target);
+          showSkippedToast({ target, label: labels.skipped, day, postpones: labels.postpones, queued });
         } catch (err) {
           leaving?.cancel();
           toast.error(`Failed to ${labels.postpones ? 'postpone' : 'skip'}: ${err instanceof Error ? err.message : 'Unknown error'}`);

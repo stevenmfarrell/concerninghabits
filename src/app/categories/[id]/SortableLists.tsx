@@ -32,6 +32,7 @@ import QuillIconWavy from '@/components/QuillIconWavy';
 import { Users } from 'lucide-react';
 import { IconButton } from '@/components/ui/IconButton';
 import { DEFAULT_CATEGORY_ICON } from '@/lib/constants';
+import { useQueuedToday } from '@/lib/offline/useOutbox';
 
 interface SortableRowProps {
   user: SessionUser;
@@ -64,8 +65,10 @@ const SortableSubcategoryItem = ({ sub, statuses, health, user, people, isOverla
   // Its ring, which opens the picker in place of the picker's button
   const ring = !!status && !health;
   const cadence = parseCadence(sub.cadence, NO_CADENCE);
-  // Entries being logged from the picker that the page doesn't show yet (see useHabitLogger)
-  const [pending, addPending] = useOptimistic(0, (count, added: number) => count + added);
+  // Entries being logged from the picker that the page doesn't show yet (see useHabitLogger), and
+  // those logged offline today, waiting to be sent (see src/lib/offline)
+  const [optimistic, addPending] = useOptimistic(0, (count, added: number) => count + added);
+  const pending = optimistic + useQueuedToday(subHabits.map(h => h.id));
 
   const header = (
     // The link is stretched over the whole row (its ::after), so the padding is tappable too, with the

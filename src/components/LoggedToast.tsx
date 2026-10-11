@@ -4,8 +4,7 @@ import toast, { type Toast } from 'react-hot-toast';
 import { Check, X } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/Button';
-import { deleteHabitLog } from '@/app/actions/entries';
-import { undoSkip } from '@/app/actions/skips';
+import { deleteEntry, unskip } from '@/lib/offline/actions';
 import { SkipIcon, type SkipTarget } from '@/components/logging/skipping';
 import { fieldTitle } from '@/components/widgets/habitForm';
 import { formatLogValue } from '@/lib/format';
@@ -20,7 +19,12 @@ export interface LoggedEntry {
   // How the entry was made when it wasn't typed in by hand, e.g. `From “ran a mile”`. Its presence
   // marks an automatic entry, which stays up longer so there's time to check it.
   source?: string;
+  // Kept on this device to send once back online (see src/lib/offline), rather than logged yet
+  queued?: boolean;
 }
+
+// What a toast says about something kept to send once back online
+export const QUEUED_DETAIL = 'Saved on this device · syncs when you\'re back online';
 
 const MANUAL_DURATION_MS = 6000;
 const AUTOMATIC_DURATION_MS = 10000;
@@ -35,7 +39,7 @@ export function showLoggedToast(entry: LoggedEntry, { onUndone, toastId }: { onU
   const undo = async (t: Toast) => {
     toast.dismiss(t.id);
     try {
-      await deleteHabitLog(entry.logId, entry.habitId);
+      await deleteEntry(entry.logId, { id: entry.habitId, name: entry.habitName });
       onUndone?.();
       toast.success(onUndone ? 'Entry undone. Edit it and log again.' : 'Entry undone.');
     } catch (err) {
@@ -56,24 +60,24 @@ export function showLoggedToast(entry: LoggedEntry, { onUndone, toastId }: { onU
       icon={<Check className="w-5 h-5" strokeWidth={3} />}
       iconClassName="bg-accent text-on-accent"
       title={`${entry.habitName} logged`}
-      detail={entry.source}
+      detail={entry.queued ? (entry.source ? `${entry.source} · saved offline` : QUEUED_DETAIL) : entry.source}
       values={values}
       onUndo={() => undo(t)}
     />
   ), {
     id: toastId,
-    duration: entry.source ? AUTOMATIC_DURATION_MS : MANUAL_DURATION_MS,
+    duration: entry.source || entry.queued ? AUTOMATIC_DURATION_MS : MANUAL_DURATION_MS,
   });
 }
 
 // Confirms a habit or category just skipped (e.g. swiped away on the Agenda), with an Undo that
 // takes the skip back. `label` says what was skipped, e.g. "Skipped today" or "Postponed 2 days";
 // `day` is the skip's (see skipToday). `postpones` is for a skip that puts it off (see postpones).
-export function showSkippedToast({ target, label, day, postpones = false }: { target: SkipTarget; label: string; day: string; postpones?: boolean }) {
+export function showSkippedToast({ target, label, day, postpones = false, queued = false }: { target: SkipTarget; label: string; day: string; postpones?: boolean; queued?: boolean }) {
   const undo = async (t: Toast) => {
     toast.dismiss(t.id);
     try {
-      await undoSkip(target, day);
+      await unskip(target, day);
       toast.success(postpones ? 'Postponement undone.' : 'Skip undone.');
     } catch (err) {
       toast.error(`Failed to undo: ${err instanceof Error ? err.message : 'Unknown error'}`);
@@ -86,7 +90,7 @@ export function showSkippedToast({ target, label, day, postpones = false }: { ta
       icon={<SkipIcon postpones={postpones} className="w-4 h-4" />}
       iconClassName="bg-on-inverse/15 text-on-inverse"
       title={target.name}
-      detail={label}
+      detail={queued ? `${label} · saved offline` : label}
       onUndo={() => undo(t)}
     />
   ), { duration: MANUAL_DURATION_MS });

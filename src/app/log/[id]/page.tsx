@@ -1,5 +1,5 @@
 import { getCategories } from '@/app/actions/categories';
-import { getHabitLogs, getHabitLogPresence, deleteHabitLog } from '@/app/actions/entries';
+import { getHabitLogs, getHabitLogPresence } from '@/app/actions/entries';
 import { getHabit } from '@/app/actions/habits';
 import { getDefaultUser, getPeople } from '@/app/actions/user';
 import { getHabitReminder } from '../../actions/reminders';
@@ -14,6 +14,7 @@ import { cookies } from 'next/headers';
 import LogClient from './LogClient';
 import EmptyState from '@/components/EmptyState';
 import EntryMenu from './EntryMenu';
+import { QueuedChangeNote, QueuedEntries, QueuedFirstEntries } from './QueuedEntries';
 import InteractiveCalendar from './InteractiveCalendar';
 import HabitChart from './HabitChart';
 import ExportCsvButton from './ExportCsvButton';
@@ -112,9 +113,12 @@ export default async function HabitPage(props: { params: Promise<{ id: string }>
   return (
     <LogClient habit={habit} user={user} people={allPeople} categories={categories} reminder={reminder} skip={skip} consistency={habitConsistency}>
       {!presence.hasLogs ? (
-        <EmptyState title="No logs here yet">
-          Time to step out your front door and start an adventure. Log your first entry!
-        </EmptyState>
+        // Unless its first entries were logged offline and are waiting to be sent
+        <QueuedFirstEntries habitId={habit.id} schemaProperties={schemaProperties} timeZone={user.timeZone}>
+          <EmptyState title="No logs here yet">
+            Time to step out your front door and start an adventure. Log your first entry!
+          </EmptyState>
+        </QueuedFirstEntries>
       ) : (
         <>
           <section>
@@ -171,6 +175,7 @@ export default async function HabitPage(props: { params: Promise<{ id: string }>
               {/* Rows of when, values and a menu, each row spanning the screen (for its dividers and
                   highlight) with its contents in the page's column. The when is a fixed width, wide
                   enough for any date, so the values line up down the list. */}
+              <QueuedEntries habitId={habit.id} schemaProperties={schemaProperties} timeZone={user.timeZone} />
               {paginatedLogs.length === 0 ? (
                 <p className="p-8 text-center text-ink-muted">No logs found in this period.</p>
               ) : (
@@ -179,9 +184,6 @@ export default async function HabitPage(props: { params: Promise<{ id: string }>
                     const payload = parseEntryValues(log.payload) ?? {};
                     const hasDetails = Object.keys(payload).length > 0;
                     const isHighlighted = searchParams?.highlight === log.id;
-
-                    // Server action bind to delete this specific log
-                    const deleteAction = deleteHabitLog.bind(null, log.id, habit.id);
 
                     return (
                       <li
@@ -217,13 +219,13 @@ export default async function HabitPage(props: { params: Promise<{ id: string }>
                           ) : (
                             <span className="text-ink-subtle italic text-sm">Completed</span>
                           )}
+                          <QueuedChangeNote entryId={log.id} />
                         </div>
                         <div className="-my-1.5 -mr-2">
                           {log.canChange && (
                             <EntryMenu
                               habit={{ id: habit.id, name: habit.name, schema: habit.schema }}
                               entry={{ id: log.id, payload, createdAt: log.createdAt }}
-                              deleteAction={deleteAction}
                             />
                           )}
                         </div>

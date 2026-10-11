@@ -201,7 +201,16 @@ export type InputLogResult =
 // way as voice logging. `values` are given values that win over what's filled in (e.g. sent to the
 // API alongside the text). When the form can't be completed, or what was filled in isn't valid,
 // nothing is logged and what could be filled in is returned (`logged: false`) for the user to finish.
-export async function logFromInput(user: { id: string; name: string }, habitId: string, input: string, values: Record<string, unknown> = {}, createdAt?: Date): Promise<InputLogResult> {
+// `id` is the entry's id when the browser made one (see createHabitLog): once it's logged, sending
+// it again returns that entry without asking the AI again.
+export async function logFromInput(user: { id: string; name: string }, habitId: string, input: string, values: Record<string, unknown> = {}, createdAt?: Date, id?: string): Promise<InputLogResult> {
+  if (id) {
+    const existing = await prisma.habitLog.findUnique({ where: { id } });
+    if (existing && existing.userId === user.id && existing.habitId === habitId) {
+      const membership = await getMembership(user.id, habitId);
+      return { success: true, logged: true, logId: existing.id, createdAt: existing.createdAt, data: JSON.parse(existing.payload), schema: parseHabitSchema(membership.habit.schema) };
+    }
+  }
   const filled = await fillFromInput(user, habitId, input);
   if (!filled.success) return filled;
   const { schema } = filled;
@@ -214,10 +223,43 @@ export async function logFromInput(user: { id: string; name: string }, habitId: 
   }
 
   try {
-    const log = await createHabitLog(user, habitId, data, createdAt);
+    const log = await createHabitLog(user, habitId, data, createdAt, id);
     return { success: true, logged: true, logId: log.id, createdAt: log.createdAt, data, schema };
   } catch (error) {
     // e.g. a value the AI filled in that the form doesn't accept: let the user fix it on the form
     return { success: true, logged: false, data, schema, problem: error instanceof Error ? error.message : 'Its values aren\'t valid' };
   }
+}
+
+// e.g. "Piano Practice or Ukulele"
+function describeCandidates(candidates: HabitCandidate[]) {
+  const names = candidates.filter(c => c.habitId).map(c => c.name);
+  return names.length > 1 ? `${names.slice(0, -1).join(', ')} or ${names.at(-1)}` : names[0] ?? 'none of them';
+}
+
+export type AnyHabitLogResult =
+  | { logged: true; habit: { id: string; name: string }; logId: string; createdAt: Date; data: Record<string, unknown> }
+  // Nothing logged, saying why, with the habits it might have been (`candidates`), and when it was
+  // matched to one, that habit and what could be filled in, to finish by hand
+  | { logged: false; error: string; candidates: HabitCandidate[]; habit?: { id: string; name: string }; data?: Record<string, unknown> };
+
+// Logs something the user said or typed to whichever of their habits it's about, as the Agenda's
+// smart entry does but without asking: only to a habit Jev is sure of, and never a new one. For the
+// API (see src/app/api/log) and for text queued while offline (see src/app/api/sync).
+export async function logToAnyHabit(user: { id: string; name: string }, text: string, createdAt?: Date, id?: string): Promise<AnyHabitLogResult> {
+  const interpretation = await interpretInput(user, text);
+  if (!interpretation.success) return { logged: false, error: interpretation.error, candidates: [] };
+  const { confident, didIt } = interpretation;
+  const candidates = interpretation.candidates.filter(c => c.habitId);
+
+  const [best] = interpretation.candidates;
+  if (!didIt) return { logged: false, error: `"${text}" doesn't read as something you did, so nothing was logged`, candidates };
+  if (!best?.habitId) return { logged: false, error: `"${text}" doesn't match any of your habits. Make one in the app first.`, candidates };
+  if (!confident) return { logged: false, error: `Not sure which habit "${text}" is about: ${describeCandidates(candidates)}`, candidates };
+
+  const habit = { id: best.habitId, name: best.name };
+  const result = await logFromInput(user, best.habitId, text, {}, createdAt, id);
+  if (!result.success) return { logged: false, error: result.error, candidates, habit };
+  if (!result.logged) return { logged: false, error: `${best.name}: ${result.problem}`, candidates, habit, data: result.data };
+  return { logged: true, habit, logId: result.logId, createdAt: result.createdAt, data: result.data };
 }

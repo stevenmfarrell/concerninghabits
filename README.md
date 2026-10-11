@@ -119,6 +119,16 @@ volumes:
 
 Habit reminders are Web Push notifications, turned on per device under Settings → Reminders and per habit on its page. Browsers only allow push over **https** (or `localhost`), so serve the app behind a reverse proxy with TLS to use them. On iPhone and iPad, the app must be added to the Home Screen first.
 
+### Offline
+
+Installed as an app, Concerning Habits keeps working without a connection (in a production build; `npm run dev` caches nothing):
+
+- **Opening it:** the service worker (`public/sw.js`) keeps a copy of each page you visit, plus the tabs and the habit and category pages they link to. Online, pages always come from the server; the copies are only used when it can't be reached. A page never opened on the device shows a short offline notice instead.
+- **Making changes:** logging, editing or deleting an entry, and skipping, keep working. If the server can't be reached, the change is kept on the device (in IndexedDB) and sent to `/api/sync` once it can, with the time it was actually made. A pill above the bottom nav says how many are waiting. Anything said or typed for AI to fill in (voice, or the Agenda's "I did…") is kept as text and filled in once it's sent. Logging from a photo needs a connection.
+- **When a change can't be made** (say the habit was deleted meanwhile, or its form now needs a value the entry doesn't have), it's kept as "Couldn't sync". From there you can finish it by hand, try again, or discard it. Nothing is dropped silently.
+
+Copies of pages are cleared on signing out. Changes waiting on a shared device are only ever sent for the person who made them.
+
 ### Logging from Other Apps (API)
 
 Other apps (iOS Shortcuts, Home Assistant, Tasker, an NFC tag) can log and read entries with an API key, made under Settings → API Keys. A key acts as its user and is allowed to log, read, or both (chosen when it's made, and changeable later). It can't change or delete anything. Send it as `Authorization: Bearer ch_...` or `X-API-Key: ch_...`, or for an app that can't set headers, as `?key=ch_...` in the URL. Settings → API Keys documents each route with examples.

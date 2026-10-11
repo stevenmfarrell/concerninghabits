@@ -36,7 +36,8 @@ export default function ResumeReload() {
       }
       const away = hiddenAt === null ? 0 : Date.now() - hiddenAt;
       hiddenAt = null;
-      if (away < RELOAD_AFTER_MS || edited.current || document.querySelector('[aria-modal="true"]')) return;
+      // Nor offline, where a reload can only bring back the page as it was kept (see sw.js)
+      if (away < RELOAD_AFTER_MS || edited.current || !navigator.onLine || document.querySelector('[aria-modal="true"]')) return;
       window.location.reload();
     };
 

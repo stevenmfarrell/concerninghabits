@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { getPushPublicKey, hasPushSubscription, removePushSubscription, savePushSubscription } from '@/app/actions/reminders';
-import { SERVICE_WORKER_URL } from '@/components/SWUnregister';
+import { SERVICE_WORKER_URL } from '@/components/ServiceWorkerSetup';
 
 // Whether this browser gets reminders, or why it can't:
 // - insecure: served over plain http (other than localhost), where browsers don't allow push

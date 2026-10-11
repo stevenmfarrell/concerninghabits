@@ -85,6 +85,8 @@ Icons are lucide's (`lucide-react`). One meaning gets one icon everywhere, so a 
 | Copy text as it is (a key, an example request), see `CopyField` | `Copy` | `Link2` (that's a link) |
 | Automation (submit URL, logging from another app, API keys, Home Assistant) | `Zap` | `KeyRound` (that's your password) |
 | An API key's permissions: logging entries, reading them | `NotebookPen`, `Eye` | |
+| Offline, or a change waiting on this device to sync (see `SyncStatus`) | `CloudOff` | `WifiOff` |
+| A change that couldn't sync | `AlertTriangle` (in `warning` amber) | |
 | Reminders | `AlarmClock`, `AlarmClockOff` when one is off or paused | `Bell` |
 | Skip a habit for now (today, this week), or skipped | `SkipForward` | `Ban`, `X` (those read as cancel or delete) |
 | Postpone an every-N-days habit (its skip puts it off), or postponed | `CalendarChevronsRight` | `SkipForward` (that's excusing it), `CalendarClock` (that's backdating) |

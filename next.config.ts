@@ -6,6 +6,13 @@ const nextConfig: NextConfig = {
   allowedDevOrigins: ['192.168.4.x', '192.168.4.79', '192.168.0.x', '*.loca.lt'],
   serverExternalPackages: [],
   output: "standalone",
+  // The service worker (public/sw.js) is always checked for a new version, so a fix to it reaches
+  // everyone on their next visit rather than whenever the browser's cache lets go of it
+  async headers() {
+    return [
+      { source: '/sw.js', headers: [{ key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' }] },
+    ];
+  },
   experimental: {
     // Reuse a visited page for 30s on client-side navigation (the default is to refetch every
     // time), so going back and forth between pages is instant. Server actions' revalidatePath

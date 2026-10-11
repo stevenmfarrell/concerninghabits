@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#047857">
+  <title>Offline · Concerning Habits</title>
+  <!-- Served by the service worker (sw.js) for a page that hasn't been opened on this device while
+       there's no connection. Self-contained, since nothing else may be at hand. -->
+  <style>
+    :root {
+      --canvas: #fafaf9;
+      --ink: #1c1917;
+      --ink-muted: #78716c;
+      --accent: #047857;
+      --accent-hover: #065f46;
+      --on-accent: #ffffff;
+      --line: #e7e5e4;
+      --surface: #ffffff;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --canvas: #0c0a09;
+        --ink: #f5f5f4;
+        --ink-muted: #a8a29e;
+        --accent: #10b981;
+        --accent-hover: #34d399;
+        --on-accent: #022c22;
+        --line: #292524;
+        --surface: #1c1917;
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 16px;
+      background: var(--canvas);
+      color: var(--ink);
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    main { max-width: 22rem; text-align: center; }
+    svg { width: 48px; height: 48px; color: var(--ink-muted); }
+    h1 { font-size: 1.375rem; margin: 16px 0 8px; }
+    p { color: var(--ink-muted); line-height: 1.5; margin: 0 0 24px; }
+    .actions { display: flex; flex-direction: column; gap: 12px; }
+    a, button {
+      display: block;
+      width: 100%;
+      padding: 12px 16px;
+      border-radius: 12px;
+      font: inherit;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    a { background: var(--accent); color: var(--on-accent); border: none; }
+    a:hover { background: var(--accent-hover); }
+    button { background: var(--surface); color: var(--ink); border: 1px solid var(--line); }
+  </style>
+</head>
+<body>
+  <main>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="m2 2 20 20"/><path d="M5.782 5.782A7 7 0 0 0 9 19h8.5a4.5 4.5 0 0 0 1.307-.193"/><path d="M21.532 16.5A4.5 4.5 0 0 0 17.5 10h-1.79A7.008 7.008 0 0 0 10 5.07"/>
+    </svg>
+    <h1>You're offline</h1>
+    <p>This page hasn't been opened on this device yet, so it isn't available without a connection. The Agenda is, and anything you log there syncs once you're back online.</p>
+    <div class="actions">
+      <a href="/">Go to Agenda</a>
+      <button type="button" onclick="location.reload()">Try Again</button>
+    </div>
+  </main>
+</body>
+</html>

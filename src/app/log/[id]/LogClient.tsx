@@ -13,6 +13,8 @@ import toast from 'react-hot-toast';
 import { fieldsOf, type FieldSchema } from '@/lib/formFields';
 import { parseHabitSchema } from '@/lib/habitSchema';
 import { takePendingSmartEntry } from '@/lib/pendingSmartEntry';
+import { queueTextEntry } from '@/lib/offline/actions';
+import { isNetworkError } from '@/lib/offline/sync';
 import type { CategoryOption, HabitDetail, SessionUser } from '@/lib/types';
 import type { Person } from '@/lib/userColors';
 import type { ReminderStatus } from '@/lib/reminders';
@@ -113,12 +115,20 @@ export default function LogClient({ habit, user, people, categories, reminder, s
       return;
     }
     const toastId = toast.loading('AI is filling in your entry...');
+    // Offline, kept to fill in and log once back online (see src/lib/offline)
+    const keepForLater = () => queueTextEntry(habit, transcript)
+      .then(() => toast(`“${transcript}” will be filled in and logged once you're back online`, { id: toastId, icon: '📴', duration: 8000 }))
+      .catch(() => toast.error('Couldn\'t save it', { id: toastId }));
+    if (!navigator.onLine) {
+      void keepForLater();
+      return;
+    }
     parseVoiceLog(habit.schema, transcript, habit.aiContext)
       .then(async result => {
         if (result.success && result.data) await logger.fillIn(result.data, source, toastId);
         else toast.error(result.error || 'AI could not understand', { id: toastId });
       })
-      .catch(() => toast.error('Failed to connect to AI', { id: toastId }));
+      .catch(err => (isNetworkError(err) ? keepForLater() : toast.error('Failed to connect to AI', { id: toastId })));
     // Only ever runs on the initial mount.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

@@ -22,7 +22,7 @@ export default function LogEntrySheet({ logger }: { logger: HabitLogger }) {
   const [logDate, setLogDate] = useState('');
 
   const handleExtracted = (data: Record<string, unknown>, toastId: string, source: string) => logger.fillIn(data, source, toastId);
-  const { isListening, isProcessing: voiceProcessing, toggleListen } = useVoiceLogging(habit.schema, habit.aiContext ?? null, handleExtracted);
+  const { isListening, isProcessing: voiceProcessing, toggleListen } = useVoiceLogging(habit, handleExtracted, logger.closeSheet);
   const { fileInputRef, isProcessing: imageProcessing, handleImageUpload } = useImageLogging(habit.schema, habit.aiContext ?? null, handleExtracted);
   const aiLoading = voiceProcessing || imageProcessing;
   const showVoice = hasForm && schema.enableVoice !== false;

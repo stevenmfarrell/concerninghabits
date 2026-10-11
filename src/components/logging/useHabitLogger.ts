@@ -2,7 +2,8 @@
 
 import { startTransition, useEffect, useOptimistic, useState } from 'react';
 import toast from 'react-hot-toast';
-import { logHabitEvent } from '@/app/actions/entries';
+import { logEntry as logOrQueue } from '@/lib/offline/actions';
+import { useQueuedToday } from '@/lib/offline/useOutbox';
 import { showLoggedToast } from '@/components/LoggedToast';
 import { fieldsOf } from '@/lib/formFields';
 import { parseHabitSchema } from '@/lib/habitSchema';
@@ -52,7 +53,9 @@ export function useHabitLogger(habit: LoggableHabit, { initialData = {}, onLogge
   const [busy, setBusy] = useState(false);
   // Entries logged here that the page doesn't show yet: each counts from when it's logged until the
   // page is rendered again with it, e.g. to fill an Agenda row's ring at once (see LogRing)
-  const [pending, addPending] = useOptimistic(0, (count, added: number) => count + added);
+  const [optimistic, addPending] = useOptimistic(0, (count, added: number) => count + added);
+  // ...and those logged offline today, waiting in the outbox to be sent (see src/lib/offline)
+  const pending = optimistic + useQueuedToday([habit.id]);
 
   // An undone entry for this habit, put back in the sheet to correct and log again: one waiting
   // when this Log button appears (e.g. a habit restored from the Agenda page's done chips), or
@@ -89,9 +92,9 @@ export function useHabitLogger(habit: LoggableHabit, { initialData = {}, onLogge
   const record = async (data: Record<string, unknown>, { createdAt, source, toastId }: LogOptions) => {
     setBusy(true);
     try {
-      const log = await logHabitEvent(habit.id, data, createdAt);
+      const log = await logOrQueue(habit, data, createdAt);
       showLoggedToast(
-        { habitId: habit.id, habitName: habit.name, logId: log.id, data, schemaProperties: properties, source },
+        { habitId: habit.id, habitName: habit.name, logId: log.logId, data, schemaProperties: properties, source, queued: log.queued },
         {
           toastId,
           // Through pendingReopen rather than this hook's own state: logging may have unmounted it

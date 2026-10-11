@@ -5,7 +5,7 @@ import Form from '@rjsf/core';
 import validator from '@rjsf/validator-ajv8';
 import { Loader2, Save } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { updateHabitLog } from '@/app/actions/entries';
+import { updateEntry } from '@/lib/offline/actions';
 import { Button } from '@/components/ui/Button';
 import BottomSheet from '@/components/BottomSheet';
 import { HABIT_FORM_WIDGETS, habitFormUiSchema } from '@/components/widgets/habitForm';
@@ -50,8 +50,9 @@ export default function EditEntrySheet({ habit, entry, onClose }: {
     setSaving(true);
     try {
       // Only sent when changed, since the input drops the seconds the entry was logged with
-      await updateHabitLog(entry.id, habit.id, formData, time !== initialTime ? new Date(time) : undefined);
-      toast.success('Entry updated');
+      const { queued } = await updateEntry(entry.id, habit, formData, time !== initialTime ? new Date(time) : undefined);
+      if (queued) toast('Saved on this device · syncs when you\'re back online', { icon: '📴' });
+      else toast.success('Entry updated');
       onClose();
     } catch (err) {
       toast.error(`Failed to update entry: ${err instanceof Error ? err.message : 'Unknown error'}`);

@@ -4,38 +4,22 @@ import { prisma } from '@/lib/prisma';
 import { MAX_HISTORY_WEEKS } from '@/lib/constants';
 import { parseEntryValues } from '@/lib/habitSchema';
 import { civilDateFor, civilDayKey, DAY_MS, parseCivilDayKey } from '@/lib/timezone';
-import { revalidateEntries, getRecentLogsCutoff, getMembership, sanitizeLogPayload, canChangeLog, getChangeableLog, createHabitLog } from './internal';
+import { getRecentLogsCutoff, getMembership, canChangeLog, createHabitLog, changeHabitLog, removeHabitLog } from './internal';
 import { getDefaultUser } from './user';
 
-export async function logHabitEvent(habitId: string, payload: Record<string, unknown>, createdAt?: Date) {
-  return createHabitLog(await getDefaultUser(), habitId, payload, createdAt);
+// Logs an entry as the current user. `id` is the entry's id when the browser made one, so trying
+// again after a lost connection can't log it twice (see createHabitLog).
+export async function logHabitEvent(habitId: string, payload: Record<string, unknown>, createdAt?: Date, id?: string) {
+  return createHabitLog(await getDefaultUser(), habitId, payload, createdAt, id);
 }
 
-// Corrects an entry's values, and its time when `createdAt` is given. Not republished to MQTT,
-// which announces new entries.
+// Corrects an entry's values, and its time when `createdAt` is given (see changeHabitLog)
 export async function updateHabitLog(logId: string, habitId: string, payload: Record<string, unknown>, createdAt?: Date) {
-  const user = await getDefaultUser();
-  const log = await getChangeableLog(user.id, logId, habitId);
-  if (createdAt && Number.isNaN(createdAt.getTime())) throw new Error('Invalid date');
-
-  await prisma.habitLog.update({
-    where: { id: logId },
-    data: {
-      payload: JSON.stringify(sanitizeLogPayload(log.habit, payload)),
-      ...(createdAt ? { createdAt } : {}),
-    },
-  });
-  revalidateEntries(habitId);
+  await changeHabitLog((await getDefaultUser()).id, logId, habitId, payload, createdAt);
 }
 
 export async function deleteHabitLog(logId: string, habitId: string) {
-  const user = await getDefaultUser();
-  await getChangeableLog(user.id, logId, habitId);
-
-  await prisma.habitLog.delete({
-    where: { id: logId }
-  });
-  revalidateEntries(habitId);
+  await removeHabitLog((await getDefaultUser()).id, logId, habitId);
 }
 
 // The current user's own entries on one of their days (`dayKey`, a civil date like "2024-03-10" in

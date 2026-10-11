@@ -10,6 +10,7 @@ import { HealthMark } from '@/components/HealthPlant';
 import { useSkipSwipe } from './skipping';
 import { POINTER_ONLY } from './pointerOnly';
 import LogRing from './LogRing';
+import { useQueuedToday } from '@/lib/offline/useOutbox';
 import { zoomAway } from './zoomAway';
 import type { PickerSection } from '@/lib/dueList';
 
@@ -33,7 +34,9 @@ export default function CategoryHoldToLog({ category, row, leavesWhenDone = fals
   const label = `Log a habit in ${category.name}`;
   const rowRef = useRef<HTMLDivElement>(null);
   // Entries being logged from the picker that the page doesn't show yet (see useHabitLogger)
-  const [pending, addPending] = useOptimistic(0, (count, added: number) => count + added);
+  const [optimistic, addPending] = useOptimistic(0, (count, added: number) => count + added);
+  // ...and those logged offline today, waiting to be sent (see src/lib/offline)
+  const pending = optimistic + useQueuedToday(category.sections.flatMap(section => section.habits.map(h => h.id)));
   const { status } = row;
   // Its ring, which opens the picker in place of the button at its end
   const ring = !!status && !health;
