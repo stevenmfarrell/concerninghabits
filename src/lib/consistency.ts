@@ -1,4 +1,4 @@
-import { cadenceCovers, countsDown, dueByPeriodEnd, entriesNeeded, isScheduled, limitOf, skipDayKey, skippedCovers, type Cadence, type CadenceUser, type SkipDay } from './cadence';
+import { cadenceCovers, countsDown, dueByPeriodEnd, entriesNeeded, isScheduled, limitOf, skippedCovers, type Cadence, type CadenceUser } from './cadence';
 import { civilDayKey, parseBedtimeOffsetMinutes, toCivilDate } from './timezone';
 
 // How consistently a habit (or a category with a cadence) has been kept up lately, as a garden:
@@ -131,23 +131,26 @@ function countdownOpportunities(cadence: Cadence, entryDays: Date[], skips: { fr
   // Not due at first if an entry or skip from before `from` still counts then
   let day = from;
   for (const entry of sortedEntries.filter(e => e < from)) day = latest(day, addDays(cadenceCovers(cadence, entry, user).to, 1));
-  for (const skip of sortedSkips.filter(s => s.from < from)) day = latest(day, addDays(skip.to, 1));
+  for (const skip of sortedSkips.filter(s => s.to < from)) day = latest(day, addDays(skip.to, 1));
 
   // `day` is when it's next due
   while (day <= today) {
     const due = day;
     const entry = sortedEntries.find(e => e >= due);
-    const skip = sortedSkips.find(s => s.from >= due);
+    // The first skip (or vacation) still excusing it from when it came due
+    const skip = sortedSkips.find(s => s.to >= due);
+    const skipFrom = skip && latest(skip.from, due);
     // Each whole stretch from when it came due to `until` that went by without it is missed
     const missStretches = (until: Date) => {
       for (let missed = 0; missed < Math.floor(daysBetween(due, until) / stretch); missed++) {
         opportunities.push({ day: addDays(due, (missed + 1) * stretch - 1), credit: 0 });
       }
     };
-    if (skip && (!entry || skip.from < entry)) {
-      // Missed until it was postponed; the postponement itself doesn't count
-      missStretches(skip.from);
-      day = addDays(skip.to, 1);
+    if (skip && skipFrom && (!entry || skipFrom < entry)) {
+      // Missed until it was postponed; the postponement itself doesn't count. Due again once it's
+      // over, or on the day of an entry made during it, which counts as on time.
+      missStretches(skipFrom);
+      day = entry && entry <= skip.to ? entry : addDays(skip.to, 1);
       continue;
     }
     if (!entry) {
@@ -168,15 +171,14 @@ function countdownOpportunities(cadence: Cadence, entryDays: Date[], skips: { fr
 }
 
 // The score as of `now`, and how many opportunities it's from
-function scoreAt(cadence: Cadence, logDates: Date[], skippedDays: readonly SkipDay[], createdAt: Date, user: CadenceUser, now: Date) {
+function scoreAt(cadence: Cadence, logDates: Date[], skippedDays: readonly string[], createdAt: Date, user: CadenceUser, now: Date) {
   const offset = parseBedtimeOffsetMinutes(user.bedtime);
   const civil = (date: Date) => toCivilDate(date, user.timeZone, offset);
   const today = civil(now);
-  const todayKey = civilDayKey(today);
 
   // Only what had happened by then
   const entryDays = logDates.filter(date => date <= now).map(civil);
-  const skips = skippedCovers(cadence, skippedDays.filter(skip => skipDayKey(skip) <= todayKey), user);
+  const skips = skippedCovers(cadence, skippedDays, user, now);
 
   // From when the habit began (or its first entry, if earlier, e.g. imported), but no further back
   // than opportunities count for
@@ -235,7 +237,7 @@ export function consistency(
   cadence: Cadence,
   logDates: Date[],
   user: CadenceUser,
-  { createdAt, skippedDays = [] }: { createdAt: Date; skippedDays?: readonly SkipDay[] },
+  { createdAt, skippedDays = [] }: { createdAt: Date; skippedDays?: readonly string[] },
   now = new Date(),
 ): Consistency | null {
   if (cadence.type === 'none') return null;

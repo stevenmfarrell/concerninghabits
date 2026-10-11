@@ -271,6 +271,7 @@ const SortableHabitItem = ({ habit, status, health, user, people, isOverlay, isR
                 futureColor="bg-transparent"
                 cadence={cadence}
                 skippedDays={skippedDaysOf(habit)}
+                vacations={user.vacations}
                 since={habit.createdAt}
                 bedtime={user.bedtime} 
                 weekStartsOn={user.weekStartsOn}

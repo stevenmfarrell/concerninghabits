@@ -123,6 +123,7 @@ export default async function HabitsPage(props: { searchParams: Promise<{ view?:
         showCadence: true,
         cadence,
         skippedDays: skippedDaysOf(cat),
+        vacations: user.vacations,
         status,
         bedtime: user.bedtime,
         weekStartsOn: user.weekStartsOn,

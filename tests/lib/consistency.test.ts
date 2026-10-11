@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { consistency, CONSISTENCY_HISTORY_WEEKS, lookbackDays } from '@/lib/consistency';
-import type { Cadence, SkipDay } from '@/lib/cadence';
+import type { Cadence, CadenceUser } from '@/lib/cadence';
 
 const user = { timeZone: 'UTC', bedtime: '00:00', weekStartsOn: 'sunday' };
 // Saturday, October 3rd 2026, mid-afternoon
@@ -15,8 +15,8 @@ const range = (from: number, to: number) => Array.from({ length: to - from + 1 }
 
 const daily: Cadence = { type: 'daily', timesPerDay: 1 };
 const longAgo = new Date(now.getTime() - 200 * DAY_MS);
-const score = (cadence: Cadence, logs: Date[], options: { createdAt?: Date; skippedDays?: SkipDay[] } = {}) =>
-  consistency(cadence, logs, user, { createdAt: options.createdAt ?? longAgo, skippedDays: options.skippedDays }, now);
+const score = (cadence: Cadence, logs: Date[], options: { createdAt?: Date; skippedDays?: string[]; user?: CadenceUser } = {}) =>
+  consistency(cadence, logs, options.user ?? user, { createdAt: options.createdAt ?? longAgo, skippedDays: options.skippedDays }, now);
 
 describe('consistency', () => {
   it('has nothing to say about a habit with no cadence', () => {
@@ -185,12 +185,19 @@ describe('consistency over a vacation', () => {
   it('doesn\'t hold the vacation against an every-N-days habit, but counts lateness after it from the next day', () => {
     // Done every 10 days until 25 days ago, then due 15 days ago, in the middle of a vacation 18 to 12
     // days ago: due again the day after it, 11 days ago, and done on time then
-    const vacation = range(12, 18).map(d => ({ day: dayKey(d), vacation: true as const }));
-    const onTime = score(every10, on([65, 55, 45, 35, 25, 11, 1]), { createdAt: daysAgo(65), skippedDays: vacation })!;
+    const away = { ...user, vacations: [{ from: dayKey(18), to: dayKey(12) }] };
+    const onTime = score(every10, on([65, 55, 45, 35, 25, 11, 1]), { createdAt: daysAgo(65), user: away })!;
     expect(onTime.score).toBe(1);
     // Done 5 days late after it instead (6 days ago, due 11 days ago): a late one
-    const late = score(every10, on([65, 55, 45, 35, 25, 6]), { createdAt: daysAgo(65), skippedDays: vacation })!;
+    const late = score(every10, on([65, 55, 45, 35, 25, 6]), { createdAt: daysAgo(65), user: away })!;
     expect(late.score).toBeLessThan(1);
+  });
+
+  it('counts an entry made during a vacation as on time, and the vacation after it as excused', () => {
+    // Done every 10 days, then 15 days ago in the middle of a vacation 18 to 2 days ago: due again 5
+    // days ago, still on vacation, so not missed
+    const away = { ...user, vacations: [{ from: dayKey(18), to: dayKey(2) }] };
+    expect(score(every10, on([65, 55, 45, 35, 25, 15]), { createdAt: daysAgo(65), user: away })!.score).toBe(1);
   });
 });
 

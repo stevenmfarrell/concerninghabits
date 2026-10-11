@@ -1,7 +1,8 @@
 'use client';
 
 import { civilDayKey, parseBedtimeOffsetMinutes, toCivilDate } from '@/lib/timezone';
-import { cadenceCovers, DEFAULT_CADENCE, entriesNeeded, limitOf, postpones, skippedCovers, startOfWeek, type Cadence, type SkipDay } from '@/lib/cadence';
+import { cadenceCovers, DEFAULT_CADENCE, entriesNeeded, limitOf, postpones, skippedCovers, startOfWeek, type Cadence } from '@/lib/cadence';
+import type { VacationRange } from '@/lib/vacation';
 import { ACTIVITY_PALETTES, activityShade, type ActivityColor } from '@/lib/activityShade';
 import { calendarStart } from '@/lib/calendarRange';
 import type { Person } from '@/lib/userColors';
@@ -38,10 +39,10 @@ interface ActivityCalendarProps {
   people?: Record<string, Person>;
   // Fill color for logged days: emerald for a habit, blue for a category's combined calendar
   color?: ActivityColor;
-  // The days a habit was skipped, as civil day keys, and the user's vacation days (see SkipDay).
-  // Each marks the days it covers by the cadence (its week, for a weekly habit) that aren't done by
-  // entries.
-  skippedDays?: SkipDay[];
+  // The days a habit was skipped, as civil day keys, and the user's vacations. Each marks the days
+  // it covers by the cadence (its week, for a weekly habit) that aren't done by entries.
+  skippedDays?: string[];
+  vacations?: readonly VacationRange[];
   // For a limit, when the habit began: a day before it isn't shaded as kept. Its first entry
   // without it.
   since?: Date;
@@ -72,7 +73,7 @@ function limitShadeFor(max: number, count: number, counting: number, settled: bo
 // A limit's calendar is shaded the other way round: a day whose period is over and was kept to the
 // limit is done, with or without entries; one in a period that went over is amber (deeper on the
 // days with entries); and in the period still going, days with entries are lightly shaded.
-export default function ActivityCalendar({ dates, timeZone, weeks = 5, cadence = DEFAULT_CADENCE, density, size = 'sm', monthsPerColumn = 4, bedtime = '00:00', weekStartsOn = 'sunday', emptyColor = 'bg-surface-muted', futureColor = 'bg-transparent border border-line-subtle', onDateClick, loggedBy, people, color = 'emerald', skippedDays, since }: ActivityCalendarProps) {
+export default function ActivityCalendar({ dates, timeZone, weeks = 5, cadence = DEFAULT_CADENCE, density, size = 'sm', monthsPerColumn = 4, bedtime = '00:00', weekStartsOn = 'sunday', emptyColor = 'bg-surface-muted', futureColor = 'bg-transparent border border-line-subtle', onDateClick, loggedBy, people, color = 'emerald', skippedDays, vacations, since }: ActivityCalendarProps) {
   const bedtimeOffsetMinutes = parseBedtimeOffsetMinutes(bedtime);
   const startsMonday = weekStartsOn === 'monday';
 
@@ -156,7 +157,7 @@ export default function ActivityCalendar({ dates, timeZone, weeks = 5, cadence =
 
   // Days excused by a skip, of those shown
   const skippedKeys = new Set<string>();
-  for (const { from, to } of skippedCovers(effectiveCadence, skippedDays ?? [], { weekStartsOn })) {
+  for (const { from, to } of skippedCovers(effectiveCadence, skippedDays ?? [], { timeZone, bedtime, weekStartsOn, vacations })) {
     const last = to < endDate ? to : endDate;
     for (const covered = new Date(from > startDate ? from : startDate); covered <= last; covered.setUTCDate(covered.getUTCDate() + 1)) {
       skippedKeys.add(civilDayKey(covered));

@@ -37,6 +37,7 @@ function CategoryList({ categories, user, leavesWhenDone = true }: { categories:
           habitCount: category.habits.length,
           cadence: category.cadence,
           skippedDays: category.skippedDays,
+          vacations: user.vacations,
           status: category.status,
           alignWithHabitRows: true,
           bedtime: user.bedtime,

@@ -1,7 +1,8 @@
 import { civilDayKey, parseCivilDayKey } from './timezone';
 
 // Vacations: stretches of days the user is away, on each of which every habit and category of theirs
-// counts as skipped, so nothing's due, nothing's held against its health, and no reminders are sent.
+// counts as skipped, so nothing's due, nothing's held against its health, and no reminders are sent
+// (see the user's `vacations` in CadenceUser).
 // Days are civil day keys ("2026-10-09"), both ends inclusive; `to` is null for one with no end set,
 // which runs until it's ended.
 export interface VacationRange {
@@ -9,25 +10,10 @@ export interface VacationRange {
   to: string | null;
 }
 
-// How far back vacation days are worth listing: past every cadence's lookback for consistency
-const MAX_PAST_DAYS = 400;
-
 function addDays(key: string, days: number) {
   const day = parseCivilDayKey(key)!;
   day.setUTCDate(day.getUTCDate() + days);
   return civilDayKey(day);
-}
-
-// Every day of `vacations` up to `today` (none after: a skip only ever counts once its day has come),
-// back as far as anything still counts
-export function vacationDays(vacations: VacationRange[], today: string): string[] {
-  const earliest = addDays(today, -MAX_PAST_DAYS);
-  const days = new Set<string>();
-  for (const { from, to } of vacations) {
-    const last = to === null || to > today ? today : to;
-    for (let day = from < earliest ? earliest : from; day <= last; day = addDays(day, 1)) days.add(day);
-  }
-  return [...days].sort();
 }
 
 // The vacation the user is on today, or failing that the next one coming up; null for neither

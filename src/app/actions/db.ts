@@ -23,7 +23,6 @@ import type { HabitSchema } from '@/lib/types';
 import { calculatedFieldProblem, calculatedFieldSchema, calculatedFieldsSchema, MAX_CALCULATED_FIELDS, parseCalculatedFields, type CalculatedField } from '@/lib/calculatedFields';
 import { keyFor } from '@/lib/formFields';
 import { chartProblem, chartSpecSchema, MAX_CHARTS, newChartId, parseCharts, plottableFields, type SavedChartInput } from '@/lib/charts';
-import { vacationDays } from '@/lib/vacation';
 
 type SchemaProperty = { type?: string; title?: string };
 
@@ -44,10 +43,11 @@ const getRequestUser = cache(async (allowNeedsUpdate: boolean) => {
     redirect(withReturnTo('/api/logout', (await headers()).get(RETURN_TO_HEADER)));
   }
 
-  // The user record is passed to client components, so never include the password hash
+  // The user record is passed to client components, so never include the password hash. With their
+  // vacations, on whose days everything of theirs counts as skipped (see CadenceUser).
   const user = await prisma.user.findUnique({
     where: { id: session.userId },
-    include: { categories: true },
+    include: { categories: true, vacations: { select: { from: true, to: true } } },
     omit: { passwordHash: true }
   });
 
@@ -134,37 +134,6 @@ function withHabits<C extends { habitMembers: HabitListMembership[] }>({ habitMe
 // The days a category was skipped (see CategorySkip), all of them, as for a habit's
 const categorySkips = { select: { day: true } } as const;
 
-type Skip = { day: string; vacation?: boolean };
-
-// Each day the viewer's been on vacation (see Vacation), as skips flagged as such: every habit and
-// category of theirs counts as skipped on them, so lists, calendars and health all follow, while
-// their own skips can still be told apart (see skippedDaysOf). Once per request.
-const getVacationSkips = cache(async (userId: string, today: string): Promise<Skip[]> => {
-  const vacations = await prisma.vacation.findMany({ where: { userId, from: { lte: today } }, select: { from: true, to: true } });
-  return vacationDays(vacations, today).map(day => ({ day, vacation: true }));
-});
-
-async function vacationSkips() {
-  const user = await getDefaultUser();
-  return getVacationSkips(user.id, todayKey(user));
-}
-
-// `item` with the viewer's vacation days among its skips
-function withVacation<T extends { skips: Skip[] }>(item: T, vacation: Skip[]): T {
-  return vacation.length > 0 ? { ...item, skips: [...item.skips, ...vacation] } : item;
-}
-
-// A category from the lists below, with vacation days among its own skips, its habits', and its
-// subcategories'
-function categoryWithVacation<C extends { skips: Skip[]; habits: { skips: Skip[] }[]; children?: { skips: Skip[]; habits: { skips: Skip[] }[] }[] }>(category: C, vacation: Skip[]): C {
-  if (vacation.length === 0) return category;
-  return withVacation({
-    ...category,
-    habits: category.habits.map(h => withVacation(h, vacation)),
-    ...(category.children ? { children: category.children.map(c => withVacation({ ...c, habits: c.habits.map(h => withVacation(h, vacation)) }, vacation)) } : {}),
-  }, vacation);
-}
-
 // `weeks` bounds how far back logs are fetched: enough for the 4-week row calendars by default, or
 // more for a caller that looks further back (the Habits page, for each category's consistency)
 export async function getCategoriesWithHierarchy(weeks = 5) {
@@ -182,8 +151,7 @@ export async function getCategoriesWithHierarchy(weeks = 5) {
       skips: categorySkips
     }
   });
-  const vacation = await vacationSkips();
-  return categories.map(category => categoryWithVacation({ ...withHabits(category), children: category.children.map(withHabits) }, vacation));
+  return categories.map(category => ({ ...withHabits(category), children: category.children.map(withHabits) }));
 }
 
 // `weeks` bounds how far back logs are fetched for the activity heatmap; pass the widest horizon
@@ -222,7 +190,7 @@ export async function getCategory(id: string, weeks: number = MAX_HISTORY_WEEKS)
     }
   });
   if (!category || category.userId !== user.id) return null;
-  return categoryWithVacation({ ...withHabits(category), children: category.children.map(withHabits) }, await vacationSkips());
+  return { ...withHabits(category), children: category.children.map(withHabits) };
 }
 
 export async function getCategories() {
@@ -384,8 +352,7 @@ export async function getUncategorizedHabits(weeks: number = MAX_HISTORY_WEEKS) 
     where: { userId: user.id, categoryId: null },
     ...habitListRows(getRecentLogsCutoff(weeks)),
   });
-  const vacation = await vacationSkips();
-  return memberships.map(m => withVacation(toHabitListItem(m), vacation));
+  return memberships.map(toHabitListItem);
 }
 
 // A habit the current user can see (their own or one shared with them), with their own placement
@@ -404,10 +371,7 @@ export async function getHabit(id: string) {
     aiContext,
     isOwner: habit.userId === user.id,
     memberIds: members.map(m => m.userId),
-    // Including the viewer's vacation days, for its calendar and health; `ownSkippedDays` are the
-    // skips made on it, which can be undone
-    skippedDays: [...skips.map(s => s.day), ...(await vacationSkips()).map(s => ({ day: s.day, vacation: true as const }))],
-    ownSkippedDays: skips.map(s => s.day),
+    skippedDays: skips.map(s => s.day),
   };
 }
 

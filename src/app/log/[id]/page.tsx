@@ -116,8 +116,7 @@ export default async function HabitPage(props: { params: Promise<{ id: string }>
   });
 
   const cadence = parseCadence(habit.cadence);
-  // Only its own skips, which the pill can undo; a vacation day isn't one (see getHabit)
-  const skip = skipState(cadence, logs.map(l => l.createdAt), user, new Date(), habit.ownSkippedDays);
+  const skip = skipState(cadence, logs.map(l => l.createdAt), user, new Date(), habit.skippedDays);
   // From its entries over the last year (see getHabitLogs), everyone's for a shared habit
   const habitConsistency = consistency(cadence, logs.map(l => l.createdAt), user, { createdAt: habit.createdAt, skippedDays: habit.skippedDays });
 
@@ -138,6 +137,7 @@ export default async function HabitPage(props: { params: Promise<{ id: string }>
                 weeks={weeks}
                 cadence={cadence}
                 skippedDays={habit.skippedDays}
+                vacations={user.vacations}
                 mobileMonthsPerColumn={mobileMonthsPerColumn}
                 desktopMonthsPerColumn={desktopMonthsPerColumn}
                 bedtime={user.bedtime}

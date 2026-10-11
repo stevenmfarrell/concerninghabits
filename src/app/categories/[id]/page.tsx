@@ -55,14 +55,13 @@ export default async function CategoryLogPage(props: { params: Promise<{ id: str
   const isTopLevel = category.parentId === null;
   const cadence = parseCadence(category.cadence, NO_CADENCE);
   const skippedDays = skippedDaysOf(category);
-  // Shaded by the category's cadence when it has one, with its skips, otherwise by how many of its
-  // habits were logged
-  const calendarShading = cadence.type === 'none' ? { density: Math.max(habitCount, 1) } : { cadence, skippedDays };
+  // Shaded by the category's cadence when it has one, with its skips and the viewer's vacations,
+  // otherwise by how many of its habits were logged
+  const calendarShading = cadence.type === 'none' ? { density: Math.max(habitCount, 1) } : { cadence, skippedDays, vacations: user.vacations };
   // Skipping it (its own cadence), or undoing that, under its cadence while it's due, as a habit's
   // page has (see SkipButton)
   const categoryDates = [...category.habits, ...(isTopLevel ? category.children.flatMap(c => c.habits) : [])].flatMap(h => entryDates(h, latestLogDates));
-  // Only its own skips, which the pill can undo, not the viewer's vacation days
-  const skip = category.id === UNCATEGORIZED_ID ? null : skipState(cadence, categoryDates, user, new Date(), skippedDaysOf(category, true));
+  const skip = category.id === UNCATEGORIZED_ID ? null : skipState(cadence, categoryDates, user, new Date(), skippedDays);
   const categoryConsistency = 'createdAt' in category ? consistency(cadence, categoryDates, user, { createdAt: category.createdAt, skippedDays }) : null;
   const calendarProps = { dates, weeks, ...calendarShading, since: 'createdAt' in category ? category.createdAt : undefined, size: 'md' as const, bedtime: user.bedtime, weekStartsOn: user.weekStartsOn, timeZone: user.timeZone, color: 'blue' as const };
 

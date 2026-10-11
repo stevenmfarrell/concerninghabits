@@ -5,7 +5,8 @@ import Icon from './Icon';
 import RowStatus from './RowStatus';
 import ActivityCalendar from './ActivityCalendar';
 import CadenceLabel from './CadenceLabel';
-import type { Cadence, SkipDay } from '@/lib/cadence';
+import type { Cadence } from '@/lib/cadence';
+import type { VacationRange } from '@/lib/vacation';
 import type { RowStatus as Status } from '@/lib/dueList';
 
 export interface CategoryRowProps {
@@ -22,8 +23,9 @@ export interface CategoryRowProps {
   habitCount: number;
   // The category's own cadence, or none
   cadence: Cadence;
-  // The days it was skipped, as civil day keys, marked on its calendar
-  skippedDays?: SkipDay[];
+  // The days it was skipped, as civil day keys, marked on its calendar with the viewer's vacations
+  skippedDays?: string[];
+  vacations?: readonly VacationRange[];
   // What the Agenda page shows beside its calendar: how far off it's due (see RowStatus)
   status?: Status;
   // A button at the row's start in place of its icon's tile, beside its link rather than in it, e.g.
@@ -44,7 +46,7 @@ export interface CategoryRowProps {
 
 // A category as a row in a list, linking to its page: its name and a line about it, and a
 // calendar of its recent entries (shaded by its cadence, or by how many of its habits were logged)
-export default function CategoryRow({ href, name, icon, subtitle, showCadence, dates, habitCount, cadence, skippedDays, status, leading, alignWithHabitRows, action, bedtime, weekStartsOn, timeZone }: CategoryRowProps) {
+export default function CategoryRow({ href, name, icon, subtitle, showCadence, dates, habitCount, cadence, skippedDays, vacations, status, leading, alignWithHabitRows, action, bedtime, weekStartsOn, timeZone }: CategoryRowProps) {
   const padding = 'pane-inset py-3';
   const buttons = action || leading;
   return (
@@ -78,7 +80,7 @@ export default function CategoryRow({ href, name, icon, subtitle, showCadence, d
               dates={dates}
               weeks={4}
               size="xs"
-              {...(cadence.type === 'none' ? { density: habitCount } : { cadence, skippedDays })}
+              {...(cadence.type === 'none' ? { density: habitCount } : { cadence, skippedDays, vacations })}
               bedtime={bedtime}
               weekStartsOn={weekStartsOn}
               timeZone={timeZone}

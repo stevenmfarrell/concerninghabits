@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { civilDayKey, parseBedtimeOffsetMinutes, parseCivilDayKey, toCivilDate } from './timezone';
+import type { VacationRange } from './vacation';
 
 // A habit's cadence: how often it's meant to be done. Stored as JSON in Habit.cadence. To add a
 // cadence, add it to this union and give it a rule in RULES below;
@@ -49,10 +50,12 @@ export interface CadenceContext {
   weekStartsOn: string;
 }
 
-// What the status functions below need to know about the user to place entries on their days
+// What the status functions below need to know about the user to place entries on their days, and
+// the user's vacations, on whose days everything of theirs counts as skipped (see excuses)
 export interface CadenceUser extends CadenceContext {
   timeZone: string;
   bedtime: string;
+  vacations?: readonly VacationRange[];
 }
 
 export type ProgressPeriod = 'daily' | 'weekly' | 'monthly';
@@ -349,40 +352,49 @@ const daysBetween = (from: Date, to: Date) => Math.round((to.getTime() - from.ge
 // and a day it excuses is done, or for an every-N-days habit, upcoming: its skip puts it off.
 export type CadenceStatus = { state: 'due' } | { state: 'upcoming'; dueInDays: number } | { state: 'done' };
 
-// Today as a civil date, the days each entry that counts toward today covers, and the days each
-// skip that excuses today covers. A cadence that's never done can't be skipped.
-function countingToday(cadence: Cadence, logDates: Date[], user: CadenceUser, now: Date, skippedDays: readonly SkipDay[]) {
+// Today as a civil date, the days each entry that counts toward today covers, and what excuses
+// today (see excuses). A cadence that's never done can't be skipped.
+function countingToday(cadence: Cadence, logDates: Date[], user: CadenceUser, now: Date, skippedDays: readonly string[]) {
   const offset = parseBedtimeOffsetMinutes(user.bedtime);
   const today = toCivilDate(now, user.timeZone, offset);
   const coversToday = ({ from, to }: DayRange) => from <= today && today <= to;
   const counting = logDates
     .map(date => cadenceCovers(cadence, toCivilDate(date, user.timeZone, offset), user))
     .filter(coversToday);
-  const excusing = skipRanges(cadence, skippedDays, user).filter(({ range }) => coversToday(range));
+  const excusing = excuses(cadence, skippedDays, user, today).filter(({ range }) => coversToday(range));
   return { today, counting, excusing };
 }
 
-// A day a habit or category was skipped: a civil day key for a skip made on it, or one of the user's
-// vacation days (see Vacation), which excuses what a skip that day would, except that it never puts
-// anything off past itself (see skipRanges)
-export type SkipDay = string | { day: string; vacation: true };
+// Something excusing a cadence, and the days it covers: a skip, made on `skippedDay` (a civil day
+// key, which undoes it), or one of the user's vacations (`skippedDay` null)
+interface Excuse {
+  range: DayRange;
+  skippedDay: string | null;
+}
 
-export const skipDayKey = (skip: SkipDay) => (typeof skip === 'string' ? skip : skip.day);
-
-// The days each skip covers (see skips), with the day it was made on. A vacation day only covers
-// itself where a skip would postpone (every N days), so once the vacation's over, it's due the day
-// after: the vacation excuses its own days, not a grace period after them.
-function skipRanges(cadence: Cadence, skippedDays: readonly SkipDay[], user: CadenceContext) {
+// What excuses a cadence up to civil day `through` (a skip or vacation day only counts once it's
+// come): each skip, covering what an entry that day would, or less if skipCovers says so (see skips);
+// and each of the user's vacations, covering what a skip on each of its days would, except that it
+// never puts anything off past itself (every N days), so once it's over, that's due the day after:
+// a vacation excuses its own days, not a grace period after them.
+function excuses(cadence: Cadence, skippedDays: readonly string[], user: CadenceUser, through: Date): Excuse[] {
   const rule = ruleFor(cadence);
   if (!rule.skips(cadence)) return [];
-  return skippedDays.flatMap(skip => {
-    const key = skipDayKey(skip);
-    const day = parseCivilDayKey(key);
-    if (!day) return [];
-    const vacation = typeof skip !== 'string';
-    const range = rule.skipCovers ? (vacation ? justThatDay(day) : rule.skipCovers(cadence, day)) : cadenceCovers(cadence, day, user);
-    return [{ key, range }];
+  const throughKey = civilDayKey(through);
+  const skips = skippedDays.flatMap(key => {
+    const day = key <= throughKey ? parseCivilDayKey(key) : null;
+    return day ? [{ skippedDay: key, range: rule.skipCovers?.(cadence, day) ?? cadenceCovers(cadence, day, user) }] : [];
   });
+  const vacations = (user.vacations ?? []).flatMap(({ from, to }) => {
+    const first = parseCivilDayKey(from);
+    const last = to === null || to > throughKey ? through : parseCivilDayKey(to);
+    if (!first || !last || first > last) return [];
+    // The days a skip on each of its days would cover run on from one to the next, so together
+    // they're those from its first day's to its last's
+    const range = rule.skipCovers ? { from: first, to: last } : { from: cadenceCovers(cadence, first, user).from, to: cadenceCovers(cadence, last, user).to };
+    return [{ skippedDay: null, range }];
+  });
+  return [...skips, ...vacations];
 }
 
 // Days from civil day `today` to the next one the cadence is meant to be done on (0 for today), for
@@ -399,7 +411,7 @@ function daysToNextScheduled(cadence: Cadence, today: Date) {
 // How far along a habit is toward being done for now, e.g. 3 of 4 times today, for a cadence that
 // takes more than one entry; null for one that takes a single entry (or never gets done). A skip
 // fills it.
-export function cadenceProgress(cadence: Cadence, logDates: Date[], user: CadenceUser, now = new Date(), skippedDays: readonly SkipDay[] = []): CadenceProgress | null {
+export function cadenceProgress(cadence: Cadence, logDates: Date[], user: CadenceUser, now = new Date(), skippedDays: readonly string[] = []): CadenceProgress | null {
   const { period } = ruleFor(cadence);
   const needed = entriesNeeded(cadence);
   if (!period || needed <= 1) return null;
@@ -416,7 +428,7 @@ export interface LimitStatus {
   excused: boolean;
 }
 
-export function limitStatus(cadence: Cadence, logDates: Date[], user: CadenceUser, now = new Date(), skippedDays: readonly SkipDay[] = []): LimitStatus | null {
+export function limitStatus(cadence: Cadence, logDates: Date[], user: CadenceUser, now = new Date(), skippedDays: readonly string[] = []): LimitStatus | null {
   if (cadence.type !== 'limit') return null;
   const { counting, excusing } = countingToday(cadence, logDates, user, now, skippedDays);
   return { used: counting.length, max: cadence.max, period: LIMIT_PERIODS[cadence.period].progress, excused: excusing.length > 0 };
@@ -433,17 +445,18 @@ function daysToPeriodEnd(cadence: Cadence, today: Date, context: CadenceContext)
 // or month (see dueByPeriodEnd) and not done yet, until that period's last day; for one done only on
 // some days and not done for now, until the next of them (0 on one). Null for other cadences, before
 // a countdown's first entry, or once a week or month is done.
-export function daysUntilDue(cadence: Cadence, logDates: Date[], user: CadenceUser, now = new Date(), skippedDays: readonly SkipDay[] = []): number | null {
+export function daysUntilDue(cadence: Cadence, logDates: Date[], user: CadenceUser, now = new Date(), skippedDays: readonly string[] = []): number | null {
   const rule = ruleFor(cadence);
   if (rule.dueByPeriodEnd || rule.scheduled) {
     const { today, counting, excusing } = countingToday(cadence, logDates, user, now, skippedDays);
     if (excusing.length > 0 || counting.length >= entriesNeeded(cadence)) return null;
     return rule.dueByPeriodEnd ? daysToPeriodEnd(cadence, today, user) : daysToNextScheduled(cadence, today);
   }
-  const skips = skipRanges(cadence, skippedDays, user);
-  if (!rule.countsDown || logDates.length + skips.length === 0) return null;
+  if (!rule.countsDown) return null;
   const offset = parseBedtimeOffsetMinutes(user.bedtime);
   const today = toCivilDate(now, user.timeZone, offset);
+  const skips = excuses(cadence, skippedDays, user, today);
+  if (logDates.length + skips.length === 0) return null;
   // Due the day after the last day the latest entry (or skip) counts for
   const lastCovered = Math.max(
     ...logDates.map(date => cadenceCovers(cadence, toCivilDate(date, user.timeZone, offset), user).to.getTime()),
@@ -452,7 +465,7 @@ export function daysUntilDue(cadence: Cadence, logDates: Date[], user: CadenceUs
   return Math.round((lastCovered - today.getTime()) / DAY_MS) + 1;
 }
 
-export function cadenceStatus(cadence: Cadence, logDates: Date[], user: CadenceUser, now = new Date(), skippedDays: readonly SkipDay[] = []): CadenceStatus {
+export function cadenceStatus(cadence: Cadence, logDates: Date[], user: CadenceUser, now = new Date(), skippedDays: readonly string[] = []): CadenceStatus {
   // A limit has nothing to do, so it's never due: how it's going is limitStatus
   if (limitOf(cadence) !== null) return { state: 'done' };
   const { today, counting, excusing } = countingToday(cadence, logDates, user, now, skippedDays);
@@ -479,7 +492,7 @@ export function cadenceStatus(cadence: Cadence, logDates: Date[], user: CadenceU
 // of its calendar week or month (see dueByPeriodEnd) isn't due until the period's last day, however
 // many entries it still needs (they can all be logged on one day). Until then it's upcoming,
 // `dueInDays` before it's due.
-export function agendaStatus(cadence: Cadence, logDates: Date[], user: CadenceUser, now = new Date(), skippedDays: readonly SkipDay[] = []): CadenceStatus {
+export function agendaStatus(cadence: Cadence, logDates: Date[], user: CadenceUser, now = new Date(), skippedDays: readonly string[] = []): CadenceStatus {
   const status = cadenceStatus(cadence, logDates, user, now, skippedDays);
   if (status.state !== 'due' || !ruleFor(cadence).dueByPeriodEnd) return status;
 
@@ -489,17 +502,18 @@ export function agendaStatus(cadence: Cadence, logDates: Date[], user: CadenceUs
 }
 
 // Whether it was due on the Agenda at the start of today, before any of today's entries or skips
-export function dueAtStartOfDay(cadence: Cadence, logDates: Date[], user: CadenceUser, now = new Date(), skippedDays: readonly SkipDay[] = []) {
+export function dueAtStartOfDay(cadence: Cadence, logDates: Date[], user: CadenceUser, now = new Date(), skippedDays: readonly string[] = []) {
   const offset = parseBedtimeOffsetMinutes(user.bedtime);
   const today = toCivilDate(now, user.timeZone, offset);
   const beforeToday = logDates.filter(date => toCivilDate(date, user.timeZone, offset) < today);
   const todayKey = civilDayKey(today);
-  return agendaStatus(cadence, beforeToday, user, now, skippedDays.filter(skip => skipDayKey(skip) < todayKey)).state === 'due';
+  const vacations = user.vacations?.filter(v => v.from < todayKey).map(v => ({ from: v.from, to: v.to === null || v.to >= todayKey ? civilDayKey(addDays(today, -1)) : v.to }));
+  return agendaStatus(cadence, beforeToday, { ...user, vacations }, now, skippedDays.filter(day => day < todayKey)).state === 'due';
 }
 
 // Whether a habit is done for now (upcoming counts as done, and so does a day it isn't meant to be
 // done, or one it was skipped)
-export function isHabitComplete(cadence: Cadence, logDates: Date[], user: CadenceUser, now = new Date(), skippedDays: readonly SkipDay[] = []) {
+export function isHabitComplete(cadence: Cadence, logDates: Date[], user: CadenceUser, now = new Date(), skippedDays: readonly string[] = []) {
   return cadenceStatus(cadence, logDates, user, now, skippedDays).state !== 'due';
 }
 
@@ -521,16 +535,24 @@ export function skipLabels(cadence: Cadence): { skip: string; skipped: string; p
 // rather than done (see cadenceStatus)
 export const postpones = (cadence: Cadence) => countsDown(cadence);
 
-export function skipState(cadence: Cadence, logDates: Date[], user: CadenceUser, now = new Date(), skippedDays: readonly SkipDay[] = []): SkipState | null {
+export function skipState(cadence: Cadence, logDates: Date[], user: CadenceUser, now = new Date(), skippedDays: readonly string[] = []): SkipState | null {
   const labels = skipLabels(cadence);
   if (!labels) return null;
-  const { today, counting, excusing } = countingToday(cadence, logDates, user, now, skippedDays);
-  if (excusing.length > 0) return { label: labels.skipped, skippedDay: excusing[excusing.length - 1].key };
+  // Only its own skips, which can be undone: a vacation isn't one
+  const { today, counting, excusing } = countingToday(cadence, logDates, { ...user, vacations: [] }, now, skippedDays);
+  if (excusing.length > 0) return { label: labels.skipped, skippedDay: excusing[excusing.length - 1].skippedDay };
   if (counting.length >= entriesNeeded(cadence) || daysToNextScheduled(cadence, today)) return null;
   return { label: labels.skip, skippedDay: null };
 }
 
-// The days each skip covers (see skipState), for an activity calendar to mark them
-export function skippedCovers(cadence: Cadence, skippedDays: readonly SkipDay[], context: CadenceContext): DayRange[] {
-  return skipRanges(cadence, skippedDays, context).map(({ range }) => range);
+// The days each skip and vacation covers up to today (see excuses), for an activity calendar to mark
+// them
+export function skippedCovers(cadence: Cadence, skippedDays: readonly string[], user: CadenceUser, now = new Date()): DayRange[] {
+  const today = toCivilDate(now, user.timeZone, parseBedtimeOffsetMinutes(user.bedtime));
+  return excuses(cadence, skippedDays, user, today).map(({ range }) => range);
+}
+
+// Whether one of the user's vacations excuses it today
+export function onVacation(cadence: Cadence, user: CadenceUser, now = new Date()) {
+  return countingToday(cadence, [], user, now, []).excusing.length > 0;
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { postpones, skipLabels, toggleWeekday, weekdaysInOrder, agendaStatus, cadenceFromSuggestion, cadenceProgress, cadenceSchema, cadenceStatus, daysUntilDue, describeCadence, dueAtStartOfDay, isHabitComplete, limitOf, limitStatus, parseCadence, skippedCovers, skipState, startOfWeek, upcomingDays, withTimes, type Cadence } from '@/lib/cadence';
+import { postpones, skipLabels, toggleWeekday, weekdaysInOrder, agendaStatus, cadenceFromSuggestion, cadenceProgress, cadenceSchema, cadenceStatus, daysUntilDue, describeCadence, dueAtStartOfDay, isHabitComplete, limitOf, limitStatus, parseCadence, onVacation, skippedCovers, skipState, startOfWeek, upcomingDays, withTimes, type Cadence } from '@/lib/cadence';
 import { civilDayKey, parseCivilDayKey } from '@/lib/timezone';
 
 const user = { timeZone: 'UTC', bedtime: '00:00', weekStartsOn: 'sunday' };
@@ -472,41 +472,55 @@ describe('limits', () => {
   });
 });
 
-describe('vacation days', () => {
+describe('vacations', () => {
   const every10: Cadence = { type: 'everyNDays', days: 10 };
-  const vacation = (from: number, to: number) => Array.from({ length: to - from + 1 }, (_, i) => ({ day: `2026-10-${String(from + i).padStart(2, '0')}`, vacation: true as const }));
+  const away = (from: number, to: number | null) => ({ ...user, vacations: [{ from: `2026-10-${String(from).padStart(2, '0')}`, to: to === null ? null : `2026-10-${String(to).padStart(2, '0')}` }] });
   const on = (day: number) => new Date(Date.UTC(2026, 9, day, 12));
-  const upTo = (skips: { day: string; vacation: true }[], day: number) => skips.filter(s => s.day <= `2026-10-${String(day).padStart(2, '0')}`);
 
   it('make an every-N-days habit due the day after the vacation, with no grace period after it', () => {
     // Logged Oct 1, so due Oct 11, in the middle of a vacation from the 9th to the 13th
-    const away = vacation(9, 13);
-    expect(agendaStatus(every10, [on(1)], user, on(12), upTo(away, 12))).toEqual({ state: 'upcoming', dueInDays: 1 });
-    expect(agendaStatus(every10, [on(1)], user, on(13), upTo(away, 13))).toEqual({ state: 'upcoming', dueInDays: 1 });
-    expect(agendaStatus(every10, [on(1)], user, on(14), upTo(away, 14)).state).toBe('due');
-    expect(daysUntilDue(every10, [on(1)], user, on(14), upTo(away, 14))).toBe(0);
+    expect(agendaStatus(every10, [on(1)], away(9, 13), on(12))).toEqual({ state: 'upcoming', dueInDays: 1 });
+    expect(agendaStatus(every10, [on(1)], away(9, 13), on(13))).toEqual({ state: 'upcoming', dueInDays: 1 });
+    expect(agendaStatus(every10, [on(1)], away(9, 13), on(14)).state).toBe('due');
+    expect(daysUntilDue(every10, [on(1)], away(9, 13), on(14))).toBe(0);
+  });
+
+  it('only count the days that have come, for one still going or with no end set', () => {
+    expect(daysUntilDue(every10, [on(1)], away(9, 20), on(12))).toBe(1);
+    expect(daysUntilDue(every10, [on(1)], away(9, null), on(12))).toBe(1);
+    expect(agendaStatus(every10, [on(1)], away(15, 20), on(12)).state).toBe('due');
   });
 
   it('leave it to be postponed as usual once it\'s due after the vacation', () => {
-    const away = vacation(9, 13);
     // The day after: due, and postponing it puts it off a fifth of its days from then
-    expect(skipState(every10, [on(1)], user, on(14), upTo(away, 14))).toEqual({ label: 'Postpone 2 days', skippedDay: null });
-    const postponed = [...upTo(away, 14), '2026-10-14'];
-    expect(agendaStatus(every10, [on(1)], user, on(14), postponed)).toEqual({ state: 'upcoming', dueInDays: 2 });
+    expect(skipState(every10, [on(1)], away(9, 13), on(14))).toEqual({ label: 'Postpone 2 days', skippedDay: null });
+    expect(agendaStatus(every10, [on(1)], away(9, 13), on(14), ['2026-10-14'])).toEqual({ state: 'upcoming', dueInDays: 2 });
   });
 
   it('don\'t move it when it\'s due after the vacation anyway', () => {
-    expect(daysUntilDue(every10, [on(1)], user, on(6), vacation(3, 5))).toBe(5);
+    expect(daysUntilDue(every10, [on(1)], away(3, 5), on(6))).toBe(5);
   });
 
   it('still leave a skip of its own postponing it by a fifth of its days', () => {
     expect(agendaStatus(every10, [on(1)], user, on(11), ['2026-10-11'])).toEqual({ state: 'upcoming', dueInDays: 2 });
   });
 
-  it('excuse other cadences as a skip that day would', () => {
+  it('excuse other cadences as a skip on each of their days would', () => {
     const weekly: Cadence = { type: 'calendarWeek' };
-    expect(agendaStatus(weekly, [], user, now, [{ day: '2026-09-28', vacation: true }]).state).toBe('done');
-    expect(skippedCovers(weekly, [{ day: '2026-09-28', vacation: true }], user)).toEqual(skippedCovers(weekly, ['2026-09-28'], user));
+    const onMonday = { ...user, vacations: [{ from: '2026-09-28', to: '2026-09-28' }] };
+    expect(agendaStatus(weekly, [], onMonday, now).state).toBe('done');
+    expect(skippedCovers(weekly, [], onMonday, now)).toEqual(skippedCovers(weekly, ['2026-09-28'], user, now));
+    // Across a week's end: both weeks it touches
+    const daily: Cadence = { type: 'daily', timesPerDay: 1 };
+    const span = { ...user, vacations: [{ from: '2026-09-25', to: '2026-09-29' }] };
+    expect(skippedCovers(weekly, [], span, now).map(({ from, to }) => [civilDayKey(from), civilDayKey(to)])).toEqual([['2026-09-20', '2026-10-03']]);
+    expect(skippedCovers(daily, [], span, now).map(({ from, to }) => [civilDayKey(from), civilDayKey(to)])).toEqual([['2026-09-25', '2026-09-29']]);
+  });
+
+  it('aren\'t a skip that can be undone', () => {
+    expect(skipState({ type: 'daily', timesPerDay: 1 }, [], away(3, 3), on(3))).toEqual({ label: 'Skip today', skippedDay: null });
+    expect(onVacation({ type: 'daily', timesPerDay: 1 }, away(3, 3), on(3))).toBe(true);
+    expect(onVacation({ type: 'daily', timesPerDay: 1 }, away(3, 3), on(4))).toBe(false);
   });
 });
 

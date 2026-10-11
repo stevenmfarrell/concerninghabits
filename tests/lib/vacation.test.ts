@@ -1,27 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { currentVacation, describeVacation, endVacation, vacationDays, vacationProblem } from '@/lib/vacation';
+import { currentVacation, describeVacation, endVacation, vacationProblem } from '@/lib/vacation';
 
 const today = '2026-10-10';
-
-describe('vacationDays', () => {
-  it('lists each day of a vacation up to today, both ends included', () => {
-    expect(vacationDays([{ from: '2026-10-08', to: '2026-10-09' }], today)).toEqual(['2026-10-08', '2026-10-09']);
-    expect(vacationDays([{ from: '2026-10-09', to: '2026-10-20' }], today)).toEqual(['2026-10-09', '2026-10-10']);
-    expect(vacationDays([{ from: '2026-10-09', to: null }], today)).toEqual(['2026-10-09', '2026-10-10']);
-  });
-
-  it('leaves out one that hasn\'t started, and doesn\'t repeat days', () => {
-    expect(vacationDays([{ from: '2026-10-11', to: '2026-10-12' }], today)).toEqual([]);
-    expect(vacationDays([{ from: '2026-10-09', to: '2026-10-10' }, { from: '2026-10-10', to: null }], today)).toEqual(['2026-10-09', '2026-10-10']);
-  });
-
-  it('crosses months and only goes back as far as anything counts', () => {
-    expect(vacationDays([{ from: '2026-09-29', to: '2026-10-02' }], today)).toEqual(['2026-09-29', '2026-09-30', '2026-10-01', '2026-10-02']);
-    const longAgo = vacationDays([{ from: '2020-01-01', to: null }], today);
-    expect(longAgo.length).toBe(401);
-    expect(longAgo.at(-1)).toBe(today);
-  });
-});
 
 describe('currentVacation', () => {
   it('finds the one going on, then the next one coming up', () => {
