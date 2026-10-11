@@ -1,5 +1,7 @@
 import { getCategory, getDefaultUser, getLatestLogDates, getPeople } from '../../actions/db';
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { Plus } from 'lucide-react';
 import { cookies } from 'next/headers';
 import Icon from '../../../components/Icon';
 import ActivityCalendar from '../../../components/ActivityCalendar';
@@ -74,6 +76,9 @@ export default async function CategoryLogPage(props: { params: Promise<{ id: str
     statuses[child.id] = listRowStatus(parseCadence(child.cadence, NO_CADENCE), child.habits.flatMap(h => entryDates(h, latestLogDates)), user, { habit: false, skippedDays: skippedDaysOf(child), createdAt: child.createdAt });
   }
 
+  // Where New Habit goes: the new habit starts in this category, or in none for Uncategorized
+  const newHabitHref = category.id === UNCATEGORIZED_ID ? '/create' : `/create?category=${category.id}`;
+
   // Direct habits and subcategories share one order sequence. On ties, habits come first.
   const items = [
     ...category.habits.map(h => ({ type: 'habit' as const, id: h.id, order: h.order ?? 0, data: h })),
@@ -122,9 +127,16 @@ export default async function CategoryLogPage(props: { params: Promise<{ id: str
       {items.length > 0 ? (
         <PaneSection title="Habits">
           <SortableCategoryItemList items={items} statuses={statuses} user={user} people={people} isReordering={isReordering} />
+          {/* The list's last row, as adding to a list is elsewhere; not while reordering, since it isn't one of them */}
+          {!isReordering && (
+            <Link href={newHabitHref} className="flex items-center gap-2 pane-inset py-3 text-sm font-medium text-accent-ink-strong hover:bg-surface-subtle transition-colors">
+              <Plus className="w-4 h-4" />
+              New Habit
+            </Link>
+          )}
         </PaneSection>
       ) : (
-        <EmptyState title="No habits in this category yet" action={<LinkButton href={category.id === UNCATEGORIZED_ID ? '/create' : `/create?category=${category.id}`} variant="outline">New Habit</LinkButton>}>
+        <EmptyState title="No habits in this category yet" action={<LinkButton href={newHabitHref} variant="outline">New Habit</LinkButton>}>
           Add one here, or move an existing habit into this category from its page.
         </EmptyState>
       )}

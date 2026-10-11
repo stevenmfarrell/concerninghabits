@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   dayMinute, describeReminder, formatDayMinute, GROUP_WAIT, learnUsualTime, MAX_PER_DAY, MAX_SPREAD, nudgeTime, pickNudge,
-  reminderMessage, shouldMute, usualTimeSamples, type Candidate,
+  reminderMessage, reminderStatusFor, shouldMute, usualTimeSamples, type Candidate, type ReminderStatus,
 } from '@/lib/reminders';
 
 const user = { timeZone: 'America/Denver', bedtime: '01:00' };
@@ -162,5 +162,29 @@ describe('describeReminder', () => {
 
   it('says when it\'s paused', () => {
     expect(describeReminder({ enabled: true, remindAt: null, muted: true, learned, progress: null }, '01:00')).toMatch(/^Paused/);
+  });
+});
+
+describe('reminderStatusFor', () => {
+  const base: ReminderStatus = { enabled: true, remindAt: null, muted: false, learned: { kind: 'tooFew', samples: 0, latest: null }, progress: null };
+
+  it('gives a habit switched to several times a day its progress, so it reads entry by entry', () => {
+    const status = reminderStatusFor(base, { type: 'daily', timesPerDay: 3 });
+    expect(status.progress).toEqual({ done: 0, needed: 3 });
+    expect(describeReminder(status, '00:00')).toContain("If you aren't at 3 by");
+  });
+
+  it('keeps today\'s entries so far, short of done', () => {
+    const atTwo = { ...base, progress: { done: 2, needed: 5 } };
+    expect(reminderStatusFor(atTwo, { type: 'daily', timesPerDay: 3 }).progress).toEqual({ done: 2, needed: 3 });
+    expect(reminderStatusFor(atTwo, { type: 'daily', timesPerDay: 2 }).progress).toEqual({ done: 1, needed: 2 });
+  });
+
+  it('drops the progress for once a day or any other cadence, and leaves an unchanged status as it is', () => {
+    const multi = { ...base, progress: { done: 1, needed: 3 } };
+    expect(reminderStatusFor(multi, { type: 'daily', timesPerDay: 1 }).progress).toBeNull();
+    expect(reminderStatusFor(multi, { type: 'calendarWeek', times: 3 }).progress).toBeNull();
+    expect(reminderStatusFor(multi, { type: 'daily', timesPerDay: 3 })).toBe(multi);
+    expect(describeReminder(reminderStatusFor(multi, { type: 'daily', timesPerDay: 1 }), '00:00')).toContain("If it isn't logged by");
   });
 });

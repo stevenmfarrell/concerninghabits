@@ -84,6 +84,13 @@ export async function getHabitReminder(habitId: string) {
   return status && { status, hasDevice: devices > 0 };
 }
 
+// Whether any of the current user's devices get reminders, for a new habit's reminder settings
+// (an existing habit's come with getHabitReminder)
+export async function hasReminderDevice() {
+  const user = await getDefaultUser();
+  return (await prisma.pushSubscription.count({ where: { userId: user.id } })) > 0;
+}
+
 // Every habit the current user has a reminder on for, with how each is doing, for Settings
 export async function getReminderOverview() {
   const user = await getDefaultUser();

@@ -7,6 +7,6 @@ import RefineLoading from './RefineLoading';
 // entirely: rendering it there would always differ from the browser's first render (a hydration mismatch).
 const RefineClient = dynamic(() => import('./RefineClient'), { ssr: false, loading: () => <RefineLoading /> });
 
-export default function RefineLoader({ weekStartsOn }: { weekStartsOn: string }) {
-  return <RefineClient weekStartsOn={weekStartsOn} />;
+export default function RefineLoader(props: { weekStartsOn: string; bedtime: string; hasDevice: boolean }) {
+  return <RefineClient {...props} />;
 }

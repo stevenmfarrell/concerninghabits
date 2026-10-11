@@ -1,4 +1,5 @@
 import { civilDayKey, parseBedtimeOffsetMinutes, toCivilDate } from './timezone';
+import type { Cadence } from './cadence';
 
 // Habit reminders: a nudge when you're running late on a habit, judged against when you usually log
 // it, rather than at a fixed time of day. A habit you always do at bedtime isn't late at 9pm.
@@ -223,6 +224,22 @@ export interface ReminderStatus {
   // Learned for the habit's next entry today (see DayProgress)
   learned: LearnedTime;
   progress: DayProgress | null;
+}
+
+// A reminder's status for a cadence being chosen (in the cadence dialog), so what it says follows
+// it: one done several times a day is judged entry by entry (see DayProgress), with today's entries
+// so far kept, short of done. Anything else has no progress.
+export function reminderStatusFor(status: ReminderStatus, cadence: Cadence): ReminderStatus {
+  if (cadence.type !== 'daily' || cadence.timesPerDay <= 1) return status.progress ? { ...status, progress: null } : status;
+  const needed = cadence.timesPerDay;
+  const done = Math.min(status.progress?.done ?? 0, needed - 1);
+  return status.progress?.needed === needed && status.progress.done === done ? status : { ...status, progress: { done, needed } };
+}
+
+// A habit's reminder before it exists (the New Habit page): off, with nothing learned yet, and for
+// one done several times a day, none of today's entries done
+export function newHabitReminderStatus(cadence: Cadence): ReminderStatus {
+  return reminderStatusFor({ enabled: false, remindAt: null, muted: false, learned: { kind: 'tooFew', samples: 0, latest: null }, progress: null }, cadence);
 }
 
 // Whether a reminder will actually be sent: on, and not paused for going unanswered

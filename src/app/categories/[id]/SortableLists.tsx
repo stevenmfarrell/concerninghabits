@@ -279,12 +279,14 @@ const SortableHabitItem = ({ habit, status, health, user, people, isOverlay, isR
           </div>
         </Link>
         {/* Logs in place, the same as the Log Habit button on the habit's page. Left out when there's
-            none, so it leaves no gap at the row's end and the calendar lines up with category rows' */}
-        {(logButton || (!isReordering && !isOverlay && !holdToLog)) && (
+            none, so it leaves no gap at the row's end and the calendar lines up with category rows'.
+            HoldToLog's button is placed as it is, unwrapped, so while it's hidden (on a touch
+            screen) it leaves no gap either. */}
+        {logButton ?? (!isReordering && !isOverlay && !holdToLog && (
           <span className="relative z-10 shrink-0 flex">
-            {logButton ?? <LogHabitButton habit={habit} />}
+            <LogHabitButton habit={habit} />
           </span>
-        )}
+        ))}
       </div>
     </div>
   );

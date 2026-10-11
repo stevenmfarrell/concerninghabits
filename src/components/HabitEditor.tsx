@@ -15,7 +15,7 @@ import HabitFormOverview, { CalculatedFieldsOverview, FormPreviewButton } from '
 import FieldEditorSheet from './FieldEditorSheet';
 import CalculatedFieldSheet from './CalculatedFieldSheet';
 import PersonLabel from './PersonLabel';
-import ReminderSettings, { reminderSummary, type ReminderDraft } from './reminders/ReminderSettings';
+import { reminderDraftOf, type ReminderDraft } from './reminders/ReminderSettings';
 import { Button } from './ui/Button';
 import { Toggle } from './ui/Toggle';
 import { PANE_INSET, PANE_SURFACE, PaneHeading, PaneSection } from './Pane';
@@ -40,7 +40,7 @@ export interface HabitDraft {
   aiContext: string;
   // Values worked out from each entry's fields (see calculatedFields.ts)
   calculatedFields: CalculatedField[];
-  // The viewer's own reminder for it, once it exists (not when creating one)
+  // The viewer's own reminder for it (when creating one, set once it's saved)
   reminder?: ReminderDraft;
 }
 
@@ -95,6 +95,13 @@ function comparable(draft: HabitDraft) {
     aiContext: draft.aiContext.trim(),
     schema: { ...draft.schema, title: draft.title.trim(), enableVoice: voiceOn(draft.schema), enablePhoto: photoOn(draft.schema) },
   });
+}
+
+// The saved reminder as the draft has it, for the cadence pill and its dialog: as saved (paused, if
+// it is) until the draft changes it
+function reminderStatusOf(saved: ReminderStatus, draft: ReminderDraft): ReminderStatus {
+  if (JSON.stringify(draft) === JSON.stringify(reminderDraftOf(saved))) return saved;
+  return { ...saved, enabled: draft.enabled, remindAt: draft.remindAt, muted: false };
 }
 
 // The habit editor, for creating, editing, and a shared habit's own settings, as sections of a pane
@@ -247,6 +254,12 @@ export default function HabitEditor({ mode, initial, owner, onSave, remove, save
           onSave={isOwner ? async next => setCadence(next) : undefined}
           lockedTitle="Set by the habit's owner"
           saveLabel="Done"
+          reminder={reminder && reminderContext ? {
+            status: reminderStatusOf(reminderContext.status, reminder),
+            bedtime: reminderContext.bedtime,
+            hasDevice: reminderContext.hasDevice,
+            onSave: async next => setReminder(next),
+          } : undefined}
         />
       </div>
 
@@ -364,20 +377,6 @@ export default function HabitEditor({ mode, initial, owner, onSave, remove, save
             <AiContextField value={aiContext} onChange={setAiContext} disabled={busy} />
           </div>
         </CollapsibleSection>
-
-        {/* Only a habit with a cadence is ever due, so only one with a cadence can run late */}
-        {reminder && reminderContext && cadence.type !== 'none' && (
-          <CollapsibleSection title="Reminder" summary={reminderSummary(reminderContext.status, reminder, reminderContext.bedtime)}>
-            <ReminderSettings
-              status={reminderContext.status}
-              draft={reminder}
-              onChange={setReminder}
-              bedtime={reminderContext.bedtime}
-              hasDevice={reminderContext.hasDevice}
-              disabled={busy}
-            />
-          </CollapsibleSection>
-        )}
 
         {isOwner && mqttConfigured && (
           <CollapsibleSection title="Integrations" summary={publishToMqtt ? 'Publishing entries to Home Assistant' : 'None on'}>

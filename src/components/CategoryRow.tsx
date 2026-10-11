@@ -33,7 +33,9 @@ export interface CategoryRowProps {
   // by leaving out its chevron, since those rows end at their calendars, and matching their spacing
   alignWithHabitRows?: boolean;
   // A button at the row's end, beside its link rather than in it, e.g. the button to pick a habit in
-  // it to log, shown only with a mouse (see pointerOnly); it takes the chevron's place there
+  // it to log, shown only with a mouse (see pointerOnly); it takes the chevron's place there. It's a
+  // flex item of the row as it is, with no wrapper, so a hidden one leaves no gap; it needs `relative
+  // z-10` to sit above the stretched link.
   action?: ReactNode;
   bedtime: string;
   weekStartsOn: string;
@@ -92,7 +94,7 @@ export default function CategoryRow({ href, name, icon, subtitle, showCadence, d
           </div>
         )}
       </Link>
-      {action && <div className="relative z-10 shrink-0 flex">{action}</div>}
+      {action}
     </div>
   );
 }

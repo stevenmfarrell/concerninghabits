@@ -32,7 +32,7 @@ export default function HoldToLog({ habit, ownButton = false, leave, swipe, chil
         hiddenButton={!ownButton}
         swipe={swipe}
       >
-        {children(ownButton ? null : <span className={POINTER_ONLY}><LogIconButton logger={logger} /></span>, logger)}
+        {children(ownButton ? null : <span className={`${POINTER_ONLY} relative z-10`}><LogIconButton logger={logger} /></span>, logger)}
       </RowGesture>
       {logger.sheetOpen && <LogEntrySheet logger={logger} />}
     </>

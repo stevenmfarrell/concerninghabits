@@ -57,7 +57,7 @@ export default function CategoryHoldToLog({ category, row, leavesWhenDone = fals
             {...row}
             leading={health ? <HealthMark consistency={status?.consistency} /> : undefined}
             action={
-              <span className={POINTER_ONLY}>
+              <span className={`${POINTER_ONLY} relative z-10`}>
                 <IconButton variant="category-soft" onClick={open} title={label} aria-label={label} className="w-16 h-10">
                   <QuillIconWavy className="w-5 h-5" strokeWidth={2.5} />
                 </IconButton>

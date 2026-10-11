@@ -6,7 +6,7 @@ import { CadencePicker, CadenceSettings } from './CadenceField';
 import QuickEditDialog from './QuickEditDialog';
 import ReminderSettings, { reminderDraftOf, type ReminderDraft } from './reminders/ReminderSettings';
 import { describeCadence, type Cadence } from '@/lib/cadence';
-import type { ReminderStatus } from '@/lib/reminders';
+import { reminderStatusFor, type ReminderStatus } from '@/lib/reminders';
 
 export const PILL = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-sm font-medium transition-colors';
 
@@ -126,7 +126,8 @@ function CadenceDialog({ initial, weekStartsOn, onSave, lockedTitle, saveLabel, 
       {showsReminder && (
         <div className="mt-6 pt-5 border-t border-line-subtle">
           <p className="text-sm font-semibold text-ink-secondary mb-2">Reminder</p>
-          <ReminderSettings status={reminder.status} draft={reminderDraft} onChange={setReminderDraft} bedtime={reminder.bedtime} hasDevice={reminder.hasDevice} inDialog />
+          {/* Described for the cadence being chosen, e.g. "3 of 5" once it's several times a day */}
+          <ReminderSettings status={reminderStatusFor(reminder.status, cadence)} draft={reminderDraft} onChange={setReminderDraft} bedtime={reminder.bedtime} hasDevice={reminder.hasDevice} inDialog />
         </div>
       )}
     </QuickEditDialog>

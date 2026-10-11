@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { saveHabit } from '../../actions/db';
+import { setHabitReminder } from '../../actions/reminders';
 import HabitEditor, { type HabitDraft as EditorDraft } from '../../../components/HabitEditor';
 import { useRouter } from 'next/navigation';
 import PageHeader from '@/components/PageHeader';
@@ -9,6 +10,7 @@ import { PANE_INSET, PanePage } from '@/components/Pane';
 import type { HabitSchema } from '@/lib/types';
 import { NO_CADENCE, type Cadence } from '@/lib/cadence';
 import { setPendingSmartEntry } from '@/lib/pendingSmartEntry';
+import { newHabitReminderStatus } from '@/lib/reminders';
 import RefineLoading from './RefineLoading';
 
 interface HabitDraft {
@@ -30,8 +32,9 @@ function readDraft(): HabitDraft | null {
   return draftData ? JSON.parse(draftData) : null;
 }
 
-// `weekStartsOn` is the user's, for the cadence picker's days of the week
-export default function RefineClient({ weekStartsOn }: { weekStartsOn: string }) {
+// `weekStartsOn` is the user's, for the cadence picker's days of the week, and `bedtime` and
+// `hasDevice` (whether any of their devices get reminders) are for the new habit's reminder
+export default function RefineClient({ weekStartsOn, bedtime, hasDevice }: { weekStartsOn: string; bedtime: string; hasDevice: boolean }) {
   const router = useRouter();
 
   const [draft] = useState<HabitDraft | null>(readDraft);
@@ -41,9 +44,14 @@ export default function RefineClient({ weekStartsOn }: { weekStartsOn: string })
     if (!draft) router.replace('/create');
   }, [draft, router]);
 
-  const handleSave = async ({ title, description, schema, categoryId, cadence, publishToMqtt, aiContext, calculatedFields }: EditorDraft) => {
+  const handleSave = async ({ title, description, schema, categoryId, cadence, publishToMqtt, aiContext, calculatedFields, reminder }: EditorDraft) => {
     const habit = await saveHabit(title, description, schema, categoryId, cadence, publishToMqtt, aiContext, calculatedFields);
     sessionStorage.removeItem('draftHabit');
+    // A reminder is the user's own, on their membership, so it's set once the habit exists. Only one
+    // with a cadence is ever due, so only one with a cadence can run late.
+    if (reminder?.enabled && cadence.type !== 'none') {
+      await setHabitReminder(habit.id, true, reminder.remindAt);
+    }
 
     // Hand what the user said to the new habit's log page, which fills the entry in against the
     // form as saved (it may have been edited here) and submits it, the same as for an existing habit
@@ -84,7 +92,9 @@ export default function RefineClient({ weekStartsOn }: { weekStartsOn: string })
           publishToMqtt: false,
           aiContext: '',
           calculatedFields: [],
+          reminder: { enabled: false, remindAt: null },
         }}
+        reminderContext={{ status: newHabitReminderStatus(draft.cadence ?? NO_CADENCE), bedtime, hasDevice }}
         onSave={handleSave}
         onChangeTitle={handleTitleChange}
         saveBarExtra={draft.transcript && (
