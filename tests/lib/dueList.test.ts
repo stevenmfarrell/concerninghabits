@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildDueList, listRowStatus, type CategoryTree } from '@/lib/dueList';
+import { buildDueList, listRowStatus, MAX_RECENT, type CategoryTree } from '@/lib/dueList';
 import type { HabitListItem } from '@/lib/types';
 import type { Cadence } from '@/lib/cadence';
 
@@ -23,26 +23,33 @@ const none: Cadence = { type: 'none' };
 const ids = (items: { id: string }[]) => items.map(i => i.id);
 
 describe('buildDueList', () => {
-  it('lists habits with a cadence as due or done, and leaves out ones without', () => {
+  it('lists habits with a cadence as due or recent, and ones without only once logged, as recent', () => {
     const list = buildDueList([category('Fitness', none, [
       habit('run', daily),
       habit('stretch', daily, [{ createdAt: today, userId: 'me' }]),
       habit('dessert', none),
+      habit('snack', none, [{ createdAt: new Date('2026-09-20T12:00:00Z'), userId: 'me' }]),
     ])], [], {}, user, now);
     expect(ids(list.dueHabits)).toEqual(['run']);
-    expect(ids(list.doneHabits)).toEqual(['stretch']);
+    expect(ids(list.recentHabits)).toEqual(['stretch', 'snack']);
+  });
+
+  it('counts a habit with no cadence by its latest entry, even one older than its recent entries reach', () => {
+    const old = new Date('2026-06-01T12:00:00Z');
+    const list = buildDueList([], [habit('dessert', none)], { dessert: old }, user, now);
+    expect(ids(list.recentHabits)).toEqual(['dessert']);
   });
 
   it('counts someone else\'s entry on a shared habit', () => {
     const list = buildDueList([], [habit('trash', daily, [{ createdAt: today, userId: 'partner' }])], {}, user, now);
-    expect(ids(list.doneHabits)).toEqual(['trash']);
+    expect(ids(list.recentHabits)).toEqual(['trash']);
   });
 
   it('completes a category with an entry on any of its habits, its subcategories\' included', () => {
     const cardio = category('Cardio', none, [habit('bike', none, [{ createdAt: today, userId: 'me' }])]);
     const list = buildDueList([category('Fitness', daily, [habit('pushups', none)], [cardio])], [], {}, user, now);
-    expect(ids(list.doneCategories)).toEqual(['Fitness']);
-    expect(ids(list.doneCategories[0].habits)).toEqual(['pushups', 'bike']);
+    expect(ids(list.recentCategories)).toEqual(['Fitness']);
+    expect(ids(list.recentCategories[0].habits)).toEqual(['pushups', 'bike']);
   });
 
   it('lays out a category\'s habits to pick from in its order, each subcategory\'s under its name', () => {
@@ -132,7 +139,7 @@ describe('buildDueList', () => {
     const everySixtyDays = habit('dentist floss', { type: 'everyNDays', days: 60 });
     const longAgo = new Date('2026-08-20T09:00:00Z');
     expect(ids(buildDueList([], [everySixtyDays], {}, user, now).dueHabits)).toEqual(['dentist floss']);
-    expect(ids(buildDueList([], [everySixtyDays], { 'dentist floss': longAgo }, user, now).doneHabits)).toEqual(['dentist floss']);
+    expect(ids(buildDueList([], [everySixtyDays], { 'dentist floss': longAgo }, user, now).recentHabits)).toEqual(['dentist floss']);
   });
 
   it('doesn\'t count the latest entry twice when it\'s already among the recent ones', () => {
@@ -150,7 +157,7 @@ describe('buildDueList', () => {
     expect(list.upcomingHabits.map(u => [u.item.id, u.dueInDays])).toEqual([['blood pressure', 3]]);
     expect(list.upcomingCategories.map(u => [u.item.id, u.dueInDays])).toEqual([['Health', 3]]);
     expect(list.dueHabits).toEqual([]);
-    expect(list.doneHabits).toEqual([]);
+    expect(list.recentHabits).toEqual([]);
   });
 
   it('lists weekly and monthly habits and categories not done yet as upcoming until their last days', () => {
@@ -169,6 +176,41 @@ describe('buildDueList', () => {
     const saturday = buildDueList([category('Chores', weekly, [habit('vacuum', weekly)])], [], {}, user, now);
     expect(ids(saturday.dueHabits)).toEqual(['vacuum']);
     expect(ids(saturday.dueCategories)).toEqual(['Chores']);
+  });
+});
+
+describe('the Recently Logged list', () => {
+  // Each done today, an hour apart: h0 first, h9 last
+  const doneAt = (i: number) => habit(`h${i}`, daily, [{ createdAt: new Date(Date.UTC(2026, 9, 3, 1 + i)), userId: 'me' }]);
+
+  it(`keeps only the ${MAX_RECENT} done most recently, in the tree's order`, () => {
+    const list = buildDueList([], [9, 0, 5, 1, 8, 2, 7, 3, 6, 4].map(doneAt), {}, user, now);
+    expect(ids(list.recentHabits)).toEqual(['h9', 'h5', 'h8', 'h2', 'h7', 'h3', 'h6', 'h4']);
+  });
+
+  it('counts a category by its latest entry, and something skipped as just done', () => {
+    const habits = Array.from({ length: 8 }, (_, i) => doneAt(i + 2));
+    const skippedOld: HabitListItem = { ...habit('skipped', daily), skips: [{ day: '2026-10-03' }] };
+    const list = buildDueList(
+      [category('Fitness', daily, [doneAt(0)]), category('Music', daily, [doneAt(1)])],
+      [...habits, skippedOld],
+      {}, user, now,
+    );
+    // The skip and the 7 latest entries (h3 to h9) are kept; both categories (at h0's and h1's times), h0, h1 and h2 aren't
+    expect(ids(list.recentCategories)).toEqual([]);
+    expect(ids(list.recentHabits)).toEqual(['h3', 'h4', 'h5', 'h6', 'h7', 'h8', 'h9', 'skipped']);
+    expect(list.skippedHabitIds).toEqual(['skipped']);
+  });
+
+  it('ranks a habit with no cadence alongside the rest', () => {
+    const latest = habit('snack', none, [{ createdAt: new Date(Date.UTC(2026, 9, 3, 12)), userId: 'me' }]);
+    const list = buildDueList([], [...[0, 1, 2, 3, 4, 5, 6, 7, 8].map(doneAt), latest], {}, user, now);
+    expect(ids(list.recentHabits)).toEqual(['h2', 'h3', 'h4', 'h5', 'h6', 'h7', 'h8', 'snack']);
+  });
+
+  it('keeps everything when there are no more than that', () => {
+    const list = buildDueList([], [0, 1, 2].map(doneAt), {}, user, now);
+    expect(ids(list.recentHabits)).toEqual(['h0', 'h1', 'h2']);
   });
 });
 
@@ -245,7 +287,7 @@ describe('skips on the Agenda', () => {
   it('puts a habit skipped today with the done ones, marked as skipped, without earning the cleared reward', () => {
     const list = buildDueList([], [skipped(habit('run', daily), '2026-10-03'), habit('stretch', daily)], {}, user, now);
     expect(ids(list.dueHabits)).toEqual(['stretch']);
-    expect(ids(list.doneHabits)).toEqual(['run']);
+    expect(ids(list.recentHabits)).toEqual(['run']);
     expect(list.skippedHabitIds).toEqual(['run']);
     expect(list.clearedToday).toBe(false);
   });
@@ -281,7 +323,7 @@ describe('skips on the Agenda', () => {
     const thriceWeekly: Cadence = { type: 'calendarWeek', times: 3 };
     const fitness = { ...category('Fitness', thriceWeekly, [habit('run', daily)]), skips: [{ day: '2026-09-29' }] };
     const list = buildDueList([fitness], [], {}, user, now);
-    expect(ids(list.doneCategories)).toEqual(['Fitness']);
+    expect(ids(list.recentCategories)).toEqual(['Fitness']);
     expect(list.skippedCategoryIds).toEqual(['Fitness']);
     // Its habit is still due: the category's skip isn't the habit's
     expect(ids(list.dueHabits)).toEqual(['run']);

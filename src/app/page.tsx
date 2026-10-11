@@ -49,14 +49,14 @@ function CategoryList({ categories, user }: { categories: DueCategory[]; user: S
   );
 }
 
-// What's done for now, as small chips: white, with the check (and border) in the habit's emerald or
+// What was recently logged (see buildDueList), as small chips: white, with the check (and border) in the habit's emerald or
 // the category's blue, so they don't look like the rows above. They can't be held to log, which
 // is what keeps something done from being logged twice by accident; each links to its page, where it
 // can still be logged. A habit or category that's done because it was skipped has the skip icon in
 // place of the check. Links styled as chips, not buttons, so they don't use LinkButton.
-function DoneChips({ habits, categories, skippedIds }: { habits: HabitListItem[]; categories: DueCategory[]; skippedIds: string[] }) {
+function RecentChips({ habits, categories, skippedIds }: { habits: HabitListItem[]; categories: DueCategory[]; skippedIds: string[] }) {
   return (
-    <ul className="flex flex-wrap gap-2" aria-label="Done">
+    <ul className="flex flex-wrap gap-2" aria-label="Recently Logged">
       {categories.map(category => (
         <li key={category.id}>
           <Link
@@ -91,9 +91,9 @@ function DoneChips({ habits, categories, skippedIds }: { habits: HabitListItem[]
 // Agenda: every habit and category with a cadence, in three sections: due now (on or past when
 // it's due; a weekly or monthly one only on its last day), upcoming (an every-N-days
 // one done but due again soon, still loggable since doing it early restarts its count, or a weekly
-// or monthly one not yet done with days to spare), and done, as chips. Due Now emptied today by doing
-// everything in it shows the hobbit hole (see DueNowCleared). Habits and categories without a cadence aren't
-// here; they're on the Habits page.
+// or monthly one not yet done with days to spare), and recently logged, as chips: habits logged
+// lately that aren't in the other two (including ones without a cadence), and categories done for
+// now. Due Now emptied today by doing everything in it shows the hobbit hole (see DueNowCleared).
 export default async function AgendaPage() {
   const user = await getDefaultUser();
   const [categories, uncategorized, latestLogDates, people] = await Promise.all([
@@ -103,10 +103,10 @@ export default async function AgendaPage() {
     getPeople(),
   ]);
 
-  const { dueHabits, upcomingHabits, doneHabits, dueCategories, upcomingCategories, doneCategories, statuses, skippedHabitIds, skippedCategoryIds, clearedToday } = buildDueList(categories, uncategorized, latestLogDates, user);
+  const { dueHabits, upcomingHabits, recentHabits, dueCategories, upcomingCategories, recentCategories, statuses, skippedHabitIds, skippedCategoryIds, clearedToday } = buildDueList(categories, uncategorized, latestLogDates, user);
   const anyDue = dueHabits.length > 0 || dueCategories.length > 0;
   const anyUpcoming = upcomingHabits.length > 0 || upcomingCategories.length > 0;
-  const anyDone = doneHabits.length > 0 || doneCategories.length > 0;
+  const anyRecent = recentHabits.length > 0 || recentCategories.length > 0;
   const anyHabits = uncategorized.length > 0 || categories.some(c => c.habits.length > 0 || c.children.some(child => child.habits.length > 0));
 
   // Today in the viewer's time zone, following the same bedtime rule as the calendars
@@ -127,7 +127,7 @@ export default async function AgendaPage() {
         <EmptyState title="No habits here yet">
           Tap the quill at the top and tell it something you did, or a habit you&apos;d like to start.
         </EmptyState>
-      ) : !anyDue && !anyUpcoming && !anyDone ? (
+      ) : !anyDue && !anyUpcoming && !anyRecent ? (
         <EmptyState title="Nothing on the agenda" action={<LinkButton href="/habits" variant="outline">Go to Habits</LinkButton>}>
           Nothing has a cadence yet. Give a habit or category one on its page, and it shows up here whenever it&apos;s due.
         </EmptyState>
@@ -167,12 +167,12 @@ export default async function AgendaPage() {
             </PaneSection>
           )}
 
-          {anyDone && (
+          {anyRecent && (
             <section>
-              <PaneHeading>Done</PaneHeading>
+              <PaneHeading>Recently Logged</PaneHeading>
               {/* On the stone rather than white, since they aren't a list */}
               <div className={`${PANE_INSET} py-3`}>
-                <DoneChips habits={doneHabits} categories={doneCategories} skippedIds={[...skippedHabitIds, ...skippedCategoryIds]} />
+                <RecentChips habits={recentHabits} categories={recentCategories} skippedIds={[...skippedHabitIds, ...skippedCategoryIds]} />
               </div>
             </section>
           )}

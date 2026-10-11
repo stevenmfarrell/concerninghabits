@@ -135,13 +135,15 @@ export type Upcoming<T> = { item: T; dueInDays: number };
 export interface DueList {
   dueHabits: HabitListItem[];
   upcomingHabits: Upcoming<HabitListItem>[];
-  doneHabits: HabitListItem[];
+  // Recently Logged: habits logged lately (any, with a cadence or not) that aren't due or upcoming,
+  // and categories done for now, or skipped (see buildDueList)
+  recentHabits: HabitListItem[];
   dueCategories: DueCategory[];
   upcomingCategories: Upcoming<DueCategory>[];
-  doneCategories: DueCategory[];
+  recentCategories: DueCategory[];
   // What each due or upcoming habit's row shows beside its calendar, by habit id
   statuses: Record<string, RowStatus>;
-  // The done habits and categories that are only done because they were skipped, for their chips
+  // The recent habits and categories that are only there because they were skipped, for their chips
   // to say so
   skippedHabitIds: string[];
   skippedCategoryIds: string[];
@@ -150,9 +152,15 @@ export interface DueList {
   clearedToday: boolean;
 }
 
-// What the Agenda page shows: every habit and category with a cadence, split into those due, those
-// not due yet but soon (upcoming), and those done for now (see agendaStatus), in the order of
-// the user's category tree (uncategorized habits last).
+// The most Recently Logged chips the Agenda shows
+export const MAX_RECENT = 8;
+
+// What the Agenda page shows: every habit and category with a cadence, split into those due and
+// those not due yet but soon (upcoming), and what was recently logged: habits that aren't due or
+// upcoming (those done for now, and those with no cadence, which are never due), and categories done
+// for now. All in the order of the user's category tree (uncategorized habits last). Only the
+// MAX_RECENT logged most recently are recent, by their latest entry, or for one done because it was
+// skipped, as if just now, since that was today; one never logged isn't.
 // Done-ness counts everyone's entries, so a shared habit is done when anyone does it.
 //
 // A habit's `logs` only reach back a few weeks; `latestLogDates` (when each habit was last logged)
@@ -166,7 +174,7 @@ export function buildDueList(
 ): DueList {
   const datesOf = (habit: HabitListItem) => entryDates(habit, latestLogDates);
 
-  const list: DueList = { dueHabits: [], upcomingHabits: [], doneHabits: [], dueCategories: [], upcomingCategories: [], doneCategories: [], statuses: {}, skippedHabitIds: [], skippedCategoryIds: [], clearedToday: false };
+  const list: DueList = { dueHabits: [], upcomingHabits: [], recentHabits: [], dueCategories: [], upcomingCategories: [], recentCategories: [], statuses: {}, skippedHabitIds: [], skippedCategoryIds: [], clearedToday: false };
 
   // A due or upcoming row's status, with what a skip's called if it can be skipped now (for
   // swiping it away)
@@ -188,14 +196,25 @@ export function buildDueList(
     return { status, skipped };
   };
 
+  // When each recent habit or category was last logged, by id, to keep only the latest
+  const doneAt = new Map<string, number>();
+  const lastDone = (dates: Date[], skipped: boolean) => (skipped ? Infinity : Math.max(-Infinity, ...dates.map(d => d.getTime())));
+
   const addHabit = (habit: HabitListItem) => {
     const cadence = parseCadence(habit.cadence);
-    if (cadence.type === 'none') return;
     const dates = datesOf(habit);
+    if (cadence.type === 'none') {
+      if (dates.length > 0) {
+        list.recentHabits.push(habit);
+        doneAt.set(habit.id, lastDone(dates, false));
+      }
+      return;
+    }
     const skippedDays = skippedDaysOf(habit);
     const { status, skipped } = place(cadence, dates, skippedDays);
     if (status.state === 'done') {
-      list.doneHabits.push(habit);
+      list.recentHabits.push(habit);
+      doneAt.set(habit.id, lastDone(dates, skipped));
       if (skipped) list.skippedHabitIds.push(habit.id);
       return;
     }
@@ -217,7 +236,8 @@ export function buildDueList(
     if (status.state === 'due') list.dueCategories.push({ ...item, status: rowStatus(cadence, dates, skippedDays) });
     else if (status.state === 'upcoming') list.upcomingCategories.push({ item: { ...item, status: rowStatus(cadence, dates, skippedDays) }, dueInDays: status.dueInDays });
     else {
-      list.doneCategories.push(item);
+      list.recentCategories.push(item);
+      doneAt.set(category.id, lastDone(dates, skipped));
       if (skipped) list.skippedCategoryIds.push(category.id);
     }
   };
@@ -231,6 +251,16 @@ export function buildDueList(
     }
   }
   uncategorized.forEach(addHabit);
+
+  // The latest logged, kept in the tree's order (ties go to the one first in it)
+  if (doneAt.size > MAX_RECENT) {
+    const order = [...doneAt.keys()];
+    const kept = new Set(order.map((id, i) => ({ id, i, at: doneAt.get(id)! })).sort((a, b) => b.at - a.at || a.i - b.i).slice(0, MAX_RECENT).map(d => d.id));
+    list.recentHabits = list.recentHabits.filter(h => kept.has(h.id));
+    list.recentCategories = list.recentCategories.filter(c => kept.has(c.id));
+    list.skippedHabitIds = list.skippedHabitIds.filter(id => kept.has(id));
+    list.skippedCategoryIds = list.skippedCategoryIds.filter(id => kept.has(id));
+  }
 
   return list;
 }
