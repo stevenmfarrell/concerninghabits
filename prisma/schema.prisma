@@ -31,6 +31,7 @@ model User {
   pushSubscriptions   PushSubscription[]
   remindersSent       ReminderSent[]
   habitSkips          HabitSkip[]
+  vacations           Vacation[]
 }
 
 model Session {
@@ -206,3 +207,18 @@ model AppSetting {
   key   String @id
   value String
 }
+
+// A stretch of days the user is away: every habit and category of theirs counts as skipped on each
+// of them (see src/lib/vacation.ts), as civil day keys like HabitSkip's, both inclusive. `to` is null
+// until it's ended, for one with no end set. Ending one early keeps the days already taken.
+model Vacation {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  from      String
+  to        String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+

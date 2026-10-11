@@ -15,7 +15,7 @@ import HabitChart from './HabitChart';
 import ExportCsvButton from './ExportCsvButton';
 import { formatLogValue } from '../../../lib/format';
 import { parseBedtimeOffsetMinutes, toCivilDate } from '../../../lib/timezone';
-import { parseCadence, postpones, skipState } from '@/lib/cadence';
+import { limitOf, parseCadence, postpones, skipState } from '@/lib/cadence';
 import { consistency } from '@/lib/consistency';
 import { calendarStart } from '@/lib/calendarRange';
 import type { HabitSchema } from '@/lib/types';
@@ -76,7 +76,8 @@ export default async function HabitPage(props: { params: Promise<{ id: string }>
 
   // The legend lists current members plus anyone else who logged in this period, in account order
   const legendIds = new Set([...habit.memberIds, ...filteredLogs.map(l => l.userId)]);
-  const legend = people ? Object.values(people).filter(p => legendIds.has(p.id)) : [];
+  // No legend for a limit, whose calendar isn't colored by who logged (see ActivityCalendar)
+  const legend = people && limitOf(parseCadence(habit.cadence)) === null ? Object.values(people).filter(p => legendIds.has(p.id)) : [];
 
   // Pagination
   const pageParam = searchParams?.page || '1';
@@ -115,7 +116,8 @@ export default async function HabitPage(props: { params: Promise<{ id: string }>
   });
 
   const cadence = parseCadence(habit.cadence);
-  const skip = skipState(cadence, logs.map(l => l.createdAt), user, new Date(), habit.skippedDays);
+  // Only its own skips, which the pill can undo; a vacation day isn't one (see getHabit)
+  const skip = skipState(cadence, logs.map(l => l.createdAt), user, new Date(), habit.ownSkippedDays);
   // From its entries over the last year (see getHabitLogs), everyone's for a shared habit
   const habitConsistency = consistency(cadence, logs.map(l => l.createdAt), user, { createdAt: habit.createdAt, skippedDays: habit.skippedDays });
 
@@ -143,6 +145,7 @@ export default async function HabitPage(props: { params: Promise<{ id: string }>
                 timeZone={user.timeZone}
                 pageSize={pageSize}
                 habitId={habit.id}
+                since={habit.createdAt}
               />
               {legend.length > 0 && (
                 <div className="flex flex-wrap gap-x-4 gap-y-2 mt-4">

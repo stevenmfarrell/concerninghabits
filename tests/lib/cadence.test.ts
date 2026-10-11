@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { postpones, skipLabels, toggleWeekday, weekdaysInOrder, agendaStatus, cadenceFromSuggestion, cadenceProgress, cadenceSchema, cadenceStatus, daysUntilDue, describeCadence, dueAtStartOfDay, isHabitComplete, parseCadence, skippedCovers, skipState, startOfWeek, upcomingDays, withTimes, type Cadence } from '@/lib/cadence';
+import { postpones, skipLabels, toggleWeekday, weekdaysInOrder, agendaStatus, cadenceFromSuggestion, cadenceProgress, cadenceSchema, cadenceStatus, daysUntilDue, describeCadence, dueAtStartOfDay, isHabitComplete, limitOf, limitStatus, parseCadence, skippedCovers, skipState, startOfWeek, upcomingDays, withTimes, type Cadence } from '@/lib/cadence';
 import { civilDayKey, parseCivilDayKey } from '@/lib/timezone';
 
 const user = { timeZone: 'UTC', bedtime: '00:00', weekStartsOn: 'sunday' };
@@ -423,3 +423,90 @@ describe('skipState', () => {
     expect(skipState({ type: 'none' }, [], user, now)).toBeNull();
   });
 });
+
+describe('limits', () => {
+  const coffee: Cadence = { type: 'limit', period: 'day', max: 2 };
+  const smoking: Cadence = { type: 'limit', period: 'day', max: 0 };
+  const takeout: Cadence = { type: 'limit', period: 'week', max: 1 };
+
+  it('describes how much is allowed, or that it\'s to be avoided', () => {
+    const context = { weekStartsOn: 'sunday' };
+    expect(describeCadence(coffee, context)).toBe('At most 2× daily');
+    expect(describeCadence(takeout, context)).toBe('At most 1× weekly');
+    expect(describeCadence(smoking, context)).toBe('Avoid');
+    expect(describeCadence({ type: 'limit', period: 'month', max: 0 }, context)).toBe('Avoid monthly');
+  });
+
+  it('is never due, however many entries or none', () => {
+    for (const logs of [[], [at('2026-10-03T08:00:00Z')], [at('2026-10-03T08:00:00Z'), at('2026-10-03T09:00:00Z'), at('2026-10-03T10:00:00Z')]]) {
+      expect(cadenceStatus(coffee, logs, user, now).state).toBe('done');
+      expect(agendaStatus(smoking, logs, user, now).state).toBe('done');
+      expect(dueAtStartOfDay(coffee, logs, user, now)).toBe(false);
+    }
+    expect(cadenceProgress(coffee, [], user, now)).toBeNull();
+    expect(daysUntilDue(coffee, [], user, now)).toBeNull();
+  });
+
+  it('counts how much of the limit its period has used', () => {
+    const today = [at('2026-10-03T08:00:00Z'), at('2026-10-03T12:00:00Z'), at('2026-10-03T13:00:00Z')];
+    expect(limitStatus(coffee, [at('2026-10-02T08:00:00Z'), ...today.slice(0, 1)], user, now)).toEqual({ used: 1, max: 2, period: 'daily', excused: false });
+    expect(limitStatus(coffee, today, user, now)?.used).toBe(3);
+    // The whole calendar week so far, Sunday the 27th on
+    expect(limitStatus(takeout, [at('2026-09-26T19:00:00Z'), at('2026-09-29T19:00:00Z')], user, now)).toEqual({ used: 1, max: 1, period: 'weekly', excused: false });
+    expect(limitStatus({ type: 'daily', timesPerDay: 2 }, today, user, now)).toBeNull();
+    expect(limitOf(coffee)).toBe(2);
+    expect(limitOf(smoking)).toBe(0);
+    expect(limitOf({ type: 'daily', timesPerDay: 2 })).toBeNull();
+  });
+
+  it('can be skipped for its period, which excuses it', () => {
+    expect(skipState(coffee, [], user, now)).toEqual({ label: 'Skip today', skippedDay: null });
+    expect(skipState(takeout, [], user, now, ['2026-09-28'])).toEqual({ label: 'Skipped this week', skippedDay: '2026-09-28' });
+    expect(limitStatus(coffee, [], user, now, ['2026-10-03'])?.excused).toBe(true);
+  });
+
+  it('is suggested by the AI with a period and a most, defaulting to avoiding it daily', () => {
+    expect(cadenceFromSuggestion({ type: 'limit', limitPeriod: 'week', max: 3 })).toEqual({ type: 'limit', period: 'week', max: 3 });
+    expect(cadenceFromSuggestion({ type: 'limit' })).toEqual(smoking);
+    expect(cadenceFromSuggestion({ type: 'limit', limitPeriod: 'year', max: 3 })).toEqual({ type: 'none' });
+  });
+});
+
+describe('vacation days', () => {
+  const every10: Cadence = { type: 'everyNDays', days: 10 };
+  const vacation = (from: number, to: number) => Array.from({ length: to - from + 1 }, (_, i) => ({ day: `2026-10-${String(from + i).padStart(2, '0')}`, vacation: true as const }));
+  const on = (day: number) => new Date(Date.UTC(2026, 9, day, 12));
+  const upTo = (skips: { day: string; vacation: true }[], day: number) => skips.filter(s => s.day <= `2026-10-${String(day).padStart(2, '0')}`);
+
+  it('make an every-N-days habit due the day after the vacation, with no grace period after it', () => {
+    // Logged Oct 1, so due Oct 11, in the middle of a vacation from the 9th to the 13th
+    const away = vacation(9, 13);
+    expect(agendaStatus(every10, [on(1)], user, on(12), upTo(away, 12))).toEqual({ state: 'upcoming', dueInDays: 1 });
+    expect(agendaStatus(every10, [on(1)], user, on(13), upTo(away, 13))).toEqual({ state: 'upcoming', dueInDays: 1 });
+    expect(agendaStatus(every10, [on(1)], user, on(14), upTo(away, 14)).state).toBe('due');
+    expect(daysUntilDue(every10, [on(1)], user, on(14), upTo(away, 14))).toBe(0);
+  });
+
+  it('leave it to be postponed as usual once it\'s due after the vacation', () => {
+    const away = vacation(9, 13);
+    // The day after: due, and postponing it puts it off a fifth of its days from then
+    expect(skipState(every10, [on(1)], user, on(14), upTo(away, 14))).toEqual({ label: 'Postpone 2 days', skippedDay: null });
+    const postponed = [...upTo(away, 14), '2026-10-14'];
+    expect(agendaStatus(every10, [on(1)], user, on(14), postponed)).toEqual({ state: 'upcoming', dueInDays: 2 });
+  });
+
+  it('don\'t move it when it\'s due after the vacation anyway', () => {
+    expect(daysUntilDue(every10, [on(1)], user, on(6), vacation(3, 5))).toBe(5);
+  });
+
+  it('still leave a skip of its own postponing it by a fifth of its days', () => {
+    expect(agendaStatus(every10, [on(1)], user, on(11), ['2026-10-11'])).toEqual({ state: 'upcoming', dueInDays: 2 });
+  });
+
+  it('excuse other cadences as a skip that day would', () => {
+    const weekly: Cadence = { type: 'calendarWeek' };
+    expect(agendaStatus(weekly, [], user, now, [{ day: '2026-09-28', vacation: true }]).state).toBe('done');
+    expect(skippedCovers(weekly, [{ day: '2026-09-28', vacation: true }], user)).toEqual(skippedCovers(weekly, ['2026-09-28'], user));
+  });
+});
+

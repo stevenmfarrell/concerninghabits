@@ -11,7 +11,8 @@ const PERIOD_DESCRIPTIONS: Record<ProgressPeriod, string> = { daily: 'today', we
 // (see ProgressRing), and a tap on it logs it, like ticking a checkbox, while the rest of the row still opens its page and
 // a press and hold anywhere on it logs it too (see RowGesture). One done with a single entry is an
 // empty circle, showing a faint check on hover; one that takes several shows how many are done; one
-// that's never done (0 of 0) stays empty. `pending`
+// that's never done (0 of 0) stays empty. A limit fills toward its most allowed instead, turning
+// amber once over it (see ProgressRing). `pending`
 // entries (see useHabitLogger) count toward it straight away, so it fills on the tap. There's no
 // unticking: a tap adds an entry, which the logged toast's Undo takes back.
 export default function LogRing({ status, pending = 0, label, onClick, disabled, color = 'emerald' }: {
@@ -24,9 +25,14 @@ export default function LogRing({ status, pending = 0, label, onClick, disabled,
   disabled?: boolean;
   color?: 'emerald' | 'blue';
 }) {
-  const done = Math.min(status.done + pending, status.needed);
+  // A limit counts past its most, to show it's over
+  const limit = !!status.limit;
+  const done = limit ? status.done + pending : Math.min(status.done + pending, status.needed);
   const several = status.needed > 1;
-  const progress = several && status.period ? `, ${done} of ${status.needed} done ${PERIOD_DESCRIPTIONS[status.period]}` : '';
+  const when = status.period ? ` ${PERIOD_DESCRIPTIONS[status.period]}` : '';
+  const progress = limit
+    ? `, ${done} of at most ${status.needed}${when}${done > status.needed ? ', over the limit' : ''}`
+    : several && status.period ? `, ${done} of ${status.needed} done${when}` : '';
 
   return (
     <button
@@ -41,8 +47,8 @@ export default function LogRing({ status, pending = 0, label, onClick, disabled,
       // height: as a block, the ring would sit on a line of text, taller than it, and ride high.
       className="relative z-10 shrink-0 flex rounded-full group/ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 disabled:opacity-50"
     >
-      <ProgressRing progress={{ done, needed: status.needed }} showCount={several} size={44} color={color} />
-      {status.needed === 1 && done === 0 && !disabled && (
+      <ProgressRing progress={{ done, needed: status.needed }} showCount={several || limit} size={44} color={color} limit={limit} />
+      {!limit && status.needed === 1 && done === 0 && !disabled && (
         <span className={`absolute inset-0 flex items-center justify-center opacity-0 pointer-fine:group-hover/ring:opacity-40 transition-opacity ${color === 'blue' ? 'text-category-ink' : 'text-accent-ink'}`} aria-hidden="true">
           <Check className="w-5 h-5" strokeWidth={3} />
         </span>

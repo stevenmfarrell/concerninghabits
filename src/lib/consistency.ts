@@ -1,4 +1,4 @@
-import { cadenceCovers, countsDown, dueByPeriodEnd, entriesNeeded, isScheduled, skippedCovers, type Cadence, type CadenceUser } from './cadence';
+import { cadenceCovers, countsDown, dueByPeriodEnd, entriesNeeded, isScheduled, limitOf, skipDayKey, skippedCovers, type Cadence, type CadenceUser, type SkipDay } from './cadence';
 import { civilDayKey, parseBedtimeOffsetMinutes, toCivilDate } from './timezone';
 
 // How consistently a habit (or a category with a cadence) has been kept up lately, as a garden:
@@ -11,6 +11,10 @@ import { civilDayKey, parseBedtimeOffsetMinutes, toCivilDate } from './timezone'
 // count either way. The score is the average credit, each opportunity counting half as much as one
 // a half-life more recent (see halfLifeDays). One still in progress (today, this week) only counts
 // once it's done, so the day isn't held against it before it's over.
+//
+// A limit's opportunities are its periods (days, weeks, or months): each kept to the limit earns full
+// credit, and each that went over none. One still in progress counts once it's over, or as a miss as
+// soon as it goes over.
 
 // How long it takes an opportunity to count half as much, at least: three weeks, so a daily habit's
 // score moves with the last few weeks, not the last few days
@@ -75,6 +79,7 @@ interface Opportunity {
 // weekdays, weeks, months). `entryDays` and `skips` are civil dates and the days skips cover.
 function calendarOpportunities(cadence: Cadence, entryDays: Date[], skips: { from: Date; to: Date }[], from: Date, today: Date, user: CadenceUser): Opportunity[] {
   const needed = entriesNeeded(cadence);
+  const limit = limitOf(cadence);
   const covering = entryDays.map(day => cadenceCovers(cadence, day, user));
   const settlesAtEnd = dueByPeriodEnd(cadence);
   const seen = new Set<string>();
@@ -92,6 +97,14 @@ function calendarOpportunities(cadence: Cadence, entryDays: Date[], skips: { fro
 
     if (skips.some(skip => skip.from <= anchor && anchor <= skip.to)) continue;
     const count = covering.filter(range => range.from <= anchor && anchor <= range.to).length;
+    if (limit !== null) {
+      // Kept only once it's over, but gone over as soon as it is. A week or month the habit didn't
+      // exist for all of isn't counted: keeping to a limit for part of one says little.
+      const over = count > limit;
+      if (anchor < from || (!over && period.to >= today)) continue;
+      opportunities.push({ day: period.to < today ? period.to : today, credit: over ? 0 : 1 });
+      continue;
+    }
     const credit = Math.min(count, needed) / needed;
     const settles = settlesAtEnd ? period.to : anchor;
     // Not over yet, and not done yet: it's not held against it
@@ -155,7 +168,7 @@ function countdownOpportunities(cadence: Cadence, entryDays: Date[], skips: { fr
 }
 
 // The score as of `now`, and how many opportunities it's from
-function scoreAt(cadence: Cadence, logDates: Date[], skippedDays: readonly string[], createdAt: Date, user: CadenceUser, now: Date) {
+function scoreAt(cadence: Cadence, logDates: Date[], skippedDays: readonly SkipDay[], createdAt: Date, user: CadenceUser, now: Date) {
   const offset = parseBedtimeOffsetMinutes(user.bedtime);
   const civil = (date: Date) => toCivilDate(date, user.timeZone, offset);
   const today = civil(now);
@@ -163,7 +176,7 @@ function scoreAt(cadence: Cadence, logDates: Date[], skippedDays: readonly strin
 
   // Only what had happened by then
   const entryDays = logDates.filter(date => date <= now).map(civil);
-  const skips = skippedCovers(cadence, skippedDays.filter(day => day <= todayKey), user);
+  const skips = skippedCovers(cadence, skippedDays.filter(skip => skipDayKey(skip) <= todayKey), user);
 
   // From when the habit began (or its first entry, if earlier, e.g. imported), but no further back
   // than opportunities count for
@@ -200,6 +213,8 @@ function spacingDays(cadence: Cadence): number {
       return cadence.days;
     case 'none':
       return 1;
+    case 'limit':
+      return { day: 1, week: 7, month: 30 }[cadence.period];
     default: {
       const unhandled: never = cadence;
       return unhandled;
@@ -220,7 +235,7 @@ export function consistency(
   cadence: Cadence,
   logDates: Date[],
   user: CadenceUser,
-  { createdAt, skippedDays = [] }: { createdAt: Date; skippedDays?: readonly string[] },
+  { createdAt, skippedDays = [] }: { createdAt: Date; skippedDays?: readonly SkipDay[] },
   now = new Date(),
 ): Consistency | null {
   if (cadence.type === 'none') return null;

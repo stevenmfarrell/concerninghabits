@@ -367,3 +367,82 @@ describe('skips on the Agenda', () => {
     expect(listRowStatus(everyTenDays, [new Date('2026-09-25T09:00:00Z')], user, { habit: true }, now)).toEqual({ done: 1, needed: 1, period: null, dueInDays: 2 });
   });
 });
+
+describe('limits on the Agenda', () => {
+  const coffee: Cadence = { type: 'limit', period: 'day', max: 2 };
+  const smoking: Cadence = { type: 'limit', period: 'day', max: 0 };
+  const cup = (hour: number) => ({ createdAt: new Date(Date.UTC(2026, 9, 3, hour)), userId: 'me' });
+
+  it('lists limits on their own, never due or recent, with how much of each is used', () => {
+    const list = buildDueList([], [habit('coffee', coffee, [cup(8), cup(10)]), habit('smoking', smoking), habit('run', daily)], {}, user, now);
+    expect(ids(list.limitHabits)).toEqual(['coffee', 'smoking']);
+    expect(ids(list.dueHabits)).toEqual(['run']);
+    expect(list.recentHabits).toEqual([]);
+    expect(list.statuses.coffee).toMatchObject({ done: 2, needed: 2, period: 'daily', dueInDays: null, limit: { used: 2, max: 2, excused: false } });
+    expect(list.statuses.smoking.limit).toEqual({ used: 0, max: 0, excused: false });
+    expect(list.clearedToday).toBe(false);
+  });
+
+  it('counts past the limit, and a skip excuses it', () => {
+    const over = buildDueList([], [habit('coffee', coffee, [cup(8), cup(10), cup(12)])], {}, user, now);
+    expect(over.statuses.coffee.limit?.used).toBe(3);
+    const skipped = buildDueList([], [{ ...habit('coffee', coffee, [cup(8), cup(10), cup(12)]), skips: [{ day: '2026-10-03' }] }], {}, user, now);
+    expect(skipped.statuses.coffee.limit?.excused).toBe(true);
+  });
+
+  it('lists a category with a limit among the limits, from its habits\' entries', () => {
+    const list = buildDueList([category('Sweets', { type: 'limit', period: 'week', max: 3 }, [habit('cake', none, [cup(8)]), habit('candy', none, [cup(9)])])], [], {}, user, now);
+    expect(ids(list.limitCategories)).toEqual(['Sweets']);
+    expect(list.limitCategories[0].status?.limit).toEqual({ used: 2, max: 3, excused: false });
+  });
+
+  it('gives a limit\'s row its use and health on the Habits pages', () => {
+    const status = listRowStatus(smoking, [], user, { habit: true, createdAt: new Date('2026-09-01T00:00:00Z') }, now);
+    expect(status.limit).toEqual({ used: 0, max: 0, excused: false });
+    expect(status.consistency?.level).toBe('thriving');
+  });
+});
+
+describe('vacation on the Agenda', () => {
+  const vacationToday = { day: '2026-10-03', vacation: true };
+  const away = (h: HabitListItem): HabitListItem => ({ ...h, skips: [...(h.skips ?? []), vacationToday] });
+
+  it('leaves off what would be due but for the vacation, without earning the cleared reward', () => {
+    const list = buildDueList([], [away(habit('run', daily, [{ createdAt: new Date('2026-10-01T09:00:00Z'), userId: 'me' }])), away(habit('read', daily))], {}, user, now);
+    expect(list.dueHabits).toEqual([]);
+    expect(list.recentHabits).toEqual([]);
+    expect(list.skippedHabitIds).toEqual([]);
+    expect(list.clearedToday).toBe(false);
+  });
+
+  it('leaves off one that would only be upcoming, on a day off', () => {
+    // Saturday, a day off for a weekday habit
+    const list = buildDueList([], [away(habit('gym', { type: 'weekdays', days: [1, 3, 5] }))], {}, user, now);
+    expect(list.upcomingHabits).toEqual([]);
+    expect(list.recentHabits).toEqual([]);
+  });
+
+  it('leaves off an every-N-days habit the vacation only puts off', () => {
+    // Done the day before yesterday: due again tomorrow, so upcoming but for the vacation
+    const water = away(habit('water', { type: 'everyNDays', days: 3 }, [{ createdAt: new Date('2026-10-01T09:00:00Z'), userId: 'me' }]));
+    const list = buildDueList([], [water], {}, user, now);
+    expect(list.upcomingHabits).toEqual([]);
+  });
+
+  it('still shows what was logged anyway, as logged rather than skipped, and limits', () => {
+    const list = buildDueList([], [
+      away(habit('meds', daily, [{ createdAt: today, userId: 'me' }])),
+      away(habit('coffee', { type: 'limit', period: 'day', max: 2 })),
+    ], {}, user, now);
+    expect(ids(list.recentHabits)).toEqual(['meds']);
+    expect(list.skippedHabitIds).toEqual([]);
+    expect(ids(list.limitHabits)).toEqual(['coffee']);
+  });
+
+  it('marks a skip of its own as skipped, vacation or not', () => {
+    const list = buildDueList([], [{ ...habit('run', daily), skips: [{ day: '2026-10-03' }, vacationToday] }], {}, user, now);
+    expect(ids(list.recentHabits)).toEqual(['run']);
+    expect(list.skippedHabitIds).toEqual(['run']);
+  });
+});
+

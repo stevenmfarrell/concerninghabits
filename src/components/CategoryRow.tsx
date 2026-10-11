@@ -5,7 +5,7 @@ import Icon from './Icon';
 import RowStatus from './RowStatus';
 import ActivityCalendar from './ActivityCalendar';
 import CadenceLabel from './CadenceLabel';
-import type { Cadence } from '@/lib/cadence';
+import type { Cadence, SkipDay } from '@/lib/cadence';
 import type { RowStatus as Status } from '@/lib/dueList';
 
 export interface CategoryRowProps {
@@ -23,7 +23,7 @@ export interface CategoryRowProps {
   // The category's own cadence, or none
   cadence: Cadence;
   // The days it was skipped, as civil day keys, marked on its calendar
-  skippedDays?: string[];
+  skippedDays?: SkipDay[];
   // What the Agenda page shows beside its calendar: how far off it's due (see RowStatus)
   status?: Status;
   // A button at the row's start in place of its icon's tile, beside its link rather than in it, e.g.
@@ -72,7 +72,7 @@ export default function CategoryRow({ href, name, icon, subtitle, showCadence, d
         </div>
 
         <div className={`shrink-0 flex items-center ${alignWithHabitRows ? 'gap-4' : 'gap-3'}`}>
-          {status && <RowStatus days={status.dueInDays} />}
+          {status && <RowStatus days={status.dueInDays} limit={status.limit} />}
           <div className="opacity-80 group-hover/row:opacity-100 transition-opacity">
             <ActivityCalendar
               dates={dates}

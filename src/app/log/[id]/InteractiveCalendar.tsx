@@ -4,7 +4,7 @@ import ActivityCalendar from '../../../components/ActivityCalendar';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { parseBedtimeOffsetMinutes, toCivilDate } from '@/lib/timezone';
 import type { Person } from '@/lib/userColors';
-import type { Cadence } from '@/lib/cadence';
+import type { Cadence, SkipDay } from '@/lib/cadence';
 
 export default function InteractiveCalendar(props: {
   logs: { id: string; createdAt: Date; userId: string }[];
@@ -13,7 +13,7 @@ export default function InteractiveCalendar(props: {
   weeks: number;
   cadence: Cadence;
   // The days it was skipped, as civil day keys
-  skippedDays: string[];
+  skippedDays: SkipDay[];
   mobileMonthsPerColumn: number;
   desktopMonthsPerColumn: number;
   bedtime: string;
@@ -21,6 +21,8 @@ export default function InteractiveCalendar(props: {
   timeZone: string;
   pageSize: number;
   habitId: string;
+  // When the habit began, for a limit's calendar (see ActivityCalendar)
+  since: Date;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -64,10 +66,10 @@ export default function InteractiveCalendar(props: {
     <>
       {/* Centered, but from the start when wider than the page, so its overflow scrolls rather than being cut off */}
       <div className="hidden sm:flex w-full justify-center-safe">
-        <ActivityCalendar dates={dates} loggedBy={loggedBy} people={props.people} weeks={props.weeks} cadence={props.cadence} skippedDays={props.skippedDays} size="md" monthsPerColumn={props.desktopMonthsPerColumn} bedtime={props.bedtime} weekStartsOn={props.weekStartsOn} timeZone={props.timeZone} onDateClick={handleDateClick} />
+        <ActivityCalendar dates={dates} loggedBy={loggedBy} people={props.people} weeks={props.weeks} cadence={props.cadence} skippedDays={props.skippedDays} since={props.since} size="md" monthsPerColumn={props.desktopMonthsPerColumn} bedtime={props.bedtime} weekStartsOn={props.weekStartsOn} timeZone={props.timeZone} onDateClick={handleDateClick} />
       </div>
       <div className="flex sm:hidden w-full justify-center-safe">
-        <ActivityCalendar dates={dates} loggedBy={loggedBy} people={props.people} weeks={props.weeks} cadence={props.cadence} skippedDays={props.skippedDays} size="md" monthsPerColumn={props.mobileMonthsPerColumn} bedtime={props.bedtime} weekStartsOn={props.weekStartsOn} timeZone={props.timeZone} onDateClick={handleDateClick} />
+        <ActivityCalendar dates={dates} loggedBy={loggedBy} people={props.people} weeks={props.weeks} cadence={props.cadence} skippedDays={props.skippedDays} since={props.since} size="md" monthsPerColumn={props.mobileMonthsPerColumn} bedtime={props.bedtime} weekStartsOn={props.weekStartsOn} timeZone={props.timeZone} onDateClick={handleDateClick} />
       </div>
     </>
   );

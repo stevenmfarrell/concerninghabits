@@ -61,9 +61,10 @@ export default async function CategoryLogPage(props: { params: Promise<{ id: str
   // Skipping it (its own cadence), or undoing that, under its cadence while it's due, as a habit's
   // page has (see SkipButton)
   const categoryDates = [...category.habits, ...(isTopLevel ? category.children.flatMap(c => c.habits) : [])].flatMap(h => entryDates(h, latestLogDates));
-  const skip = category.id === UNCATEGORIZED_ID ? null : skipState(cadence, categoryDates, user, new Date(), skippedDays);
+  // Only its own skips, which the pill can undo, not the viewer's vacation days
+  const skip = category.id === UNCATEGORIZED_ID ? null : skipState(cadence, categoryDates, user, new Date(), skippedDaysOf(category, true));
   const categoryConsistency = 'createdAt' in category ? consistency(cadence, categoryDates, user, { createdAt: category.createdAt, skippedDays }) : null;
-  const calendarProps = { dates, weeks, ...calendarShading, size: 'md' as const, bedtime: user.bedtime, weekStartsOn: user.weekStartsOn, timeZone: user.timeZone, color: 'blue' as const };
+  const calendarProps = { dates, weeks, ...calendarShading, since: 'createdAt' in category ? category.createdAt : undefined, size: 'md' as const, bedtime: user.bedtime, weekStartsOn: user.weekStartsOn, timeZone: user.timeZone, color: 'blue' as const };
 
   // Every row's ring, by id: each habit's, and each subcategory's from its habits' entries
   const statuses: Record<string, RowStatus> = {};

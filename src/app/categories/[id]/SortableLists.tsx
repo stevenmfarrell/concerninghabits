@@ -11,7 +11,7 @@ import ActivityCalendar from '../../../components/ActivityCalendar';
 import { reorderCategories } from '../../actions/db';
 import { reorderHabits } from '../../actions/db';
 import { NO_CADENCE, parseCadence } from '@/lib/cadence';
-import type { RowStatus as Status } from '@/lib/dueList';
+import { skippedDaysOf, type RowStatus as Status } from '@/lib/dueList';
 import type { HabitListItem, SessionUser, SubcategoryListItem } from '@/lib/types';
 import { isSharedHabit, type Person } from '@/lib/userColors';
 import { useReorderableList } from './useReorderableList';
@@ -259,7 +259,7 @@ const SortableHabitItem = ({ habit, status, health, user, people, isOverlay, isR
             {showCadence && cadence.type !== 'none' && <CadenceLabel cadence={cadence} weekStartsOn={user.weekStartsOn} />}
           </div>
           <div className={`shrink-0 flex items-center ${holdToLog ? 'gap-4' : 'gap-3'}`}>
-            {status && <RowStatus days={status.dueInDays} />}
+            {status && <RowStatus days={status.dueInDays} limit={status.limit} />}
             <div className="opacity-80 group-hover/row:opacity-100 transition-opacity pointer-events-none">
               <ActivityCalendar
                 dates={logs.map(l => l.createdAt)}
@@ -270,7 +270,8 @@ const SortableHabitItem = ({ habit, status, health, user, people, isOverlay, isR
                 emptyColor="bg-surface-strong/70"
                 futureColor="bg-transparent"
                 cadence={cadence}
-                skippedDays={habit.skips?.map(skip => skip.day)}
+                skippedDays={skippedDaysOf(habit)}
+                since={habit.createdAt}
                 bedtime={user.bedtime} 
                 weekStartsOn={user.weekStartsOn}
                 timeZone={user.timeZone}

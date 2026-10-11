@@ -1,7 +1,7 @@
 'use client';
 
 import { civilDayKey, parseBedtimeOffsetMinutes, toCivilDate } from '@/lib/timezone';
-import { cadenceCovers, DEFAULT_CADENCE, entriesNeeded, postpones, skippedCovers, startOfWeek, type Cadence } from '@/lib/cadence';
+import { cadenceCovers, DEFAULT_CADENCE, entriesNeeded, limitOf, postpones, skippedCovers, startOfWeek, type Cadence, type SkipDay } from '@/lib/cadence';
 import { ACTIVITY_PALETTES, activityShade, type ActivityColor } from '@/lib/activityShade';
 import { calendarStart } from '@/lib/calendarRange';
 import type { Person } from '@/lib/userColors';
@@ -38,9 +38,13 @@ interface ActivityCalendarProps {
   people?: Record<string, Person>;
   // Fill color for logged days: emerald for a habit, blue for a category's combined calendar
   color?: ActivityColor;
-  // The days a habit was skipped, as civil day keys. Each marks the days it covers by the cadence
-  // (its week, for a weekly habit) that aren't done by entries.
-  skippedDays?: string[];
+  // The days a habit was skipped, as civil day keys, and the user's vacation days (see SkipDay).
+  // Each marks the days it covers by the cadence (its week, for a weekly habit) that aren't done by
+  // entries.
+  skippedDays?: SkipDay[];
+  // For a limit, when the habit began: a day before it isn't shaded as kept. Its first entry
+  // without it.
+  since?: Date;
 }
 
 // A cell's fill for the people who logged that day: their color, or equal diagonal bands of each
@@ -52,19 +56,39 @@ function personFill(ids: string[], people: Record<string, Person>) {
   return `linear-gradient(135deg, ${colors.map((c, i) => `${c} ${i * band}% ${(i + 1) * band}%`).join(', ')})`;
 }
 
+// How a day of a limit's calendar is shaded: in a period that went over the limit (`counting`, its
+// entries, more than `max`), on a day with entries or not; kept, once its period's over (`settled`)
+// and if the habit had begun (`begun`); or in the period still going, with entries or not (null)
+type LimitShade = 'overLogged' | 'over' | 'kept' | 'logged' | null;
+
+function limitShadeFor(max: number, count: number, counting: number, settled: boolean, begun: boolean): LimitShade {
+  if (counting > max) return count > 0 ? 'overLogged' : 'over';
+  if (settled) return begun ? 'kept' : null;
+  return count > 0 ? 'logged' : null;
+}
+
 // All dates below are civil dates (UTC midnight for a day in `timeZone`), so only UTC methods are used.
-export default function ActivityCalendar({ dates, timeZone, weeks = 5, cadence = DEFAULT_CADENCE, density, size = 'sm', monthsPerColumn = 4, bedtime = '00:00', weekStartsOn = 'sunday', emptyColor = 'bg-surface-muted', futureColor = 'bg-transparent border border-line-subtle', onDateClick, loggedBy, people, color = 'emerald', skippedDays }: ActivityCalendarProps) {
+//
+// A limit's calendar is shaded the other way round: a day whose period is over and was kept to the
+// limit is done, with or without entries; one in a period that went over is amber (deeper on the
+// days with entries); and in the period still going, days with entries are lightly shaded.
+export default function ActivityCalendar({ dates, timeZone, weeks = 5, cadence = DEFAULT_CADENCE, density, size = 'sm', monthsPerColumn = 4, bedtime = '00:00', weekStartsOn = 'sunday', emptyColor = 'bg-surface-muted', futureColor = 'bg-transparent border border-line-subtle', onDateClick, loggedBy, people, color = 'emerald', skippedDays, since }: ActivityCalendarProps) {
   const bedtimeOffsetMinutes = parseBedtimeOffsetMinutes(bedtime);
   const startsMonday = weekStartsOn === 'monday';
-  const colorByPerson = !!(loggedBy && people);
 
   // A combined calendar's density works like a habit due that many times a day
   const effectiveCadence: Cadence = density ? { type: 'daily', timesPerDay: Math.max(1, density) } : cadence;
+  const limit = limitOf(effectiveCadence);
+  // A limit's shading is about keeping to it, not who logged
+  const colorByPerson = !!(loggedBy && people) && limit === null;
   const needed = entriesNeeded(effectiveCadence);
   // What a fully shaded logged day takes: the cadence's daily target, or one entry when it has none
   const shadeTarget = Number.isFinite(needed) ? needed : 1;
 
   const today = toCivilDate(new Date(), timeZone, bedtimeOffsetMinutes);
+  // For a limit, the first day it can have been kept
+  const civil = (date: Date) => toCivilDate(date, timeZone, bedtimeOffsetMinutes);
+  const limitFrom = since ? civil(since) : dates.reduce<Date | null>((first, d) => (!first || civil(d) < first ? civil(d) : first), null);
 
   const getStartOfWeek = (d: Date) => startOfWeek(d, weekStartsOn);
 
@@ -162,7 +186,7 @@ export default function ActivityCalendar({ dates, timeZone, weeks = 5, cadence =
       for (let d = 0; d < 7; d++) {
         const day = cellAt(w, d);
         if (!day) {
-          grid.push({ isNull: true, date: today, count: 0, counting: 0, isFuture: false, isPeriodCompleted: false, isSkipped: false, loggers: [] as string[], isNewMonthLeft: false, isNewMonthRight: false, isNewMonthTop: false, isNewMonthBottom: false, w, d });
+          grid.push({ isNull: true, date: today, count: 0, counting: 0, isFuture: false, isPeriodCompleted: false, isSkipped: false, limitShade: null as LimitShade, loggers: [] as string[], isNewMonthLeft: false, isNewMonthRight: false, isNewMonthTop: false, isNewMonthBottom: false, w, d });
           continue;
         }
         
@@ -176,6 +200,7 @@ export default function ActivityCalendar({ dates, timeZone, weeks = 5, cadence =
         const isPeriodCompleted = count === 0 && counting >= needed;
         // A day with no entries of its own, not done by others, that a skip excuses
         const isSkipped = count === 0 && !isPeriodCompleted && !isFuture && skippedKeys.has(key);
+        const limitShade = limit === null || isFuture ? null : limitShadeFor(limit, count, counting, cadenceCovers(effectiveCadence, day, { weekStartsOn }).to < today, !!limitFrom && day >= limitFrom);
 
         // Who to color this cell for: whoever logged that day, or for a day done by entries on
         // other days, whoever made those
@@ -195,15 +220,24 @@ export default function ActivityCalendar({ dates, timeZone, weeks = 5, cadence =
 
         const isToday = civilDayKey(day) === civilDayKey(today);
         
-        grid.push({ isNull: false, date: day, count, counting, isFuture, isPeriodCompleted, isSkipped, loggers, isNewMonthLeft, isNewMonthRight, isNewMonthTop, isNewMonthBottom, w, d, isToday });
+        grid.push({ isNull: false, date: day, count, counting, isFuture, isPeriodCompleted, isSkipped, limitShade, loggers, isNewMonthLeft, isNewMonthRight, isNewMonthTop, isNewMonthBottom, w, d, isToday });
       }
     }
     return grid;
   });
 
-  const getBackgroundColor = (count: number, counting: number, isFuture: boolean, isPeriodCompleted: boolean, isSkipped: boolean) => {
+  const getBackgroundColor = (count: number, counting: number, isFuture: boolean, isPeriodCompleted: boolean, isSkipped: boolean, limitShade: LimitShade) => {
     if (isFuture) return futureColor;
     if (isSkipped) return `${emptyColor} activity-skipped`;
+    if (limit !== null) {
+      switch (limitShade) {
+        case 'overLogged': return 'bg-warning';
+        case 'over': return 'bg-warning-soft-strong';
+        case 'kept': return ACTIVITY_PALETTES[color].done;
+        case 'logged': return ACTIVITY_PALETTES[color].scale[0];
+        default: return emptyColor;
+      }
+    }
     if (count > 0) {
       if (shadeTarget > 1) return activityShade(counting, shadeTarget, color);
       return ACTIVITY_PALETTES[color].done;
@@ -320,7 +354,7 @@ export default function ActivityCalendar({ dates, timeZone, weeks = 5, cadence =
                         if (onDateClick && !cell.isFuture) onDateClick(cell.date);
                       }}
                       style={personStyle}
-                      className={`${cellClass} transition-colors relative z-10 flex items-center justify-center ${personStyle ? '' : getBackgroundColor(cell.count, cell.counting, cell.isFuture, cell.isPeriodCompleted, cell.isSkipped)} ${onDateClick && !cell.isFuture ? 'cursor-pointer hover:opacity-80' : ''}`}
+                      className={`${cellClass} transition-colors relative z-10 flex items-center justify-center ${personStyle ? '' : getBackgroundColor(cell.count, cell.counting, cell.isFuture, cell.isPeriodCompleted, cell.isSkipped, cell.limitShade)} ${onDateClick && !cell.isFuture ? 'cursor-pointer hover:opacity-80' : ''}`}
                     >
                       {cell.isToday && todayDotClass && (
                         <div className={`rounded-full ${cell.count > 0 ? 'bg-white' : 'bg-ink-muted'} ${todayDotClass}`} />

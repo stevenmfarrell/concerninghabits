@@ -63,6 +63,15 @@ describe('runReminderTick', () => {
     expect(mine()).toHaveLength(1);
   });
 
+  it('says nothing while they\'re on vacation, and nudges again once it\'s over', async () => {
+    await createHabit(user.id, 'Meds', usuallyAt2340);
+    await prisma.vacation.create({ data: { userId: user.id, from: '2026-10-20', to: '2026-10-20' } });
+    await runReminderTick(at(21, 0, 30)); // 12:30am, still the 20th by the 01:00 bedtime
+    expect(mine()).toEqual([]);
+    await runReminderTick(at(22, 0, 30)); // the 21st, back from vacation
+    expect(mine()).toEqual([expect.objectContaining({ title: 'Meds' })]);
+  });
+
   it('says nothing once it\'s logged', async () => {
     await createHabit(user.id, 'Meds', [...usuallyAt2340, at(20, 22, 0)]);
     await runReminderTick(at(21, 0, 30));

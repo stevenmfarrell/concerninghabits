@@ -1,7 +1,9 @@
 import { getDefaultUser } from '../actions/db';
+import { getVacation } from '../actions/vacation';
+import { describeVacation } from '@/lib/vacation';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
-import { AlarmClock, ChevronRight, FolderTree, Users, Sliders, LogOut, KeyRound } from 'lucide-react';
+import { AlarmClock, ChevronRight, FolderTree, Users, Sliders, LogOut, KeyRound, TreePalm } from 'lucide-react';
 import Icon from '../../components/Icon';
 import PageHeader from '@/components/PageHeader';
 import { PANE_INSET, PanePage, PaneSection } from '@/components/Pane';
@@ -33,7 +35,7 @@ function SettingsLink({ href, ...content }: { href: string; icon: ReactNode; tit
 }
 
 export default async function SettingsPage() {
-  const user = await getDefaultUser();
+  const [user, vacation] = await Promise.all([getDefaultUser(), getVacation()]);
 
   return (
     <PanePage width="3xl" header={<PageHeader title="Settings" showBack={false} />}>
@@ -55,6 +57,7 @@ export default async function SettingsPage() {
       <PaneSection title="Preferences">
         <SettingsLink href="/settings/preferences" icon={<Sliders className="w-5 h-5" />} title="Personal Preferences" description="Theme, bedtime, calendar start day, emojis" />
         <SettingsLink href="/settings/reminders" icon={<AlarmClock className="w-5 h-5" />} title="Reminders" description="Nudges when you're running late on a habit" />
+        <SettingsLink href="/settings/vacation" icon={<TreePalm className="w-5 h-5" />} title="Vacation" description={vacation ? describeVacation(vacation) : 'Take a break without it counting against you'} />
         <SettingsLink href="/settings/categories" icon={<FolderTree className="w-5 h-5" />} title="Manage Categories" />
         {user.isAdmin && (
           <SettingsLink href="/settings/users" icon={<Users className="w-5 h-5" />} title="Family Users" description="Add or remove family members" />

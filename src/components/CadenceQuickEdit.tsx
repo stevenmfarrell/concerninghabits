@@ -5,8 +5,12 @@ import { AlarmClock, AlarmClockOff, Lock, Repeat } from 'lucide-react';
 import { CadencePicker, CadenceSettings } from './CadenceField';
 import QuickEditDialog from './QuickEditDialog';
 import ReminderSettings, { reminderDraftOf, type ReminderDraft } from './reminders/ReminderSettings';
-import { describeCadence, type Cadence } from '@/lib/cadence';
+import { describeCadence, limitOf, type Cadence } from '@/lib/cadence';
 import { reminderStatusFor, type ReminderStatus } from '@/lib/reminders';
+
+// Whether a reminder can be had for a cadence: not for no cadence or a limit, which are never due,
+// so never late
+export const canRemind = (cadence: Cadence) => cadence.type !== 'none' && limitOf(cadence) === null;
 
 export const PILL = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-sm font-medium transition-colors';
 
@@ -37,8 +41,7 @@ export default function CadenceQuickEdit({ cadence, weekStartsOn, onSave, locked
 }) {
   const [editing, setEditing] = useState(false);
   const description = describeCadence(cadence, { weekStartsOn });
-  // No reminder for one with no cadence: it's never due, so never late
-  const reminds = reminder && cadence.type !== 'none' ? reminder : undefined;
+  const reminds = reminder && canRemind(cadence) ? reminder : undefined;
   const alarm = reminds?.status.enabled
     ? reminds.status.muted
       ? <AlarmClockOff className="w-4 h-4 shrink-0" aria-label="Reminder paused" />
@@ -96,13 +99,13 @@ function CadenceDialog({ initial, weekStartsOn, onSave, lockedTitle, saveLabel, 
   const [reminderDraft, setReminderDraft] = useState(initialReminder);
 
   const cadenceChanged = JSON.stringify(cadence) !== JSON.stringify(initial);
-  // The reminder goes with the cadence being chosen: none for no cadence
-  const showsReminder = !!reminder && !!reminderDraft && cadence.type !== 'none';
+  // The reminder goes with the cadence being chosen: none for one that's never due
+  const showsReminder = !!reminder && !!reminderDraft && canRemind(cadence);
   const reminderChanged = showsReminder && JSON.stringify(reminderDraft) !== JSON.stringify(initialReminder);
 
   return (
     <QuickEditDialog
-      title={reminder ? 'Cadence & reminder' : 'Cadence'}
+      title={reminder && canRemind(cadence) ? 'Cadence & reminder' : 'Cadence'}
       canSave={cadenceChanged || reminderChanged}
       onSave={async () => {
         if (cadenceChanged) await onSave?.(cadence);

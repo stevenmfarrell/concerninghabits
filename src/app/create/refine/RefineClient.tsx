@@ -11,6 +11,7 @@ import type { HabitSchema } from '@/lib/types';
 import { NO_CADENCE, type Cadence } from '@/lib/cadence';
 import { setPendingSmartEntry } from '@/lib/pendingSmartEntry';
 import { newHabitReminderStatus } from '@/lib/reminders';
+import { canRemind } from '@/components/CadenceQuickEdit';
 import RefineLoading from './RefineLoading';
 
 interface HabitDraft {
@@ -48,8 +49,8 @@ export default function RefineClient({ weekStartsOn, bedtime, hasDevice }: { wee
     const habit = await saveHabit(title, description, schema, categoryId, cadence, publishToMqtt, aiContext, calculatedFields);
     sessionStorage.removeItem('draftHabit');
     // A reminder is the user's own, on their membership, so it's set once the habit exists. Only one
-    // with a cadence is ever due, so only one with a cadence can run late.
-    if (reminder?.enabled && cadence.type !== 'none') {
+    // that's ever due can run late (see canRemind).
+    if (reminder?.enabled && canRemind(cadence)) {
       await setHabitReminder(habit.id, true, reminder.remindAt);
     }
 

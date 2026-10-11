@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { consistency, CONSISTENCY_HISTORY_WEEKS, lookbackDays } from '@/lib/consistency';
-import type { Cadence } from '@/lib/cadence';
+import type { Cadence, SkipDay } from '@/lib/cadence';
 
 const user = { timeZone: 'UTC', bedtime: '00:00', weekStartsOn: 'sunday' };
 // Saturday, October 3rd 2026, mid-afternoon
@@ -15,7 +15,7 @@ const range = (from: number, to: number) => Array.from({ length: to - from + 1 }
 
 const daily: Cadence = { type: 'daily', timesPerDay: 1 };
 const longAgo = new Date(now.getTime() - 200 * DAY_MS);
-const score = (cadence: Cadence, logs: Date[], options: { createdAt?: Date; skippedDays?: string[] } = {}) =>
+const score = (cadence: Cadence, logs: Date[], options: { createdAt?: Date; skippedDays?: SkipDay[] } = {}) =>
   consistency(cadence, logs, user, { createdAt: options.createdAt ?? longAgo, skippedDays: options.skippedDays }, now);
 
 describe('consistency', () => {
@@ -143,3 +143,54 @@ describe('consistency', () => {
     }
   });
 });
+
+describe('consistency of a limit', () => {
+  const coffee: Cadence = { type: 'limit', period: 'day', max: 2 };
+  const smoking: Cadence = { type: 'limit', period: 'day', max: 0 };
+  const twice = (days: number[]) => days.flatMap(d => [daysAgo(d), new Date(daysAgo(d).getTime() + 3600_000)]);
+
+  it('thrives when kept to, whether with no entries or up to the limit', () => {
+    expect(score(smoking, [], { createdAt: daysAgo(30) })?.level).toBe('thriving');
+    expect(score(coffee, twice(range(1, 30)), { createdAt: daysAgo(30) })?.level).toBe('thriving');
+  });
+
+  it('needs care when it keeps going over, and a slip only dips it', () => {
+    expect(score(smoking, on(range(1, 30)), { createdAt: daysAgo(30) })?.level).toBe('needsCare');
+    const oneSlip = score(smoking, on([5]), { createdAt: daysAgo(30) })!;
+    expect(oneSlip.level).toBe('thriving');
+    expect(oneSlip.score).toBeLessThan(1);
+  });
+
+  it('doesn\'t count today until it\'s over, unless it\'s already gone over', () => {
+    const kept = score(smoking, [], { createdAt: daysAgo(3) })!;
+    // Yesterday and the two days before: today's still going
+    expect(kept.score).toBe(1);
+    const slippedToday = score(smoking, [daysAgo(0)], { createdAt: daysAgo(3) })!;
+    expect(slippedToday.score).toBeLessThan(1);
+  });
+
+  it('is freshly planted until a few periods have gone by', () => {
+    expect(score(smoking, [], { createdAt: daysAgo(1) })?.level).toBe('freshlyPlanted');
+  });
+
+  it('doesn\'t count a day it was skipped', () => {
+    const skipped = score(smoking, on([2]), { createdAt: daysAgo(10), skippedDays: [dayKey(2)] })!;
+    expect(skipped.score).toBe(1);
+  });
+});
+
+describe('consistency over a vacation', () => {
+  const every10: Cadence = { type: 'everyNDays', days: 10 };
+
+  it('doesn\'t hold the vacation against an every-N-days habit, but counts lateness after it from the next day', () => {
+    // Done every 10 days until 25 days ago, then due 15 days ago, in the middle of a vacation 18 to 12
+    // days ago: due again the day after it, 11 days ago, and done on time then
+    const vacation = range(12, 18).map(d => ({ day: dayKey(d), vacation: true as const }));
+    const onTime = score(every10, on([65, 55, 45, 35, 25, 11, 1]), { createdAt: daysAgo(65), skippedDays: vacation })!;
+    expect(onTime.score).toBe(1);
+    // Done 5 days late after it instead (6 days ago, due 11 days ago): a late one
+    const late = score(every10, on([65, 55, 45, 35, 25, 6]), { createdAt: daysAgo(65), skippedDays: vacation })!;
+    expect(late.score).toBeLessThan(1);
+  });
+});
+

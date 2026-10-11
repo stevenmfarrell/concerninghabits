@@ -36,8 +36,9 @@ export interface HabitListItem {
   userId: string;
   order?: number | null;
   logs?: { createdAt: Date; userId: string }[];
-  // The days it was skipped, as civil day keys (see HabitSkip)
-  skips?: { day: string }[];
+  // The days it was skipped, as civil day keys (see HabitSkip), and the viewer's vacation days,
+  // flagged as such (see Vacation)
+  skips?: { day: string; vacation?: boolean }[];
   // When it was created, which its consistency is counted from (see consistency)
   createdAt?: Date;
   // How many people have this habit (1 unless it's shared)

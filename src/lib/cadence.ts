@@ -25,6 +25,10 @@ export const cadenceSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('calendarMonth'), times: z.number().int().min(1).max(100).optional() }),
   // Logged whenever it happens, with nothing expected, so it's never done
   z.object({ type: z.literal('none') }),
+  // At most `max` entries per day, calendar week, or calendar month: something to cut down on, or with
+  // 0, to quit (every entry a slip). It's never due; each period kept to it counts toward its health,
+  // and each that goes over against it.
+  z.object({ type: z.literal('limit'), period: z.enum(['day', 'week', 'month']), max: z.number().int().min(0).max(100) }),
 ]);
 
 export type Cadence = z.infer<typeof cadenceSchema>;
@@ -35,7 +39,7 @@ export const NO_CADENCE: Cadence = { type: 'none' };
 
 // Every cadence type, e.g. for the AI to choose from. Checked against the union below, so a new
 // cadence can't be left out.
-export const CADENCE_TYPES = ['daily', 'everyNDays', 'weekdays', 'calendarWeek', 'calendarMonth', 'none'] as const;
+export const CADENCE_TYPES = ['daily', 'everyNDays', 'weekdays', 'calendarWeek', 'calendarMonth', 'none', 'limit'] as const;
 type MissingCadenceTypes = Exclude<CadenceType, (typeof CADENCE_TYPES)[number]>;
 const allCadenceTypesListed: MissingCadenceTypes extends never ? true : false = true;
 void allCadenceTypesListed;
@@ -81,6 +85,9 @@ interface CadenceRule<C extends Cadence> {
   countsDown: boolean;
   // The days an entry made on civil day `day` counts toward
   covers(cadence: C, day: Date, context: CadenceContext): DayRange;
+  // For a limit (see LIMIT), the most entries its period may have; its entries count toward that
+  // rather than toward being done, so it's never due
+  limit?(cadence: C): number;
   // How many entries counting toward a day make it done; Infinity for never
   needed(cadence: C): number;
   // How many days before it's due again a done habit counts as upcoming (0: never upcoming)
@@ -112,6 +119,23 @@ export function startOfWeek(day: Date, weekStartsOn: string) {
 }
 
 const justThatDay = (day: Date): DayRange => ({ from: day, to: day });
+
+// The calendar week (by the user's week start) or month a civil day falls in
+function weekOf(day: Date, context: CadenceContext): DayRange {
+  const from = startOfWeek(day, context.weekStartsOn);
+  return { from, to: addDays(from, 6) };
+}
+const monthOf = (day: Date): DayRange => ({
+  from: new Date(Date.UTC(day.getUTCFullYear(), day.getUTCMonth(), 1)),
+  to: new Date(Date.UTC(day.getUTCFullYear(), day.getUTCMonth() + 1, 0)),
+});
+
+export type LimitPeriod = Extract<Cadence, { type: 'limit' }>['period'];
+const LIMIT_PERIODS: Record<LimitPeriod, { progress: ProgressPeriod; covers: (day: Date, context: CadenceContext) => DayRange; adverb: string; skip: string }> = {
+  day: { progress: 'daily', covers: day => justThatDay(day), adverb: 'daily', skip: 'today' },
+  week: { progress: 'weekly', covers: weekOf, adverb: 'weekly', skip: 'this week' },
+  month: { progress: 'monthly', covers: day => monthOf(day), adverb: 'monthly', skip: 'this month' },
+};
 
 // 20% of a number of days, rounded up to whole days (N / 5 rather than N * 0.2, which isn't exact in
 // floating point: 15 * 0.2 rounds up to 4)
@@ -215,10 +239,7 @@ const RULES: { [T in CadenceType]: CadenceRule<Extract<Cadence, { type: T }>> } 
     describe: c => timesPer(c.times, 'Weekly'),
     period: 'weekly',
     countsDown: false,
-    covers: (_, day, context) => {
-      const from = startOfWeek(day, context.weekStartsOn);
-      return { from, to: addDays(from, 6) };
-    },
+    covers: (_, day, context) => weekOf(day, context),
     needed: c => c.times ?? 1,
     upcomingDays: () => 0,
     dueByPeriodEnd: true,
@@ -228,10 +249,7 @@ const RULES: { [T in CadenceType]: CadenceRule<Extract<Cadence, { type: T }>> } 
     describe: c => timesPer(c.times, 'Monthly'),
     period: 'monthly',
     countsDown: false,
-    covers: (_, day) => ({
-      from: new Date(Date.UTC(day.getUTCFullYear(), day.getUTCMonth(), 1)),
-      to: new Date(Date.UTC(day.getUTCFullYear(), day.getUTCMonth() + 1, 0)),
-    }),
+    covers: (_, day) => monthOf(day),
     needed: c => c.times ?? 1,
     upcomingDays: () => 0,
     dueByPeriodEnd: true,
@@ -246,6 +264,23 @@ const RULES: { [T in CadenceType]: CadenceRule<Extract<Cadence, { type: T }>> } 
     upcomingDays: () => 0,
     dueByPeriodEnd: false,
     skips: () => null,
+  },
+  limit: {
+    // e.g. "At most 2× daily", or for none at all, "Avoid" ("Avoid weekly" for a week at a time)
+    describe: c => (c.max === 0
+      ? (c.period === 'day' ? 'Avoid' : `Avoid ${LIMIT_PERIODS[c.period].adverb}`)
+      : `At most ${c.max}× ${LIMIT_PERIODS[c.period].adverb}`),
+    // Its progress is how much of the limit's used (see limitStatus), not toward done
+    period: null,
+    countsDown: false,
+    covers: (c, day, context) => LIMIT_PERIODS[c.period].covers(day, context),
+    limit: c => c.max,
+    // Never done by entries, nor due (see cadenceStatus)
+    needed: () => Infinity,
+    upcomingDays: () => 0,
+    dueByPeriodEnd: false,
+    // Excuses its period, e.g. a planned day off from it
+    skips: c => skipping(LIMIT_PERIODS[c.period].skip),
   },
 };
 
@@ -266,6 +301,8 @@ export const dueByPeriodEnd = (cadence: Cadence) => ruleFor(cadence).dueByPeriod
 export const cadenceCovers = (cadence: Cadence, day: Date, context: CadenceContext) => ruleFor(cadence).covers(cadence, day, context);
 export const entriesNeeded = (cadence: Cadence) => ruleFor(cadence).needed(cadence);
 export const upcomingDays = (cadence: Cadence) => ruleFor(cadence).upcomingDays(cadence);
+// The most entries a limit's period may have (see limit), or null for a cadence that isn't one
+export const limitOf = (cadence: Cadence) => ruleFor(cadence).limit?.(cadence) ?? null;
 
 // A cadence from its stored JSON, or `fallback` if it's missing or not one we know (once a day for
 // a habit; categories pass NO_CADENCE, since a category has none unless the user sets one)
@@ -282,13 +319,14 @@ export function parseCadence(raw: string | null | undefined, fallback: Cadence =
 // A cadence from a loosely shaped suggestion (e.g. the AI's, which picks a type and may leave out
 // or misjudge the numbers), with defaults filled in for missing numbers. No suggestion, or one that
 // doesn't fit, means no cadence: a habit only recurs when that's clearly what the user wants.
-export function cadenceFromSuggestion(suggestion: { type?: string; timesPerDay?: number; days?: number; timesPerPeriod?: number; daysOfWeek?: number[] } | undefined): Cadence {
+export function cadenceFromSuggestion(suggestion: { type?: string; timesPerDay?: number; days?: number; timesPerPeriod?: number; daysOfWeek?: number[]; limitPeriod?: string; max?: number } | undefined): Cadence {
   const candidate =
     suggestion?.type === 'daily' ? { type: 'daily', timesPerDay: suggestion.timesPerDay ?? 1 }
     : suggestion?.type === 'everyNDays' ? { type: 'everyNDays', days: suggestion.days ?? 2 }
     : suggestion?.type === 'weekdays' ? { type: 'weekdays', days: [...new Set(suggestion.daysOfWeek ?? [])].sort((a, b) => a - b) }
     : suggestion?.type === 'calendarWeek' || suggestion?.type === 'calendarMonth'
       ? { type: suggestion.type, ...((suggestion.timesPerPeriod ?? 1) > 1 ? { times: suggestion.timesPerPeriod } : {}) }
+    : suggestion?.type === 'limit' ? { type: 'limit', period: suggestion.limitPeriod ?? 'day', max: suggestion.max ?? 0 }
     : { type: suggestion?.type };
   const parsed = cadenceSchema.safeParse(candidate);
   return parsed.success ? parsed.data : NO_CADENCE;
@@ -313,7 +351,7 @@ export type CadenceStatus = { state: 'due' } | { state: 'upcoming'; dueInDays: n
 
 // Today as a civil date, the days each entry that counts toward today covers, and the days each
 // skip that excuses today covers. A cadence that's never done can't be skipped.
-function countingToday(cadence: Cadence, logDates: Date[], user: CadenceUser, now: Date, skippedDays: readonly string[]) {
+function countingToday(cadence: Cadence, logDates: Date[], user: CadenceUser, now: Date, skippedDays: readonly SkipDay[]) {
   const offset = parseBedtimeOffsetMinutes(user.bedtime);
   const today = toCivilDate(now, user.timeZone, offset);
   const coversToday = ({ from, to }: DayRange) => from <= today && today <= to;
@@ -324,14 +362,26 @@ function countingToday(cadence: Cadence, logDates: Date[], user: CadenceUser, no
   return { today, counting, excusing };
 }
 
-// The days each skip covers (see skips), with the day it was made on
-function skipRanges(cadence: Cadence, skippedDays: readonly string[], user: CadenceContext) {
+// A day a habit or category was skipped: a civil day key for a skip made on it, or one of the user's
+// vacation days (see Vacation), which excuses what a skip that day would, except that it never puts
+// anything off past itself (see skipRanges)
+export type SkipDay = string | { day: string; vacation: true };
+
+export const skipDayKey = (skip: SkipDay) => (typeof skip === 'string' ? skip : skip.day);
+
+// The days each skip covers (see skips), with the day it was made on. A vacation day only covers
+// itself where a skip would postpone (every N days), so once the vacation's over, it's due the day
+// after: the vacation excuses its own days, not a grace period after them.
+function skipRanges(cadence: Cadence, skippedDays: readonly SkipDay[], user: CadenceContext) {
   const rule = ruleFor(cadence);
   if (!rule.skips(cadence)) return [];
-  return skippedDays.flatMap(key => {
+  return skippedDays.flatMap(skip => {
+    const key = skipDayKey(skip);
     const day = parseCivilDayKey(key);
     if (!day) return [];
-    return [{ key, range: rule.skipCovers ? rule.skipCovers(cadence, day) : cadenceCovers(cadence, day, user) }];
+    const vacation = typeof skip !== 'string';
+    const range = rule.skipCovers ? (vacation ? justThatDay(day) : rule.skipCovers(cadence, day)) : cadenceCovers(cadence, day, user);
+    return [{ key, range }];
   });
 }
 
@@ -349,12 +399,27 @@ function daysToNextScheduled(cadence: Cadence, today: Date) {
 // How far along a habit is toward being done for now, e.g. 3 of 4 times today, for a cadence that
 // takes more than one entry; null for one that takes a single entry (or never gets done). A skip
 // fills it.
-export function cadenceProgress(cadence: Cadence, logDates: Date[], user: CadenceUser, now = new Date(), skippedDays: readonly string[] = []): CadenceProgress | null {
+export function cadenceProgress(cadence: Cadence, logDates: Date[], user: CadenceUser, now = new Date(), skippedDays: readonly SkipDay[] = []): CadenceProgress | null {
   const { period } = ruleFor(cadence);
   const needed = entriesNeeded(cadence);
   if (!period || needed <= 1) return null;
   const { counting, excusing } = countingToday(cadence, logDates, user, now, skippedDays);
   return { done: excusing.length > 0 ? needed : Math.min(counting.length, needed), needed, period };
+}
+
+// How a limit's going in the period today falls in: `used` entries of the `max` it may have, and
+// whether a skip excuses it (when going over doesn't count). Null for a cadence that isn't a limit.
+export interface LimitStatus {
+  used: number;
+  max: number;
+  period: ProgressPeriod;
+  excused: boolean;
+}
+
+export function limitStatus(cadence: Cadence, logDates: Date[], user: CadenceUser, now = new Date(), skippedDays: readonly SkipDay[] = []): LimitStatus | null {
+  if (cadence.type !== 'limit') return null;
+  const { counting, excusing } = countingToday(cadence, logDates, user, now, skippedDays);
+  return { used: counting.length, max: cadence.max, period: LIMIT_PERIODS[cadence.period].progress, excused: excusing.length > 0 };
 }
 
 // How many days after today the period today falls in ends, for a cadence due by its end (see
@@ -368,7 +433,7 @@ function daysToPeriodEnd(cadence: Cadence, today: Date, context: CadenceContext)
 // or month (see dueByPeriodEnd) and not done yet, until that period's last day; for one done only on
 // some days and not done for now, until the next of them (0 on one). Null for other cadences, before
 // a countdown's first entry, or once a week or month is done.
-export function daysUntilDue(cadence: Cadence, logDates: Date[], user: CadenceUser, now = new Date(), skippedDays: readonly string[] = []): number | null {
+export function daysUntilDue(cadence: Cadence, logDates: Date[], user: CadenceUser, now = new Date(), skippedDays: readonly SkipDay[] = []): number | null {
   const rule = ruleFor(cadence);
   if (rule.dueByPeriodEnd || rule.scheduled) {
     const { today, counting, excusing } = countingToday(cadence, logDates, user, now, skippedDays);
@@ -387,7 +452,9 @@ export function daysUntilDue(cadence: Cadence, logDates: Date[], user: CadenceUs
   return Math.round((lastCovered - today.getTime()) / DAY_MS) + 1;
 }
 
-export function cadenceStatus(cadence: Cadence, logDates: Date[], user: CadenceUser, now = new Date(), skippedDays: readonly string[] = []): CadenceStatus {
+export function cadenceStatus(cadence: Cadence, logDates: Date[], user: CadenceUser, now = new Date(), skippedDays: readonly SkipDay[] = []): CadenceStatus {
+  // A limit has nothing to do, so it's never due: how it's going is limitStatus
+  if (limitOf(cadence) !== null) return { state: 'done' };
   const { today, counting, excusing } = countingToday(cadence, logDates, user, now, skippedDays);
   if (counting.length < entriesNeeded(cadence)) {
     if (excusing.length > 0) {
@@ -412,7 +479,7 @@ export function cadenceStatus(cadence: Cadence, logDates: Date[], user: CadenceU
 // of its calendar week or month (see dueByPeriodEnd) isn't due until the period's last day, however
 // many entries it still needs (they can all be logged on one day). Until then it's upcoming,
 // `dueInDays` before it's due.
-export function agendaStatus(cadence: Cadence, logDates: Date[], user: CadenceUser, now = new Date(), skippedDays: readonly string[] = []): CadenceStatus {
+export function agendaStatus(cadence: Cadence, logDates: Date[], user: CadenceUser, now = new Date(), skippedDays: readonly SkipDay[] = []): CadenceStatus {
   const status = cadenceStatus(cadence, logDates, user, now, skippedDays);
   if (status.state !== 'due' || !ruleFor(cadence).dueByPeriodEnd) return status;
 
@@ -422,17 +489,17 @@ export function agendaStatus(cadence: Cadence, logDates: Date[], user: CadenceUs
 }
 
 // Whether it was due on the Agenda at the start of today, before any of today's entries or skips
-export function dueAtStartOfDay(cadence: Cadence, logDates: Date[], user: CadenceUser, now = new Date(), skippedDays: readonly string[] = []) {
+export function dueAtStartOfDay(cadence: Cadence, logDates: Date[], user: CadenceUser, now = new Date(), skippedDays: readonly SkipDay[] = []) {
   const offset = parseBedtimeOffsetMinutes(user.bedtime);
   const today = toCivilDate(now, user.timeZone, offset);
   const beforeToday = logDates.filter(date => toCivilDate(date, user.timeZone, offset) < today);
   const todayKey = civilDayKey(today);
-  return agendaStatus(cadence, beforeToday, user, now, skippedDays.filter(day => day < todayKey)).state === 'due';
+  return agendaStatus(cadence, beforeToday, user, now, skippedDays.filter(skip => skipDayKey(skip) < todayKey)).state === 'due';
 }
 
 // Whether a habit is done for now (upcoming counts as done, and so does a day it isn't meant to be
 // done, or one it was skipped)
-export function isHabitComplete(cadence: Cadence, logDates: Date[], user: CadenceUser, now = new Date(), skippedDays: readonly string[] = []) {
+export function isHabitComplete(cadence: Cadence, logDates: Date[], user: CadenceUser, now = new Date(), skippedDays: readonly SkipDay[] = []) {
   return cadenceStatus(cadence, logDates, user, now, skippedDays).state !== 'due';
 }
 
@@ -454,7 +521,7 @@ export function skipLabels(cadence: Cadence): { skip: string; skipped: string; p
 // rather than done (see cadenceStatus)
 export const postpones = (cadence: Cadence) => countsDown(cadence);
 
-export function skipState(cadence: Cadence, logDates: Date[], user: CadenceUser, now = new Date(), skippedDays: readonly string[] = []): SkipState | null {
+export function skipState(cadence: Cadence, logDates: Date[], user: CadenceUser, now = new Date(), skippedDays: readonly SkipDay[] = []): SkipState | null {
   const labels = skipLabels(cadence);
   if (!labels) return null;
   const { today, counting, excusing } = countingToday(cadence, logDates, user, now, skippedDays);
@@ -464,6 +531,6 @@ export function skipState(cadence: Cadence, logDates: Date[], user: CadenceUser,
 }
 
 // The days each skip covers (see skipState), for an activity calendar to mark them
-export function skippedCovers(cadence: Cadence, skippedDays: readonly string[], context: CadenceContext): DayRange[] {
+export function skippedCovers(cadence: Cadence, skippedDays: readonly SkipDay[], context: CadenceContext): DayRange[] {
   return skipRanges(cadence, skippedDays, context).map(({ range }) => range);
 }

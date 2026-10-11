@@ -4,6 +4,8 @@ import { Check, SkipForward } from 'lucide-react';
 import Icon from '../components/Icon';
 import { SortableHabitList } from './categories/[id]/SortableLists';
 import SmartEntry from './SmartEntry';
+import { getVacation } from './actions/vacation';
+import VacationChip from '@/components/VacationChip';
 import EmptyState from '@/components/EmptyState';
 import DueNowCleared from '@/components/DueNowCleared';
 import SmoothHeight from '@/components/SmoothHeight';
@@ -20,8 +22,9 @@ import { DEFAULT_CATEGORY_ICON } from '@/lib/constants';
 
 // Categories with a cadence that are due or upcoming, as rows linking to their pages, each with a
 // calendar of its recent entries like a habit's. Tapping its ring, or pressing and holding the row,
-// picks a habit in it to log. Each has its cadence under its name, as habit rows here do.
-function CategoryList({ categories, user }: { categories: DueCategory[]; user: SessionUser }) {
+// picks a habit in it to log. Each has its cadence under its name, as habit rows here do. One that
+// `leavesWhenDone` zooms away once logging makes it done (not a limit's, which is never done).
+function CategoryList({ categories, user, leavesWhenDone = true }: { categories: DueCategory[]; user: SessionUser; leavesWhenDone?: boolean }) {
   return (
     <div className="divide-y divide-line-subtle flex flex-col">
       {categories.map(category => {
@@ -42,7 +45,7 @@ function CategoryList({ categories, user }: { categories: DueCategory[]; user: S
         };
         // A category with no habits has nothing to log, so its ring can't be tapped
         return category.habits.length > 0
-          ? <CategoryHoldToLog key={category.id} category={category} row={row} leavesWhenDone />
+          ? <CategoryHoldToLog key={category.id} category={category} row={row} leavesWhenDone={leavesWhenDone} />
           : <CategoryRow key={category.id} {...row} leading={category.status && <LogRing status={category.status} label="No habits to log" color="blue" disabled />} />;
       })}
     </div>
@@ -91,22 +94,26 @@ function RecentChips({ habits, categories, skippedIds }: { habits: HabitListItem
 // Agenda: every habit and category with a cadence, in three sections: due now (on or past when
 // it's due; a weekly or monthly one only on its last day), upcoming (an every-N-days
 // one done but due again soon, still loggable since doing it early restarts its count, or a weekly
-// or monthly one not yet done with days to spare), and recently logged, as chips: habits logged
+// or monthly one not yet done with days to spare), limits (never due, so always listed, with how much
+// of each is left), and recently logged, as chips: habits logged
 // lately that aren't in the other two (including ones without a cadence), and categories done for
 // now. Due Now emptied today by doing everything in it shows the hobbit hole (see DueNowCleared).
 export default async function AgendaPage() {
   const user = await getDefaultUser();
-  const [categories, uncategorized, latestLogDates, people] = await Promise.all([
+  const [categories, uncategorized, latestLogDates, people, vacation] = await Promise.all([
     getCategoriesWithHierarchy(),
     getUncategorizedHabits(5),
     getLatestLogDates(),
     getPeople(),
+    getVacation(),
   ]);
 
-  const { dueHabits, upcomingHabits, recentHabits, dueCategories, upcomingCategories, recentCategories, statuses, skippedHabitIds, skippedCategoryIds, clearedToday } = buildDueList(categories, uncategorized, latestLogDates, user);
+  const { dueHabits, upcomingHabits, recentHabits, dueCategories, upcomingCategories, recentCategories, limitHabits, limitCategories, statuses, skippedHabitIds, skippedCategoryIds, clearedToday } = buildDueList(categories, uncategorized, latestLogDates, user);
   const anyDue = dueHabits.length > 0 || dueCategories.length > 0;
   const anyUpcoming = upcomingHabits.length > 0 || upcomingCategories.length > 0;
   const anyRecent = recentHabits.length > 0 || recentCategories.length > 0;
+  const anyLimits = limitHabits.length > 0 || limitCategories.length > 0;
+  const onVacation = !!vacation?.active;
   const anyHabits = uncategorized.length > 0 || categories.some(c => c.habits.length > 0 || c.children.some(child => child.habits.length > 0));
 
   // Today in the viewer's time zone, following the same bedtime rule as the calendars
@@ -123,11 +130,17 @@ export default async function AgendaPage() {
         />
       }
     >
+      {/* While they're away, so they know why nothing's due, and can end it */}
+      {onVacation && (
+        <div className={`${PANE_INSET} pt-4 flex justify-center`}>
+          <VacationChip vacation={vacation} />
+        </div>
+      )}
       {!anyHabits ? (
         <EmptyState title="No habits here yet">
           Tap the quill at the top and tell it something you did, or a habit you&apos;d like to start.
         </EmptyState>
-      ) : !anyDue && !anyUpcoming && !anyRecent ? (
+      ) : !anyDue && !anyUpcoming && !anyLimits && !anyRecent && !onVacation ? (
         <EmptyState title="Nothing on the agenda" action={<LinkButton href="/habits" variant="outline">Go to Habits</LinkButton>}>
           Nothing has a cadence yet. Give a habit or category one on its page, and it shows up here whenever it&apos;s due.
         </EmptyState>
@@ -136,7 +149,7 @@ export default async function AgendaPage() {
           {/* Eased, so rows dropped by a refresh, or swapped for the reward, don't jolt what's below */}
           <SmoothHeight>
             {/* Emptied today by doing what was due, it's a reward; otherwise there was just nothing due */}
-            <PaneSection title="Due Now" empty={!anyDue && (clearedToday ? <DueNowCleared /> : 'Nothing due right now.')}>
+            <PaneSection title="Due Now" empty={!anyDue && (clearedToday ? <DueNowCleared /> : onVacation ? 'You’re on vacation. Nothing’s due.' : 'Nothing due right now.')}>
               {dueHabits.length > 0 && (
                 <SortableHabitList items={dueHabits} statuses={statuses} user={user} people={people} dndContextId="due-habits" bare holdToLog showCadence leavesWhenDone />
               )}
@@ -163,6 +176,18 @@ export default async function AgendaPage() {
               )}
               {upcomingCategories.length > 0 && (
                 <CategoryList categories={upcomingCategories.map(u => u.item)} user={user} />
+              )}
+            </PaneSection>
+          )}
+
+          {/* Never due, so always here, with how much of each is left (see LogRing): a tap logs one */}
+          {anyLimits && (
+            <PaneSection title="Limits">
+              {limitHabits.length > 0 && (
+                <SortableHabitList items={limitHabits} statuses={statuses} user={user} people={people} dndContextId="limit-habits" bare holdToLog showCadence />
+              )}
+              {limitCategories.length > 0 && (
+                <CategoryList categories={limitCategories} user={user} leavesWhenDone={false} />
               )}
             </PaneSection>
           )}

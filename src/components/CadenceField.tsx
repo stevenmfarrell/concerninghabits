@@ -2,8 +2,9 @@
 
 import { useState } from 'react';
 import Select from './Select';
-import { CADENCE_TYPES, toggleWeekday, weekdaysInOrder, withTimes, type Cadence, type CadenceType } from '@/lib/cadence';
+import { CADENCE_TYPES, toggleWeekday, weekdaysInOrder, withTimes, type Cadence, type CadenceType, type LimitPeriod } from '@/lib/cadence';
 import { INPUT_SM } from '@/components/ui/Input';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
 
 // Each cadence as the editor offers it: its name in the picker, and what it starts as when picked.
 // Keyed by every cadence type, so a new one doesn't build until it's given a place here.
@@ -14,7 +15,14 @@ const CADENCE_OPTIONS: { [T in CadenceType]: { label: string; initial: () => Ext
   calendarWeek: { label: 'Weekly', initial: () => ({ type: 'calendarWeek' }) },
   calendarMonth: { label: 'Monthly', initial: () => ({ type: 'calendarMonth' }) },
   none: { label: 'No set cadence', initial: () => ({ type: 'none' }) },
+  limit: { label: 'At most (a limit)', initial: () => ({ type: 'limit', period: 'day', max: 1 }) },
 };
+
+const LIMIT_PERIOD_OPTIONS: { value: LimitPeriod; label: string }[] = [
+  { value: 'day', label: 'A day' },
+  { value: 'week', label: 'A week' },
+  { value: 'month', label: 'A month' },
+];
 
 // The cadence picker. The setting the chosen cadence needs, if any, is CadenceSettings, which
 // HabitEditor shows below its row of pickers.
@@ -89,6 +97,27 @@ export function CadenceSettings({ value, onChange, disabled, weekStartsOn }: { v
       );
     case 'none':
       return null;
+    case 'limit':
+      return (
+        <>
+          <div className="mt-4 animate-in fade-in slide-in-from-top-2">
+            <p className="text-sm font-semibold text-ink-secondary mb-2" id="limit-period-label">Per</p>
+            <div aria-labelledby="limit-period-label">
+              <SegmentedControl size="md" label="Per" options={LIMIT_PERIOD_OPTIONS} value={value.period} onChange={period => onChange({ ...value, period })} />
+            </div>
+          </div>
+          <CadenceNumber
+            key="limit"
+            label="At most"
+            help="Staying at or under it keeps it healthy, and going over counts against it. 0 means avoiding it altogether. It's never due."
+            value={value.max}
+            min={0}
+            max={100}
+            onChange={max => onChange({ ...value, max })}
+            disabled={disabled}
+          />
+        </>
+      );
     default: {
       const unhandled: never = value;
       return unhandled;
