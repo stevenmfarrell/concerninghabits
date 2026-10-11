@@ -88,6 +88,9 @@ Icons are lucide's (`lucide-react`). One meaning gets one icon everywhere, so a 
 | Postpone an every-N-days habit (its skip puts it off), or postponed | `CalendarChevronsRight` | `SkipForward` (that's excusing it), `CalendarClock` (that's backdating) |
 | Consistency (see `ConsistencyLabel`): thriving, taking root, needs care (freshly planted has none) | The health plant (`PlantIcon`, from `public/plant-health.svg`), always whole: all three stages grown (green), the bottom two (green), the bottom one (amber), the rest in the row calendars' empty gray (`surface-strong/70`) | A flame or a count (it's not a streak) |
 | Vacation (everything skipped while away) | `TreePalm` | `Plane`, `Luggage` |
+| Backup & Restore (all your data, in Settings) | `DatabaseBackup` | `Archive`, `Save` |
+| Download as JSON, or as CSV | `FileJson`, `FileSpreadsheet` (`Download` for a heading's single export button) | |
+| Restore from a file you pick | `Upload` | `ArchiveRestore` |
 | Back | `ArrowLeft` | |
 | Drill into a row | `ChevronRight` at the row's end | |
 | Open a page from inside a row that does something else on tap | `ArrowRight` | `ExternalLink` (that means leaving the app) |
