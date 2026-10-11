@@ -4,35 +4,11 @@ import { prisma } from '@/lib/prisma';
 import { MAX_HISTORY_WEEKS } from '@/lib/constants';
 import { parseEntryValues } from '@/lib/habitSchema';
 import { civilDateFor, civilDayKey, DAY_MS, parseCivilDayKey } from '@/lib/timezone';
-import { revalidateEntries, getRecentLogsCutoff, getMembership, sanitizeLogPayload, canChangeLog, getChangeableLog } from './internal';
+import { revalidateEntries, getRecentLogsCutoff, getMembership, sanitizeLogPayload, canChangeLog, getChangeableLog, createHabitLog } from './internal';
 import { getDefaultUser } from './user';
 
 export async function logHabitEvent(habitId: string, payload: Record<string, unknown>, createdAt?: Date) {
-  const user = await getDefaultUser();
-  const { habit } = await getMembership(user.id, habitId);
-
-  const sanitizedPayload = sanitizeLogPayload(habit, payload);
-
-  const log = await prisma.habitLog.create({
-    data: {
-      habitId,
-      userId: user.id,
-      payload: JSON.stringify(sanitizedPayload),
-      ...(createdAt ? { createdAt } : {})
-    }
-  });
-
-  try {
-    if (habit.publishToMqtt) {
-      const { publishHabitLog } = await import('@/lib/mqtt');
-      publishHabitLog(user, habit, sanitizedPayload);
-    }
-  } catch (e) {
-    console.error('Failed to trigger MQTT publish', e);
-  }
-  
-  revalidateEntries(habitId);
-  return log;
+  return createHabitLog(await getDefaultUser(), habitId, payload, createdAt);
 }
 
 // Corrects an entry's values, and its time when `createdAt` is given. Not republished to MQTT,

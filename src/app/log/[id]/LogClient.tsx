@@ -23,6 +23,7 @@ import LogButtonIcon from '@/components/logging/LogButtonIcon';
 import LogEntrySheet from '@/components/logging/LogEntrySheet';
 import { useHabitLogger } from '@/components/logging/useHabitLogger';
 import ShareDialog from './ShareDialog';
+import WebhookDialog from './WebhookDialog';
 import HabitDetails from './HabitDetails';
 import { useCsvImport } from './useCsvImport';
 import { MENU_ITEM, MENU_PANEL, MenuBackdrop } from '@/components/ui/Menu';
@@ -51,6 +52,7 @@ export default function LogClient({ habit, user, people, categories, reminder, s
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [shareOpen, setShareOpen] = useState(false);
+  const [webhookOpen, setWebhookOpen] = useState(false);
 
   const sharedWith = habit.memberIds.filter(id => id !== habit.userId);
 
@@ -198,6 +200,16 @@ export default function LogClient({ habit, user, people, categories, reminder, s
                   <button
                     onClick={() => {
                       setMenuOpen(false);
+                      setWebhookOpen(true);
+                    }}
+                    className={MENU_ITEM}
+                  >
+                    <Zap className="w-4 h-4" />
+                    Log from Another App
+                  </button>
+                  <button
+                    onClick={() => {
+                      setMenuOpen(false);
                       importInputRef.current?.click();
                     }}
                     disabled={importing}
@@ -220,6 +232,8 @@ export default function LogClient({ habit, user, people, categories, reminder, s
         }
       />
     }>
+      {webhookOpen && <WebhookDialog habit={habit} onClose={() => setWebhookOpen(false)} />}
+
       {shareOpen && (
         <ShareDialog
           habitId={habit.id}

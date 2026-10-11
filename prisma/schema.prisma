@@ -32,6 +32,7 @@ model User {
   remindersSent       ReminderSent[]
   habitSkips          HabitSkip[]
   vacations           Vacation[]
+  apiKeys             ApiKey[]
 }
 
 model Session {
@@ -218,3 +219,26 @@ model Vacation {
   @@index([userId])
 }
 
+
+// A key another app (a shortcut, Home Assistant) uses to log entries as the user through the API, and
+// read a habit's recent ones (see src/lib/apiKeys.ts). Only its hash is kept: the key itself is shown
+// once, when it's made.
+model ApiKey {
+  id         String    @id @default(uuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // What the user called it, e.g. "iPhone Shortcuts"
+  name       String
+  // The key's SHA-256, as hex
+  hash       String    @unique
+  // The key's first few characters, for telling keys apart in the list
+  prefix     String
+  // What it's allowed to do: log entries, and read a habit's entries. Keys made before these existed
+  // could do both.
+  canLog     Boolean   @default(true)
+  canRead    Boolean   @default(true)
+  lastUsedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId])
+}

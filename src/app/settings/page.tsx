@@ -3,7 +3,7 @@ import { getVacation } from '../actions/vacation';
 import { describeVacation } from '@/lib/vacation';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
-import { AlarmClock, ChevronRight, DatabaseBackup, FolderTree, Users, Sliders, LogOut, KeyRound, TreePalm } from 'lucide-react';
+import { AlarmClock, ChevronRight, DatabaseBackup, FolderTree, Users, Sliders, LogOut, KeyRound, TreePalm, Zap } from 'lucide-react';
 import Icon from '../../components/Icon';
 import PageHeader from '@/components/PageHeader';
 import { PANE_INSET, PanePage, PaneSection } from '@/components/Pane';
@@ -66,6 +66,7 @@ export default async function SettingsPage() {
 
       <PaneSection title="Account">
         <SettingsLink href="/settings/backup" icon={<DatabaseBackup className="w-5 h-5" />} title="Backup & Restore" description="Download your data as JSON or CSV, or restore it" />
+        <SettingsLink href="/settings/api-keys" icon={<Zap className="w-5 h-5" />} title="API Keys" description="Log habits from Shortcuts, Home Assistant and other apps" />
         <SettingsLink href="/update-password" icon={<KeyRound className="w-5 h-5" />} title="Change Password" />
         {/* A row like the others rather than a Button, so it reads as part of the list */}
         <form action={async () => {

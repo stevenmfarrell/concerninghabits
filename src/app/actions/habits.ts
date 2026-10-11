@@ -10,6 +10,7 @@ import type { HabitSchema } from '@/lib/types';
 import type { CalculatedField } from '@/lib/calculatedFields';
 import { cadenceJson, END_OF_LIST_ORDER, revalidateLists, getOwnedCategory, habitListRows, toHabitListItem, getRecentLogsCutoff, getMembership, getOwnedHabit, fileHabit, checkCalculatedFields, filingChange } from './internal';
 import { getDefaultUser } from './user';
+import { loggableHabitsOf } from './smartEntry';
 
 // A habit's name, description and form checked, since they come from the browser
 function checkHabit(name: string, description: string, schema: HabitSchema) {
@@ -59,12 +60,7 @@ export async function getLatestLogDates(): Promise<Record<string, Date>> {
 // Every habit the user can log into (their own and ones shared with them), for matching something
 // they said they did against their habits.
 export async function getLoggableHabits() {
-  const user = await getDefaultUser();
-  const memberships = await prisma.habitMember.findMany({
-    where: { userId: user.id },
-    select: { aiContext: true, habit: { select: { id: true, name: true, description: true, schema: true } } },
-  });
-  return memberships.map(m => ({ ...m.habit, aiContext: m.aiContext }));
+  return loggableHabitsOf((await getDefaultUser()).id);
 }
 
 // `weeks` bounds how far back logs are fetched; see getCategory, which shares this cutoff with the

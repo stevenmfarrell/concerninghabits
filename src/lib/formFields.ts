@@ -145,3 +145,14 @@ export function settingsProblem(settings: FieldSettings) {
   if (settings.type === 'choice' && cleanChoices(settings.choices).length === 0) return 'Add at least one choice';
   return null;
 }
+
+// A value sent as text (e.g. by an app that only sends strings) as its field's type: a number or a
+// yes or no. Anything that doesn't read as one is left as it is, for validation to turn down.
+export function valueFromText(field: FieldSchema, value: unknown) {
+  if (typeof value !== 'string') return value;
+  const text = value.trim();
+  if ((field.type === 'number' || field.type === 'integer') && text !== '' && !Number.isNaN(Number(text))) return Number(text);
+  if (field.type === 'boolean' && /^(true|yes|1)$/i.test(text)) return true;
+  if (field.type === 'boolean' && /^(false|no|0)$/i.test(text)) return false;
+  return value;
+}

@@ -119,6 +119,16 @@ volumes:
 
 Habit reminders are Web Push notifications, turned on per device under Settings → Reminders and per habit on its page. Browsers only allow push over **https** (or `localhost`), so serve the app behind a reverse proxy with TLS to use them. On iPhone and iPad, the app must be added to the Home Screen first.
 
+### Logging from Other Apps (API)
+
+Other apps (iOS Shortcuts, Home Assistant, Tasker, an NFC tag) can log and read entries with an API key, made under Settings → API Keys. A key acts as its user and is allowed to log, read, or both (chosen when it's made, and changeable later). It can't change or delete anything. Send it as `Authorization: Bearer ch_...` or `X-API-Key: ch_...`, or for an app that can't set headers, as `?key=ch_...` in the URL. Settings → API Keys documents each route with examples.
+
+- `POST /api/habits/<habit id>/log` (a key that can log) logs one habit. The body is optional JSON: `{"values": {"distance": 3}}` with the habit's field keys, and/or `{"text": "ran 3 miles"}` for AI to fill them in, plus an optional `"at"` (an ISO 8601 date and time) for an earlier entry. Each habit's address, field keys and an example request are in its ⋮ menu → Log from Another App.
+- `GET /api/habits/<habit id>/entries?limit=10` (a key that can read) returns the habit's latest entries, newest first (1 to 100, 10 by default), each with who logged it.
+- `POST /api/log` (a key that can log) with `{"text": "ran 3 miles in 25 minutes"}` works out which habit was meant, like the Agenda's "I did..." button. It never creates a habit, and logs nothing (answering 422 with its best guesses) when it isn't sure.
+
+Both answer `201` with the new entry. A key can make 600 requests an hour, and requests with `text` count toward the user's AI limit.
+
 ### Running the App
 
 1. Ensure you have Docker and Docker Compose installed.

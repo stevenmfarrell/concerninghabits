@@ -82,7 +82,9 @@ Icons are lucide's (`lucide-react`). One meaning gets one icon everywhere, so a 
 | Speak or type what you did (smart entry) | the quill (`QuillIconWavy`) | |
 | Log at another date and time (backdate) | `CalendarClock` | `History` (reads as the History tab) |
 | Copy a link | `Link2` | |
-| Automation (submit URL, Home Assistant) | `Zap` | |
+| Copy text as it is (a key, an example request), see `CopyField` | `Copy` | `Link2` (that's a link) |
+| Automation (submit URL, logging from another app, API keys, Home Assistant) | `Zap` | `KeyRound` (that's your password) |
+| An API key's permissions: logging entries, reading them | `NotebookPen`, `Eye` | |
 | Reminders | `AlarmClock`, `AlarmClockOff` when one is off or paused | `Bell` |
 | Skip a habit for now (today, this week), or skipped | `SkipForward` | `Ban`, `X` (those read as cancel or delete) |
 | Postpone an every-N-days habit (its skip puts it off), or postponed | `CalendarChevronsRight` | `SkipForward` (that's excusing it), `CalendarClock` (that's backdating) |

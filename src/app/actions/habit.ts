@@ -1,12 +1,10 @@
 'use server';
 
 import { generateObject } from 'ai';
-import { createGoogleGenerativeAI } from '@ai-sdk/google';
-import { choice, noul, TypeSafeClient, type ChoiceCriteria } from '@typesafe-ai/sdk';
 import { z } from 'zod';
 import { getCategories } from './categories';
-import { logHabitEvent } from './entries';
-import { getHabit, getLoggableHabits } from './habits';
+import { getHabit } from './habits';
+import { extractFromTranscript, fillFromInput, google, interpretInput, logFromInput, type Interpretation, type ParsedLog } from './smartEntry';
 import { getDefaultUser } from './user';
 import { buildCategoryChoices } from '@/lib/categoryChoices';
 import type { HabitSchema } from '@/lib/types';
@@ -18,10 +16,6 @@ import { aiRequestProblem } from '@/lib/aiLimits';
 import { habitSchemaProblem, jsonBytes, parseHabitSchema } from '@/lib/habitSchema';
 import { MAX_AI_CONTEXT_LENGTH } from '@/lib/constants';
 import { AI_MODEL, aiContextPrompt, calculatedFieldSystem, chartSystem, describeFormulaInputs, formFillSystem, habitSchemaSystem, tidyDraftField } from '@/lib/aiPrompts';
-
-const google = createGoogleGenerativeAI({
-  apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
-});
 
 export async function generateHabitSchema(prompt: string, currentSchema?: HabitSchema) {
   const user = await getDefaultUser();
@@ -86,31 +80,11 @@ function clientFormProblem(schemaStr: string, aiContext?: string | null) {
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- the AI's values, checked when logged
-type ParsedLog = { success: boolean; data?: Record<string, any>; error?: string };
-
 export async function parseVoiceLog(schemaStr: string, transcript: string, aiContext?: string | null): Promise<ParsedLog> {
   const user = await getDefaultUser();
   const problem = clientFormProblem(schemaStr, aiContext) || await aiRequestProblem(user.id, transcript);
   if (problem) return { success: false, error: problem };
   return extractFromTranscript(schemaStr, transcript, aiContext);
-}
-
-// A form filled in from what the user said or typed. Unchecked: callers check what they're given.
-async function extractFromTranscript(schemaStr: string, transcript: string, aiContext?: string | null): Promise<ParsedLog> {
-  try {
-    const { object } = await generateObject({
-      model: google(AI_MODEL),
-      schema: z.record(z.string(), z.any()),
-      system: formFillSystem('transcript'),
-      prompt: `Form Schema:\n${schemaStr}${aiContextPrompt(aiContext)}\n\nVoice Transcript:\n"${transcript}"`,
-    });
-
-    return { success: true, data: object };
-  } catch (error) {
-    console.error("Error parsing voice log:", error);
-    return { success: false, error: "Failed to parse voice log." };
-  }
 }
 
 export async function parseImageLog(schemaStr: string, base64Image: string, aiContext?: string | null) {
@@ -144,123 +118,11 @@ export async function parseImageLog(schemaStr: string, base64Image: string, aiCo
   }
 }
 
-// Created on first use rather than at import, since the constructor throws without
-// TYPESAFE_API_KEY and that shouldn't break the Gemini-only actions in this file.
-let typesafe: TypeSafeClient | undefined;
-function getTypeSafe() {
-  return (typesafe ??= new TypeSafeClient());
-}
+export type { HabitCandidate } from './smartEntry';
 
-// Jev's option for "none of the user's habits". Habits are option-named after themselves, so this
-// is claimed first and a habit that happens to share the name gets a numbered option instead.
-const NEW_HABIT_OPTION = 'new habit';
-// A Choice accepts at most 255 options, one of which is the new-habit option
-const MAX_HABIT_OPTIONS = 254;
-// Below this confidence the user picks from the top candidates instead of the app acting on Jev's
-// pick. Measured on jev-1.13 against a real habit list: clear matches ("I practiced keys" -> Piano
-// Practice) and clear new habits ("20 minutes of yoga") came back at 0.87-0.99, while a vague
-// "I played some music" (piano? ukulele? new?) varied 0.61-0.71 across calls. 0.8 sits in that gap.
-const MATCH_CONFIDENCE_THRESHOLD = 0.8;
-// At or above this, the input counts as reporting something the user did (or measured), so it
-// becomes an entry. Measured on jev-1.13: intentions ("I want to run more", "track my water
-// intake", "I want to track my weight") came back at 0.02-0.04, reports ("I ran 3 miles", "took my
-// vitamins") and readings ("I weigh 155 pounds", "blood pressure 120 over 80", "slept 7 hours") at
-// 0.83-0.98, and bare nouns ("yoga", "water") at 0.40-0.49. The bar is kept low so a bare noun counts as done: that's the likelier
-// meaning for an existing habit, an entry can be undone, and a new habit's draft page can switch
-// its first entry off.
-const DID_IT_THRESHOLD = 0.25;
-const MAX_CANDIDATES = 3;
-
-// A habit the user's input might be about, or `habitId: null` for a new habit
-export type HabitCandidate = { habitId: string | null; name: string; probability: number };
-
-// What Jev is told about a habit besides its name: its description, the fields its form records,
-// and the user's own notes on it (which can name things the habit's title doesn't, like "bike commute")
-function describeHabitForMatching(habit: { description: string | null; schema: string; aiContext: string | null }) {
-  const fields = Object.entries(fieldsOf(parseHabitSchema(habit.schema))).map(([key, prop]) => prop.title || key);
-  if (!habit.description && fields.length === 0 && !habit.aiContext) return null;
-  return {
-    ...(habit.description ? { description: habit.description } : {}),
-    ...(fields.length > 0 ? { records: fields } : {}),
-    ...(habit.aiContext ? { users_notes: habit.aiContext } : {}),
-  };
-}
-
-// Interpret something the user said or typed on the dashboard: which of their habits it's about
-// (or a new one), and whether it reports something they did (so it becomes an entry) or only
-// describes a habit to set up. Both are asked of Jev in one request. Candidates are the most likely
-// habits, best first; `confident` says whether the first is sure enough to act on without asking.
-export async function interpretSmartEntry(input: string): Promise<
-  { success: true; confident: boolean; candidates: HabitCandidate[]; didIt: boolean } | { success: false; error: string }
-> {
-  const user = await getDefaultUser();
-  const problem = await aiRequestProblem(user.id, input);
-  if (problem) return { success: false, error: problem };
-  const habits = await getLoggableHabits();
-
-  const options = new Map<string, HabitCandidate>([
-    [NEW_HABIT_OPTION, { habitId: null, name: 'New habit', probability: 0 }],
-  ]);
-  const criteria: ChoiceCriteria = {
-    [NEW_HABIT_OPTION]: "Something none of the user's other habits track, so it would need a new habit",
-  };
-  for (const habit of habits.slice(0, MAX_HABIT_OPTIONS)) {
-    const name = habit.name.trim() || 'Untitled habit';
-    let option = name;
-    for (let n = 2; options.has(option); n++) option = `${name} (${n})`;
-    options.set(option, { habitId: habit.id, name: habit.name, probability: 0 });
-    criteria[option] = describeHabitForMatching(habit);
-  }
-
-  const didItQuestion = noul(
-    // Measurements are named alongside things done: asked only about things done, a reading like
-    // "I weigh 155 pounds" scored 0.21 and went unlogged
-    'Is `user_input` the user reporting something to record right now — something they did, or a measurement or reading they took — rather than only describing something they want to start tracking or doing?',
-    {
-      true: 'Reports something that happened or was measured, e.g. "I ran 3 miles", "took my vitamins", "20 minutes of yoga", "I weigh 155 pounds", "blood pressure 120 over 80"',
-      false: 'Only describes a habit to set up or an intention, e.g. "track my water intake", "I want to start running more", "I want to track my weight"',
-    },
-  );
-
-  try {
-    // With no habits there's nothing to choose between, so only whether they did it is asked
-    if (habits.length === 0) {
-      const { answers } = await getTypeSafe().systemOne({
-        state: { user_input: input },
-        questions: { did_it: didItQuestion },
-      });
-      return {
-        success: true,
-        confident: true,
-        candidates: [{ habitId: null, name: 'New habit', probability: 1 }],
-        didIt: answers.did_it.noul >= DID_IT_THRESHOLD,
-      };
-    }
-
-    const { answers } = await getTypeSafe().systemOne({
-      state: { user_input: input },
-      questions: {
-        habit: choice('The user told their habit-tracking app `user_input`. Which of their habits is it about?', criteria),
-        did_it: didItQuestion,
-      },
-    });
-
-    const candidates = Object.entries(answers.habit.probabilities)
-      .filter(([option]) => options.has(option))
-      .sort(([, a], [, b]) => b - a)
-      .slice(0, MAX_CANDIDATES)
-      .map(([option, probability]) => ({ ...options.get(option)!, probability }));
-
-    return {
-      success: true,
-      confident: answers.habit.confidence >= MATCH_CONFIDENCE_THRESHOLD,
-      candidates,
-      didIt: answers.did_it.noul >= DID_IT_THRESHOLD,
-    };
-  } catch (error) {
-    console.error("Error interpreting smart entry:", error);
-    return { success: false, error: "Failed to match that to a habit." };
-  }
+// Interpret something the user said or typed on the dashboard (see interpretInput)
+export async function interpretSmartEntry(input: string): Promise<Interpretation> {
+  return interpretInput(await getDefaultUser(), input);
 }
 
 // Logs something the user said or typed on the dashboard (see SmartEntry) to the habit it was
@@ -273,40 +135,10 @@ export async function logSmartEntry(habitId: string, input: string): Promise<
   | { success: true; logged: false; data: Record<string, unknown> }
   | { success: false; error: string }
 > {
-  const filled = await fillFromInput(habitId, input);
-  if (!filled.success) return filled;
-  const { data, schema } = filled;
-
-  const isComplete = (schema.required ?? []).every(field => data[field] !== undefined && data[field] !== null && data[field] !== '');
-  if (!isComplete) return { success: true, logged: false, data };
-
-  try {
-    const log = await logHabitEvent(habitId, data);
-    return { success: true, logged: true, logId: log.id, data, schema };
-  } catch {
-    // e.g. a value the AI filled in that the form doesn't accept: let the user fix it on the form
-    return { success: true, logged: false, data };
-  }
-}
-
-// A habit's form filled in from something the user said or typed, the same way as voice logging:
-// only the habit's own fields, as logging keeps. Nothing to fill in for a habit with no form.
-async function fillFromInput(habitId: string, input: string): Promise<
-  { success: true; data: Record<string, unknown>; schema: HabitSchema } | { success: false; error: string }
-> {
-  const habit = await getHabit(habitId);
-  if (!habit) return { success: false, error: 'Habit not found.' };
-
-  const schema = parseHabitSchema(habit.schema);
-  const properties = fieldsOf(schema);
-  if (Object.keys(properties).length === 0) return { success: true, data: {}, schema };
-  // The habit's own form, so only the input needs checking
-  const user = await getDefaultUser();
-  const problem = await aiRequestProblem(user.id, input);
-  if (problem) return { success: false, error: problem };
-  const parsed = await extractFromTranscript(habit.schema, input, habit.aiContext);
-  if (!parsed.success || !parsed.data) return { success: false, error: parsed.error || 'AI could not understand' };
-  return { success: true, data: Object.fromEntries(Object.entries(parsed.data).filter(([key]) => key in properties)), schema };
+  const result = await logFromInput(await getDefaultUser(), habitId, input);
+  if (!result.success) return result;
+  if (!result.logged) return { success: true, logged: false, data: result.data };
+  return { success: true, logged: true, logId: result.logId, data: result.data, schema: result.schema };
 }
 
 // What could be filled in on a habit's form from input that matched the habit but didn't read as
@@ -314,7 +146,7 @@ async function fillFromInput(habitId: string, input: string): Promise<
 // nothing could be: an intention like "I want to track my weight" names no values. Best effort, so
 // a failure is just nothing filled in.
 export async function prefillSmartEntry(habitId: string, input: string): Promise<Record<string, unknown>> {
-  const filled = await fillFromInput(habitId, input);
+  const filled = await fillFromInput(await getDefaultUser(), habitId, input);
   return filled.success ? filled.data : {};
 }
 

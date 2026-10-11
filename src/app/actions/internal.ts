@@ -137,6 +137,36 @@ export function filingChange(current: string | null, categoryId: string | null) 
   return current === categoryId ? null : { categoryId, order: END_OF_LIST_ORDER };
 }
 
+// Logs an entry on a habit `user` has, as them: checked like any entry (see sanitizeLogPayload),
+// and published to MQTT when the habit is. Takes the user rather than reading the session, since
+// the API logs as whoever its key belongs to (see src/lib/apiKeys.ts).
+export async function createHabitLog(user: { id: string; name: string }, habitId: string, payload: Record<string, unknown>, createdAt?: Date) {
+  const { habit } = await getMembership(user.id, habitId);
+
+  const sanitizedPayload = sanitizeLogPayload(habit, payload);
+
+  const log = await prisma.habitLog.create({
+    data: {
+      habitId,
+      userId: user.id,
+      payload: JSON.stringify(sanitizedPayload),
+      ...(createdAt ? { createdAt } : {})
+    }
+  });
+
+  try {
+    if (habit.publishToMqtt) {
+      const { publishHabitLog } = await import('@/lib/mqtt');
+      publishHabitLog(user, habit, sanitizedPayload);
+    }
+  } catch (e) {
+    console.error('Failed to trigger MQTT publish', e);
+  }
+
+  revalidateEntries(habitId);
+  return log;
+}
+
 // An entry's values with any keys the habit's own schema doesn't define dropped, validated against
 // the schema the same as the client-side rjsf Form would. The browser only enforces this in the UI.
 export function sanitizeLogPayload(habit: { schema: string }, payload: Record<string, unknown>) {

@@ -1,5 +1,5 @@
-import { prisma } from './prisma';
 import { MAX_AI_INPUT_LENGTH, MAX_AI_REQUESTS_PER_HOUR } from './constants';
+import { countRequest } from './rateLimit';
 
 const WINDOW_MS = 60 * 60 * 1000;
 
@@ -12,15 +12,8 @@ export async function aiRequestProblem(userId: string, ...inputs: (string | null
   }
 
   // Shares the login limiter's table, under its own identifier per user
-  const identifier = `ai:${userId}`;
-  const now = new Date();
-  const limit = await prisma.rateLimit.findUnique({ where: { identifier } });
-  if (limit && limit.resetTime >= now) {
-    if (limit.count >= MAX_AI_REQUESTS_PER_HOUR) return 'You\'ve made a lot of AI requests. Try again in a little while.';
-    await prisma.rateLimit.update({ where: { identifier }, data: { count: { increment: 1 } } });
-  } else {
-    const resetTime = new Date(now.getTime() + WINDOW_MS);
-    await prisma.rateLimit.upsert({ where: { identifier }, create: { identifier, count: 1, resetTime }, update: { count: 1, resetTime } });
+  if (!(await countRequest(`ai:${userId}`, MAX_AI_REQUESTS_PER_HOUR, WINDOW_MS))) {
+    return 'You\'ve made a lot of AI requests. Try again in a little while.';
   }
   return null;
 }
