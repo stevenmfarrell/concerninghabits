@@ -1,4 +1,4 @@
-import { cadenceCovers, countsDown, dueByPeriodEnd, entriesNeeded, isScheduled, limitOf, skippedCovers, type Cadence, type CadenceUser } from './cadence';
+import { cadenceCovers, dueByPeriodEnd, entriesNeeded, isScheduled, limitOf, periodDays, shapeOf, skippedCovers, type Cadence, type CadenceUser } from './cadence';
 import { civilDayKey, parseBedtimeOffsetMinutes, toCivilDate } from './timezone';
 
 // How consistently a habit (or a category with a cadence) has been kept up lately, as a garden:
@@ -116,14 +116,13 @@ function calendarOpportunities(cadence: Cadence, entryDays: Date[], skips: { fro
   return opportunities;
 }
 
-// The opportunities from civil day `from` to `today` for an every-N-days cadence: each time it came
-// due. Done on its due day (N days after the last time), it earns full credit. Done late, it's
-// worth as many opportunities as N-day stretches it took, with the one entry's credit spread over
-// them: a 3-day habit done every 4 days scores 3/4, every 6 days half. Still not done, each whole N
-// days since it came due is a miss. It's due again N days after its last entry. A postponement just
-// puts its due day off.
-function countdownOpportunities(cadence: Cadence, entryDays: Date[], skips: { from: Date; to: Date }[], from: Date, today: Date, user: CadenceUser): Opportunity[] {
-  const stretch = cadence.type === 'everyNDays' ? cadence.days : 1;
+// The opportunities from civil day `from` to `today` for an every-N-days cadence (N being `stretch`):
+// each time it came due. Done on its due day (N days after the last time), it earns full credit. Done
+// late, it's worth as many opportunities as N-day stretches it took, with the one entry's credit
+// spread over them: a 3-day habit done every 4 days scores 3/4, every 6 days half. Still not done,
+// each whole N days since it came due is a miss. It's due again N days after its last entry. A
+// postponement just puts its due day off.
+function countdownOpportunities(cadence: Cadence, stretch: number, entryDays: Date[], skips: { from: Date; to: Date }[], from: Date, today: Date, user: CadenceUser): Opportunity[] {
   const sortedEntries = [...entryDays].sort((a, b) => a.getTime() - b.getTime());
   const sortedSkips = [...skips].sort((a, b) => a.from.getTime() - b.from.getTime());
   const opportunities: Opportunity[] = [];
@@ -185,8 +184,9 @@ function scoreAt(cadence: Cadence, logDates: Date[], skippedDays: readonly strin
   const began = entryDays.reduce((earliest, day) => (day < earliest ? day : earliest), civil(createdAt));
   const from = latest(began, addDays(today, -lookbackDays(cadence)));
 
-  const opportunities = countsDown(cadence)
-    ? countdownOpportunities(cadence, entryDays, skips, from, today, user)
+  const shape = shapeOf(cadence);
+  const opportunities = shape.kind === 'rolling'
+    ? countdownOpportunities(cadence, shape.days, entryDays, skips, from, today, user)
     : calendarOpportunities(cadence, entryDays, skips, from, today, user);
 
   const halfLife = halfLifeDays(cadence);
@@ -202,25 +202,17 @@ function scoreAt(cadence: Cadence, logDates: Date[], skippedDays: readonly strin
 
 // About how many days apart a cadence's opportunities are
 function spacingDays(cadence: Cadence): number {
-  switch (cadence.type) {
-    case 'daily':
-      return 1;
+  const shape = shapeOf(cadence);
+  switch (shape.kind) {
+    case 'periodic':
+    case 'limit':
+      return periodDays(shape.period);
+    case 'rolling':
+      return shape.days;
     case 'weekdays':
-      return 7 / cadence.days.length;
-    case 'calendarWeek':
-      return 7;
-    case 'calendarMonth':
-      return 30;
-    case 'everyNDays':
-      return cadence.days;
+      return 7 / shape.days.length;
     case 'none':
       return 1;
-    case 'limit':
-      return { day: 1, week: 7, month: 30 }[cadence.period];
-    default: {
-      const unhandled: never = cadence;
-      return unhandled;
-    }
   }
 }
 

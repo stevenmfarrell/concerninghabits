@@ -3,9 +3,8 @@ import { civilDayKey, parseBedtimeOffsetMinutes, parseCivilDayKey, toCivilDate }
 import type { VacationRange } from './vacation';
 
 // A habit's cadence: how often it's meant to be done. Stored as JSON in Habit.cadence. To add a
-// cadence, add it to this union and give it a rule in RULES below;
-// the type checker then points at anything else that needs to know about it (CADENCE_TYPES, the
-// editor's CADENCE_OPTIONS).
+// cadence, add it to this union and say which shape it is in shapeOf below; the type checker then
+// points at anything else that needs to know about it (CADENCE_TYPES, the editor's CADENCE_OPTIONS).
 export const cadenceSchema = z.discriminatedUnion('type', [
   // Every day, `timesPerDay` times (1 for a plain daily habit)
   z.object({ type: z.literal('daily'), timesPerDay: z.number().int().min(1).max(100) }),
@@ -73,43 +72,6 @@ interface DayRange {
   to: Date;
 }
 
-// How a cadence works. Everything else (whether a habit is done, how a calendar shades a day)
-// is worked out from these, so a new cadence only has to answer them.
-interface CadenceRule<C extends Cadence> {
-  // For people, e.g. "3× daily", "Every 3 days", with days of the week in the order the user's
-  // weeks run
-  describe(cadence: C, context: CadenceContext): string;
-  // The period its entries are counted over, for showing progress through it, e.g. "2/3 weekly";
-  // null for a cadence that's done with one entry, or never
-  period: ProgressPeriod | null;
-  // Whether it counts down to when it's next due (e.g. "in 3 days"), since its due date moves with
-  // each entry rather than following the calendar. (One due by the end of its period shows the days
-  // left in it instead: see dueInDays in CadenceSnapshot.)
-  countsDown: boolean;
-  // The days an entry made on civil day `day` counts toward
-  covers(cadence: C, day: Date, context: CadenceContext): DayRange;
-  // For a limit (see LIMIT), the most entries its period may have; its entries count toward that
-  // rather than toward being done, so it's never due
-  limit?(cadence: C): number;
-  // How many entries counting toward a day make it done; Infinity for never
-  needed(cadence: C): number;
-  // How many days before it's due again a done habit counts as upcoming (0: never upcoming)
-  upcomingDays(cadence: C): number;
-  // Whether it only needs doing by the end of its period (a calendar week or month), so until then
-  // it isn't pressing yet: see onAgenda
-  dueByPeriodEnd: boolean;
-  // Whether it's meant to be done on civil day `day` at all; every day when left out. On a day it
-  // isn't, it's never due, only upcoming until its next day (see statusOn).
-  scheduled?(cadence: C, day: Date): boolean;
-  // What a skip is called, before and after, for the button that makes one: "Skip today" and
-  // "Skipped today", "Skip this week", "Postpone 2 days". A skip counts like an entry made that day
-  // would (see covers), however many entries it takes, unless skipCovers says otherwise. Null for a
-  // cadence with nothing to skip.
-  skips(cadence: C): { skip: string; skipped: string } | null;
-  // The days a skip made on civil day `day` excuses, when that's less than an entry would cover
-  skipCovers?(cadence: C, day: Date): DayRange;
-}
-
 function addDays(day: Date, days: number) {
   const shifted = new Date(day);
   shifted.setUTCDate(shifted.getUTCDate() + days);
@@ -133,12 +95,27 @@ const monthOf = (day: Date): DayRange => ({
   to: new Date(Date.UTC(day.getUTCFullYear(), day.getUTCMonth() + 1, 0)),
 });
 
-export type LimitPeriod = Extract<Cadence, { type: 'limit' }>['period'];
-const LIMIT_PERIODS: Record<LimitPeriod, { progress: ProgressPeriod; covers: (day: Date, context: CadenceContext) => DayRange; adverb: string; skip: string }> = {
-  day: { progress: 'daily', covers: day => justThatDay(day), adverb: 'daily', skip: 'today' },
-  week: { progress: 'weekly', covers: weekOf, adverb: 'weekly', skip: 'this week' },
-  month: { progress: 'monthly', covers: day => monthOf(day), adverb: 'monthly', skip: 'this month' },
+// The calendar periods entries are counted over: a day, a calendar week (by the user's week start),
+// or a calendar month
+export type Period = Extract<Cadence, { type: 'limit' }>['period'];
+export type LimitPeriod = Period;
+const PERIODS: Record<Period, {
+  covers: (day: Date, context: CadenceContext) => DayRange;
+  progress: ProgressPeriod;
+  // For people: "Daily", "3× daily", "Skip today"
+  title: string;
+  adverb: string;
+  current: string;
+  // About how many days it is
+  days: number;
+}> = {
+  day: { covers: day => justThatDay(day), progress: 'daily', title: 'Daily', adverb: 'daily', current: 'today', days: 1 },
+  week: { covers: weekOf, progress: 'weekly', title: 'Weekly', adverb: 'weekly', current: 'this week', days: 7 },
+  month: { covers: day => monthOf(day), progress: 'monthly', title: 'Monthly', adverb: 'monthly', current: 'this month', days: 30 },
 };
+
+// About how many days a period is
+export const periodDays = (period: Period) => PERIODS[period].days;
 
 // 20% of a number of days, rounded up to whole days (N / 5 rather than N * 0.2, which isn't exact in
 // floating point: 15 * 0.2 rounds up to 4)
@@ -187,125 +164,164 @@ function nextWeekday(days: number[], day: Date) {
   return addDays(day, 7);
 }
 
-// A weekly or monthly cadence for people, e.g. "Weekly", "3× weekly"
-const timesPer = (times: number | undefined, period: 'Weekly' | 'Monthly') => ((times ?? 1) === 1 ? period : `${times}× ${period.toLowerCase()}`);
-
 // A weekly or monthly cadence `times` times per period, in its usual form: `times` left out for once
 export function withTimes<C extends { type: 'calendarWeek' | 'calendarMonth' }>(cadence: C, times: number) {
   const { type } = cadence;
   return (times === 1 ? { type } : { type, times }) as C;
 }
 
-const RULES: { [T in CadenceType]: CadenceRule<Extract<Cadence, { type: T }>> } = {
-  daily: {
-    describe: c => (c.timesPerDay === 1 ? 'Daily' : `${c.timesPerDay}× daily`),
-    period: 'daily',
-    countsDown: false,
-    covers: (_, day) => justThatDay(day),
-    needed: c => c.timesPerDay,
-    upcomingDays: () => 0,
-    dueByPeriodEnd: false,
-    skips: () => skipping('today'),
-  },
-  everyNDays: {
-    describe: c => `Every ${c.days} days`,
-    period: null,
-    countsDown: true,
-    covers: (c, day) => ({ from: day, to: addDays(day, c.days - 1) }),
-    needed: () => 1,
-    // The last 20% of the stretch. Not for 3 days or fewer, where it would be upcoming nearly as soon
-    // as it's done.
-    upcomingDays: c => (c.days > 3 ? fifthOf(c.days) : 0),
-    dueByPeriodEnd: false,
-    // For 20% of the stretch from the day it's made, then it's due again, rather than starting the
-    // count over as an entry would, which could put it off for weeks: a day for every 5 days or
-    // fewer, 2 for every 10, 6 for every 30. Since it puts off when it's due, it's called postponing.
-    skips: c => {
-      const days = fifthOf(c.days) === 1 ? 'a day' : `${fifthOf(c.days)} days`;
-      return { skip: `Postpone ${days}`, skipped: `Postponed ${days}` };
-    },
-    skipCovers: (c, day) => ({ from: day, to: addDays(day, fifthOf(c.days) - 1) }),
-  },
-  weekdays: {
-    describe: (c, context) => describeWeekdays(c.days, context),
-    period: null,
-    countsDown: false,
-    // Until the next of its days, so a day off after a day it was done reads as done too
-    covers: (c, day) => ({ from: day, to: addDays(nextWeekday(c.days, day), -1) }),
-    needed: () => 1,
-    upcomingDays: () => 0,
-    dueByPeriodEnd: false,
-    scheduled: (c, day) => c.days.includes(day.getUTCDay()),
-    skips: () => skipping('today'),
-  },
-  calendarWeek: {
-    describe: c => timesPer(c.times, 'Weekly'),
-    period: 'weekly',
-    countsDown: false,
-    covers: (_, day, context) => weekOf(day, context),
-    needed: c => c.times ?? 1,
-    upcomingDays: () => 0,
-    dueByPeriodEnd: true,
-    skips: () => skipping('this week'),
-  },
-  calendarMonth: {
-    describe: c => timesPer(c.times, 'Monthly'),
-    period: 'monthly',
-    countsDown: false,
-    covers: (_, day) => monthOf(day),
-    needed: c => c.times ?? 1,
-    upcomingDays: () => 0,
-    dueByPeriodEnd: true,
-    skips: () => skipping('this month'),
-  },
-  none: {
-    describe: () => 'No set cadence',
-    period: null,
-    countsDown: false,
-    covers: (_, day) => justThatDay(day),
-    needed: () => Infinity,
-    upcomingDays: () => 0,
-    dueByPeriodEnd: false,
-    skips: () => null,
-  },
-  limit: {
-    // e.g. "At most 2× daily", or for none at all, "Avoid" ("Avoid weekly" for a week at a time)
-    describe: c => (c.max === 0
-      ? (c.period === 'day' ? 'Avoid' : `Avoid ${LIMIT_PERIODS[c.period].adverb}`)
-      : `At most ${c.max}× ${LIMIT_PERIODS[c.period].adverb}`),
-    // Its progress is how much of the limit's used (see LimitStatus), not toward done
-    period: null,
-    countsDown: false,
-    covers: (c, day, context) => LIMIT_PERIODS[c.period].covers(day, context),
-    limit: c => c.max,
-    // Never done by entries, nor due (see statusOn)
-    needed: () => Infinity,
-    upcomingDays: () => 0,
-    dueByPeriodEnd: false,
-    // Excuses its period, e.g. a planned day off from it
-    skips: c => skipping(LIMIT_PERIODS[c.period].skip),
-  },
-};
+// How a cadence works, as one of a few shapes. Everything else (whether it's done, how a calendar
+// shades a day, what a skip's called) is worked out from its shape, so a new cadence only has to say
+// which it is.
+// - periodic: at least `times` entries per day, calendar week, or calendar month
+// - limit: at most `max` entries per day, week, or month (0 to quit: every entry a slip). It's never
+//   due; each period kept to it counts toward its health, and each that goes over against it.
+// - rolling: again `days` days after the last entry: an entry counts for its own day and the days
+//   after it until the next one is due
+// - weekdays: once on each of these days of the week (0 for Sunday); it isn't due on the others
+// - none: logged whenever it happens, with nothing expected, so it's never done
+export type CadenceShape =
+  | { kind: 'periodic'; period: Period; times: number }
+  | { kind: 'limit'; period: Period; max: number }
+  | { kind: 'rolling'; days: number }
+  | { kind: 'weekdays'; days: number[] }
+  | { kind: 'none' };
 
-// The rule for a cadence. RULES is keyed so each rule matches its own cadence's shape; TypeScript
-// can't follow that through an index by `cadence.type`, hence the cast.
-function ruleFor<C extends Cadence>(cadence: C) {
-  return RULES[cadence.type] as unknown as CadenceRule<C>;
+export function shapeOf(cadence: Cadence): CadenceShape {
+  switch (cadence.type) {
+    case 'daily':
+      return { kind: 'periodic', period: 'day', times: cadence.timesPerDay };
+    case 'calendarWeek':
+      return { kind: 'periodic', period: 'week', times: cadence.times ?? 1 };
+    case 'calendarMonth':
+      return { kind: 'periodic', period: 'month', times: cadence.times ?? 1 };
+    case 'limit':
+      return { kind: 'limit', period: cadence.period, max: cadence.max };
+    case 'everyNDays':
+      return { kind: 'rolling', days: cadence.days };
+    case 'weekdays':
+      return { kind: 'weekdays', days: cadence.days };
+    case 'none':
+      return { kind: 'none' };
+    default: {
+      const unhandled: never = cadence;
+      return unhandled;
+    }
+  }
 }
 
-export const describeCadence = (cadence: Cadence, context: CadenceContext) => ruleFor(cadence).describe(cadence, context);
-// Whether it's meant to be done on civil day `day` at all (see scheduled): only a weekday cadence's
-// days, otherwise every day
-export const isScheduled = (cadence: Cadence, day: Date) => ruleFor(cadence).scheduled?.(cadence, day) ?? true;
-// Whether it counts down to when it's next due (every N days), rather than following the calendar
-export const countsDown = (cadence: Cadence) => ruleFor(cadence).countsDown;
-// Whether it only needs doing by the end of its week or month (see dueByPeriodEnd)
-export const dueByPeriodEnd = (cadence: Cadence) => ruleFor(cadence).dueByPeriodEnd;
-export const cadenceCovers = (cadence: Cadence, day: Date, context: CadenceContext) => ruleFor(cadence).covers(cadence, day, context);
-export const entriesNeeded = (cadence: Cadence) => ruleFor(cadence).needed(cadence);
-export const upcomingDays = (cadence: Cadence) => ruleFor(cadence).upcomingDays(cadence);
-// The most entries a limit's period may have (see limit), or null for a cadence that isn't one
-export const limitOf = (cadence: Cadence) => ruleFor(cadence).limit?.(cadence) ?? null;
+// For people, e.g. "3× daily", "Every 3 days", "At most 2× weekly", or for a limit of none at all,
+// "Avoid", with days of the week in the order the user's weeks run
+export function describeCadence(cadence: Cadence, context: CadenceContext) {
+  const shape = shapeOf(cadence);
+  switch (shape.kind) {
+    case 'periodic':
+      return shape.times === 1 ? PERIODS[shape.period].title : `${shape.times}× ${PERIODS[shape.period].adverb}`;
+    case 'limit':
+      if (shape.max > 0) return `At most ${shape.max}× ${PERIODS[shape.period].adverb}`;
+      return shape.period === 'day' ? 'Avoid' : `Avoid ${PERIODS[shape.period].adverb}`;
+    case 'rolling':
+      return `Every ${shape.days} days`;
+    case 'weekdays':
+      return describeWeekdays(shape.days, context);
+    case 'none':
+      return 'No set cadence';
+  }
+}
+
+// The days (inclusive) an entry made on civil day `day` counts toward: its day, week or month; for
+// a rolling one, its stretch; for a weekday one, until the next of its days, so a day off after a day
+// it was done reads as done too
+export function cadenceCovers(cadence: Cadence, day: Date, context: CadenceContext): DayRange {
+  const shape = shapeOf(cadence);
+  switch (shape.kind) {
+    case 'periodic':
+    case 'limit':
+      return PERIODS[shape.period].covers(day, context);
+    case 'rolling':
+      return { from: day, to: addDays(day, shape.days - 1) };
+    case 'weekdays':
+      return { from: day, to: addDays(nextWeekday(shape.days, day), -1) };
+    case 'none':
+      return justThatDay(day);
+  }
+}
+
+// How many entries counting toward a day make it done; Infinity for never (a limit's entries count
+// toward its limit instead, and one with no cadence is never done)
+export function entriesNeeded(cadence: Cadence) {
+  const shape = shapeOf(cadence);
+  return shape.kind === 'periodic' ? shape.times : shape.kind === 'rolling' || shape.kind === 'weekdays' ? 1 : Infinity;
+}
+
+// The most entries a limit's period may have, or null for a cadence that isn't one
+export function limitOf(cadence: Cadence) {
+  const shape = shapeOf(cadence);
+  return shape.kind === 'limit' ? shape.max : null;
+}
+
+// Whether its due date moves with each entry (every N days), rather than following the calendar, so
+// it counts down to when it's next due, and skipping it puts it off: it's called postponing, with its
+// own icon, and it's upcoming until the postponement runs out, rather than done (see CadenceStatus)
+export const postpones = (cadence: Cadence) => shapeOf(cadence).kind === 'rolling';
+
+// Whether it only needs doing by the end of its calendar week or month, so until then it isn't
+// pressing yet (see onAgenda)
+export function dueByPeriodEnd(cadence: Cadence) {
+  const shape = shapeOf(cadence);
+  return shape.kind === 'periodic' && shape.period !== 'day';
+}
+
+// Whether it's meant to be done on civil day `day` at all: only a weekday cadence's days, otherwise
+// every day. On a day it isn't, it's never due, only upcoming until its next day (see statusOn).
+export function isScheduled(cadence: Cadence, day: Date) {
+  const shape = shapeOf(cadence);
+  return shape.kind !== 'weekdays' || shape.days.includes(day.getUTCDay());
+}
+
+// How many days before it's due again a done habit counts as upcoming (0: never upcoming): the last
+// 20% of a rolling stretch, but not for 3 days or fewer, where it would be upcoming nearly as soon as
+// it's done
+export function upcomingDays(cadence: Cadence) {
+  const shape = shapeOf(cadence);
+  return shape.kind === 'rolling' && shape.days > 3 ? fifthOf(shape.days) : 0;
+}
+
+// The period its entries are counted over, for showing progress through it, e.g. "2/3 weekly"; null
+// for a cadence that's done with one entry, or never (a limit's progress is how much of it is used)
+function progressPeriod(cadence: Cadence) {
+  const shape = shapeOf(cadence);
+  return shape.kind === 'periodic' && shape.times > 1 ? PERIODS[shape.period].progress : null;
+}
+
+// What a skip is called, before and after, for the button that makes one: "Skip today" and "Skipped
+// today", "Skip this week", "Postpone 2 days". Null for a cadence with nothing to skip.
+function skipNames(cadence: Cadence): { skip: string; skipped: string } | null {
+  const shape = shapeOf(cadence);
+  switch (shape.kind) {
+    case 'periodic':
+    case 'limit':
+      // A limit's excuses its period, e.g. a planned day off from it
+      return skipping(PERIODS[shape.period].current);
+    case 'weekdays':
+      return skipping('today');
+    case 'rolling': {
+      const days = fifthOf(shape.days) === 1 ? 'a day' : `${fifthOf(shape.days)} days`;
+      return { skip: `Postpone ${days}`, skipped: `Postponed ${days}` };
+    }
+    case 'none':
+      return null;
+  }
+}
+
+// The days a skip made on civil day `day` excuses: what an entry that day would (see cadenceCovers),
+// however many entries it takes, except for a rolling one, which it puts off for 20% of its stretch
+// from that day, then it's due again, rather than starting the count over as an entry would, which
+// could put it off for weeks: a day for every 5 days or fewer, 2 for every 10, 6 for every 30
+function skipCovers(cadence: Cadence, day: Date, context: CadenceContext): DayRange {
+  const shape = shapeOf(cadence);
+  return shape.kind === 'rolling' ? { from: day, to: addDays(day, fifthOf(shape.days) - 1) } : cadenceCovers(cadence, day, context);
+}
 
 // A cadence from its stored JSON, or `fallback` if it's missing or not one we know (once a day for
 // a habit; categories pass NO_CADENCE, since a category has none unless the user sets one)
@@ -364,12 +380,11 @@ interface Excuse {
 // a vacation excuses its own days, not a grace period after them. A cadence that's never done can't
 // be skipped.
 function excuses(cadence: Cadence, skippedDays: readonly string[], user: CadenceUser, through: Date): Excuse[] {
-  const rule = ruleFor(cadence);
-  if (!rule.skips(cadence)) return [];
+  if (!skipNames(cadence)) return [];
   const throughKey = civilDayKey(through);
   const skips = skippedDays.flatMap(key => {
     const day = key <= throughKey ? parseCivilDayKey(key) : null;
-    return day ? [{ skippedDay: key, range: rule.skipCovers?.(cadence, day) ?? cadenceCovers(cadence, day, user) }] : [];
+    return day ? [{ skippedDay: key, range: skipCovers(cadence, day, user) }] : [];
   });
   const vacations = (user.vacations ?? []).flatMap(({ from, to }) => {
     const first = parseCivilDayKey(from);
@@ -377,7 +392,7 @@ function excuses(cadence: Cadence, skippedDays: readonly string[], user: Cadence
     if (!first || !last || first > last) return [];
     // The days a skip on each of its days would cover run on from one to the next, so together
     // they're those from its first day's to its last's
-    const range = rule.skipCovers ? { from: first, to: last } : { from: cadenceCovers(cadence, first, user).from, to: cadenceCovers(cadence, last, user).to };
+    const range = postpones(cadence) ? { from: first, to: last } : { from: cadenceCovers(cadence, first, user).from, to: cadenceCovers(cadence, last, user).to };
     return [{ skippedDay: null, range }];
   });
   return [...skips, ...vacations];
@@ -386,10 +401,9 @@ function excuses(cadence: Cadence, skippedDays: readonly string[], user: Cadence
 // Days from civil day `today` to the next one the cadence is meant to be done on (0 for today), for
 // one that's only done on some days (see scheduled); null for one meant to be done every day
 function daysToNextScheduled(cadence: Cadence, today: Date) {
-  const { scheduled } = ruleFor(cadence);
-  if (!scheduled) return null;
+  if (shapeOf(cadence).kind !== 'weekdays') return null;
   for (let ahead = 0; ahead < 7; ahead++) {
-    if (scheduled(cadence, addDays(today, ahead))) return ahead;
+    if (isScheduled(cadence, addDays(today, ahead))) return ahead;
   }
   return null;
 }
@@ -459,7 +473,7 @@ export type CadenceSnapshot = {
   // How far along it is toward done for now, e.g. 3 of 4 times today, for a cadence that takes more
   // than one entry; null for one that takes a single entry (or never gets done). A skip fills it.
   progress: CadenceProgress | null;
-  // How many days until it's due: for a cadence that counts down (see countsDown), until it's next
+  // How many days until it's due: for a cadence that counts down (see postpones), until it's next
   // due, positive before then, 0 on the day, negative once overdue; for one due by the end of its
   // week or month (see dueByPeriodEnd) and not done yet, until that period's last day; for one done
   // only on some days and not done for now, until the next of them (0 on one). Null for other
@@ -479,7 +493,7 @@ export type CadenceSnapshot = {
 // that count) and the days it was skipped, as civil day keys ("2026-10-09"), with the user's
 // vacations. Days follow the user's time zone and bedtime, the same as the activity calendars.
 export function evaluate(cadence: Cadence, logDates: Date[], user: CadenceUser, now = new Date(), skippedDays: readonly string[] = []): CadenceSnapshot {
-  const rule = ruleFor(cadence);
+  const shape = shapeOf(cadence);
   const offset = parseBedtimeOffsetMinutes(user.bedtime);
   const today = toCivilDate(now, user.timeZone, offset);
   const coversToday = ({ from, to }: DayRange) => from <= today && today <= to;
@@ -492,21 +506,22 @@ export function evaluate(cadence: Cadence, logDates: Date[], user: CadenceUser, 
   const ownExcusing = excusing.filter(({ skippedDay }) => skippedDay !== null);
   const excusingRanges = excusing.map(({ range }) => range);
 
-  const needed = rule.needed(cadence);
+  const needed = entriesNeeded(cadence);
+  const period = progressPeriod(cadence);
   const met = counting.length >= needed;
   const excused = excusing.length > 0;
   const status = statusOn(cadence, today, counting, excusingRanges);
   const agenda = onAgenda(cadence, status, today, user);
 
   let dueInDays: number | null = null;
-  if (rule.dueByPeriodEnd || rule.scheduled) {
-    if (!excused && !met) dueInDays = rule.dueByPeriodEnd ? daysToPeriodEnd(cadence, today, user) : daysToNextScheduled(cadence, today);
-  } else if (rule.countsDown && entryRanges.length + allExcuses.length > 0) {
+  if (dueByPeriodEnd(cadence) || shape.kind === 'weekdays') {
+    if (!excused && !met) dueInDays = shape.kind === 'weekdays' ? daysToNextScheduled(cadence, today) : daysToPeriodEnd(cadence, today, user);
+  } else if (shape.kind === 'rolling' && entryRanges.length + allExcuses.length > 0) {
     // Due the day after the last day the latest entry (or skip) counts for
     dueInDays = dueAfter([...entryRanges, ...allExcuses.map(({ range }) => range)], today);
   }
 
-  const labels = rule.skips(cadence);
+  const labels = skipNames(cadence);
   const skip = !labels ? null
     : ownExcusing.length > 0 ? { label: labels.skipped, skippedDay: ownExcusing[ownExcusing.length - 1].skippedDay }
     : met || daysToNextScheduled(cadence, today) ? null
@@ -522,30 +537,25 @@ export function evaluate(cadence: Cadence, logDates: Date[], user: CadenceUser, 
     status,
     agenda,
     postponed: !met && excused && postpones(cadence),
-    progress: rule.period && needed > 1 ? { done: excused ? needed : Math.min(counting.length, needed), needed, period: rule.period } : null,
+    progress: period && { done: excused ? needed : Math.min(counting.length, needed), needed, period },
     dueInDays,
     skip,
     onVacation: excusing.length > ownExcusing.length && ownExcusing.length === 0
       && onAgenda(cadence, statusOn(cadence, today, counting, []), today, user).state !== 'done',
     dueAtStartOfDay,
   };
-  if (cadence.type === 'limit') {
-    return { ...common, kind: 'limit', limit: { used: counting.length, max: cadence.max, period: LIMIT_PERIODS[cadence.period].progress, excused } };
+  if (shape.kind === 'limit') {
+    return { ...common, kind: 'limit', limit: { used: counting.length, max: shape.max, period: PERIODS[shape.period].progress, excused } };
   }
-  return { ...common, kind: needed === Infinity ? 'none' : 'target', limit: null };
+  return { ...common, kind: shape.kind === 'none' ? 'none' : 'target', limit: null };
 }
 
 // What a skip is called for a cadence, before and after, e.g. "Skip this week" and "Skipped this
 // week", and whether it's a postponement (see postpones); null for one that can't be skipped
 export function skipLabels(cadence: Cadence): { skip: string; skipped: string; postpones: boolean } | null {
-  const labels = ruleFor(cadence).skips(cadence);
+  const labels = skipNames(cadence);
   return labels ? { ...labels, postpones: postpones(cadence) } : null;
 }
-
-// Whether skipping it puts it off rather than excusing it, so it's called postponing, with its own
-// icon: one that counts down to when it's due (every N days) is upcoming until its skip runs out,
-// rather than done (see CadenceStatus)
-export const postpones = (cadence: Cadence) => countsDown(cadence);
 
 // The days each skip and vacation covers up to today (see excuses), for an activity calendar to mark
 // them
