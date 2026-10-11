@@ -45,7 +45,7 @@ function prefillFrom(searchParams: URLSearchParams, properties: HabitFormPropert
 // (`consistency`) and skipping it while it's due (`skip`, see SkipState) are with its pills above
 // (see HabitDetails). The habit's
 // history comes in as `children`, below the button: sections of the page's pane.
-export default function LogClient({ habit, user, people, categories, reminder, skip, postpones, consistency, children }: { habit: HabitDetail, user: SessionUser, people: Record<string, Person>, categories: CategoryOption[], reminder: { status: ReminderStatus; hasDevice: boolean } | null, skip: SkipState | null, postpones: boolean, consistency: Consistency | null, children: ReactNode }) {
+export default function LogClient({ habit, user, people, categories, reminder, skip, consistency, children }: { habit: HabitDetail, user: SessionUser, people: Record<string, Person>, categories: CategoryOption[], reminder: { status: ReminderStatus; hasDevice: boolean } | null, skip: SkipState | null, consistency: Consistency | null, children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -236,7 +236,7 @@ export default function LogClient({ habit, user, people, categories, reminder, s
       <div className={`${PANE_INSET} py-4 space-y-6`}>
         {habit.description && <p className="text-ink-secondary text-center">{habit.description}</p>}
 
-        <HabitDetails habit={habit} categories={categories} reminder={reminder} consistency={consistency} skip={skip} postpones={postpones} bedtime={user.bedtime} weekStartsOn={user.weekStartsOn} />
+        <HabitDetails habit={habit} categories={categories} reminder={reminder} consistency={consistency} skip={skip} bedtime={user.bedtime} weekStartsOn={user.weekStartsOn} />
 
         {habit.isOwner && sharedWith.length > 0 && (
           <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5 -mt-2 text-xs text-ink-muted">

@@ -405,21 +405,21 @@ describe('skipState', () => {
   const daily: Cadence = { type: 'daily', timesPerDay: 1 };
 
   it('offers to skip while it\'s due, named by what a skip covers', () => {
-    expect(skipState(daily, [], user, now)).toEqual({ label: 'Skip today', skippedDay: null });
-    expect(skipState({ type: 'calendarWeek', times: 2 }, [at('2026-09-28T09:00:00Z')], user, now)).toEqual({ label: 'Skip this week', skippedDay: null });
+    expect(skipState(daily, [], user, now)).toEqual({ label: 'Skip today', skippedDay: null, postpones: false });
+    expect(skipState({ type: 'calendarWeek', times: 2 }, [at('2026-09-28T09:00:00Z')], user, now)).toEqual({ label: 'Skip this week', skippedDay: null, postpones: false });
     // A weekly habit can be skipped before its last day, while it isn't done
-    expect(skipState({ type: 'calendarMonth' }, [], user, now)).toEqual({ label: 'Skip this month', skippedDay: null });
-    expect(skipState({ type: 'everyNDays', days: 3 }, [], user, now)).toEqual({ label: 'Postpone a day', skippedDay: null });
-    expect(skipState({ type: 'everyNDays', days: 10 }, [], user, now)).toEqual({ label: 'Postpone 2 days', skippedDay: null });
-    expect(skipState({ type: 'everyNDays', days: 10 }, [], user, at('2026-10-04T15:00:00Z'), ['2026-10-03'])).toEqual({ label: 'Postponed 2 days', skippedDay: '2026-10-03' });
+    expect(skipState({ type: 'calendarMonth' }, [], user, now)).toEqual({ label: 'Skip this month', skippedDay: null, postpones: false });
+    expect(skipState({ type: 'everyNDays', days: 3 }, [], user, now)).toEqual({ label: 'Postpone a day', skippedDay: null, postpones: true });
+    expect(skipState({ type: 'everyNDays', days: 10 }, [], user, now)).toEqual({ label: 'Postpone 2 days', skippedDay: null, postpones: true });
+    expect(skipState({ type: 'everyNDays', days: 10 }, [], user, at('2026-10-04T15:00:00Z'), ['2026-10-03'])).toEqual({ label: 'Postponed 2 days', skippedDay: '2026-10-03', postpones: true });
   });
 
   it('offers to undo the skip that\'s excusing it', () => {
-    expect(skipState(daily, [], user, now, ['2026-10-03'])).toEqual({ label: 'Skipped today', skippedDay: '2026-10-03' });
-    expect(skipState({ type: 'calendarWeek' }, [], user, now, ['2026-09-29'])).toEqual({ label: 'Skipped this week', skippedDay: '2026-09-29' });
-    expect(skipState({ type: 'everyNDays', days: 3 }, [], user, now, ['2026-10-03'])).toEqual({ label: 'Postponed a day', skippedDay: '2026-10-03' });
+    expect(skipState(daily, [], user, now, ['2026-10-03'])).toEqual({ label: 'Skipped today', skippedDay: '2026-10-03', postpones: false });
+    expect(skipState({ type: 'calendarWeek' }, [], user, now, ['2026-09-29'])).toEqual({ label: 'Skipped this week', skippedDay: '2026-09-29', postpones: false });
+    expect(skipState({ type: 'everyNDays', days: 3 }, [], user, now, ['2026-10-03'])).toEqual({ label: 'Postponed a day', skippedDay: '2026-10-03', postpones: true });
     // Yesterday's skip doesn't excuse today
-    expect(skipState({ type: 'everyNDays', days: 3 }, [], user, now, ['2026-10-02'])).toEqual({ label: 'Postpone a day', skippedDay: null });
+    expect(skipState({ type: 'everyNDays', days: 3 }, [], user, now, ['2026-10-02'])).toEqual({ label: 'Postpone a day', skippedDay: null, postpones: true });
   });
 
   it('calls skipping an every-N-days habit postponing it, since it puts it off', () => {
@@ -472,8 +472,8 @@ describe('limits', () => {
   });
 
   it('can be skipped for its period, which excuses it', () => {
-    expect(skipState(coffee, [], user, now)).toEqual({ label: 'Skip today', skippedDay: null });
-    expect(skipState(takeout, [], user, now, ['2026-09-28'])).toEqual({ label: 'Skipped this week', skippedDay: '2026-09-28' });
+    expect(skipState(coffee, [], user, now)).toEqual({ label: 'Skip today', skippedDay: null, postpones: false });
+    expect(skipState(takeout, [], user, now, ['2026-09-28'])).toEqual({ label: 'Skipped this week', skippedDay: '2026-09-28', postpones: false });
     expect(limitStatus(coffee, [], user, now, ['2026-10-03'])?.excused).toBe(true);
   });
 
@@ -505,7 +505,7 @@ describe('vacations', () => {
 
   it('leave it to be postponed as usual once it\'s due after the vacation', () => {
     // The day after: due, and postponing it puts it off a fifth of its days from then
-    expect(skipState(every10, [on(1)], away(9, 13), on(14))).toEqual({ label: 'Postpone 2 days', skippedDay: null });
+    expect(skipState(every10, [on(1)], away(9, 13), on(14))).toEqual({ label: 'Postpone 2 days', skippedDay: null, postpones: true });
     expect(agendaStatus(every10, [on(1)], away(9, 13), on(14), ['2026-10-14'])).toEqual({ state: 'upcoming', dueInDays: 2 });
   });
 
@@ -530,7 +530,7 @@ describe('vacations', () => {
   });
 
   it('aren\'t a skip that can be undone', () => {
-    expect(skipState({ type: 'daily', timesPerDay: 1 }, [], away(3, 3), on(3))).toEqual({ label: 'Skip today', skippedDay: null });
+    expect(skipState({ type: 'daily', timesPerDay: 1 }, [], away(3, 3), on(3))).toEqual({ label: 'Skip today', skippedDay: null, postpones: false });
     expect(onVacation({ type: 'daily', timesPerDay: 1 }, away(3, 3), on(3))).toBe(true);
     expect(onVacation({ type: 'daily', timesPerDay: 1 }, away(3, 3), on(4))).toBe(false);
   });

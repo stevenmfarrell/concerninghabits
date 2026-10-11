@@ -50,8 +50,6 @@ model Habit {
   name             String
   description      String?
   schema           String
-  // Superseded by `cadence` and no longer read or written; kept until a later migration drops it
-  frequency        String         @default("daily")
   // How often the habit is meant to be done, as JSON (see src/lib/cadence.ts)
   cadence          String         @default("{\"type\":\"daily\",\"timesPerDay\":1}")
   // Values worked out from each entry's fields (e.g. pace from duration and distance), as a JSON
@@ -83,8 +81,6 @@ model HabitMember {
   categoryId    String?
   category      Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   order         Int       @default(0)
-  // No longer used (the Due page replaced favorites); kept until a later migration drops it
-  isFavorite    Boolean   @default(false)
   // The user's own notes on how they do this habit (e.g. "my bike commute is 4 miles, 30 minutes"),
   // given to the AI when matching and filling in their entries
   aiContext     String?

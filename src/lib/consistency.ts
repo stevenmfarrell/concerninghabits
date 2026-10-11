@@ -1,5 +1,5 @@
 import { cadenceCovers, dueByPeriodEnd, entriesNeeded, isScheduled, limitOf, periodDays, shapeOf, skippedCovers, type Cadence, type CadenceUser } from './cadence';
-import { civilDayKey, parseBedtimeOffsetMinutes, toCivilDate } from './timezone';
+import { addDays, civilDateFor, civilDayKey, DAY_MS, daysBetween } from './timezone';
 
 // How consistently a habit (or a category with a cadence) has been kept up lately, as a garden:
 // thriving, taking root, or needing care. Not a streak: one miss dips it a little rather than
@@ -54,15 +54,6 @@ export const CONSISTENCY_LABELS: Record<ConsistencyLevel, string> = {
   freshlyPlanted: 'Freshly planted',
 };
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-
-function addDays(day: Date, days: number) {
-  const shifted = new Date(day);
-  shifted.setUTCDate(shifted.getUTCDate() + days);
-  return shifted;
-}
-
-const daysBetween = (from: Date, to: Date) => Math.round((to.getTime() - from.getTime()) / DAY_MS);
 const latest = (a: Date, b: Date) => (a > b ? a : b);
 
 // One time the cadence meant it to be done, and how much of it was: `day` is when it was settled
@@ -171,8 +162,7 @@ function countdownOpportunities(cadence: Cadence, stretch: number, entryDays: Da
 
 // The score as of `now`, and how many opportunities it's from
 function scoreAt(cadence: Cadence, logDates: Date[], skippedDays: readonly string[], createdAt: Date, user: CadenceUser, now: Date) {
-  const offset = parseBedtimeOffsetMinutes(user.bedtime);
-  const civil = (date: Date) => toCivilDate(date, user.timeZone, offset);
+  const civil = (date: Date) => civilDateFor(date, user);
   const today = civil(now);
 
   // Only what had happened by then

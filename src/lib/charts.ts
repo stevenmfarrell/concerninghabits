@@ -4,7 +4,7 @@ import { fieldsOf, fieldTypeOf } from './formFields';
 import { calculatedFieldProblem, calculateValue, choiceLists, isYesNo, type CalculatedField, type ChoiceLists } from './calculatedFields';
 import { formatDuration, formatLogValue } from './format';
 import { startOfWeek } from './cadence';
-import { toCivilDate } from './timezone';
+import { addDays, toCivilDate } from './timezone';
 
 // How a plotted value is shown: a number, a duration in minutes (as h:mm:ss), yes or no (1 or 0),
 // one of a list of choices (its index in `choices`), or a share from 0 to 1 (as a percentage, e.g.
@@ -273,12 +273,6 @@ export interface ChartRow {
   values: (number | null)[];
   logId?: string;
   userId?: string;
-}
-
-const DAY_MS = 86_400_000;
-
-function addDays(day: Date, days: number) {
-  return new Date(day.getTime() + days * DAY_MS);
 }
 
 function periodStart(day: Date, period: 'day' | 'week' | 'month', weekStartsOn: string) {

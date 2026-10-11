@@ -15,7 +15,7 @@ import HabitChart from './HabitChart';
 import ExportCsvButton from './ExportCsvButton';
 import { formatLogValue } from '../../../lib/format';
 import { parseBedtimeOffsetMinutes, toCivilDate } from '../../../lib/timezone';
-import { limitOf, parseCadence, postpones, evaluate } from '@/lib/cadence';
+import { evaluate, limitOf, parseCadence } from '@/lib/cadence';
 import { consistency } from '@/lib/consistency';
 import { calendarStart } from '@/lib/calendarRange';
 import type { HabitSchema } from '@/lib/types';
@@ -121,7 +121,7 @@ export default async function HabitPage(props: { params: Promise<{ id: string }>
   const habitConsistency = consistency(cadence, logs.map(l => l.createdAt), user, { createdAt: habit.createdAt, skippedDays: habit.skippedDays });
 
   return (
-    <LogClient habit={habit} user={user} people={allPeople} categories={categories} reminder={reminder} skip={skip} postpones={postpones(cadence)} consistency={habitConsistency}>
+    <LogClient habit={habit} user={user} people={allPeople} categories={categories} reminder={reminder} skip={skip} consistency={habitConsistency}>
       {!presence.hasLogs ? (
         <EmptyState title="No logs here yet">
           Time to step out your front door and start an adventure. Log your first entry!

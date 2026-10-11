@@ -1,4 +1,4 @@
-import { civilDayKey, parseCivilDayKey } from './timezone';
+import { addDays, civilDayKey, parseCivilDayKey } from './timezone';
 
 // Vacations: stretches of days the user is away, on each of which every habit and category of theirs
 // counts as skipped, so nothing's due, nothing's held against its health, and no reminders are sent
@@ -10,11 +10,6 @@ export interface VacationRange {
   to: string | null;
 }
 
-function addDays(key: string, days: number) {
-  const day = parseCivilDayKey(key)!;
-  day.setUTCDate(day.getUTCDate() + days);
-  return civilDayKey(day);
-}
 
 // The vacation the user is on today, or failing that the next one coming up; null for neither
 export function currentVacation<V extends VacationRange>(vacations: V[], today: string): (V & { active: boolean }) | null {
@@ -28,7 +23,7 @@ export function currentVacation<V extends VacationRange>(vacations: V[], today: 
 // yesterday), and today is a normal day again; one that hasn't, or only started today, is removed
 export function endVacation(vacation: VacationRange, today: string): { remove: true } | { to: string } {
   if (vacation.from >= today) return { remove: true };
-  return { to: addDays(today, -1) };
+  return { to: civilDayKey(addDays(parseCivilDayKey(today)!, -1)) };
 }
 
 // Why a vacation can't be set from `from` to `to` (as of `today`), or null when it can

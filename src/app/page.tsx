@@ -16,7 +16,7 @@ import { LinkButton } from '@/components/ui/Button';
 import PageHeader from '@/components/PageHeader';
 import { PANE_INSET, PaneHeading, PanePage, PaneSection } from '@/components/Pane';
 import { buildDueList, type DueCategory } from '@/lib/dueList';
-import { parseBedtimeOffsetMinutes, toCivilDate } from '@/lib/timezone';
+import { civilDateFor } from '@/lib/timezone';
 import type { HabitListItem, SessionUser } from '@/lib/types';
 import { DEFAULT_CATEGORY_ICON } from '@/lib/constants';
 
@@ -118,7 +118,7 @@ export default async function AgendaPage() {
   const anyHabits = uncategorized.length > 0 || categories.some(c => c.habits.length > 0 || c.children.some(child => child.habits.length > 0));
 
   // Today in the viewer's time zone, following the same bedtime rule as the calendars
-  const today = toCivilDate(new Date(), user.timeZone, parseBedtimeOffsetMinutes(user.bedtime));
+  const today = civilDateFor(new Date(), user);
 
   return (
     <PanePage

@@ -3,15 +3,13 @@
 import { startTransition, type RefObject } from 'react';
 import { CalendarChevronsRight, SkipForward } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { skipCategory, skipHabit, unskipCategory, unskipHabit } from '@/app/actions/db';
+import { skipToday, type Skippable } from '@/app/actions/db';
 import { showSkippedToast } from '@/components/LoggedToast';
 import type { RowSwipe } from './RowGesture';
 import { swipeAway } from './zoomAway';
 
-// What can be skipped: a habit, or a category with a cadence of its own (see CategorySkip)
-export interface SkipTarget {
-  kind: 'habit' | 'category';
-  id: string;
+// Something to skip, with its name for showing it
+export interface SkipTarget extends Skippable {
   name: string;
 }
 
@@ -21,12 +19,6 @@ export interface SkipLabels {
   skipped: string;
   postpones: boolean;
 }
-
-// Skips it for today, returning the skip's day
-export const skip = (target: SkipTarget) => (target.kind === 'habit' ? skipHabit(target.id) : skipCategory(target.id));
-
-// Takes back its skip made on `day`
-export const unskip = (target: SkipTarget, day: string) => (target.kind === 'habit' ? unskipHabit(target.id, day) : unskipCategory(target.id, day));
 
 // A skip's icon, or a postponement's
 export function SkipIcon({ postpones, className }: { postpones: boolean; className?: string }) {
@@ -54,7 +46,7 @@ export function useSkipSwipe(target: SkipTarget, labels: SkipLabels | undefined,
         const leaving = swipeAway(row.current);
         await leaving?.finished.catch(() => {});
         try {
-          const day = await skip(target);
+          const day = await skipToday(target);
           showSkippedToast({ target, label: labels.skipped, day, postpones: labels.postpones });
         } catch (err) {
           leaving?.cancel();

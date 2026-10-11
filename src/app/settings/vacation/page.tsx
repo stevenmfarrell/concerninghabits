@@ -2,7 +2,7 @@ import { getDefaultUser } from '@/app/actions/db';
 import { getVacation } from '@/app/actions/vacation';
 import PageHeader from '@/components/PageHeader';
 import { PANE_INSET, PanePage } from '@/components/Pane';
-import { civilDayKey, parseBedtimeOffsetMinutes, toCivilDate } from '@/lib/timezone';
+import { todayKeyFor } from '@/lib/timezone';
 import VacationForm from './VacationForm';
 
 // Vacation: time away when nothing's due. While it's on, every habit and category counts as skipped
@@ -10,7 +10,7 @@ import VacationForm from './VacationForm';
 // here or the Agenda.
 export default async function VacationPage() {
   const [user, vacation] = await Promise.all([getDefaultUser(), getVacation()]);
-  const today = vacation?.today ?? civilDayKey(toCivilDate(new Date(), user.timeZone, parseBedtimeOffsetMinutes(user.bedtime)));
+  const today = vacation?.today ?? todayKeyFor(user);
 
   return (
     <PanePage width="3xl" header={<PageHeader title="Vacation" backHref="/settings" />}>

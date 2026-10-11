@@ -1,8 +1,8 @@
 import { cache } from 'react';
 import { cookies } from 'next/headers';
 import { prisma } from './prisma';
+import { DAY_MS } from './timezone';
 
-const DAY_MS = 24 * 60 * 60 * 1000;
 // Sessions expire after 30 days without use. Each use pushes the expiry out again (at most once a day).
 const SESSION_TTL_MS = 30 * DAY_MS;
 const SESSION_REFRESH_INTERVAL_MS = DAY_MS;

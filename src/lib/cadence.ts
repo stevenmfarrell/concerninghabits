@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { civilDayKey, parseBedtimeOffsetMinutes, parseCivilDayKey, toCivilDate } from './timezone';
+import { addDays, civilDateFor, civilDayKey, daysBetween, parseCivilDayKey, type DayOwner } from './timezone';
 import type { VacationRange } from './vacation';
 
 // A habit's cadence: how often it's meant to be done. Stored as JSON in Habit.cadence. To add a
@@ -51,9 +51,7 @@ export interface CadenceContext {
 
 // What the status functions below need to know about the user to place entries on their days, and
 // the user's vacations, on whose days everything of theirs counts as skipped (see excuses)
-export interface CadenceUser extends CadenceContext {
-  timeZone: string;
-  bedtime: string;
+export interface CadenceUser extends CadenceContext, DayOwner {
   vacations?: readonly VacationRange[];
 }
 
@@ -70,12 +68,6 @@ export interface CadenceProgress {
 interface DayRange {
   from: Date;
   to: Date;
-}
-
-function addDays(day: Date, days: number) {
-  const shifted = new Date(day);
-  shifted.setUTCDate(shifted.getUTCDate() + days);
-  return shifted;
 }
 
 // The first day of the week a civil date falls in, by the user's week start ("sunday" or "monday")
@@ -351,10 +343,6 @@ export function cadenceFromSuggestion(suggestion: { type?: string; timesPerDay?:
   return parsed.success ? parsed.data : NO_CADENCE;
 }
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-
-const daysBetween = (from: Date, to: Date) => Math.round((to.getTime() - from.getTime()) / DAY_MS);
-
 // Where a habit (or category) stands today by its cadence:
 // - due: not enough entries count toward today (not logged today as often as it needs, this week
 //   or month, or within its last N days), and it's meant to be done today
@@ -458,8 +446,9 @@ export interface LimitStatus {
 
 // What can be done about skipping a habit now: skip it (`skippedDay` null), while it isn't done and
 // is meant to be done today; or undo the skip that's excusing it, made on `skippedDay`. `label` is
-// for the button, e.g. "Skip this week", "Skipped today", "Postpone 2 days".
-export type SkipState = { label: string; skippedDay: string | null };
+// for the button, e.g. "Skip this week", "Skipped today", "Postpone 2 days", and `postpones` says
+// whether it puts it off (see postpones).
+export type SkipState = { label: string; skippedDay: string | null; postpones: boolean };
 
 // Everything about where a habit (or category) stands today by its cadence (see evaluate). `kind`
 // says which sort of cadence it is: one never done (`none`), one kept to at most so many entries
@@ -494,11 +483,10 @@ export type CadenceSnapshot = {
 // vacations. Days follow the user's time zone and bedtime, the same as the activity calendars.
 export function evaluate(cadence: Cadence, logDates: Date[], user: CadenceUser, now = new Date(), skippedDays: readonly string[] = []): CadenceSnapshot {
   const shape = shapeOf(cadence);
-  const offset = parseBedtimeOffsetMinutes(user.bedtime);
-  const today = toCivilDate(now, user.timeZone, offset);
+  const today = civilDateFor(now, user);
   const coversToday = ({ from, to }: DayRange) => from <= today && today <= to;
 
-  const entryDays = logDates.map(date => toCivilDate(date, user.timeZone, offset));
+  const entryDays = logDates.map(date => civilDateFor(date, user));
   const entryRanges = entryDays.map(day => cadenceCovers(cadence, day, user));
   const counting = entryRanges.filter(coversToday);
   const allExcuses = excuses(cadence, skippedDays, user, today);
@@ -522,10 +510,11 @@ export function evaluate(cadence: Cadence, logDates: Date[], user: CadenceUser, 
   }
 
   const labels = skipNames(cadence);
+  const postponing = postpones(cadence);
   const skip = !labels ? null
-    : ownExcusing.length > 0 ? { label: labels.skipped, skippedDay: ownExcusing[ownExcusing.length - 1].skippedDay }
+    : ownExcusing.length > 0 ? { label: labels.skipped, skippedDay: ownExcusing[ownExcusing.length - 1].skippedDay, postpones: postponing }
     : met || daysToNextScheduled(cadence, today) ? null
-    : { label: labels.skip, skippedDay: null };
+    : { label: labels.skip, skippedDay: null, postpones: postponing };
 
   // Before today's entries and skips: those from before today, and what excused it through yesterday
   const yesterday = addDays(today, -1);
@@ -560,6 +549,5 @@ export function skipLabels(cadence: Cadence): { skip: string; skipped: string; p
 // The days each skip and vacation covers up to today (see excuses), for an activity calendar to mark
 // them
 export function skippedCovers(cadence: Cadence, skippedDays: readonly string[], user: CadenceUser, now = new Date()): DayRange[] {
-  const today = toCivilDate(now, user.timeZone, parseBedtimeOffsetMinutes(user.bedtime));
-  return excuses(cadence, skippedDays, user, today).map(({ range }) => range);
+  return excuses(cadence, skippedDays, user, civilDateFor(now, user)).map(({ range }) => range);
 }

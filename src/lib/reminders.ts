@@ -1,4 +1,4 @@
-import { civilDayKey, parseBedtimeOffsetMinutes, toCivilDate } from './timezone';
+import { civilDateFor, civilDayKey, parseBedtimeOffsetMinutes, todayKeyFor } from './timezone';
 import type { Cadence } from './cadence';
 
 // Habit reminders: a nudge when you're running late on a habit, judged against when you usually log
@@ -102,11 +102,10 @@ export interface User {
 // reminder of the day is judged against when its second entry usually comes. Most recent days
 // first, at most MAX_SAMPLES of them.
 export function usualTimeSamples(logDates: Date[], entryIndex: number, user: User, now: Date) {
-  const offset = parseBedtimeOffsetMinutes(user.bedtime);
-  const today = civilDayKey(toCivilDate(now, user.timeZone, offset));
+  const today = todayKeyFor(user, now);
   const byDay = new Map<string, Date[]>();
   for (const date of logDates) {
-    const day = civilDayKey(toCivilDate(date, user.timeZone, offset));
+    const day = civilDayKey(civilDateFor(date, user));
     if (day === today) continue;
     byDay.set(day, [...(byDay.get(day) ?? []), date]);
   }

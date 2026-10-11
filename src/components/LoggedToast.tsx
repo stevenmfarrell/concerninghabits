@@ -4,8 +4,8 @@ import toast, { type Toast } from 'react-hot-toast';
 import { Check, X } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/Button';
-import { deleteHabitLog } from '@/app/actions/db';
-import { SkipIcon, unskip, type SkipTarget } from '@/components/logging/skipping';
+import { deleteHabitLog, undoSkip } from '@/app/actions/db';
+import { SkipIcon, type SkipTarget } from '@/components/logging/skipping';
 import { formatLogValue } from '@/lib/format';
 
 type SchemaProperties = Record<string, { title?: string; 'x-widget'?: string; 'x-unit'?: string }> | undefined;
@@ -67,12 +67,12 @@ export function showLoggedToast(entry: LoggedEntry, { onUndone, toastId }: { onU
 
 // Confirms a habit or category just skipped (e.g. swiped away on the Agenda), with an Undo that
 // takes the skip back. `label` says what was skipped, e.g. "Skipped today" or "Postponed 2 days";
-// `day` is the skip's (see skipHabit). `postpones` is for a skip that puts it off (see postpones).
+// `day` is the skip's (see skipToday). `postpones` is for a skip that puts it off (see postpones).
 export function showSkippedToast({ target, label, day, postpones = false }: { target: SkipTarget; label: string; day: string; postpones?: boolean }) {
   const undo = async (t: Toast) => {
     toast.dismiss(t.id);
     try {
-      await unskip(target, day);
+      await undoSkip(target, day);
       toast.success(postpones ? 'Postponement undone.' : 'Skip undone.');
     } catch (err) {
       toast.error(`Failed to undo: ${err instanceof Error ? err.message : 'Unknown error'}`);

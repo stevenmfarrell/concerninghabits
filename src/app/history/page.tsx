@@ -8,7 +8,7 @@ import EmptyState from '@/components/EmptyState';
 import { IconLinkButton } from '@/components/ui/IconButton';
 import { LinkButton } from '@/components/ui/Button';
 import { fieldTitle, parseHabitSchema, type HabitFormProperties } from '@/components/widgets/habitForm';
-import { civilDayKey, parseBedtimeOffsetMinutes, parseCivilDayKey, toCivilDate } from '@/lib/timezone';
+import { civilDateFor, civilDayKey, parseCivilDayKey } from '@/lib/timezone';
 import { formatLogValue } from '@/lib/format';
 import { UNCATEGORIZED_ID, UNCATEGORIZED_ICON } from '@/lib/constants';
 import { DEFAULT_CATEGORY_ICON } from '@/lib/constants';
@@ -76,7 +76,7 @@ export default async function HistoryPage(props: { searchParams: Promise<{ day?:
   const { day: dayParam } = await props.searchParams;
   const user = await getDefaultUser();
 
-  const today = toCivilDate(new Date(), user.timeZone, parseBedtimeOffsetMinutes(user.bedtime));
+  const today = civilDateFor(new Date(), user);
   const requested = parseCivilDayKey(dayParam);
   // Days ahead of today have nothing to show, so anything else shows today
   const day = requested && requested <= today ? requested : today;

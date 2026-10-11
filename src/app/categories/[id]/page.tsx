@@ -12,7 +12,7 @@ import HorizonToggle from '@/components/HorizonToggle';
 import CategoryMenu from './CategoryMenu';
 import CategoryCadence from './CategoryCadence';
 import EmptyState from '@/components/EmptyState';
-import { NO_CADENCE, parseCadence, postpones, evaluate } from '@/lib/cadence';
+import { evaluate, NO_CADENCE, parseCadence } from '@/lib/cadence';
 import SkipButton from '@/components/SkipButton';
 import HealthHeader from '@/components/HealthPlant';
 import { consistency, CONSISTENCY_HISTORY_WEEKS } from '@/lib/consistency';
@@ -117,7 +117,7 @@ export default async function CategoryLogPage(props: { params: Promise<{ id: str
             bottom={
               <>
                 <CategoryCadence categoryId={category.id} cadence={cadence} weekStartsOn={user.weekStartsOn} />
-                {skip && <SkipButton target={{ kind: 'category', id: category.id, name: category.name }} skip={skip} postpones={postpones(cadence)} />}
+                {skip && <SkipButton target={{ kind: 'category', id: category.id, name: category.name }} skip={skip} />}
               </>
             }
           />

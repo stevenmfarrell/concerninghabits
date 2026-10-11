@@ -52,3 +52,27 @@ export function parseCivilDayKey(key: string | undefined | null) {
   const date = new Date(`${key}T00:00:00Z`);
   return Number.isNaN(date.getTime()) || civilDayKey(date) !== key ? null : date;
 }
+
+export const DAY_MS = 24 * 60 * 60 * 1000;
+
+// A civil date `days` days after `day` (before it, for a negative number)
+export function addDays(day: Date, days: number) {
+  const shifted = new Date(day);
+  shifted.setUTCDate(shifted.getUTCDate() + days);
+  return shifted;
+}
+
+// How many days after civil date `from` civil date `to` is (negative if it's before)
+export const daysBetween = (from: Date, to: Date) => Math.round((to.getTime() - from.getTime()) / DAY_MS);
+
+// Whose days an instant is placed on: a user's time zone, with their bedtime ending each day
+export interface DayOwner {
+  timeZone: string;
+  bedtime: string;
+}
+
+// The civil date an instant falls on for `user`
+export const civilDateFor = (instant: Date | string | number, user: DayOwner) => toCivilDate(instant, user.timeZone, parseBedtimeOffsetMinutes(user.bedtime));
+
+// Today for `user`, as a civil day key
+export const todayKeyFor = (user: DayOwner, now = new Date()) => civilDayKey(civilDateFor(now, user));

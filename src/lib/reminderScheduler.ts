@@ -1,6 +1,6 @@
 import { prisma } from './prisma';
 import { evaluate, parseCadence } from './cadence';
-import { civilDayKey, isValidTimeZone, parseBedtimeOffsetMinutes, toCivilDate } from './timezone';
+import { civilDateFor, civilDayKey, DAY_MS, isValidTimeZone, todayKeyFor } from './timezone';
 import { currentVacation } from './vacation';
 import { dayMinute, learnUsualTime, nudgeTime, pickNudge, reminderMessage, shouldMute, usualTimeSamples, IGNORED_LIMIT, MAX_SAMPLES, type Candidate, type DayProgress, type LearnedTime } from './reminders';
 import { sendPush } from './push';
@@ -10,7 +10,6 @@ import { sendPush } from './push';
 // running late.
 
 const TICK_MS = 60_000;
-const DAY_MS = 24 * 60 * 60 * 1000;
 // How far back to read a habit's entries to learn its usual time: enough for MAX_SAMPLES days of a
 // daily habit, and for a weekly one to have a few
 const LOOKBACK_DAYS = Math.max(MAX_SAMPLES * 3, 60);
@@ -51,8 +50,7 @@ export async function habitReminderStatus(habitId: string, user: ReminderUser, n
 // Which of the user's habits to nudge about right now (none, most of the time), with each
 // reminder that's gone unanswered too often paused instead
 export async function dueReminders(user: ReminderUser, now: Date): Promise<Candidate[]> {
-  const offset = parseBedtimeOffsetMinutes(user.bedtime);
-  const today = civilDayKey(toCivilDate(now, user.timeZone, offset));
+  const today = todayKeyFor(user, now);
 
   // Nothing while they're on vacation; afterwards, its days count as skips, as on the Agenda
   const vacations = await prisma.vacation.findMany({ where: { userId: user.id, from: { lte: today } }, select: { from: true, to: true } });
@@ -115,10 +113,9 @@ async function ignoredTooOften(user: ReminderUser, habitId: string) {
   });
   if (recent.length < IGNORED_LIMIT) return false;
   const since = new Date(recent[recent.length - 1].sentAt.getTime() - DAY_MS);
-  const offset = parseBedtimeOffsetMinutes(user.bedtime);
   const loggedDays = new Set(
     (await prisma.habitLog.findMany({ where: { habitId, createdAt: { gte: since } }, select: { createdAt: true } }))
-      .map(l => civilDayKey(toCivilDate(l.createdAt, user.timeZone, offset))),
+      .map(l => civilDayKey(civilDateFor(l.createdAt, user))),
   );
   const skippedDays = new Set(
     (await prisma.habitSkip.findMany({ where: { habitId, day: { in: recent.map(r => r.day) } }, select: { day: true } })).map(s => s.day),
@@ -149,7 +146,7 @@ export async function runReminderTick(now = new Date()) {
       const delivered = await sendPush(user.id, { ...reminderMessage(habits, user.bedtime), ...quickLog });
       // Not recorded if no device got it, so it's tried again next tick
       if (!delivered) continue;
-      const day = civilDayKey(toCivilDate(now, user.timeZone, parseBedtimeOffsetMinutes(user.bedtime)));
+      const day = todayKeyFor(user, now);
       await prisma.reminderSent.createMany({ data: habitIds.map(habitId => ({ userId: user.id, habitId, day, sentAt: now })) });
     } catch (error) {
       console.error(`Reminders failed for user ${user.id}`, error);

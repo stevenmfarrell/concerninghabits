@@ -18,13 +18,12 @@ import type { CategoryOption, HabitDetail } from '@/lib/types';
 // CadenceQuickEdit). Any member can file the habit in their own categories, set their own reminder
 // and skip it; only the owner can change its cadence, which is the same for everyone it's shared with.
 // `bedtime` and `weekStartsOn` are the viewer's.
-export default function HabitDetails({ habit, categories, reminder, consistency, skip, postpones, bedtime, weekStartsOn }: {
+export default function HabitDetails({ habit, categories, reminder, consistency, skip, bedtime, weekStartsOn }: {
   habit: HabitDetail;
   categories: CategoryOption[];
   reminder: { status: ReminderStatus; hasDevice: boolean } | null;
   consistency: Consistency | null;
   skip: SkipState | null;
-  postpones: boolean;
   bedtime: string;
   weekStartsOn: string;
 }) {
@@ -62,7 +61,7 @@ export default function HabitDetails({ habit, categories, reminder, consistency,
               },
             } : undefined}
           />
-          {skip && <SkipButton target={{ kind: 'habit', id: habit.id, name: habit.name }} skip={skip} postpones={postpones} />}
+          {skip && <SkipButton target={{ kind: 'habit', id: habit.id, name: habit.name }} skip={skip} />}
         </>
       }
     />

@@ -3,16 +3,17 @@
 import { useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { SkipIcon, skip as skipTarget, unskip, type SkipTarget } from '@/components/logging/skipping';
+import { skipToday, undoSkip } from '@/app/actions/db';
+import { SkipIcon, type SkipTarget } from '@/components/logging/skipping';
 import type { SkipState } from '@/lib/cadence';
 import { PILL } from '@/components/CadenceQuickEdit';
 
 // On a habit's or category's page, a pill beside its cadence (see HealthHeader): skips it for now
 // (e.g. "Skip today", "Skip this week") while it's due, so a sick day or a trip doesn't count against
-// it, or for one that `postpones` (see postpones), puts it off ("Postpone 2 days"). Once skipped, the
+// it, or for one that postpones (see postpones), puts it off ("Postpone 2 days"). Once skipped, the
 // pill says so and undoes it: one tap either way. The page refreshes through the actions'
 // revalidation, which swaps one for the other.
-export default function SkipButton({ target, skip, postpones }: { target: SkipTarget; skip: SkipState; postpones: boolean }) {
+export default function SkipButton({ target, skip }: { target: SkipTarget; skip: SkipState }) {
   const [busy, setBusy] = useState(false);
 
   const run = async (action: () => Promise<unknown>, failure: string) => {
@@ -26,13 +27,13 @@ export default function SkipButton({ target, skip, postpones }: { target: SkipTa
     }
   };
 
-  const icon = busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <SkipIcon postpones={postpones} className="w-4 h-4" />;
+  const icon = busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <SkipIcon postpones={skip.postpones} className="w-4 h-4" />;
   const day = skip.skippedDay;
 
   return day ? (
     <button
       type="button"
-      onClick={() => run(() => unskip(target, day), 'Failed to undo')}
+      onClick={() => run(() => undoSkip(target, day), 'Failed to undo')}
       disabled={busy}
       className={`${PILL} bg-surface-subtle border-line-subtle text-ink-muted hover:bg-surface-muted`}
       aria-label={`${skip.label}. Undo`}
@@ -44,7 +45,7 @@ export default function SkipButton({ target, skip, postpones }: { target: SkipTa
   ) : (
     <button
       type="button"
-      onClick={() => run(() => skipTarget(target), postpones ? 'Failed to postpone' : 'Failed to skip')}
+      onClick={() => run(() => skipToday(target), skip.postpones ? 'Failed to postpone' : 'Failed to skip')}
       disabled={busy}
       className={`${PILL} bg-surface border-line text-ink-secondary hover:bg-surface-subtle`}
     >
