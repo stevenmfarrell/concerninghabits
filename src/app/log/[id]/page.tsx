@@ -15,7 +15,7 @@ import HabitChart from './HabitChart';
 import ExportCsvButton from './ExportCsvButton';
 import { formatLogValue } from '../../../lib/format';
 import { parseBedtimeOffsetMinutes, toCivilDate } from '../../../lib/timezone';
-import { limitOf, parseCadence, postpones, skipState } from '@/lib/cadence';
+import { limitOf, parseCadence, postpones, evaluate } from '@/lib/cadence';
 import { consistency } from '@/lib/consistency';
 import { calendarStart } from '@/lib/calendarRange';
 import type { HabitSchema } from '@/lib/types';
@@ -116,7 +116,7 @@ export default async function HabitPage(props: { params: Promise<{ id: string }>
   });
 
   const cadence = parseCadence(habit.cadence);
-  const skip = skipState(cadence, logs.map(l => l.createdAt), user, new Date(), habit.skippedDays);
+  const { skip } = evaluate(cadence, logs.map(l => l.createdAt), user, new Date(), habit.skippedDays);
   // From its entries over the last year (see getHabitLogs), everyone's for a shared habit
   const habitConsistency = consistency(cadence, logs.map(l => l.createdAt), user, { createdAt: habit.createdAt, skippedDays: habit.skippedDays });
 

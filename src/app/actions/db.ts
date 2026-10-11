@@ -381,7 +381,7 @@ function todayKey(user: { timeZone: string; bedtime: string }) {
 }
 
 // Skips the habit for today, the viewer's day: it counts toward the habit's cadence like an entry
-// today would (see skipState). Anyone who has the habit can, the same as logging it.
+// today would (see CadenceSnapshot). Anyone who has the habit can, the same as logging it.
 export async function skipHabit(habitId: string) {
   const user = await getDefaultUser();
   await getMembership(user.id, habitId);

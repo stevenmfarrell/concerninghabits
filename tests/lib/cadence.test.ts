@@ -1,5 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { postpones, skipLabels, toggleWeekday, weekdaysInOrder, agendaStatus, cadenceFromSuggestion, cadenceProgress, cadenceSchema, cadenceStatus, daysUntilDue, describeCadence, dueAtStartOfDay, isHabitComplete, limitOf, limitStatus, parseCadence, onVacation, skippedCovers, skipState, startOfWeek, upcomingDays, withTimes, type Cadence } from '@/lib/cadence';
+import { postpones, skipLabels, toggleWeekday, weekdaysInOrder, cadenceFromSuggestion, cadenceSchema, describeCadence, evaluate, limitOf, parseCadence, skippedCovers, startOfWeek, upcomingDays, withTimes, type Cadence } from '@/lib/cadence';
+
+// Each part of a cadence's snapshot (see evaluate), to test them one at a time
+type EvaluateArgs = Parameters<typeof evaluate>;
+const cadenceStatus = (...args: EvaluateArgs) => evaluate(...args).status;
+const agendaStatus = (...args: EvaluateArgs) => evaluate(...args).agenda;
+const cadenceProgress = (...args: EvaluateArgs) => evaluate(...args).progress;
+const limitStatus = (...args: EvaluateArgs) => evaluate(...args).limit;
+const daysUntilDue = (...args: EvaluateArgs) => evaluate(...args).dueInDays;
+const skipState = (...args: EvaluateArgs) => evaluate(...args).skip;
+const dueAtStartOfDay = (...args: EvaluateArgs) => evaluate(...args).dueAtStartOfDay;
+const isHabitComplete = (...args: EvaluateArgs) => evaluate(...args).status.state !== 'due';
+const onVacation = (cadence: Cadence, who: EvaluateArgs[2], when: Date) => evaluate(cadence, [], who, when).onVacation;
 import { civilDayKey, parseCivilDayKey } from '@/lib/timezone';
 
 const user = { timeZone: 'UTC', bedtime: '00:00', weekStartsOn: 'sunday' };
@@ -524,3 +536,33 @@ describe('vacations', () => {
   });
 });
 
+
+describe('evaluate', () => {
+  const daily: Cadence = { type: 'daily', timesPerDay: 1 };
+  const every10: Cadence = { type: 'everyNDays', days: 10 };
+  const awayToday = { ...user, vacations: [{ from: '2026-10-03', to: null }] };
+
+  it('says which sort of cadence it is, with a limit\'s use', () => {
+    expect(evaluate({ type: 'none' }, [], user, now).kind).toBe('none');
+    expect(evaluate(daily, [], user, now).kind).toBe('target');
+    const limit = evaluate({ type: 'limit', period: 'day', max: 2 }, [at('2026-10-03T08:00:00Z')], user, now);
+    expect(limit.kind).toBe('limit');
+    expect(limit.limit).toEqual({ used: 1, max: 2, period: 'daily', excused: false });
+  });
+
+  it('is postponed only while a skip or vacation puts it off', () => {
+    expect(evaluate(every10, [at('2026-09-20T12:00:00Z')], user, now, ['2026-10-03']).postponed).toBe(true);
+    expect(evaluate(every10, [at('2026-09-20T12:00:00Z')], awayToday, now).postponed).toBe(true);
+    // Done, and only upcoming as it's due again soon
+    expect(evaluate(every10, [at('2026-09-25T12:00:00Z')], user, now).postponed).toBe(false);
+    // A skip excuses a daily habit rather than putting it off
+    expect(evaluate(daily, [], user, now, ['2026-10-03']).postponed).toBe(false);
+  });
+
+  it('leaves it off for a vacation only when there\'d be something to do but for it', () => {
+    expect(evaluate(daily, [], awayToday, now).onVacation).toBe(true);
+    expect(evaluate(daily, [at('2026-10-03T08:00:00Z')], awayToday, now).onVacation).toBe(false);
+    expect(evaluate(daily, [], awayToday, now, ['2026-10-03']).onVacation).toBe(false);
+    expect(evaluate({ type: 'none' }, [], awayToday, now).onVacation).toBe(false);
+  });
+});

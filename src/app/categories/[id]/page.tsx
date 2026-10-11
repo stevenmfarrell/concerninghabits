@@ -12,7 +12,7 @@ import HorizonToggle from '@/components/HorizonToggle';
 import CategoryMenu from './CategoryMenu';
 import CategoryCadence from './CategoryCadence';
 import EmptyState from '@/components/EmptyState';
-import { NO_CADENCE, parseCadence, postpones, skipState } from '@/lib/cadence';
+import { NO_CADENCE, parseCadence, postpones, evaluate } from '@/lib/cadence';
 import SkipButton from '@/components/SkipButton';
 import HealthHeader from '@/components/HealthPlant';
 import { consistency, CONSISTENCY_HISTORY_WEEKS } from '@/lib/consistency';
@@ -61,7 +61,7 @@ export default async function CategoryLogPage(props: { params: Promise<{ id: str
   // Skipping it (its own cadence), or undoing that, under its cadence while it's due, as a habit's
   // page has (see SkipButton)
   const categoryDates = [...category.habits, ...(isTopLevel ? category.children.flatMap(c => c.habits) : [])].flatMap(h => entryDates(h, latestLogDates));
-  const skip = category.id === UNCATEGORIZED_ID ? null : skipState(cadence, categoryDates, user, new Date(), skippedDays);
+  const skip = category.id === UNCATEGORIZED_ID ? null : evaluate(cadence, categoryDates, user, new Date(), skippedDays).skip;
   const categoryConsistency = 'createdAt' in category ? consistency(cadence, categoryDates, user, { createdAt: category.createdAt, skippedDays }) : null;
   const calendarProps = { dates, weeks, ...calendarShading, since: 'createdAt' in category ? category.createdAt : undefined, size: 'md' as const, bedtime: user.bedtime, weekStartsOn: user.weekStartsOn, timeZone: user.timeZone, color: 'blue' as const };
 

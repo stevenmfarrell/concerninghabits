@@ -42,7 +42,7 @@ function prefillFrom(searchParams: URLSearchParams, properties: HabitFormPropert
 
 // The top of a habit's page: its header and menu, and the Log Habit button, which logs a habit with
 // no form on the tap or opens the entry sheet for one with a form (see useHabitLogger). Its health
-// (`consistency`) and skipping it while it's due (`skip`, see skipState) are with its pills above
+// (`consistency`) and skipping it while it's due (`skip`, see SkipState) are with its pills above
 // (see HabitDetails). The habit's
 // history comes in as `children`, below the button: sections of the page's pane.
 export default function LogClient({ habit, user, people, categories, reminder, skip, postpones, consistency, children }: { habit: HabitDetail, user: SessionUser, people: Record<string, Person>, categories: CategoryOption[], reminder: { status: ReminderStatus; hasDevice: boolean } | null, skip: SkipState | null, postpones: boolean, consistency: Consistency | null, children: ReactNode }) {

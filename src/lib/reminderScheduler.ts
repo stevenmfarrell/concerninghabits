@@ -1,5 +1,5 @@
 import { prisma } from './prisma';
-import { agendaStatus, cadenceProgress, parseCadence } from './cadence';
+import { evaluate, parseCadence } from './cadence';
 import { civilDayKey, isValidTimeZone, parseBedtimeOffsetMinutes, toCivilDate } from './timezone';
 import { currentVacation } from './vacation';
 import { dayMinute, learnUsualTime, nudgeTime, pickNudge, reminderMessage, shouldMute, usualTimeSamples, IGNORED_LIMIT, MAX_SAMPLES, type Candidate, type DayProgress, type LearnedTime } from './reminders';
@@ -27,7 +27,7 @@ interface ReminderUser {
 // far along it is today. Once it's done for the day, that's its first entry, as it'll be tomorrow.
 function learnedTimeFor(cadenceRaw: string, logDates: Date[], user: ReminderUser, now: Date): { learned: LearnedTime; progress: DayProgress | null } {
   const cadence = parseCadence(cadenceRaw);
-  const today = cadenceProgress(cadence, logDates, user, now);
+  const today = evaluate(cadence, logDates, user, now).progress;
   const progress = today?.period === 'daily' ? { done: today.done < today.needed ? today.done : 0, needed: today.needed } : null;
   return { learned: learnUsualTime(usualTimeSamples(logDates, progress?.done ?? 0, user, now)), progress };
 }
@@ -87,7 +87,7 @@ export async function dueReminders(user: ReminderUser, now: Date): Promise<Candi
     const skippedDays = skips.filter(s => s.habitId === habit.id).map(s => s.day);
     // Only what the Agenda shows as due now: a weekly or monthly one only on its last day, and
     // nothing skipped or on a day off
-    if (agendaStatus(cadence, dates, away, now, skippedDays).state !== 'due') continue;
+    if (evaluate(cadence, dates, away, now, skippedDays).agenda.state !== 'due') continue;
     const { learned, progress } = learnedTimeFor(habit.cadence, dates, user, now);
     const { at, manual } = nudgeTime(remindAt, learned, user.bedtime);
     candidates.push({ habitId: habit.id, name: habit.name, at, manual, usual: learned.kind === 'learned' ? learned.usual : null, progress });

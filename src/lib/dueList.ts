@@ -1,4 +1,4 @@
-import { agendaStatus, cadenceProgress, cadenceStatus, daysUntilDue, dueAtStartOfDay, DEFAULT_CADENCE, limitStatus, NO_CADENCE, onVacation as vacationExcuses, parseCadence, skipLabels, skipState, type Cadence, type CadenceUser, type ProgressPeriod } from './cadence';
+import { DEFAULT_CADENCE, evaluate, NO_CADENCE, parseCadence, skipLabels, type Cadence, type CadenceSnapshot, type CadenceUser, type LimitStatus, type ProgressPeriod } from './cadence';
 import type { HabitListItem } from './types';
 import { consistency as consistencyOf, type Consistency } from './consistency';
 
@@ -32,7 +32,7 @@ export interface RowStatus {
   period: ProgressPeriod | null;
   // For one that counts down (every N days) and has been done before, days until it's due:
   // positive before then, 0 on the day, negative once overdue. For a weekly or monthly one not done
-  // yet, days left after today in its week or month. (See daysUntilDue.)
+  // yet, days left after today in its week or month. (See CadenceSnapshot.)
   dueInDays: number | null;
   // For an Agenda habit that can be skipped now, what that's called, e.g. "Skip today" and
   // "Skipped today", or "Postpone 2 days", for swiping it away (see skipLabels)
@@ -41,7 +41,7 @@ export interface RowStatus {
   // with no cadence. Not on the Agenda, which is for what to do today.
   consistency?: Consistency | null;
   // For a limit, how much of it this period has used (`done` and `needed` are the same, for the
-  // ring), and whether a skip excuses the period (see limitStatus)
+  // ring), and whether a skip excuses the period (see LimitStatus)
   limit?: { used: number; max: number; excused: boolean };
 }
 
@@ -102,15 +102,17 @@ export function entryDates(habit: HabitListItem, latestLogDates: Record<string, 
 // The days a habit or category was skipped, as civil day keys
 export const skippedDaysOf = (item: { skips?: { day: string }[] }): string[] => (item.skips ?? []).map(s => s.day);
 
+// A limit's row: how much of it is used, in its ring as well
+function limitRowStatus({ used, max, period, excused }: LimitStatus): RowStatus {
+  return { done: used, needed: max, period, dueInDays: null, limit: { used, max, excused } };
+}
+
 // A row's status on the Habits pages, which list everything, done or not: done once its cadence is
 // met for now (an every-N-days one until it's due again), or for a habit with no cadence (`habit`),
 // once it has an entry today. A category with no cadence is never done. `skippedDays`, a habit's or
-// a category's own, count toward its cadence (see skipState); with no cadence, there's nothing to skip.
+// a category's own, count toward its cadence (see evaluate); with no cadence, there's nothing to skip.
 // With when it was created (`createdAt`), it says how consistently it's been kept up too, from
 // `dates` reaching back CONSISTENCY_HISTORY_WEEKS.
-function limitRowStatus({ used, max, period, excused }: NonNullable<ReturnType<typeof limitStatus>>): RowStatus {
-  return { done: used, needed: max, period, dueInDays: null, limit: { used, max, excused } };
-}
 
 export function listRowStatus(
   cadence: Cadence,
@@ -120,26 +122,24 @@ export function listRowStatus(
   now = new Date(),
 ): RowStatus {
   const consistency = createdAt ? { consistency: consistencyOf(cadence, dates, user, { createdAt, skippedDays }, now) } : {};
-  const limit = limitStatus(cadence, dates, user, now, skippedDays);
-  if (limit) return { ...limitRowStatus(limit), ...consistency };
-  if (cadence.type === 'none') {
+  const snapshot = evaluate(cadence, dates, user, now, skippedDays);
+  if (snapshot.kind === 'limit') return { ...limitRowStatus(snapshot.limit), ...consistency };
+  if (snapshot.kind === 'none') {
     if (!habit) return { done: 0, needed: 0, period: null, dueInDays: null, ...consistency };
     return { ...listRowStatus(DEFAULT_CADENCE, dates, user, { habit }, now), ...consistency };
   }
-  const progress = cadenceProgress(cadence, dates, user, now, skippedDays);
-  const status = cadenceStatus(cadence, dates, user, now, skippedDays);
-  // Upcoming only because a skip or vacation put it off (an every-N-days habit) isn't done, as on the
-  // Agenda
-  const done = status.state === 'done' || (status.state === 'upcoming' && cadenceStatus(cadence, dates, { ...user, vacations: [] }, now).state !== 'due');
+  const { status } = snapshot;
+  // Upcoming only because a skip or vacation put it off isn't done, as on the Agenda
+  const done = status.state === 'done' || (status.state === 'upcoming' && !snapshot.postponed);
   return {
-    ...(progress ?? { done: done ? 1 : 0, needed: 1, period: null }),
-    dueInDays: daysUntilDue(cadence, dates, user, now, skippedDays),
+    ...(snapshot.progress ?? { done: done ? 1 : 0, needed: 1, period: null }),
+    dueInDays: snapshot.dueInDays,
     ...consistency,
   };
 }
 
 // Something not due yet that will be in `dueInDays` days: done, but due again soon, or a weekly or
-// monthly one with days left to do it in (see agendaStatus)
+// monthly one with days left to do it in (see onAgenda)
 export type Upcoming<T> = { item: T; dueInDays: number };
 
 export interface DueList {
@@ -151,7 +151,7 @@ export interface DueList {
   dueCategories: DueCategory[];
   upcomingCategories: Upcoming<DueCategory>[];
   recentCategories: DueCategory[];
-  // Limits (see limitStatus), which are never due: always listed, with how much of each is used
+  // Limits (see LimitStatus), which are never due: always listed, with how much of each is used
   limitHabits: HabitListItem[];
   limitCategories: DueCategory[];
   // What each due, upcoming, or limit habit's row shows beside its calendar, by habit id
@@ -192,27 +192,19 @@ export function buildDueList(
 
   // A due or upcoming row's status, with what a skip's called if it can be skipped now (for
   // swiping it away)
-  const rowStatus = (cadence: Cadence, dates: Date[], skippedDays: string[]): RowStatus => {
-    const canSkip = skipState(cadence, dates, user, now, skippedDays)?.skippedDay === null;
-    return {
-      ...(cadenceProgress(cadence, dates, user, now, skippedDays) ?? { done: 0, needed: 1, period: null }),
-      dueInDays: daysUntilDue(cadence, dates, user, now, skippedDays),
-      ...(canSkip ? { skip: skipLabels(cadence)! } : {}),
-    };
-  };
+  const rowStatus = (cadence: Cadence, snapshot: CadenceSnapshot): RowStatus => ({
+    ...(snapshot.progress ?? { done: 0, needed: 1, period: null }),
+    dueInDays: snapshot.dueInDays,
+    ...(snapshot.skip?.skippedDay === null ? { skip: skipLabels(cadence)! } : {}),
+  });
 
-  // Where a habit or category goes, and whether that's only because it was skipped. Doing something
-  // due at the start of today earns the cleared reward; skipping it doesn't.
-  // `skipped` is one done by a skip of its own. `onVacation` is one the viewer's vacation is excusing
-  // today that isn't skipped or done anyway: it's left off the Agenda altogether while they're away,
-  // due, upcoming or put off, as there's nothing to do.
-  const place = (cadence: Cadence, dates: Date[], skippedDays: string[]) => {
-    const status = agendaStatus(cadence, dates, user, now, skippedDays);
-    const skipped = !!skipState(cadence, dates, user, now, skippedDays)?.skippedDay;
-    const onVacation = !skipped && vacationExcuses(cadence, user, now)
-      && agendaStatus(cadence, dates, { ...user, vacations: [] }, now, skippedDays).state !== 'done';
-    if (status.state !== 'due' && !skipped && !onVacation && dueAtStartOfDay(cadence, dates, user, now, skippedDays)) list.clearedToday = true;
-    return { status, skipped, onVacation };
+  // Where a habit or category goes on the Agenda, and whether it's done only because it was skipped
+  // (a skip of its own). One left off for the viewer's vacation (see onVacation) goes nowhere. Doing
+  // something due at the start of today earns the cleared reward; skipping it doesn't.
+  const place = (snapshot: CadenceSnapshot) => {
+    const skipped = !!snapshot.skip?.skippedDay;
+    if (snapshot.agenda.state !== 'due' && !skipped && !snapshot.onVacation && snapshot.dueAtStartOfDay) list.clearedToday = true;
+    return { status: snapshot.agenda, skipped };
   };
 
   // When each recent habit or category was last logged, by id, to keep only the latest
@@ -222,22 +214,21 @@ export function buildDueList(
   const addHabit = (habit: HabitListItem) => {
     const cadence = parseCadence(habit.cadence);
     const dates = datesOf(habit);
-    const limit = limitStatus(cadence, dates, user, now, skippedDaysOf(habit));
-    if (limit) {
+    const snapshot = evaluate(cadence, dates, user, now, skippedDaysOf(habit));
+    if (snapshot.kind === 'limit') {
       list.limitHabits.push(habit);
-      list.statuses[habit.id] = limitRowStatus(limit);
+      list.statuses[habit.id] = limitRowStatus(snapshot.limit);
       return;
     }
-    if (cadence.type === 'none') {
+    if (snapshot.kind === 'none') {
       if (dates.length > 0) {
         list.recentHabits.push(habit);
         doneAt.set(habit.id, lastDone(dates, false));
       }
       return;
     }
-    const skippedDays = skippedDaysOf(habit);
-    const { status, skipped, onVacation } = place(cadence, dates, skippedDays);
-    if (onVacation) return;
+    if (snapshot.onVacation) return;
+    const { status, skipped } = place(snapshot);
     if (status.state === 'done') {
       list.recentHabits.push(habit);
       doneAt.set(habit.id, lastDone(dates, skipped));
@@ -246,7 +237,7 @@ export function buildDueList(
     }
     if (status.state === 'due') list.dueHabits.push(habit);
     else list.upcomingHabits.push({ item: habit, dueInDays: status.dueInDays });
-    list.statuses[habit.id] = rowStatus(cadence, dates, skippedDays);
+    list.statuses[habit.id] = rowStatus(cadence, snapshot);
   };
 
   // `children` is a top-level category's subcategories, whose habits count toward it too
@@ -257,16 +248,15 @@ export function buildDueList(
     const sections = pickerSections(category.habits, children);
     const item: DueCategory = { id: category.id, name: category.name, icon: category.icon, cadence, habits, sections, skippedDays: skippedDaysOf(category) };
     const dates = habits.flatMap(datesOf);
-    const skippedDays = skippedDaysOf(category);
-    const limit = limitStatus(cadence, dates, user, now, skippedDays);
-    if (limit) {
-      list.limitCategories.push({ ...item, status: limitRowStatus(limit) });
+    const snapshot = evaluate(cadence, dates, user, now, item.skippedDays);
+    if (snapshot.kind === 'limit') {
+      list.limitCategories.push({ ...item, status: limitRowStatus(snapshot.limit) });
       return;
     }
-    const { status, skipped, onVacation } = place(cadence, dates, skippedDays);
-    if (onVacation) return;
-    if (status.state === 'due') list.dueCategories.push({ ...item, status: rowStatus(cadence, dates, skippedDays) });
-    else if (status.state === 'upcoming') list.upcomingCategories.push({ item: { ...item, status: rowStatus(cadence, dates, skippedDays) }, dueInDays: status.dueInDays });
+    if (snapshot.onVacation) return;
+    const { status, skipped } = place(snapshot);
+    if (status.state === 'due') list.dueCategories.push({ ...item, status: rowStatus(cadence, snapshot) });
+    else if (status.state === 'upcoming') list.upcomingCategories.push({ item: { ...item, status: rowStatus(cadence, snapshot) }, dueInDays: status.dueInDays });
     else {
       list.recentCategories.push(item);
       doneAt.set(category.id, lastDone(dates, skipped));

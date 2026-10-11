@@ -84,7 +84,7 @@ interface CadenceRule<C extends Cadence> {
   period: ProgressPeriod | null;
   // Whether it counts down to when it's next due (e.g. "in 3 days"), since its due date moves with
   // each entry rather than following the calendar. (One due by the end of its period shows the days
-  // left in it instead: see daysUntilDue.)
+  // left in it instead: see dueInDays in CadenceSnapshot.)
   countsDown: boolean;
   // The days an entry made on civil day `day` counts toward
   covers(cadence: C, day: Date, context: CadenceContext): DayRange;
@@ -96,10 +96,10 @@ interface CadenceRule<C extends Cadence> {
   // How many days before it's due again a done habit counts as upcoming (0: never upcoming)
   upcomingDays(cadence: C): number;
   // Whether it only needs doing by the end of its period (a calendar week or month), so until then
-  // it isn't pressing yet: see agendaStatus
+  // it isn't pressing yet: see onAgenda
   dueByPeriodEnd: boolean;
   // Whether it's meant to be done on civil day `day` at all; every day when left out. On a day it
-  // isn't, it's never due, only upcoming until its next day (see cadenceStatus).
+  // isn't, it's never due, only upcoming until its next day (see statusOn).
   scheduled?(cadence: C, day: Date): boolean;
   // What a skip is called, before and after, for the button that makes one: "Skip today" and
   // "Skipped today", "Skip this week", "Postpone 2 days". A skip counts like an entry made that day
@@ -273,12 +273,12 @@ const RULES: { [T in CadenceType]: CadenceRule<Extract<Cadence, { type: T }>> } 
     describe: c => (c.max === 0
       ? (c.period === 'day' ? 'Avoid' : `Avoid ${LIMIT_PERIODS[c.period].adverb}`)
       : `At most ${c.max}× ${LIMIT_PERIODS[c.period].adverb}`),
-    // Its progress is how much of the limit's used (see limitStatus), not toward done
+    // Its progress is how much of the limit's used (see LimitStatus), not toward done
     period: null,
     countsDown: false,
     covers: (c, day, context) => LIMIT_PERIODS[c.period].covers(day, context),
     limit: c => c.max,
-    // Never done by entries, nor due (see cadenceStatus)
+    // Never done by entries, nor due (see statusOn)
     needed: () => Infinity,
     upcomingDays: () => 0,
     dueByPeriodEnd: false,
@@ -346,24 +346,9 @@ const daysBetween = (from: Date, to: Date) => Math.round((to.getTime() - from.ge
 //   or not done, but not meant to be done until its next day (a weekday habit's day off); or skipped
 //   and put off until the skip runs out (an every-N-days habit)
 // - done: done, and not due again for a while
-// Days follow the user's time zone and bedtime, the same as the activity calendars. `logDates` are
-// the entries that count, and `skippedDays` the days it was skipped on, as civil day keys
-// ("2026-10-09"): a skip counts for what an entry that day would (see skips), however many it takes,
-// and a day it excuses is done, or for an every-N-days habit, upcoming: its skip puts it off.
+// A skip counts for what an entry that day would (see skips), however many it takes, and a day it
+// excuses is done, or for an every-N-days habit, upcoming: its skip puts it off.
 export type CadenceStatus = { state: 'due' } | { state: 'upcoming'; dueInDays: number } | { state: 'done' };
-
-// Today as a civil date, the days each entry that counts toward today covers, and what excuses
-// today (see excuses). A cadence that's never done can't be skipped.
-function countingToday(cadence: Cadence, logDates: Date[], user: CadenceUser, now: Date, skippedDays: readonly string[]) {
-  const offset = parseBedtimeOffsetMinutes(user.bedtime);
-  const today = toCivilDate(now, user.timeZone, offset);
-  const coversToday = ({ from, to }: DayRange) => from <= today && today <= to;
-  const counting = logDates
-    .map(date => cadenceCovers(cadence, toCivilDate(date, user.timeZone, offset), user))
-    .filter(coversToday);
-  const excusing = excuses(cadence, skippedDays, user, today).filter(({ range }) => coversToday(range));
-  return { today, counting, excusing };
-}
 
 // Something excusing a cadence, and the days it covers: a skip, made on `skippedDay` (a civil day
 // key, which undoes it), or one of the user's vacations (`skippedDay` null)
@@ -376,7 +361,8 @@ interface Excuse {
 // come): each skip, covering what an entry that day would, or less if skipCovers says so (see skips);
 // and each of the user's vacations, covering what a skip on each of its days would, except that it
 // never puts anything off past itself (every N days), so once it's over, that's due the day after:
-// a vacation excuses its own days, not a grace period after them.
+// a vacation excuses its own days, not a grace period after them. A cadence that's never done can't
+// be skipped.
 function excuses(cadence: Cadence, skippedDays: readonly string[], user: CadenceUser, through: Date): Excuse[] {
   const rule = ruleFor(cadence);
   if (!rule.skips(cadence)) return [];
@@ -408,74 +394,25 @@ function daysToNextScheduled(cadence: Cadence, today: Date) {
   return null;
 }
 
-// How far along a habit is toward being done for now, e.g. 3 of 4 times today, for a cadence that
-// takes more than one entry; null for one that takes a single entry (or never gets done). A skip
-// fills it.
-export function cadenceProgress(cadence: Cadence, logDates: Date[], user: CadenceUser, now = new Date(), skippedDays: readonly string[] = []): CadenceProgress | null {
-  const { period } = ruleFor(cadence);
-  const needed = entriesNeeded(cadence);
-  if (!period || needed <= 1) return null;
-  const { counting, excusing } = countingToday(cadence, logDates, user, now, skippedDays);
-  return { done: excusing.length > 0 ? needed : Math.min(counting.length, needed), needed, period };
-}
-
-// How a limit's going in the period today falls in: `used` entries of the `max` it may have, and
-// whether a skip excuses it (when going over doesn't count). Null for a cadence that isn't a limit.
-export interface LimitStatus {
-  used: number;
-  max: number;
-  period: ProgressPeriod;
-  excused: boolean;
-}
-
-export function limitStatus(cadence: Cadence, logDates: Date[], user: CadenceUser, now = new Date(), skippedDays: readonly string[] = []): LimitStatus | null {
-  if (cadence.type !== 'limit') return null;
-  const { counting, excusing } = countingToday(cadence, logDates, user, now, skippedDays);
-  return { used: counting.length, max: cadence.max, period: LIMIT_PERIODS[cadence.period].progress, excused: excusing.length > 0 };
-}
-
 // How many days after today the period today falls in ends, for a cadence due by its end (see
 // dueByPeriodEnd): 0 on its last day
 function daysToPeriodEnd(cadence: Cadence, today: Date, context: CadenceContext) {
   return daysBetween(today, cadenceCovers(cadence, today, context).to);
 }
 
-// How many days until it's due: for a cadence that counts down (see countsDown), until it's next
-// due, positive before then, 0 on the day, negative once overdue; for one due by the end of its week
-// or month (see dueByPeriodEnd) and not done yet, until that period's last day; for one done only on
-// some days and not done for now, until the next of them (0 on one). Null for other cadences, before
-// a countdown's first entry, or once a week or month is done.
-export function daysUntilDue(cadence: Cadence, logDates: Date[], user: CadenceUser, now = new Date(), skippedDays: readonly string[] = []): number | null {
-  const rule = ruleFor(cadence);
-  if (rule.dueByPeriodEnd || rule.scheduled) {
-    const { today, counting, excusing } = countingToday(cadence, logDates, user, now, skippedDays);
-    if (excusing.length > 0 || counting.length >= entriesNeeded(cadence)) return null;
-    return rule.dueByPeriodEnd ? daysToPeriodEnd(cadence, today, user) : daysToNextScheduled(cadence, today);
-  }
-  if (!rule.countsDown) return null;
-  const offset = parseBedtimeOffsetMinutes(user.bedtime);
-  const today = toCivilDate(now, user.timeZone, offset);
-  const skips = excuses(cadence, skippedDays, user, today);
-  if (logDates.length + skips.length === 0) return null;
-  // Due the day after the last day the latest entry (or skip) counts for
-  const lastCovered = Math.max(
-    ...logDates.map(date => cadenceCovers(cadence, toCivilDate(date, user.timeZone, offset), user).to.getTime()),
-    ...skips.map(({ range }) => range.to.getTime()),
-  );
-  return Math.round((lastCovered - today.getTime()) / DAY_MS) + 1;
-}
+// Days from civil day `today` to the day after the last of `ranges`
+const dueAfter = (ranges: DayRange[], today: Date) => daysBetween(today, new Date(Math.max(...ranges.map(({ to }) => to.getTime())))) + 1;
 
-export function cadenceStatus(cadence: Cadence, logDates: Date[], user: CadenceUser, now = new Date(), skippedDays: readonly string[] = []): CadenceStatus {
-  // A limit has nothing to do, so it's never due: how it's going is limitStatus
+// Where it stands on civil day `today` (see CadenceStatus), from the days the entries that count
+// toward today cover (`counting`) and the days what excuses today covers (`excusing`)
+function statusOn(cadence: Cadence, today: Date, counting: DayRange[], excusing: DayRange[]): CadenceStatus {
+  // A limit has nothing to do, so it's never due: how it's going is its LimitStatus
   if (limitOf(cadence) !== null) return { state: 'done' };
-  const { today, counting, excusing } = countingToday(cadence, logDates, user, now, skippedDays);
   if (counting.length < entriesNeeded(cadence)) {
     if (excusing.length > 0) {
       // Skipped: one that counts down is put off, so it's upcoming until the skip runs out; any other
       // is done for now
-      if (!postpones(cadence)) return { state: 'done' };
-      const lastExcused = Math.max(...excusing.map(({ range }) => range.to.getTime()));
-      return { state: 'upcoming', dueInDays: Math.round((lastExcused - today.getTime()) / DAY_MS) + 1 };
+      return postpones(cadence) ? { state: 'upcoming', dueInDays: dueAfter(excusing, today) } : { state: 'done' };
     }
     // Not meant to be done today: due on its next day instead
     const ahead = daysToNextScheduled(cadence, today);
@@ -483,45 +420,120 @@ export function cadenceStatus(cadence: Cadence, logDates: Date[], user: CadenceU
   }
 
   // Due again the day after the last day today's entries (or skips) count for
-  const lastCovered = Math.max(...[...counting, ...excusing.map(({ range }) => range)].map(({ to }) => to.getTime()));
-  const dueInDays = Math.round((lastCovered - today.getTime()) / DAY_MS) + 1;
+  const dueInDays = dueAfter([...counting, ...excusing], today);
   return dueInDays <= upcomingDays(cadence) ? { state: 'upcoming', dueInDays } : { state: 'done' };
 }
 
-// Where a habit (or category) goes on the Agenda: like cadenceStatus, except that one due by the end
-// of its calendar week or month (see dueByPeriodEnd) isn't due until the period's last day, however
-// many entries it still needs (they can all be logged on one day). Until then it's upcoming,
-// `dueInDays` before it's due.
-export function agendaStatus(cadence: Cadence, logDates: Date[], user: CadenceUser, now = new Date(), skippedDays: readonly string[] = []): CadenceStatus {
-  const status = cadenceStatus(cadence, logDates, user, now, skippedDays);
-  if (status.state !== 'due' || !ruleFor(cadence).dueByPeriodEnd) return status;
-
-  const today = toCivilDate(now, user.timeZone, parseBedtimeOffsetMinutes(user.bedtime));
-  const dueInDays = daysToPeriodEnd(cadence, today, user);
+// Where it goes on the Agenda: as `status`, except that one due by the end of its calendar week or
+// month (see dueByPeriodEnd) isn't due until the period's last day, however many entries it still
+// needs (they can all be logged on one day). Until then it's upcoming, `dueInDays` before it's due.
+function onAgenda(cadence: Cadence, status: CadenceStatus, today: Date, context: CadenceContext): CadenceStatus {
+  if (status.state !== 'due' || !dueByPeriodEnd(cadence)) return status;
+  const dueInDays = daysToPeriodEnd(cadence, today, context);
   return dueInDays > 0 ? { state: 'upcoming', dueInDays } : status;
 }
 
-// Whether it was due on the Agenda at the start of today, before any of today's entries or skips
-export function dueAtStartOfDay(cadence: Cadence, logDates: Date[], user: CadenceUser, now = new Date(), skippedDays: readonly string[] = []) {
-  const offset = parseBedtimeOffsetMinutes(user.bedtime);
-  const today = toCivilDate(now, user.timeZone, offset);
-  const beforeToday = logDates.filter(date => toCivilDate(date, user.timeZone, offset) < today);
-  const todayKey = civilDayKey(today);
-  const vacations = user.vacations?.filter(v => v.from < todayKey).map(v => ({ from: v.from, to: v.to === null || v.to >= todayKey ? civilDayKey(addDays(today, -1)) : v.to }));
-  return agendaStatus(cadence, beforeToday, { ...user, vacations }, now, skippedDays.filter(day => day < todayKey)).state === 'due';
-}
-
-// Whether a habit is done for now (upcoming counts as done, and so does a day it isn't meant to be
-// done, or one it was skipped)
-export function isHabitComplete(cadence: Cadence, logDates: Date[], user: CadenceUser, now = new Date(), skippedDays: readonly string[] = []) {
-  return cadenceStatus(cadence, logDates, user, now, skippedDays).state !== 'due';
+// How a limit's going in the period today falls in: `used` entries of the `max` it may have, and
+// whether a skip excuses it (when going over doesn't count)
+export interface LimitStatus {
+  used: number;
+  max: number;
+  period: ProgressPeriod;
+  excused: boolean;
 }
 
 // What can be done about skipping a habit now: skip it (`skippedDay` null), while it isn't done and
 // is meant to be done today; or undo the skip that's excusing it, made on `skippedDay`. `label` is
-// for the button, e.g. "Skip this week", "Skipped today", "Postpone 2 days". Null when there's nothing to skip: it's
-// done, it's a day off, or its cadence has none.
+// for the button, e.g. "Skip this week", "Skipped today", "Postpone 2 days".
 export type SkipState = { label: string; skippedDay: string | null };
+
+// Everything about where a habit (or category) stands today by its cadence (see evaluate). `kind`
+// says which sort of cadence it is: one never done (`none`), one kept to at most so many entries
+// (`limit`, with how much of it is used), or one done by enough entries (`target`).
+export type CadenceSnapshot = {
+  // Where it stands, and where that puts it on the Agenda (see CadenceStatus, onAgenda)
+  status: CadenceStatus;
+  agenda: CadenceStatus;
+  // Whether it's only upcoming because a skip or vacation put it off (every N days), so it isn't done
+  postponed: boolean;
+  // How far along it is toward done for now, e.g. 3 of 4 times today, for a cadence that takes more
+  // than one entry; null for one that takes a single entry (or never gets done). A skip fills it.
+  progress: CadenceProgress | null;
+  // How many days until it's due: for a cadence that counts down (see countsDown), until it's next
+  // due, positive before then, 0 on the day, negative once overdue; for one due by the end of its
+  // week or month (see dueByPeriodEnd) and not done yet, until that period's last day; for one done
+  // only on some days and not done for now, until the next of them (0 on one). Null for other
+  // cadences, before a countdown's first entry, or once a week or month is done.
+  dueInDays: number | null;
+  // Skipping it, or undoing its skip (see SkipState); null when there's nothing to skip: it's done,
+  // it's a day off, or its cadence has none. Only its own skips: a vacation can't be undone here.
+  skip: SkipState | null;
+  // Whether it's left off the Agenda for the user's vacation: one excuses it today, no skip of its
+  // own does, and it isn't done anyway
+  onVacation: boolean;
+  // Whether it was due on the Agenda at the start of today, before any of today's entries or skips
+  dueAtStartOfDay: boolean;
+} & ({ kind: 'none' | 'target'; limit: null } | { kind: 'limit'; limit: LimitStatus });
+
+// Where a habit (or category) stands today by its cadence, from its entries (`logDates`, everyone's
+// that count) and the days it was skipped, as civil day keys ("2026-10-09"), with the user's
+// vacations. Days follow the user's time zone and bedtime, the same as the activity calendars.
+export function evaluate(cadence: Cadence, logDates: Date[], user: CadenceUser, now = new Date(), skippedDays: readonly string[] = []): CadenceSnapshot {
+  const rule = ruleFor(cadence);
+  const offset = parseBedtimeOffsetMinutes(user.bedtime);
+  const today = toCivilDate(now, user.timeZone, offset);
+  const coversToday = ({ from, to }: DayRange) => from <= today && today <= to;
+
+  const entryDays = logDates.map(date => toCivilDate(date, user.timeZone, offset));
+  const entryRanges = entryDays.map(day => cadenceCovers(cadence, day, user));
+  const counting = entryRanges.filter(coversToday);
+  const allExcuses = excuses(cadence, skippedDays, user, today);
+  const excusing = allExcuses.filter(({ range }) => coversToday(range));
+  const ownExcusing = excusing.filter(({ skippedDay }) => skippedDay !== null);
+  const excusingRanges = excusing.map(({ range }) => range);
+
+  const needed = rule.needed(cadence);
+  const met = counting.length >= needed;
+  const excused = excusing.length > 0;
+  const status = statusOn(cadence, today, counting, excusingRanges);
+  const agenda = onAgenda(cadence, status, today, user);
+
+  let dueInDays: number | null = null;
+  if (rule.dueByPeriodEnd || rule.scheduled) {
+    if (!excused && !met) dueInDays = rule.dueByPeriodEnd ? daysToPeriodEnd(cadence, today, user) : daysToNextScheduled(cadence, today);
+  } else if (rule.countsDown && entryRanges.length + allExcuses.length > 0) {
+    // Due the day after the last day the latest entry (or skip) counts for
+    dueInDays = dueAfter([...entryRanges, ...allExcuses.map(({ range }) => range)], today);
+  }
+
+  const labels = rule.skips(cadence);
+  const skip = !labels ? null
+    : ownExcusing.length > 0 ? { label: labels.skipped, skippedDay: ownExcusing[ownExcusing.length - 1].skippedDay }
+    : met || daysToNextScheduled(cadence, today) ? null
+    : { label: labels.skip, skippedDay: null };
+
+  // Before today's entries and skips: those from before today, and what excused it through yesterday
+  const yesterday = addDays(today, -1);
+  const countingBefore = entryRanges.filter((range, i) => entryDays[i] < today && coversToday(range));
+  const excusingBefore = excuses(cadence, skippedDays, user, yesterday).map(({ range }) => range).filter(coversToday);
+  const dueAtStartOfDay = onAgenda(cadence, statusOn(cadence, today, countingBefore, excusingBefore), today, user).state === 'due';
+
+  const common = {
+    status,
+    agenda,
+    postponed: !met && excused && postpones(cadence),
+    progress: rule.period && needed > 1 ? { done: excused ? needed : Math.min(counting.length, needed), needed, period: rule.period } : null,
+    dueInDays,
+    skip,
+    onVacation: excusing.length > ownExcusing.length && ownExcusing.length === 0
+      && onAgenda(cadence, statusOn(cadence, today, counting, []), today, user).state !== 'done',
+    dueAtStartOfDay,
+  };
+  if (cadence.type === 'limit') {
+    return { ...common, kind: 'limit', limit: { used: counting.length, max: cadence.max, period: LIMIT_PERIODS[cadence.period].progress, excused } };
+  }
+  return { ...common, kind: needed === Infinity ? 'none' : 'target', limit: null };
+}
 
 // What a skip is called for a cadence, before and after, e.g. "Skip this week" and "Skipped this
 // week", and whether it's a postponement (see postpones); null for one that can't be skipped
@@ -532,27 +544,12 @@ export function skipLabels(cadence: Cadence): { skip: string; skipped: string; p
 
 // Whether skipping it puts it off rather than excusing it, so it's called postponing, with its own
 // icon: one that counts down to when it's due (every N days) is upcoming until its skip runs out,
-// rather than done (see cadenceStatus)
+// rather than done (see CadenceStatus)
 export const postpones = (cadence: Cadence) => countsDown(cadence);
-
-export function skipState(cadence: Cadence, logDates: Date[], user: CadenceUser, now = new Date(), skippedDays: readonly string[] = []): SkipState | null {
-  const labels = skipLabels(cadence);
-  if (!labels) return null;
-  // Only its own skips, which can be undone: a vacation isn't one
-  const { today, counting, excusing } = countingToday(cadence, logDates, { ...user, vacations: [] }, now, skippedDays);
-  if (excusing.length > 0) return { label: labels.skipped, skippedDay: excusing[excusing.length - 1].skippedDay };
-  if (counting.length >= entriesNeeded(cadence) || daysToNextScheduled(cadence, today)) return null;
-  return { label: labels.skip, skippedDay: null };
-}
 
 // The days each skip and vacation covers up to today (see excuses), for an activity calendar to mark
 // them
 export function skippedCovers(cadence: Cadence, skippedDays: readonly string[], user: CadenceUser, now = new Date()): DayRange[] {
   const today = toCivilDate(now, user.timeZone, parseBedtimeOffsetMinutes(user.bedtime));
   return excuses(cadence, skippedDays, user, today).map(({ range }) => range);
-}
-
-// Whether one of the user's vacations excuses it today
-export function onVacation(cadence: Cadence, user: CadenceUser, now = new Date()) {
-  return countingToday(cadence, [], user, now, []).excusing.length > 0;
 }
