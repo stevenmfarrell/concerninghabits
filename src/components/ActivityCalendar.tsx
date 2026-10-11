@@ -1,11 +1,13 @@
 'use client';
 
-import { civilDayKey, parseBedtimeOffsetMinutes, toCivilDate } from '@/lib/timezone';
-import { cadenceCovers, DEFAULT_CADENCE, entriesNeeded, limitOf, postpones, skippedCovers, startOfWeek, type Cadence } from '@/lib/cadence';
+import { civilDateFor, civilDayKey } from '@/lib/timezone';
+import { DEFAULT_CADENCE, entriesNeeded, limitOf, postpones, startOfWeek, type Cadence } from '@/lib/cadence';
+import { calendarDays } from '@/lib/calendarDays';
 import type { VacationRange } from '@/lib/vacation';
 import { ACTIVITY_PALETTES, activityShade, type ActivityColor } from '@/lib/activityShade';
 import { calendarStart } from '@/lib/calendarRange';
 import type { Person } from '@/lib/userColors';
+import type { LimitShade } from '@/lib/calendarDays';
 
 // Whether `neighbor` (a possibly-absent, possibly-padding cell) falls in a different month than
 // `day`. Shared by all four month-divider checks below so they can't drift from one another.
@@ -57,24 +59,12 @@ function personFill(ids: string[], people: Record<string, Person>) {
   return `linear-gradient(135deg, ${colors.map((c, i) => `${c} ${i * band}% ${(i + 1) * band}%`).join(', ')})`;
 }
 
-// How a day of a limit's calendar is shaded: in a period that went over the limit (`counting`, its
-// entries, more than `max`), on a day with entries or not; kept, once its period's over (`settled`)
-// and if the habit had begun (`begun`); or in the period still going, with entries or not (null)
-type LimitShade = 'overLogged' | 'over' | 'kept' | 'logged' | null;
-
-function limitShadeFor(max: number, count: number, counting: number, settled: boolean, begun: boolean): LimitShade {
-  if (counting > max) return count > 0 ? 'overLogged' : 'over';
-  if (settled) return begun ? 'kept' : null;
-  return count > 0 ? 'logged' : null;
-}
-
 // All dates below are civil dates (UTC midnight for a day in `timeZone`), so only UTC methods are used.
 //
 // A limit's calendar is shaded the other way round: a day whose period is over and was kept to the
 // limit is done, with or without entries; one in a period that went over is amber (deeper on the
 // days with entries); and in the period still going, days with entries are lightly shaded.
 export default function ActivityCalendar({ dates, timeZone, weeks = 5, cadence = DEFAULT_CADENCE, density, size = 'sm', monthsPerColumn = 4, bedtime = '00:00', weekStartsOn = 'sunday', emptyColor = 'bg-surface-muted', futureColor = 'bg-transparent border border-line-subtle', onDateClick, loggedBy, people, color = 'emerald', skippedDays, vacations, since }: ActivityCalendarProps) {
-  const bedtimeOffsetMinutes = parseBedtimeOffsetMinutes(bedtime);
   const startsMonday = weekStartsOn === 'monday';
 
   // A combined calendar's density works like a habit due that many times a day
@@ -86,10 +76,8 @@ export default function ActivityCalendar({ dates, timeZone, weeks = 5, cadence =
   // What a fully shaded logged day takes: the cadence's daily target, or one entry when it has none
   const shadeTarget = Number.isFinite(needed) ? needed : 1;
 
-  const today = toCivilDate(new Date(), timeZone, bedtimeOffsetMinutes);
-  // For a limit, the first day it can have been kept
-  const civil = (date: Date) => toCivilDate(date, timeZone, bedtimeOffsetMinutes);
-  const limitFrom = since ? civil(since) : dates.reduce<Date | null>((first, d) => (!first || civil(d) < first ? civil(d) : first), null);
+  const user = { timeZone, bedtime, weekStartsOn, vacations };
+  const today = civilDateFor(new Date(), user);
 
   const getStartOfWeek = (d: Date) => startOfWeek(d, weekStartsOn);
 
@@ -127,48 +115,13 @@ export default function ActivityCalendar({ dates, timeZone, weeks = 5, cadence =
   }
   if (currentColumn.length > 0) columns.push(currentColumn);
 
-  // Entries on each day, and entries counting toward each day by the cadence (an entry counts for
-  // its own day, and for a weekly, monthly or every-N-days habit, the rest of its week, month or N
-  // days too). Only the days shown are tracked. When coloring by person, also who made them.
-  const dayCounts = new Map<string, number>();
-  const countingCounts = new Map<string, number>();
-  const loggersOn = new Map<string, Set<string>>();
-  const loggersCounting = new Map<string, Set<string>>();
-  const addLogger = (loggers: Map<string, Set<string>>, key: string, userId: string) => {
-    const set = loggers.get(key) ?? new Set<string>();
-    set.add(userId);
-    loggers.set(key, set);
-  };
-
-  dates.forEach((d, i) => {
-    const day = toCivilDate(d, timeZone, bedtimeOffsetMinutes);
-    const dayKey = civilDayKey(day);
-    dayCounts.set(dayKey, (dayCounts.get(dayKey) ?? 0) + 1);
-    if (colorByPerson) addLogger(loggersOn, dayKey, loggedBy![i]);
-
-    const { from, to } = cadenceCovers(effectiveCadence, day, { weekStartsOn });
-    const last = to < endDate ? to : endDate;
-    for (const covered = new Date(from > startDate ? from : startDate); covered <= last; covered.setUTCDate(covered.getUTCDate() + 1)) {
-      const key = civilDayKey(covered);
-      countingCounts.set(key, (countingCounts.get(key) ?? 0) + 1);
-      if (colorByPerson) addLogger(loggersCounting, key, loggedBy![i]);
-    }
-  });
-
-  // Days excused by a skip, of those shown
-  const skippedKeys = new Set<string>();
-  for (const { from, to } of skippedCovers(effectiveCadence, skippedDays ?? [], { timeZone, bedtime, weekStartsOn, vacations })) {
-    const last = to < endDate ? to : endDate;
-    for (const covered = new Date(from > startDate ? from : startDate); covered <= last; covered.setUTCDate(covered.getUTCDate() + 1)) {
-      skippedKeys.add(civilDayKey(covered));
-    }
-  }
+  // How each day shown stands (see calendarDays)
+  const days = calendarDays({ dates, loggedBy: colorByPerson ? loggedBy : undefined, cadence: effectiveCadence, user, skippedDays, since, from: startDate, to: endDate });
 
   // Loggers in account order (the order of `people`), so a day's color bands are always arranged
   // the same way.
   const personOrder = Object.keys(people ?? {});
-  const sortLoggers = (loggers: Set<string> | undefined) =>
-    [...(loggers ?? [])].sort((a, b) => personOrder.indexOf(a) - personOrder.indexOf(b));
+  const sortLoggers = (loggers: string[]) => [...loggers].sort((a, b) => personOrder.indexOf(a) - personOrder.indexOf(b));
 
   const processedColumns = columns.map(col => {
     const firstDay = col[0];
@@ -187,30 +140,12 @@ export default function ActivityCalendar({ dates, timeZone, weeks = 5, cadence =
       for (let d = 0; d < 7; d++) {
         const day = cellAt(w, d);
         if (!day) {
-          grid.push({ isNull: true, date: today, count: 0, counting: 0, isFuture: false, isPeriodCompleted: false, isSkipped: false, limitShade: null as LimitShade, loggers: [] as string[], isNewMonthLeft: false, isNewMonthRight: false, isNewMonthTop: false, isNewMonthBottom: false, w, d });
+          grid.push({ isNull: true, date: today, count: 0, counting: 0, isFuture: false, isToday: false, isPeriodCompleted: false, isSkipped: false, limitShade: null as LimitShade, loggers: [] as string[], isNewMonthLeft: false, isNewMonthRight: false, isNewMonthTop: false, isNewMonthBottom: false, w, d });
           continue;
         }
         
-        const isFuture = day > today;
-        const key = civilDayKey(day);
-        // Entries made that day, and entries counting toward it (including those)
-        const count = isFuture ? 0 : dayCounts.get(key) ?? 0;
-        const counting = isFuture ? 0 : countingCounts.get(key) ?? 0;
-        // A day with no entries of its own that's done anyway, by entries elsewhere in its week,
-        // month or N days
-        const isPeriodCompleted = count === 0 && counting >= needed;
-        // A day with no entries of its own, not done by others, that a skip excuses
-        const isSkipped = count === 0 && !isPeriodCompleted && !isFuture && skippedKeys.has(key);
-        const limitShade = limit === null || isFuture ? null : limitShadeFor(limit, count, counting, cadenceCovers(effectiveCadence, day, { weekStartsOn }).to < today, !!limitFrom && day >= limitFrom);
+        const { loggers, ...status } = days.get(civilDayKey(day))!;
 
-        // Who to color this cell for: whoever logged that day, or for a day done by entries on
-        // other days, whoever made those
-        let loggers: string[] = [];
-        if (colorByPerson && !isFuture) {
-          if (count > 0) loggers = sortLoggers(loggersOn.get(key));
-          else if (isPeriodCompleted) loggers = sortLoggers(loggersCounting.get(key));
-        }
-        
         const isNewMonthLeft = d > 0 && isDifferentMonth(cellAt(w, d - 1), day);
         const isNewMonthRight = d < 6 && isDifferentMonth(cellAt(w, d + 1), day);
 
@@ -219,9 +154,7 @@ export default function ActivityCalendar({ dates, timeZone, weeks = 5, cadence =
         const daysInMonth = new Date(Date.UTC(day.getUTCFullYear(), day.getUTCMonth() + 1, 0)).getUTCDate();
         const isNewMonthBottom = (w < colWeeks - 1 && isDifferentMonth(cellAt(w + 1, d), day)) || (w === colWeeks - 1 && day.getUTCDate() > daysInMonth - 7);
 
-        const isToday = civilDayKey(day) === civilDayKey(today);
-        
-        grid.push({ isNull: false, date: day, count, counting, isFuture, isPeriodCompleted, isSkipped, limitShade, loggers, isNewMonthLeft, isNewMonthRight, isNewMonthTop, isNewMonthBottom, w, d, isToday });
+        grid.push({ isNull: false, date: day, ...status, loggers: sortLoggers(loggers), isNewMonthLeft, isNewMonthRight, isNewMonthTop, isNewMonthBottom, w, d });
       }
     }
     return grid;
