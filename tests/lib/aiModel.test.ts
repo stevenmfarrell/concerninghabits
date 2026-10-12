@@ -1,4 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { generateObject } from 'ai';
+import { z } from 'zod';
 import { parseModelSpec } from '@/lib/aiModel';
 
 // aiModel() keeps the model it makes, so each case loads the module afresh
@@ -11,6 +13,7 @@ async function modelFor(env: Record<string, string | undefined>) {
 
 afterEach(() => {
   vi.unstubAllEnvs();
+  vi.unstubAllGlobals();
 });
 
 describe('parseModelSpec', () => {
@@ -46,5 +49,33 @@ describe('aiModel', () => {
     expect(model.modelId).toBe('qwen3:8b');
 
     await expect(modelFor({ AI_MODEL: 'local:qwen3:8b', AI_BASE_URL: undefined })).rejects.toThrow(/AI_BASE_URL must be set/);
+  });
+
+  describe('AI_REASONING_EFFORT', () => {
+    // The body of the request a local model is sent, answered with an empty object
+    async function requestBodyFor(env: Record<string, string | undefined>, call: { reasoning?: 'high' } = {}) {
+      const fetch = vi.fn(async () => Response.json({
+        id: 'x', object: 'chat.completion', created: 0, model: 'qwen3.5:4b',
+        choices: [{ index: 0, finish_reason: 'stop', message: { role: 'assistant', content: '{}' } }],
+        usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+      }));
+      vi.stubGlobal('fetch', fetch);
+      const model = await modelFor({ AI_MODEL: 'local:qwen3.5:4b', AI_BASE_URL: 'http://localhost:11434/v1', ...env });
+      await generateObject({ model: model as never, schema: z.object({}), prompt: 'hi', ...call });
+      return JSON.parse((fetch.mock.calls[0] as unknown as [string, RequestInit])[1].body as string);
+    }
+
+    it('is sent with every request, unless the request sets its own', async () => {
+      expect((await requestBodyFor({ AI_REASONING_EFFORT: 'None' })).reasoning_effort).toBe('none');
+      expect((await requestBodyFor({ AI_REASONING_EFFORT: 'none' }, { reasoning: 'high' })).reasoning_effort).toBe('high');
+    });
+
+    it('leaves the provider\'s default alone when unset', async () => {
+      expect(await requestBodyFor({ AI_REASONING_EFFORT: undefined })).not.toHaveProperty('reasoning_effort');
+    });
+
+    it('refuses an effort it doesn\'t know', async () => {
+      await expect(modelFor({ AI_REASONING_EFFORT: 'off' })).rejects.toThrow(/isn't one of: provider-default, none/);
+    });
   });
 });

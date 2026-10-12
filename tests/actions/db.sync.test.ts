@@ -9,7 +9,8 @@ import type { OpResult } from '@/lib/offline/ops';
 
 // The AI: Gemini filling in a form, and Jev matching text to a habit
 const { generateObject, systemOne } = vi.hoisted(() => ({ generateObject: vi.fn(), systemOne: vi.fn() }));
-vi.mock('ai', () => ({ generateObject }));
+// Only the request is faked: the rest of the SDK (e.g. wrapLanguageModel, see aiModel.ts) is real
+vi.mock('ai', async importOriginal => ({ ...(await importOriginal<typeof import('ai')>()), generateObject }));
 vi.mock('@typesafe-ai/sdk', () => ({
   choice: (question: string, criteria: unknown) => ({ question, criteria }),
   noul: (question: string) => ({ question }),

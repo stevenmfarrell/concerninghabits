@@ -147,57 +147,62 @@ async function matchWithJev(input: string, habits: MatchableHabit[]): Promise<Ha
 
 // --- The AI model ---
 
-const KIND_DESCRIPTION = `"did" if the input reports something to record right now: something the user did, or a measurement or reading they took (e.g. "I ran 3 miles", "took my vitamins", "20 minutes of yoga", "I weigh 155 pounds", "blood pressure 120 over 80", or just "yoga"). "intends" only if it describes a habit they want to set up or an intention (e.g. "track my water intake", "I want to start running more").`;
+// What counts as something done, for the model's instructions
+const DID_IT_INSTRUCTION = `did_it: true if the input reports something to record right now: something the user did, or a measurement or reading they took (e.g. "I ran 3 miles", "took my vitamins", "20 minutes of yoga", "I weigh 155 pounds", "blood pressure 120 over 80", or just "yoga"). false only if it describes a habit they want to set up or an intention (e.g. "track my water intake", "I want to start running more").`;
 
 // A general model's stated confidence isn't calibrated the way Jev's probabilities are (small
 // models call nearly everything 0.95), so it's asked for a pick and a yes-or-no "sure" instead,
 // told to say no when in doubt. Unsure, the user picks; the API and offline sync log nothing.
+// Everything it's asked is spelled out in the instructions, not only in the schema's descriptions:
+// a local server may use the schema only to constrain the answer, so the model never reads them.
+// With them only in the schema, Qwen 3.5 4B on Ollama matched 4 of 15 inputs.
 async function matchWithModel(input: string, habits: MatchableHabit[]): Promise<HabitMatch> {
-  const kind = z.enum(['did', 'intends']).describe(KIND_DESCRIPTION);
-
   if (habits.length === 0) {
     const { object } = await generateObject({
       model: aiModel(),
-      schema: z.object({ kind }),
-      system: 'You read what a user told their habit-tracking app.',
+      schema: z.object({ did_it: z.boolean() }),
+      system: `You read what a user told their habit-tracking app. Answer with:\n${DID_IT_INSTRUCTION}`,
       prompt: `User input: "${input}"`,
     });
-    return { confident: true, candidates: [NEW_HABIT], didIt: object.kind === 'did' };
+    return { confident: true, candidates: [NEW_HABIT], didIt: object.did_it };
   }
 
-  // Habits are numbered, so the model answers with one of a fixed set rather than retyping a name
-  const listed = habits.slice(0, MAX_HABIT_OPTIONS);
-  const numbers = listed.map((_, i) => String(i + 1));
-  const pick = z.enum(['new', ...numbers]);
+  // The model answers with a habit's name from a fixed set. Named after the habits (as Jev's
+  // options are, see matchWithJev), since small models matched numbered habits poorly.
+  const options = new Map<string, HabitCandidate>([[NEW_HABIT_OPTION, NEW_HABIT]]);
+  const described: string[] = [];
+  for (const habit of habits.slice(0, MAX_HABIT_OPTIONS)) {
+    const name = habit.name.trim() || 'Untitled habit';
+    let option = name;
+    for (let n = 2; options.has(option); n++) option = `${name} (${n})`;
+    options.set(option, { habitId: habit.id, name: habit.name, probability: null });
+    const details = describeHabitForMatching(habit);
+    described.push(`- ${JSON.stringify(option)}${details ? `: ${JSON.stringify(details)}` : ''}`);
+  }
+  const pick = z.enum([...options.keys()] as [string, ...string[]]);
+
   const { object } = await generateObject({
     model: aiModel(),
-    schema: z.object({
-      habit: pick.describe('The number of the habit the input is about, or "new" if none of them track it'),
-      sure: z.boolean().describe('true only if the input clearly means this habit and no other listed habit could reasonably be meant. When in doubt, false: the user is then asked to pick.'),
-      alternatives: z.array(pick).describe('Up to 2 other habits (or "new") it could plausibly be about, most likely first. Empty if there are none.'),
-      kind,
-    }),
+    schema: z.object({ habit: pick, did_it: z.boolean(), sure: z.boolean(), alternatives: z.array(pick) }),
     system: `You match what a user told their habit-tracking app to one of their habits.
 
 The user's habits:
-${listed.map((habit, i) => {
-  const details = describeHabitForMatching(habit);
-  return `${i + 1}. ${habit.name.trim() || 'Untitled habit'}${details ? ` ${JSON.stringify(details)}` : ''}`;
-}).join('\n')}`,
+${described.join('\n')}
+
+Answer with:
+habit: the name of the habit the input is about, exactly as listed, or "${NEW_HABIT_OPTION}" if none of them track it.
+${DID_IT_INSTRUCTION}
+sure: true only if the input clearly means that habit and no other listed habit could reasonably be meant. When in doubt, false: the user is then asked to pick.
+alternatives: up to 2 other habits (or "${NEW_HABIT_OPTION}") it could plausibly be about, most likely first. Empty if there are none.`,
     prompt: `User input: "${input}"`,
   });
 
-  const candidateFor = (option: string): HabitCandidate | undefined => {
-    if (option === 'new') return NEW_HABIT;
-    const habit = listed[Number(option) - 1];
-    return habit && { habitId: habit.id, name: habit.name, probability: null };
-  };
   const candidates = [...new Set([object.habit, ...object.alternatives])]
-    .map(candidateFor)
+    .map(option => options.get(option))
     .filter(candidate => candidate !== undefined)
     .slice(0, MAX_CANDIDATES);
 
-  return { confident: object.sure, candidates, didIt: object.kind === 'did' };
+  return { confident: object.sure, candidates, didIt: object.did_it };
 }
 
 // --- No AI ---

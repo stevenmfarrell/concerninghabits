@@ -3,7 +3,8 @@ import { habitMatcherName, matchHabit, type MatchableHabit } from '@/lib/habitMa
 
 // The AI model, which the "llm" matcher asks
 const { generateObject } = vi.hoisted(() => ({ generateObject: vi.fn() }));
-vi.mock('ai', () => ({ generateObject }));
+// Only the request is faked: the rest of the SDK (e.g. wrapLanguageModel, see aiModel.ts) is real
+vi.mock('ai', async importOriginal => ({ ...(await importOriginal<typeof import('ai')>()), generateObject }));
 
 const habit = (id: string, name: string, extra: Partial<MatchableHabit> = {}): MatchableHabit =>
   ({ id, name, description: null, schema: '{"type":"object","properties":{}}', aiContext: null, ...extra });
@@ -54,7 +55,7 @@ describe('habitMatcherName', () => {
 
 describe('matching with the AI model', () => {
   it('acts on a habit it is sure of, followed by its alternatives', async () => {
-    generateObject.mockResolvedValue({ object: { habit: '1', sure: true, alternatives: ['new', '1', '9'], kind: 'did' } });
+    generateObject.mockResolvedValue({ object: { habit: 'Piano Practice', sure: true, alternatives: ['new habit', 'Piano Practice', 'Banjo'], did_it: true } });
     expect(await matchHabit('practiced keys', habits, 'llm')).toEqual({
       confident: true,
       candidates: [
@@ -63,23 +64,29 @@ describe('matching with the AI model', () => {
       ],
       didIt: true,
     });
-    // The habits are numbered for it, with what each records and the user's notes
+    // It's told each habit's name, with what each records and the user's notes
     const { system } = generateObject.mock.calls[0][0];
-    expect(system).toContain('1. Piano Practice');
-    expect(system).toContain('2. Morning Run {"records":["Distance"]}');
-    expect(system).toContain('3. Commute {"users_notes":"my bike ride to work"}');
+    expect(system).toContain('- "Piano Practice"\n');
+    expect(system).toContain('- "Morning Run": {"records":["Distance"]}');
+    expect(system).toContain('- "Commute": {"users_notes":"my bike ride to work"}');
   });
 
   it('asks the user when it isn\'t sure, and reads an intention as nothing done', async () => {
-    generateObject.mockResolvedValue({ object: { habit: '2', sure: false, alternatives: ['3'], kind: 'intends' } });
+    generateObject.mockResolvedValue({ object: { habit: 'Morning Run', sure: false, alternatives: ['Commute'], did_it: false } });
     const match = await matchHabit('want to move more', habits, 'llm');
     expect(match.confident).toBe(false);
     expect(match.candidates.map(c => c.habitId)).toEqual(['run', 'bike']);
     expect(match.didIt).toBe(false);
   });
 
+  it('tells two habits with the same name apart', async () => {
+    generateObject.mockResolvedValue({ object: { habit: 'Run (2)', sure: true, alternatives: [], did_it: true } });
+    const match = await matchHabit('ran', [habit('a', 'Run'), habit('b', 'Run')], 'llm');
+    expect(match.candidates).toEqual([{ habitId: 'b', name: 'Run', probability: null }]);
+  });
+
   it('only asks whether it was done when there are no habits', async () => {
-    generateObject.mockResolvedValue({ object: { kind: 'did' } });
+    generateObject.mockResolvedValue({ object: { did_it: true } });
     expect(await matchHabit('yoga', [], 'llm')).toEqual({ confident: true, candidates: [{ habitId: null, name: 'New habit', probability: null }], didIt: true });
   });
 });

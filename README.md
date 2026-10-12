@@ -53,7 +53,10 @@ Designing a habit's form, filling in entries from what you say, type or photogra
 
 - Every request asks for a JSON answer matching a schema. Small models get this wrong more often, designing a habit's form most of all, so prefer a model of around 8B parameters or more.
 - Logging from a photo needs a model that accepts images.
+- A thinking model (e.g. Qwen 3.5) thinks before every answer, which on a laptop can take 20 seconds or more. Set `AI_REASONING_EFFORT=none` to turn that off (see below). With Qwen 3.5 4B it took a request from about 20 seconds to about 1, with the same answers.
 - Matching what you say to a habit can use this model too (see below).
+
+`AI_REASONING_EFFORT` sets how much a thinking model thinks before answering, with any provider: `none`, `minimal`, `low`, `medium`, `high` or `xhigh` (or `provider-default`, the same as leaving it unset). Each provider maps it to its own setting: `reasoning_effort` for OpenAI and local servers, a thinking budget for Gemini, extended thinking for Claude. The app's requests are short form fills and lookups, so `none` is usually the right choice.
 
 ### Matching What You Say to a Habit
 
