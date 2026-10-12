@@ -96,7 +96,8 @@ export function showSkippedToast({ target, label, day, postpones = false, queued
   ), { duration: MANUAL_DURATION_MS });
 }
 
-function ToastCard({ t, icon, iconClassName, title, detail, values, onUndo }: {
+// Also the tutorial's, for its made-up logs and skips
+export function ToastCard({ t, icon, iconClassName, title, detail, values, onUndo }: {
   t: Toast;
   icon: ReactNode;
   iconClassName: string;

@@ -95,6 +95,7 @@ Icons are lucide's (`lucide-react`). One meaning gets one icon everywhere, so a 
 | Backup & Restore (all your data, in Settings) | `DatabaseBackup` | `Archive`, `Save` |
 | Download as JSON, or as CSV | `FileJson`, `FileSpreadsheet` (`Download` for a heading's single export button) | |
 | Restore from a file you pick | `Upload` | `ArchiveRestore` |
+| The tutorial (`/tutorial`) | `GraduationCap` | `HelpCircle` (reads as a one-off hint) |
 | Back | `ArrowLeft` | |
 | Drill into a row | `ChevronRight` at the row's end | |
 | Open a page from inside a row that does something else on tap | `ArrowRight` | `ExternalLink` (that means leaving the app) |
@@ -204,6 +205,10 @@ Style the panel and its items with `MENU_PANEL`, `MENU_ITEM` (`MENU_ITEM_DANGER`
 A picker for a form field is `Select` (`src/components/Select.tsx`), not a native `<select>`, including in a sheet or dialog. Its list is portaled to `<body>` and fixed to the screen, opening below the field or above it when there's more room there, so a sheet that scrolls can't clip it and the `top-full` rule below doesn't apply to it. For two or three options, use a `SegmentedControl` with `size="md"` instead.
 
 Omitting `top-full` is a real bug we hit, not just a style nit: if the trigger's parent is a flex container with `items-center` (headers are), the browser falls back to vertically centering the absolutely-positioned menu against the trigger's box instead of placing it below — which pushes part of the menu above the viewport. Always pair `absolute` + `right-0`/`left-0` with an explicit `top-full` (or `bottom-full`) when anchoring to a trigger.
+
+## The tutorial
+
+The tutorial (`src/app/tutorial/`) is built from the app's own components where it can be, but some of it copies the app's markup by hand: the category picker (`CategoryLogDialog`), a habit page's Entries list and Skip pill, the Agenda's Recently Logged chips, and the Habits page's rows (in `DemoParts.tsx`). Its steps (`steps.tsx`) also describe gestures and controls in words and check for them. When you change any of those, or a row's gestures (tap, hold, swipe), a habit's page, or the quill, update the tutorial to match.
 
 ## When none of this fits
 

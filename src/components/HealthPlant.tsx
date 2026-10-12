@@ -28,19 +28,21 @@ function describe({ level, score, trend }: Consistency) {
 // (e.g. its category) over `bottom` (e.g. its cadence and skipping it). One with no cadence
 // (`consistency` null), or freshly planted, has the plant all gray. A tap on the plant says what it
 // means (e.g. "Habit health: 72%", for `noun` "Habit";
-// see HealthTip), so it isn't another number or word to chase until it's asked for.
-export default function HealthHeader({ consistency, noun, top, bottom }: { consistency: Consistency | null; noun: 'Habit' | 'Category'; top?: ReactNode; bottom: ReactNode }) {
+// see HealthTip), so it isn't another number or word to chase until it's asked for. `onOpenTip`
+// hears about that tap.
+export default function HealthHeader({ consistency, noun, top, bottom, onOpenTip }: { consistency: Consistency | null; noun: 'Habit' | 'Category'; top?: ReactNode; bottom: ReactNode; onOpenTip?: () => void }) {
   const level = consistency ? LEVELS[consistency.level] : null;
   return (
     <div className="flex items-center gap-6">
       {!consistency || !level ? (
-        <HealthTip layers={0} color="" tip={`${noun} health: no cadence`} description={NO_CADENCE} />
+        <HealthTip layers={0} color="" tip={`${noun} health: no cadence`} description={NO_CADENCE} onOpen={onOpenTip} />
       ) : (
         <HealthTip
           layers={level.layers}
           color={level.color}
           tip={`${noun} health: ${consistency.score === null ? 'too soon to tell' : `${Math.round(consistency.score * 100)}%`}`}
           description={describe(consistency)}
+          onOpen={onOpenTip}
         />
       )}
       <div className="flex flex-col items-start gap-2.5 min-w-0">

@@ -163,6 +163,9 @@ export interface DueList {
   // Whether anything due at the start of today has since been done, so an empty Due Now was earned
   // rather than just having nothing in it. Skipping something doesn't earn it.
   clearedToday: boolean;
+  // Whether any habit or category has a cadence (a limit's included). Without one, nothing ever comes
+  // due, which an empty Due Now says, since a new habit's cadence is easy to leave unset.
+  anyCadence: boolean;
 }
 
 // The most Recently Logged chips the Agenda shows
@@ -188,7 +191,7 @@ export function buildDueList(
 ): DueList {
   const datesOf = (habit: HabitListItem) => entryDates(habit, latestLogDates);
 
-  const list: DueList = { dueHabits: [], upcomingHabits: [], recentHabits: [], dueCategories: [], upcomingCategories: [], recentCategories: [], limitHabits: [], limitCategories: [], statuses: {}, skippedHabitIds: [], skippedCategoryIds: [], clearedToday: false };
+  const list: DueList = { dueHabits: [], upcomingHabits: [], recentHabits: [], dueCategories: [], upcomingCategories: [], recentCategories: [], limitHabits: [], limitCategories: [], statuses: {}, skippedHabitIds: [], skippedCategoryIds: [], clearedToday: false, anyCadence: false };
 
   // A due or upcoming row's status, with what a skip's called if it can be skipped now (for
   // swiping it away)
@@ -215,6 +218,7 @@ export function buildDueList(
     const cadence = parseCadence(habit.cadence);
     const dates = datesOf(habit);
     const snapshot = evaluate(cadence, dates, user, now, skippedDaysOf(habit));
+    if (snapshot.kind !== 'none') list.anyCadence = true;
     if (snapshot.kind === 'limit') {
       list.limitHabits.push(habit);
       list.statuses[habit.id] = limitRowStatus(snapshot.limit);
@@ -244,6 +248,7 @@ export function buildDueList(
   const addCategory = (category: CategoryWithHabits, children: CategoryWithHabits[] = []) => {
     const cadence = parseCadence(category.cadence, NO_CADENCE);
     if (cadence.type === 'none') return;
+    list.anyCadence = true;
     const habits = [...category.habits, ...children.flatMap(child => child.habits)];
     const sections = pickerSections(category.habits, children);
     const item: DueCategory = { id: category.id, name: category.name, icon: category.icon, cadence, habits, sections, skippedDays: skippedDaysOf(category) };

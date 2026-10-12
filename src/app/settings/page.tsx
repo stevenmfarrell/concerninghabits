@@ -3,7 +3,7 @@ import { getVacation } from '../actions/vacation';
 import { describeVacation } from '@/lib/vacation';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
-import { AlarmClock, ChevronRight, DatabaseBackup, FolderTree, Users, Sliders, LogOut, KeyRound, TreePalm, Zap } from 'lucide-react';
+import { AlarmClock, ChevronRight, DatabaseBackup, FolderTree, GraduationCap, Users, Sliders, LogOut, KeyRound, TreePalm, Zap } from 'lucide-react';
 import Icon from '../../components/Icon';
 import PageHeader from '@/components/PageHeader';
 import { PANE_INSET, PanePage, PaneSection } from '@/components/Pane';
@@ -62,6 +62,10 @@ export default async function SettingsPage() {
         {user.isAdmin && (
           <SettingsLink href="/settings/users" icon={<Users className="w-5 h-5" />} title="Family Users" description="Add or remove family members" />
         )}
+      </PaneSection>
+
+      <PaneSection title="Help">
+        <SettingsLink href="/tutorial" icon={<GraduationCap className="w-5 h-5" />} title="Tutorial" description="Logging, skipping, categories and habit health" />
       </PaneSection>
 
       <PaneSection title="Account">

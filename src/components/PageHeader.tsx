@@ -1,7 +1,7 @@
 import { ArrowLeft } from 'lucide-react';
 import type { ReactNode } from 'react';
 import BackButton from '@/components/BackButton';
-import { IconLinkButton } from '@/components/ui/IconButton';
+import { IconButton, IconLinkButton } from '@/components/ui/IconButton';
 
 // Where something pinned under the header sticks, e.g. a pane's section headings (see Pane). The
 // header has a fixed height so this stays true.
@@ -13,6 +13,9 @@ interface PageHeaderProps {
   subtitle?: ReactNode;
   /** Href for the back control. Omit to fall back to browser history (router.back()). */
   backHref?: string;
+  /** Instead of navigating, what the back control does, e.g. leaving a view drawn in place of the
+   * page (the tutorial's made-up habit pages) */
+  onBack?: () => void;
   /** False on the bottom nav's tabs, which have nothing to go back to. Their title is large and
    * left-aligned, where the back control would be, rather than centered. */
   showBack?: boolean;
@@ -23,7 +26,7 @@ interface PageHeaderProps {
 }
 
 // Its contents line up with the page's column on a pane page (see pane-inset in globals.css)
-export default function PageHeader({ title, subtitle, backHref, showBack = true, actions, titleInsetClassName = 'px-14' }: PageHeaderProps) {
+export default function PageHeader({ title, subtitle, backHref, onBack, showBack = true, actions, titleInsetClassName = 'px-14' }: PageHeaderProps) {
   return (
     <div className="sticky top-0 z-30 h-17 sm:h-19 border-b border-line pane-inset flex items-center justify-between shadow-sm">
       {/* The frosted background is its own layer: a backdrop blur on the header itself would make it
@@ -33,7 +36,11 @@ export default function PageHeader({ title, subtitle, backHref, showBack = true,
       {showBack ? (
         <>
           <div className="relative z-10 shrink-0">
-            {backHref ? (
+            {onBack ? (
+              <IconButton onClick={onBack} edge="left" title="Back">
+                <ArrowLeft className="w-6 h-6" strokeWidth={2.5} />
+              </IconButton>
+            ) : backHref ? (
               <IconLinkButton href={backHref} edge="left" title="Back">
                 <ArrowLeft className="w-6 h-6" strokeWidth={2.5} />
               </IconLinkButton>

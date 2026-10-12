@@ -94,6 +94,17 @@ function RecentChips({ habits, categories, skippedIds }: { habits: HabitListItem
   );
 }
 
+// Due Now while no habit or category has a cadence, so nothing ever comes due: how to give one one
+function NoCadenceYet() {
+  return (
+    <>
+      Nothing has a cadence yet, so nothing comes due. To have a habit show up here when it&apos;s due, open it from{' '}
+      <Link href="/habits" className="font-medium text-accent-ink hover:text-accent-ink-strong underline underline-offset-2">Habits</Link>
+      {' '}and tap &ldquo;No set cadence&rdquo; to say how often you mean to do it.
+    </>
+  );
+}
+
 // Agenda: every habit and category with a cadence, in three sections: due now (on or past when
 // it's due; a weekly or monthly one only on its last day), upcoming (an every-N-days
 // one done but due again soon, still loggable since doing it early restarts its count, or a weekly
@@ -111,7 +122,7 @@ export default async function AgendaPage() {
     getVacation(),
   ]);
 
-  const { dueHabits, upcomingHabits, recentHabits, dueCategories, upcomingCategories, recentCategories, limitHabits, limitCategories, statuses, skippedHabitIds, skippedCategoryIds, clearedToday } = buildDueList(categories, uncategorized, latestLogDates, user);
+  const { dueHabits, upcomingHabits, recentHabits, dueCategories, upcomingCategories, recentCategories, limitHabits, limitCategories, statuses, skippedHabitIds, skippedCategoryIds, clearedToday, anyCadence } = buildDueList(categories, uncategorized, latestLogDates, user);
   const anyDue = dueHabits.length > 0 || dueCategories.length > 0;
   const anyUpcoming = upcomingHabits.length > 0 || upcomingCategories.length > 0;
   const anyRecent = recentHabits.length > 0 || recentCategories.length > 0;
@@ -140,7 +151,7 @@ export default async function AgendaPage() {
         </div>
       )}
       {!anyHabits ? (
-        <EmptyState title="No habits here yet">
+        <EmptyState title="No habits here yet" action={<LinkButton href="/tutorial" variant="outline">Take the Tour</LinkButton>}>
           Tap the quill at the top and tell it something you did, or a habit you&apos;d like to start.
         </EmptyState>
       ) : !anyDue && !anyUpcoming && !anyLimits && !anyRecent && !onVacation ? (
@@ -151,8 +162,10 @@ export default async function AgendaPage() {
         <>
           {/* Eased, so rows dropped by a refresh, or swapped for the reward, don't jolt what's below */}
           <SmoothHeight>
-            {/* Emptied today by doing what was due, it's a reward; otherwise there was just nothing due */}
-            <PaneSection title="Due Now" empty={!anyDue && (clearedToday ? <DueNowCleared /> : onVacation ? 'You’re on vacation. Nothing’s due.' : 'Nothing due right now.')}>
+            {/* Emptied today by doing what was due, it's a reward; otherwise there was just nothing
+                due, or, with no cadence anywhere, nothing that ever comes due, which is worth saying
+                while a new habit's cadence is easy to have left unset */}
+            <PaneSection title="Due Now" empty={!anyDue && (clearedToday ? <DueNowCleared /> : !anyCadence ? <NoCadenceYet /> : onVacation ? 'You’re on vacation. Nothing’s due.' : 'Nothing due right now.')}>
               {dueHabits.length > 0 && (
                 <SortableHabitList items={dueHabits} statuses={statuses} user={user} people={people} dndContextId="due-habits" bare holdToLog showCadence leavesWhenDone />
               )}

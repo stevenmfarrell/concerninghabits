@@ -241,6 +241,24 @@ describe('clearedToday', () => {
   });
 });
 
+describe('anyCadence', () => {
+  it('isn\'t set when nothing has a cadence, even with entries', () => {
+    const list = buildDueList([category('Fitness', none, [habit('run', none, [{ createdAt: today, userId: 'me' }])])], [habit('snack', none)], {}, user, now);
+    expect(list.anyCadence).toBe(false);
+  });
+
+  it('is set by a habit with a cadence, even one done for now', () => {
+    const list = buildDueList([], [habit('run', none), habit('stretch', daily, [{ createdAt: today, userId: 'me' }])], {}, user, now);
+    expect(list.anyCadence).toBe(true);
+  });
+
+  it('is set by a limit, and by a subcategory with a cadence', () => {
+    expect(buildDueList([], [habit('soda', { type: 'limit', period: 'day', max: 1 })], {}, user, now).anyCadence).toBe(true);
+    const cardio = category('Cardio', daily, [habit('bike', none)]);
+    expect(buildDueList([category('Fitness', none, [], [cardio])], [], {}, user, now).anyCadence).toBe(true);
+  });
+});
+
 describe('listRowStatus', () => {
   const at = (iso: string) => new Date(iso);
   const yesterday = at('2026-10-02T09:00:00Z');

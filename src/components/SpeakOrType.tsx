@@ -97,6 +97,14 @@ export default function SpeakOrType({
     onInput(input);
   };
 
+  // An example tapped while listening stops it, and opens the text box with the example in it, as
+  // tapping one while typing fills the box, so it can be changed before it's sent
+  const pickWhileListening = (example: string) => {
+    cancel();
+    setTypedInput(example);
+    setTyping(true);
+  };
+
   const chooseMode = (next: Mode) => {
     storeMode(next);
     setMenuOpen(false);
@@ -198,7 +206,7 @@ export default function SpeakOrType({
                       <p className="text-2xl font-semibold">{prompt.listening}</p>
                       <p className="text-emerald-100">{prompt.hint}</p>
                     </div>
-                    <Examples examples={examples} />
+                    <Examples examples={examples} heading="Try saying, or tap one" onPick={pickWhileListening} />
                   </div>
                 )}
               </div>
@@ -236,7 +244,7 @@ export default function SpeakOrType({
                   data-1p-ignore
                   enterKeyHint="send"
                 />
-                <Examples examples={examples} onPick={setTypedInput} />
+                <Examples examples={examples} heading="Tap an example" onPick={setTypedInput} />
               </div>
               <div className="flex flex-col items-center gap-2 px-6 pb-8">
                 <Button type="submit" variant="inverse" size="xl" disabled={!typedInput.trim()} className="min-w-48 rounded-full!">
@@ -256,25 +264,22 @@ export default function SpeakOrType({
   );
 }
 
-// Example inputs for the panel, tappable to fill the text box when typing
-function Examples({ examples, onPick }: { examples: string[]; onPick?: (example: string) => void }) {
+// Example inputs for the panel under `heading`, each a button, since anything shaped like one gets
+// tapped: `onPick` puts it in the text box (opening it first, while listening)
+function Examples({ examples, heading, onPick }: { examples: string[]; heading: string; onPick: (example: string) => void }) {
   return (
     <div className="space-y-2">
-      <p className="text-xs font-semibold uppercase tracking-wider text-emerald-200/80">{onPick ? 'Tap an example' : 'Try saying'}</p>
+      <p className="text-xs font-semibold uppercase tracking-wider text-emerald-200/80">{heading}</p>
       <ul className="flex flex-wrap justify-center gap-2 max-w-xl">
         {examples.map(example => (
           <li key={example}>
-            {onPick ? (
-              <button
-                type="button"
-                onClick={() => onPick(example)}
-                className="px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-sm text-emerald-50 transition-colors"
-              >
-                “{example}”
-              </button>
-            ) : (
-              <span className="inline-block px-3 py-1.5 rounded-full bg-white/10 text-sm text-emerald-50">“{example}”</span>
-            )}
+            <button
+              type="button"
+              onClick={() => onPick(example)}
+              className="px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-sm text-emerald-50 transition-colors"
+            >
+              “{example}”
+            </button>
           </li>
         ))}
       </ul>
