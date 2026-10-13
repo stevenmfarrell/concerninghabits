@@ -1,0 +1,56 @@
+# Checks every pull request (and every push to main). Pull requests can only merge into main once
+# both jobs pass: the "Protect main" ruleset requires the "Tests" and "README drift" checks, by
+# these job names, so rename them there too if they change here.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          # The Docker image's Node version (see the Dockerfile)
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npx prisma generate
+
+      # A schema change committed without its migration would leave self-hosters' databases behind,
+      # since the container only applies committed migrations. Fails if they differ.
+      - name: Migrations match the schema
+        run: npx prisma migrate diff --from-migrations prisma/migrations --to-schema-datamodel prisma/schema.prisma --shadow-database-url "file:$RUNNER_TEMP/shadow.db" --exit-code
+
+      - run: npm run lint
+
+      # next-env.d.ts and the route types are generated (and gitignored), so make them first
+      - name: Typecheck
+        run: |
+          npx next typegen
+          npx tsc --noEmit
+
+      - run: npm test
+
+  readme:
+    name: README drift
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - run: node scripts/check-readme.mjs
