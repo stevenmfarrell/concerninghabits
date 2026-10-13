@@ -1,0 +1,33 @@
+---
+// A screenshot of the app in a phone-shaped frame, with a dark-mode version if there is one
+interface Props {
+  src: string;
+  darkSrc?: string;
+  alt: string;
+  eager?: boolean;
+}
+
+const { src, darkSrc, alt, eager = false } = Astro.props;
+---
+
+<picture class="phone">
+  {darkSrc && <source srcset={darkSrc} media="(prefers-color-scheme: dark)" />}
+  <img src={src} alt={alt} width="390" height="844" loading={eager ? 'eager' : 'lazy'} decoding="async" />
+</picture>
+
+<style>
+  .phone {
+    display: block;
+    width: min(100%, 17rem);
+    justify-self: center;
+  }
+
+  img {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: 2rem;
+    border: 1px solid var(--line);
+    box-shadow: 0 1.5rem 3rem -1.5rem rgb(0 0 0 / 0.35);
+  }
+</style>

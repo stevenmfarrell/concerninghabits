@@ -1,0 +1,20 @@
+// How Cloudflare deploys the site: plain static files from dist/, served by Workers Static Assets.
+// Workers Builds runs `npm run build`, then `npx wrangler deploy` on main and `npx wrangler preview`
+// for other branches and pull requests. Without this file, Wrangler auto-configures the project on
+// every deploy (adding Astro's Cloudflare adapter and bindings the site doesn't use), and previews
+// fail for want of the `previews` block.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "concerninghabits",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "directory": "./dist"
+  },
+  // The site's domains, as set up in the dashboard, so a deploy keeps them attached
+  "routes": [
+    { "pattern": "concerninghabits.com", "custom_domain": true },
+    { "pattern": "www.concerninghabits.com", "custom_domain": true }
+  ],
+  // Gives every branch and pull request its own preview address; can stay empty
+  "previews": {}
+}
