@@ -99,8 +99,6 @@ You can easily host Concerning Habits yourself using Docker and Docker Compose.
 Create a `docker-compose.yml` file with the following contents:
 
 ```yaml
-version: '3.8'
-
 services:
   concerning-habits:
     build: .
@@ -115,10 +113,10 @@ services:
       # - AI_MODEL=local:qwen3:8b
       # - AI_BASE_URL=http://host.docker.internal:11434/v1
       # Optional: a TypeSafe API key for matching "I did..." to a habit (see "Matching What You Say to a Habit")
-      - TYPESAFE_API_KEY=your-typesafe-api-key
-      
+      # - TYPESAFE_API_KEY=your-typesafe-api-key
+
       # Optional: Home Assistant (MQTT) Integration
-      - MQTT_URL=mqtt://homeassistant.local:1883
+      # - MQTT_URL=mqtt://homeassistant.local:1883
       # - MQTT_USERNAME=your-username
       # - MQTT_PASSWORD=your-password
       # - MQTT_TOPIC_PREFIX=concerninghabits
@@ -128,6 +126,11 @@ services:
       # - VAPID_PUBLIC_KEY=...
       # - VAPID_PRIVATE_KEY=...
       # - VAPID_SUBJECT=mailto:you@example.com
+
+      # Optional: the sign-in cookie is https-only when the request came over https (as your reverse
+      # proxy reports it in X-Forwarded-Proto). Set true if your proxy terminates TLS without sending
+      # that header, so the cookie is never sent over plain http.
+      # - COOKIE_SECURE=true
     volumes:
       - concerning-habits_data:/app/data
     restart: unless-stopped
@@ -175,12 +178,12 @@ Both answer `201` with the new entry. A key can make 600 requests an hour, and r
 ### Running the App
 
 1. Ensure you have Docker and Docker Compose installed.
-2. Provide your `GOOGLE_GENERATIVE_AI_API_KEY` (or [another model's settings](#choosing-an-ai-model)) and, optionally, `TYPESAFE_API_KEY` in the `docker-compose.yml`.
+2. Provide your `GOOGLE_GENERATIVE_AI_API_KEY` (or [another model's settings](#choosing-an-ai-model)) in the `docker-compose.yml`, and uncomment any optional settings you want.
 3. Start the container in detached mode:
    ```bash
    docker compose up -d
    ```
-4. Access the app at `http://localhost:3000`.
+4. Access the app at `http://localhost:3000`, or from another device on your network at `http://<server address>:3000`. Plain http works for signing in and using the app; reminders and installing it as an app need https (see [Reminders](#reminders)).
 5. The container applies committed migrations (`prisma migrate deploy`) on startup and persists your data in the `concerning-habits_data` volume. Unlike pushing the schema directly, a migration can't silently drop a column's data.
 
 **Upgrading from a version that used `prisma db push`:** your existing database already has the current tables, but no migration history, so `migrate deploy` will refuse to run against it. Baseline it once before pulling the new image:
