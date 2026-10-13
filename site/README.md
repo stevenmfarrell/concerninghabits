@@ -1,6 +1,6 @@
 # concerninghabits.com
 
-The marketing site: static pages built with [Astro](https://astro.build), hosted on Cloudflare Pages. It's a separate project from the app, with its own dependencies; the app's lint, typecheck, Tailwind and Docker build all ignore this folder.
+The marketing site: static pages built with [Astro](https://astro.build), hosted on Cloudflare as a Worker that serves only static files. It's a separate project from the app, with its own dependencies; the app's lint, typecheck, Tailwind and Docker build all ignore this folder.
 
 ## Working on It
 
@@ -16,18 +16,19 @@ Pages are in `src/pages/`, and every page uses `src/layouts/Base.astro` (metadat
 
 ## Deploying
 
-Cloudflare Pages builds and publishes the site from this repo:
+Cloudflare Workers Builds builds and publishes the site from this repo:
 
-- **Every push to `main`** that changes the site is published to https://concerninghabits.com.
+- **Every push to `main`** is published to https://concerninghabits.com and https://www.concerninghabits.com.
 - **Every pull request** gets its own preview address, posted on the pull request.
 
-The Cloudflare Pages project's settings (Workers & Pages → the project → Settings → Build):
+`wrangler.jsonc` describes the deploy: the files in `dist/`, the two domains, and previews turned on. Keep it committed. Without it, Wrangler sets the project up itself on every deploy and adds things a static site doesn't need.
+
+The Worker's build settings (Workers & Pages → `concerninghabits` → Settings → Build):
 
 | Setting | Value |
 | --- | --- |
 | Production branch | `main` |
-| Root directory | `site` |
+| Root directory | `/site` |
 | Build command | `npm run build` |
-| Build output directory | `dist` |
-| Environment variable | `NODE_VERSION` = `22` |
-| Build watch paths (include) | `site/*`, `docs/screenshots/*` |
+| Deploy command | `npx wrangler deploy` |
+| Non-production branch deploy command | `npx wrangler preview` |
