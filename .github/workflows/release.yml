@@ -4,8 +4,8 @@
 # joins the two into one multi-arch image under the version's tags.
 #
 # Pull requests and pushes to main that touch the image build both architectures without
-# publishing, so a broken Dockerfile shows up before a release does. The main builds also keep the
-# build cache warm: a tag's build can only reuse the cache of the default branch.
+# publishing, so a broken Dockerfile shows up before a release does. The main builds also save the
+# build cache that pull requests and releases reuse (see cache-to below).
 name: Release
 
 on:
@@ -92,8 +92,11 @@ jobs:
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
           outputs: ${{ env.PUBLISH == 'true' && format('type=image,name={0},push-by-digest=true,name-canonical=true,push=true', env.IMAGE) || 'type=cacheonly' }}
+          # Only main's builds save the cache (uploading it takes minutes). A build can only read the
+          # cache of its own branch or main, so one saved from a pull request or tag is never reused,
+          # while main's is read by every later pull request and release.
           cache-from: type=gha,scope=${{ env.PLATFORM_PAIR }}
-          cache-to: type=gha,mode=max,scope=${{ env.PLATFORM_PAIR }}
+          cache-to: ${{ github.ref == 'refs/heads/main' && format('type=gha,mode=max,scope={0}', env.PLATFORM_PAIR) || '' }}
 
       - name: Save digest
         if: env.PUBLISH == 'true'

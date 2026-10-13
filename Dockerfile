@@ -7,15 +7,14 @@ FROM base AS deps
 RUN apk add --no-cache libc6-compat openssl
 WORKDIR /app
 
-# Install dependencies based on the preferred package manager
+# Only the package files first, so this layer (and the slow install) is reused until they change.
+# npm's download cache is kept between builds on the same machine, for when they do.
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN --mount=type=cache,target=/root/.npm npm ci --no-audit --no-fund
 
-# Rebuild the source code only when needed
-FROM base AS builder
-RUN apk add --no-cache openssl
-WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
+# Builds on deps rather than copying its node_modules into a fresh stage, which would store the
+# biggest layer twice in the build cache
+FROM deps AS builder
 COPY . .
 
 # Generate Prisma Client
@@ -24,8 +23,9 @@ RUN npx prisma generate
 # Next.js telemetry
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# Build the app
-RUN npm run build
+# Build the app. Next's build cache is kept between builds on the same machine, so a rebuild after a
+# small change only redoes what changed.
+RUN --mount=type=cache,target=/app/.next/cache npm run build
 
 # Production image, copy all the files and run next
 FROM base AS runner
