@@ -10,7 +10,7 @@ A self-hosted, AI-powered habit tracker for you and your household. Install it o
 - **Reminders** by push notification, an **API** for iOS Shortcuts, Home Assistant and NFC tags, and **MQTT**
 - **Your data stays yours:** one SQLite database on your server, with backup and restore as JSON or CSV
 
-Want to work on the code? See [CONTRIBUTING.md](CONTRIBUTING.md).
+Concerning Habits isn't taking outside contributions right now. Notes on working on the code are in [DEVELOPMENT.md](DEVELOPMENT.md).
 
 ## Quick Start
 
@@ -175,11 +175,6 @@ docker compose up -d
 ```
 
 Database changes are applied automatically on startup.
-
-**Upgrading from a version that used `prisma db push`:** your existing database already has the current tables, but no migration history, so the update on startup will refuse to run against it. Baseline it once before pulling the new image:
-```bash
-docker compose run --rm concerning-habits npx prisma migrate resolve --applied 20260928000839_init
-```
 
 ## License
 

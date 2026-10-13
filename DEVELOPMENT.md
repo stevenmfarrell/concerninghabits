@@ -1,6 +1,6 @@
-# Contributing
+# Development
 
-This is the guide to working on Concerning Habits itself. To run it, see the [README](README.md).
+Notes on working on Concerning Habits itself. To run it, see the [README](README.md). The project isn't taking outside contributions right now.
 
 It's a Next.js app (App Router, server actions) with Prisma on SQLite and Tailwind. Before changing anything under `src/app/` or `src/components/`, read [UI_STANDARDS.md](UI_STANDARDS.md): it covers the shared components and conventions every page uses.
 
@@ -51,7 +51,7 @@ node scripts/check-readme.mjs      # the README still matches the code
 
 ## Changing the Database
 
-Never use `prisma db push`: it can silently drop columns. Self-hosted instances only ever apply committed migrations (the container runs `prisma migrate deploy` on startup), so every schema change needs one:
+Self-hosted instances only ever apply committed migrations (the container runs `prisma migrate deploy` on startup), so every schema change needs one:
 
 1. Edit `prisma/schema.prisma`.
 2. Create and apply a migration: `npx prisma migrate dev --name <what-changed>`.
@@ -59,7 +59,9 @@ Never use `prisma db push`: it can silently drop columns. Self-hosted instances 
 
 CI fails a pull request whose migrations don't produce exactly the schema in `schema.prisma`.
 
-## Pull Requests
+## Branches and Pull Requests
+
+`main` only changes through pull requests.
 
 - Branch from `main`, named for the change (`fix/...`, `feat/...`, `docs/...`), and keep it short-lived.
 - Open a pull request into `main`. Pull requests are squash-merged, so the title and description become the commit on `main`: write them for someone reading the history.
@@ -90,7 +92,3 @@ gh release create v1.2.3 --generate-notes
 ```
 
 The tag starts `.github/workflows/release.yml`, which builds the image for `linux/amd64` and `linux/arm64` and publishes it to `ghcr.io/stevenmfarrell/concerninghabits` as `1.2.3`, `1.2`, `1` and `latest`. A pre-release (`v1.3.0-rc.1`) only gets its own tag. For a major version, say in the release notes what self-hosters need to do.
-
-## License
-
-By contributing, you agree that your contributions are licensed under the project's [AGPL-3.0 license](LICENSE).
