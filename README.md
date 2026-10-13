@@ -193,10 +193,11 @@ docker compose run --rm concerning-habits npx prisma migrate resolve --applied 2
 
 ## License
 
-Concerning Habits is licensed under the [Functional Source License, Version 1.1, ALv2 Future License](LICENSE.md) (FSL-1.1-ALv2). In short:
+Copyright 2026 Steven Farrell.
 
-- **You can** use it, self-host it for yourself, your family or your organization, read and modify the code, and share your changes.
-- **You can't** offer it, or something built from it, to others as a competing commercial product or service, such as a paid hosted version.
-- **Each release becomes Apache 2.0** two years after it's published, at which point those restrictions no longer apply to that version.
+Concerning Habits is free software, licensed under the [GNU Affero General Public License v3.0](LICENSE) (AGPL-3.0-only). In short:
 
-See [LICENSE.md](LICENSE.md) for the full terms.
+- **You can** use it for any purpose, self-host it, read and modify the code, and share it, including commercially.
+- **If you share a modified version, or run one as a service others use over a network**, you must make your modified source code available to those users under the same license.
+
+See [LICENSE](LICENSE) for the full terms.
