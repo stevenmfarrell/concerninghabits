@@ -1,0 +1,74 @@
+---
+// One feature: a heading and text beside a screenshot, swapping sides with `flip` so a run of them
+// zigzags down the page
+interface Props {
+  id?: string;
+  eyebrow: string;
+  title: string;
+  flip?: boolean;
+}
+
+const { id, eyebrow, title, flip = false } = Astro.props;
+---
+
+<section class:list={['feature', { flip }]} id={id}>
+  <div class="text">
+    <p class="eyebrow">{eyebrow}</p>
+    <h2>{title}</h2>
+    <slot />
+  </div>
+  <slot name="media" />
+</section>
+
+<style>
+  .feature {
+    display: grid;
+    gap: 2.5rem;
+    align-items: center;
+    padding: 4rem 0;
+  }
+
+  @media (min-width: 52rem) {
+    .feature {
+      grid-template-columns: minmax(0, 1fr) 17rem;
+      gap: 5rem;
+      padding: 5rem 0;
+    }
+
+    .feature.flip {
+      grid-template-columns: 17rem minmax(0, 1fr);
+    }
+
+    .feature.flip .text {
+      order: 2;
+    }
+  }
+
+  .eyebrow {
+    margin: 0 0 0.5rem;
+    color: var(--accent-ink);
+    font-weight: 600;
+    font-size: 0.85rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  h2 {
+    margin: 0 0 1rem;
+    font-size: clamp(1.75rem, 4vw, 2.25rem);
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+  }
+
+  .text :global(p:not(.eyebrow)) {
+    margin: 0 0 1rem;
+    color: var(--ink-muted);
+    font-size: 1.1rem;
+    max-width: 34rem;
+  }
+
+  .text :global(strong) {
+    color: var(--ink);
+    font-weight: 600;
+  }
+</style>
