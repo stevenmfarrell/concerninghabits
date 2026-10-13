@@ -1,5 +1,5 @@
 import { cache } from 'react';
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { prisma } from './prisma';
 import { DAY_MS } from './timezone';
 
@@ -10,6 +10,18 @@ const SESSION_REFRESH_INTERVAL_MS = DAY_MS;
 // database expiry is what actually ends it. 400 days is the browser maximum.
 const SESSION_COOKIE_MAX_AGE_S = 400 * 24 * 60 * 60;
 
+// Whether the session cookie should be Secure (sent only over https). Browsers drop a Secure cookie
+// set over plain http anywhere but localhost, so always setting it would make signing in silently
+// fail at e.g. http://nas.local:3000. So it follows the request: Next fills in x-forwarded-proto
+// from the connection unless a reverse proxy already set it (the first entry is the client's side).
+// COOKIE_SECURE=true or false overrides that, e.g. for a TLS proxy that doesn't send the header.
+export function isSecureCookie(setting: string | undefined, forwardedProto: string | null) {
+  const override = setting?.trim().toLowerCase();
+  if (override === 'true') return true;
+  if (override === 'false') return false;
+  return forwardedProto?.split(',')[0].trim().toLowerCase() === 'https';
+}
+
 export async function createSession(userId: string) {
   const session = await prisma.session.create({
     data: {
@@ -18,12 +30,12 @@ export async function createSession(userId: string) {
     }
   });
 
-  const cookieStore = await cookies();
+  const [cookieStore, headerStore] = await Promise.all([cookies(), headers()]);
 
   cookieStore.set('session', session.id, {
     maxAge: SESSION_COOKIE_MAX_AGE_S,
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: isSecureCookie(process.env.COOKIE_SECURE, headerStore.get('x-forwarded-proto')),
     sameSite: 'lax',
     path: '/',
   });
