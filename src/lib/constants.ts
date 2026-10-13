@@ -25,3 +25,7 @@ export const MAX_PASSWORD_BYTES = 72;
 // requests a user can make in an hour, since each one costs.
 export const MAX_AI_INPUT_LENGTH = 2000;
 export const MAX_AI_REQUESTS_PER_HOUR = 100;
+// Where the app's source code is, linked from Settings. The AGPL asks anyone running a modified
+// version for others to offer them its source, so a fork that's run that way should point this at
+// its own.
+export const SOURCE_CODE_URL = 'https://github.com/stevenmfarrell/concerninghabits';

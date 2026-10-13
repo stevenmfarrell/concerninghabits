@@ -3,10 +3,11 @@ import { getVacation } from '../actions/vacation';
 import { describeVacation } from '@/lib/vacation';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
-import { AlarmClock, ChevronRight, DatabaseBackup, FolderTree, GraduationCap, Users, Sliders, LogOut, KeyRound, TreePalm, Zap } from 'lucide-react';
+import { AlarmClock, ChevronRight, Code, DatabaseBackup, ExternalLink, FolderTree, GraduationCap, Users, Sliders, LogOut, KeyRound, TreePalm, Zap } from 'lucide-react';
 import Icon from '../../components/Icon';
 import PageHeader from '@/components/PageHeader';
 import { PANE_INSET, PanePage, PaneSection } from '@/components/Pane';
+import { SOURCE_CODE_URL } from '@/lib/constants';
 
 // A row's icon and text, shared by the link rows and the Log Out button row
 function RowContent({ icon, title, description }: { icon: ReactNode; title: string; description?: string }) {
@@ -31,6 +32,16 @@ function SettingsLink({ href, ...content }: { href: string; icon: ReactNode; tit
       <RowContent {...content} />
       <ChevronRight className="w-5 h-5 text-ink-subtle group-hover:text-ink-secondary transition-colors shrink-0" />
     </Link>
+  );
+}
+
+// A row that leaves the app, opening the page in a new tab
+function SettingsExternalLink({ href, ...content }: { href: string; icon: ReactNode; title: string; description?: string }) {
+  return (
+    <a href={href} target="_blank" rel="noopener noreferrer" className={ROW}>
+      <RowContent {...content} />
+      <ExternalLink className="w-5 h-5 text-ink-subtle group-hover:text-ink-secondary transition-colors shrink-0" />
+    </a>
   );
 }
 
@@ -66,6 +77,7 @@ export default async function SettingsPage() {
 
       <PaneSection title="Help">
         <SettingsLink href="/tutorial" icon={<GraduationCap className="w-5 h-5" />} title="Tutorial" description="Logging, skipping, categories and habit health" />
+        <SettingsExternalLink href={SOURCE_CODE_URL} icon={<Code className="w-5 h-5" />} title="Source Code" description="Free software under the AGPL-3.0 license" />
       </PaneSection>
 
       <PaneSection title="Account">
