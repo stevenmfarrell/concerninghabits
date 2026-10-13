@@ -101,9 +101,11 @@ Create a `docker-compose.yml` file with the following contents:
 ```yaml
 services:
   concerning-habits:
-    build: .
-    # Or use a pre-built image if you publish one:
-    # image: your-registry/concerning-habits:latest
+    # The latest release. To only take updates within a major version (no breaking changes), use a
+    # tag like :1 instead; :1.2 takes only bug fixes. Releases: https://github.com/stevenmfarrell/concerninghabits/releases
+    image: ghcr.io/stevenmfarrell/concerninghabits:latest
+    # Or build it from a clone of this repo instead:
+    # build: .
     container_name: concerning-habits
     ports:
       - "3000:3000"
@@ -185,6 +187,17 @@ Both answer `201` with the new entry. A key can make 600 requests an hour, and r
    ```
 4. Access the app at `http://localhost:3000`, or from another device on your network at `http://<server address>:3000`. Plain http works for signing in and using the app; reminders and installing it as an app need https (see [Reminders](#reminders)).
 5. The container applies committed migrations (`prisma migrate deploy`) on startup and persists your data in the `concerning-habits_data` volume. Unlike pushing the schema directly, a migration can't silently drop a column's data.
+
+### Upgrading
+
+Check the [release notes](https://github.com/stevenmfarrell/concerninghabits/releases) first: a new major version (e.g. 1.x to 2.0) means something needs your attention, and its notes say what. Then pull the new image and restart:
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+Database migrations run automatically on startup. Back up your data first (Settings → Backup & Restore, or a copy of the `concerning-habits_data` volume) so you can go back if something goes wrong.
 
 **Upgrading from a version that used `prisma db push`:** your existing database already has the current tables, but no migration history, so `migrate deploy` will refuse to run against it. Baseline it once before pulling the new image:
 ```bash
