@@ -27,6 +27,10 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # small change only redoes what changed.
 RUN --mount=type=cache,target=/app/.next/cache npm run build
 
+# Next's standalone output always includes sharp (about 28MB), for its image optimizer, which
+# next.config.ts turns off
+RUN rm -rf .next/standalone/node_modules/sharp .next/standalone/node_modules/@img
+
 # Production image, copy all the files and run next
 FROM base AS runner
 WORKDIR /app
@@ -38,7 +42,10 @@ RUN apk add --no-cache openssl
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 -G nodejs nextjs
 
-RUN npm install -g prisma@6.19.3
+# The Prisma CLI applies migrations on startup (see start.sh). npm's download cache goes in a cache
+# mount, which would otherwise add about 200MB to the image. Keep the version in step with prisma in
+# package.json.
+RUN --mount=type=cache,target=/root/.npm npm install -g prisma@6.19.3
 
 # The app itself stays owned by root, so the unprivileged user that runs it can read it but not
 # modify it. Output traces keep the image small:
@@ -46,9 +53,9 @@ RUN npm install -g prisma@6.19.3
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
+# The migrations, for start.sh. The standalone output above already holds the Prisma client and its
+# query engine.
 COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 
 # The only places the app writes: the SQLite database (a named volume mounts over /app/data and
 # inherits this ownership) and Next's runtime cache.

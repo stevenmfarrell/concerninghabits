@@ -6,6 +6,9 @@ const nextConfig: NextConfig = {
   allowedDevOrigins: ['192.168.4.x', '192.168.4.79', '192.168.0.x', '*.loca.lt'],
   serverExternalPackages: [],
   output: "standalone",
+  // The app doesn't use next/image, so it never needs Next's image optimizer. Turning it off means
+  // Next never loads sharp, the library behind it, which the Dockerfile leaves out of the image.
+  images: { unoptimized: true },
   // The service worker (public/sw.js) is always checked for a new version, so a fix to it reaches
   // everyone on their next visit rather than whenever the browser's cache lets go of it
   async headers() {
