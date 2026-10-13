@@ -2,6 +2,19 @@
 
 A self-hosted, AI-powered habit tracker for you and your household. Install it on your phone as an app (a PWA), describe a habit in plain words and let AI design how you'll track it, then log by tapping, talking, typing or snapping a photo.
 
+<table>
+  <tr>
+    <td align="center"><img src="docs/screenshots/agenda.png" width="250" alt="The Agenda: habits due now, upcoming and limits, each with a ring to log it and a grid of recent activity"><br><sub>What's due today</sub></td>
+    <td align="center"><img src="docs/screenshots/smart-entry.png" width="250" alt="The smart entry panel, with &quot;ran 3.2 miles in 27 minutes&quot; typed in and example phrases below"><br><sub>Say or type what you did</sub></td>
+    <td align="center"><img src="docs/screenshots/habits.png" width="250" alt="All habits, each with a plant showing its health, its schedule and recent activity"><br><sub>Habit health at a glance</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/screenshots/habit.png" width="250" alt="A habit's page: its health, category and schedule, a Log Habit button, and six months of activity"><br><sub>Six months of a habit</sub></td>
+    <td align="center"><img src="docs/screenshots/trends.png" width="250" alt="A weekly distance bar chart for Morning Run, above its list of entries"><br><sub>Charts from your own fields</sub></td>
+    <td align="center"><img src="docs/screenshots/agenda-dark.png" width="250" alt="The Agenda in dark mode"><br><sub>Light and dark</sub></td>
+  </tr>
+</table>
+
 - **Habits shaped to you:** custom fields designed by AI (or built by hand), flexible schedules and limits, categories, skips and vacations
 - **Quick logging:** a tap on the Agenda, or "ran 3 miles in 28 minutes" by voice or text, filled in for you
 - **Works offline** once installed: changes sync when you're back online
