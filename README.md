@@ -1,5 +1,7 @@
 # Concerning Habits
 
+**[concerninghabits.com](https://concerninghabits.com)** · [Quick Start](#quick-start) · [Releases](https://github.com/stevenmfarrell/concerninghabits/releases)
+
 A self-hosted, AI-powered habit tracker for you and your household. Install it on your phone as an app (a PWA), describe a habit in plain words and let AI design how you'll track it, then log by tapping, talking, typing or snapping a photo.
 
 <table>
