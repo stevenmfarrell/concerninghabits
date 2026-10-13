@@ -18,6 +18,8 @@ out
 prisma/prisma
 
 # Not needed to build or run the app
+site
+docs
 .git
 .github
 .claude

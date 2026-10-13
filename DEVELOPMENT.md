@@ -75,6 +75,10 @@ docker build -t concerninghabits .
 
 To run a local build with the README's compose file, replace its `image:` line with `build: .` (pointing at a clone of this repo).
 
+## The Marketing Site
+
+The site at https://concerninghabits.com lives in `site/`, a separate Astro project deployed by Cloudflare Pages. See [site/README.md](site/README.md).
+
 ## Releases
 
 Versions follow [semantic versioning](https://semver.org). For a self-hosted app, "breaking" means anything that needs a self-hoster to do something when they upgrade:

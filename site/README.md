@@ -1,0 +1,33 @@
+# concerninghabits.com
+
+The marketing site: static pages built with [Astro](https://astro.build), hosted on Cloudflare Pages. It's a separate project from the app, with its own dependencies; the app's lint, typecheck, Tailwind and Docker build all ignore this folder.
+
+## Working on It
+
+```bash
+cd site
+npm install
+npm run dev       # http://localhost:4321, reloads as you edit
+npm run build     # the static site, in dist/
+npm run preview   # serves dist/
+```
+
+Pages are in `src/pages/`, and every page uses `src/layouts/Base.astro` (metadata, favicon, the Geist font, and colors that match the app's, in light and dark). `public/screenshots` is a link to the README's screenshots in `docs/screenshots/`, so both stay the same.
+
+## Deploying
+
+Cloudflare Pages builds and publishes the site from this repo:
+
+- **Every push to `main`** that changes the site is published to https://concerninghabits.com.
+- **Every pull request** gets its own preview address, posted on the pull request.
+
+The Cloudflare Pages project's settings (Workers & Pages → the project → Settings → Build):
+
+| Setting | Value |
+| --- | --- |
+| Production branch | `main` |
+| Root directory | `site` |
+| Build command | `npm run build` |
+| Build output directory | `dist` |
+| Environment variable | `NODE_VERSION` = `22` |
+| Build watch paths (include) | `site/*`, `docs/screenshots/*` |

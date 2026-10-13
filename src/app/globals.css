@@ -1,4 +1,6 @@
 @import "tailwindcss";
+/* The marketing site (site/) is a separate project; its markup isn't the app's */
+@source not "../../site";
 
 /* The theme. Components use these semantic colors (bg-surface, text-ink-muted, border-line, …) rather
    than a palette's shades, so dark mode only has to redefine them here. The theme is the

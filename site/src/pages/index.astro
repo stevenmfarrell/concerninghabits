@@ -1,0 +1,145 @@
+---
+// A holding page until the full landing page (issue #12): what it is, and how to get it today
+import Base from '../layouts/Base.astro';
+
+const GITHUB = 'https://github.com/stevenmfarrell/concerninghabits';
+---
+
+<Base
+  title="Concerning Habits: a self-hosted, AI-powered habit tracker"
+  description="Track habits your way, for you and your household. Describe a habit and let AI design how you'll track it, then log by tapping, talking, typing or snapping a photo. Self-host it today."
+>
+  <main>
+    <div class="intro">
+      <img class="icon" src="/apple-touch-icon.png" alt="" width="72" height="72" />
+      <h1>Concerning Habits</h1>
+      <p class="pitch">
+        A habit tracker for you and your household. Describe a habit and let AI design how you'll track
+        it, then log by tapping, talking, typing or snapping a photo. It works offline, and your data
+        stays yours.
+      </p>
+      <div class="actions">
+        <a class="button primary" href={`${GITHUB}#quick-start`}>Self-host it</a>
+        <a class="button" href={GITHUB}>View on GitHub</a>
+      </div>
+      <p class="note">A hosted version, with Android and iOS apps, is on the way.</p>
+    </div>
+    <picture>
+      <source srcset="/screenshots/agenda-dark.png" media="(prefers-color-scheme: dark)" />
+      <img
+        class="screenshot"
+        src="/screenshots/agenda.png"
+        alt="The app's Agenda on a phone: habits due now, upcoming and limits, each with a ring to log it"
+        width="390"
+        height="844"
+      />
+    </picture>
+  </main>
+  <footer>
+    <a href={GITHUB}>GitHub</a>
+    <span>Free software under the AGPL-3.0 license</span>
+  </footer>
+</Base>
+
+<style>
+  main {
+    max-width: 64rem;
+    margin: 0 auto;
+    padding: 4rem 1rem 2rem;
+    display: grid;
+    gap: 3rem;
+    align-items: center;
+  }
+
+  @media (min-width: 52rem) {
+    main {
+      grid-template-columns: minmax(0, 1fr) 18rem;
+      padding-top: 6rem;
+    }
+  }
+
+  .icon {
+    border-radius: 1.25rem;
+    display: block;
+  }
+
+  h1 {
+    font-size: clamp(2.25rem, 6vw, 3.5rem);
+    line-height: 1.05;
+    letter-spacing: -0.03em;
+    margin: 1.5rem 0 1rem;
+  }
+
+  .pitch {
+    font-size: 1.2rem;
+    color: var(--ink-muted);
+    max-width: 34rem;
+    margin: 0;
+  }
+
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 2rem;
+  }
+
+  .button {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+    padding: 0 1.25rem;
+    border-radius: 0.75rem;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  .button.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--on-accent);
+  }
+
+  .button.primary:hover {
+    background: var(--accent-hover);
+    border-color: var(--accent-hover);
+  }
+
+  .button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  .note {
+    margin-top: 1.5rem;
+    color: var(--ink-muted);
+    font-size: 0.95rem;
+  }
+
+  picture {
+    justify-self: center;
+    width: min(100%, 18rem);
+  }
+
+  .screenshot {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: 2rem;
+    border: 1px solid var(--line);
+    box-shadow: 0 1.5rem 3rem -1.5rem rgb(0 0 0 / 0.35);
+  }
+
+  footer {
+    max-width: 64rem;
+    margin: 0 auto;
+    padding: 2rem 1rem 3rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.5rem;
+    color: var(--ink-muted);
+    font-size: 0.9rem;
+  }
+</style>
