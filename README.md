@@ -190,3 +190,14 @@ Both answer `201` with the new entry. A key can make 600 requests an hour, and r
 ```bash
 docker compose run --rm concerning-habits npx prisma migrate resolve --applied 20260928000839_init
 ```
+
+## License
+
+Copyright 2026 Steven Farrell.
+
+Concerning Habits is free software, licensed under the [GNU Affero General Public License v3.0](LICENSE) (AGPL-3.0-only). In short:
+
+- **You can** use it for any purpose, self-host it, read and modify the code, and share it, including commercially.
+- **If you share a modified version, or run one as a service others use over a network**, you must make your modified source code available to those users under the same license.
+
+See [LICENSE](LICENSE) for the full terms.

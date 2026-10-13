@@ -96,6 +96,8 @@ Icons are lucide's (`lucide-react`). One meaning gets one icon everywhere, so a 
 | Download as JSON, or as CSV | `FileJson`, `FileSpreadsheet` (`Download` for a heading's single export button) | |
 | Restore from a file you pick | `Upload` | `ArchiveRestore` |
 | The tutorial (`/tutorial`) | `GraduationCap` | `HelpCircle` (reads as a one-off hint) |
+| The app's source code | `Code` | |
+| Leave the app (a row opening another site in a new tab) | `ExternalLink` at the row's end | `ChevronRight` (that's drilling in) |
 | Back | `ArrowLeft` | |
 | Drill into a row | `ChevronRight` at the row's end | |
 | Open a page from inside a row that does something else on tap | `ArrowRight` | `ExternalLink` (that means leaving the app) |
