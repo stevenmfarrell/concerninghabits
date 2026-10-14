@@ -35,6 +35,23 @@ model User {
   vacations           Vacation[]
   apiKeys             ApiKey[]
   identities          Identity[]
+  connectionsA        Connection[]       @relation("ConnectionA")
+  connectionsB        Connection[]       @relation("ConnectionB")
+}
+
+// Two people on the hosted version who can see each other's names and share habits with each other
+// (see src/lib/connections.ts), made when one accepts the other's invite. Mutual, so one row per
+// pair, with the smaller user id as `userA`. A self-hosted server stores none: everyone on it is
+// connected.
+model Connection {
+  userAId   String
+  userA     User     @relation("ConnectionA", fields: [userAId], references: [id], onDelete: Cascade)
+  userBId   String
+  userB     User     @relation("ConnectionB", fields: [userBId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@id([userAId, userBId])
+  @@index([userBId])
 }
 
 // An account at a sign-in provider (e.g. Google) that signs in as a user. Found by the provider's

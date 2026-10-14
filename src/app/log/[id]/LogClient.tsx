@@ -50,7 +50,9 @@ function prefillFrom(searchParams: URLSearchParams, properties: Record<string, F
 // (`consistency`) and skipping it while it's due (`skip`, see SkipState) are with its pills above
 // (see HabitDetails). The habit's
 // history comes in as `children`, below the button: sections of the page's pane.
-export default function LogClient({ habit, user, people, categories, reminder, skip, consistency, children }: { habit: HabitDetail, user: SessionUser, people: Record<string, Person>, categories: CategoryOption[], reminder: { status: ReminderStatus; hasDevice: boolean } | null, skip: SkipState | null, consistency: Consistency | null, children: ReactNode }) {
+// `connectedIds` are the people the viewer can share with (see connections.ts), and `cloud` says
+// whether this is the hosted version, where that's only people they've connected with
+export default function LogClient({ habit, user, people, connectedIds, cloud, categories, reminder, skip, consistency, children }: { habit: HabitDetail, user: SessionUser, people: Record<string, Person>, connectedIds: string[], cloud: boolean, categories: CategoryOption[], reminder: { status: ReminderStatus; hasDevice: boolean } | null, skip: SkipState | null, consistency: Consistency | null, children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -255,7 +257,9 @@ export default function LogClient({ habit, user, people, categories, reminder, s
         <ShareDialog
           habitId={habit.id}
           habitName={habit.name}
-          candidates={Object.values(people).filter(p => p.id !== user.id)}
+          // The people the owner can share with, and anyone already on it, so they can be taken off
+          candidates={[...new Set([...connectedIds, ...sharedWith])].map(id => people[id]).filter(p => p && p.id !== user.id)}
+          cloud={cloud}
           sharedWithIds={sharedWith}
           onClose={() => setShareOpen(false)}
           onSaved={() => {

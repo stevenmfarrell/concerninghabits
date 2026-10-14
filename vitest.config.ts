@@ -9,6 +9,9 @@ export default defineConfig({
     env: {
       // A dedicated sqlite file so tests never touch the dev database.
       DATABASE_URL: 'file:./prisma/test.db',
+      // Self-hosted unless a test says otherwise, whatever a developer's .env has (e.g. cloud, for
+      // trying Google sign-in)
+      DEPLOYMENT_MODE: 'selfhost',
     },
   },
   resolve: {

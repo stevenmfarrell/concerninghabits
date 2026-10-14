@@ -8,6 +8,7 @@ import Icon from '../../components/Icon';
 import PageHeader from '@/components/PageHeader';
 import { PANE_INSET, PanePage, PaneSection } from '@/components/Pane';
 import { SOURCE_CODE_URL } from '@/lib/constants';
+import { isCloud } from '@/lib/deployment';
 
 // A row's icon and text, shared by the link rows and the Log Out button row
 function RowContent({ icon, title, description }: { icon: ReactNode; title: string; description?: string }) {
@@ -72,6 +73,9 @@ export default async function SettingsPage() {
         <SettingsLink href="/settings/categories" icon={<FolderTree className="w-5 h-5" />} title="Manage Categories" />
         {user.isAdmin && (
           <SettingsLink href="/settings/users" icon={<Users className="w-5 h-5" />} title="Family Users" description="Add or remove family members" />
+        )}
+        {isCloud() && (
+          <SettingsLink href="/settings/people" icon={<Users className="w-5 h-5" />} title="People" description="Who you can share habits with" />
         )}
       </PaneSection>
 

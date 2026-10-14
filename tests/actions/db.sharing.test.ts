@@ -180,7 +180,8 @@ describe('habit sharing', () => {
 
   it('rejects sharing with a user that doesn\'t exist', async () => {
     asOwner();
-    await expect(setHabitSharing(habitId, ['not-a-user'])).rejects.toThrow('Unknown user');
+    // Nobody is connected to a user that doesn't exist
+    await expect(setHabitSharing(habitId, ['not-a-user'])).rejects.toThrow('You can only share with people you\'re connected to');
   });
 
   it('lets a member remove a shared habit from their lists, but not the owner', async () => {

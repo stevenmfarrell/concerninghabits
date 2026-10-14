@@ -12,16 +12,19 @@ import type { Person } from '@/lib/userColors';
 interface ShareDialogProps {
   habitId: string;
   habitName: string;
-  // Everyone the habit could be shared with (the other users on this instance)
+  // Everyone the habit could be shared with: the people the owner is connected to (everyone else on
+  // a self-hosted server), and anyone already on it
   candidates: Person[];
+  // The hosted version, where that's only people they've connected with (see connections.ts)
+  cloud: boolean;
   sharedWithIds: string[];
   onClose: () => void;
   onSaved: () => void;
 }
 
-// Picks which family members a habit is shared with. Shared members can see the habit and its
+// Picks who a habit is shared with. Shared members can see the habit and its
 // history and log entries into it; only the owner can change or delete it.
-export default function ShareDialog({ habitId, habitName, candidates, sharedWithIds, onClose, onSaved }: ShareDialogProps) {
+export default function ShareDialog({ habitId, habitName, candidates, cloud, sharedWithIds, onClose, onSaved }: ShareDialogProps) {
   const [selected, setSelected] = useState(() => new Set(sharedWithIds));
   const [saving, setSaving] = useState(false);
 
@@ -62,7 +65,11 @@ export default function ShareDialog({ habitId, habitName, candidates, sharedWith
         </div>
 
         {candidates.length === 0 ? (
-          <p className="text-sm text-ink-muted italic">There&apos;s no one else to share with yet. An admin can add family members under Settings.</p>
+          <p className="text-sm text-ink-muted italic">
+            {cloud
+              ? 'You aren\'t connected with anyone yet. You can share with someone once they accept your invite.'
+              : 'There\'s no one else to share with yet. An admin can add family members under Settings.'}
+          </p>
         ) : (
           <ul className="space-y-2">
             {candidates.map(person => {

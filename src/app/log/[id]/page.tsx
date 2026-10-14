@@ -1,7 +1,8 @@
 import { getCategories } from '@/app/actions/categories';
 import { getHabitLogs, getHabitLogPresence } from '@/app/actions/entries';
 import { getHabit } from '@/app/actions/habits';
-import { getDefaultUser, getPeople } from '@/app/actions/user';
+import { getConnectedIds, getDefaultUser, getPeople } from '@/app/actions/user';
+import { isCloud } from '@/lib/deployment';
 import { getHabitReminder } from '../../actions/reminders';
 import PersonLabel from '@/components/PersonLabel';
 import HorizonToggle from '@/components/HorizonToggle';
@@ -36,7 +37,7 @@ export default async function HabitPage(props: { params: Promise<{ id: string }>
   const searchParams = await props.searchParams;
   const { id } = params;
 
-  const [user, habit, logs, presence, allPeople, categories, reminder] = await Promise.all([
+  const [user, habit, logs, presence, allPeople, categories, reminder, connected] = await Promise.all([
     getDefaultUser(),
     getHabit(id),
     // These reject if the viewer can't see the habit, in which case getHabit returns null and the
@@ -46,6 +47,7 @@ export default async function HabitPage(props: { params: Promise<{ id: string }>
     getPeople(),
     getCategories(),
     getHabitReminder(id),
+    getConnectedIds(),
   ]);
 
   if (!habit || !logs || !presence) {
@@ -111,7 +113,7 @@ export default async function HabitPage(props: { params: Promise<{ id: string }>
   const habitConsistency = consistency(cadence, logs.map(l => l.createdAt), user, { createdAt: habit.createdAt, skippedDays: habit.skippedDays });
 
   return (
-    <LogClient habit={habit} user={user} people={allPeople} categories={categories} reminder={reminder} skip={skip} consistency={habitConsistency}>
+    <LogClient habit={habit} user={user} people={allPeople} connectedIds={connected} cloud={isCloud()} categories={categories} reminder={reminder} skip={skip} consistency={habitConsistency}>
       {!presence.hasLogs ? (
         // Unless its first entries were logged offline and are waiting to be sent
         <QueuedFirstEntries habitId={habit.id} schemaProperties={schemaProperties} timeZone={user.timeZone}>
