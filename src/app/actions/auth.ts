@@ -8,6 +8,8 @@ import { headers } from 'next/headers';
 import { MAX_PASSWORD_BYTES, MIN_PASSWORD_LENGTH } from '@/lib/constants';
 import { seedDefaultCategories } from '@/lib/defaultCategories';
 import { RETURN_TO_PARAM, safeReturnTo } from '@/lib/returnTo';
+import { clientIp } from '@/lib/rateLimit';
+import { isCloud } from '@/lib/deployment';
 
 const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 // Failed logins allowed per client (IP + email). Keyed per client so a stranger can't lock you out.
@@ -17,10 +19,7 @@ const MAX_FAILURES_PER_CLIENT = 5;
 const MAX_FAILURES_PER_EMAIL = 20;
 
 async function getClientIp() {
-  const headerStore = await headers();
-  // A reverse proxy appends the address it saw, so the last entry is the most trustworthy
-  const forwardedFor = headerStore.get('x-forwarded-for')?.split(',').map(ip => ip.trim()).filter(Boolean);
-  return forwardedFor?.at(-1) ?? headerStore.get('x-real-ip') ?? 'unknown';
+  return clientIp(await headers());
 }
 
 async function getFailureCount(identifier: string) {
@@ -55,6 +54,8 @@ function checkPasswordLength(password: string) {
 }
 
 export async function login(formData: FormData) {
+  // The hosted version signs in with Google only, and stores no passwords
+  if (isCloud()) return { error: 'Sign in with Google' };
   const email = formData.get('email') as string;
   const password = formData.get('password') as string;
 
@@ -75,7 +76,9 @@ export async function login(formData: FormData) {
     where: { email },
   });
 
-  const isValidPassword = await bcrypt.compare(password, user?.passwordHash ?? getDummyPasswordHash());
+  // An account without a password (it signs in with Google) is compared against the dummy too, for
+  // the same timing, but can never match it: the dummy's own password must not sign anyone in
+  const isValidPassword = await bcrypt.compare(password, user?.passwordHash ?? getDummyPasswordHash()) && !!user?.passwordHash;
 
   if (!user || !isValidPassword) {
     await Promise.all([recordFailure(clientKey), recordFailure(accountKey)]);
@@ -101,6 +104,9 @@ export async function setupInitialAdmin(formData: FormData) {
 
   const passwordError = checkPasswordLength(password);
   if (passwordError) return { error: passwordError };
+
+  // The hosted version has no first user to set up: everyone signs up with Google
+  if (isCloud()) return { error: 'Sign in with Google' };
 
   // Ensure this is ONLY allowed if 0 users exist
   const userCount = await prisma.user.count();
@@ -246,6 +252,10 @@ export async function updatePassword(formData: FormData) {
 
   if (!user) {
     return { error: 'User not found' };
+  }
+  // An account that signs in with Google (see Identity) has no password to change
+  if (!user.passwordHash) {
+    return { error: 'This account signs in with Google, so it has no password' };
   }
 
   const isValidPassword = await bcrypt.compare(currentPassword, user.passwordHash);

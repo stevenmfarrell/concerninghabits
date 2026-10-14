@@ -1,5 +1,12 @@
 import { prisma } from './prisma';
 
+// The client's address, for keying rate limits. A reverse proxy appends the address it saw to
+// X-Forwarded-For, so the last entry is the most trustworthy.
+export function clientIp(headers: Headers) {
+  const forwardedFor = headers.get('x-forwarded-for')?.split(',').map(ip => ip.trim()).filter(Boolean);
+  return forwardedFor?.at(-1) ?? headers.get('x-real-ip') ?? 'unknown';
+}
+
 // Counts a request under `identifier` (in the RateLimit table, which the login limiter uses too),
 // and says whether it's allowed: no more than `max` of them in a window of `windowMs`, which starts
 // at the first. Server-only.
