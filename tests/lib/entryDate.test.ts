@@ -53,6 +53,22 @@ describe('whenDone', () => {
     expect(at('read yesterday', afterMidnight, { ...denver, bedtime: '00:00' })).toBe('2026-10-13T18:00:00.000Z');
   });
 
+  it('gives the same answer whatever time zone the server runs in', () => {
+    const serverZone = process.env.TZ;
+    try {
+      for (const zone of ['UTC', 'Pacific/Kiritimati', 'Pacific/Pago_Pago', 'Asia/Kolkata']) {
+        process.env.TZ = zone;
+        expect(at('read the day before yesterday'), zone).toBe('2026-10-11T18:00:00.000Z');
+        expect(at('read yesterday at 6pm'), zone).toBe('2026-10-13T00:00:00.000Z');
+        expect(at('read last friday'), zone).toBe('2026-10-09T18:00:00.000Z');
+        expect(at('read 2 hours ago'), zone).toBe('2026-10-14T01:30:00.000Z');
+      }
+    } finally {
+      if (serverZone === undefined) delete process.env.TZ;
+      else process.env.TZ = serverZone;
+    }
+  });
+
   it('uses the user\'s time zone', () => {
     // 9:30pm Tuesday in Denver is already Wednesday in Tokyo
     expect(at('read yesterday', now, { timeZone: 'Asia/Tokyo', bedtime: '00:00' })).toBe('2026-10-13T03:00:00.000Z');
