@@ -12,7 +12,7 @@ npm run build     # the static site, in dist/
 npm run preview   # serves dist/
 ```
 
-Pages are in `src/pages/`, and every page uses `src/layouts/Base.astro` (metadata, favicon, the Geist font, and colors that match the app's, in light and dark). `public/screenshots` is a link to the README's screenshots in `docs/screenshots/`, so both stay the same.
+Pages are in `src/pages/`, and every page uses `src/layouts/Base.astro` (metadata, favicon, the Geist font, and colors that match the app's, in light and dark). `public/screenshots` is a link to the README's screenshots in `docs/screenshots/`, and `public/art/` links to the app's title, hobbit hole and plant SVGs in its own `public/`, so both stay the same. Draw the art with `src/components/Ink.astro`, which colors it with the theme's ink so it shows in dark mode too.
 
 ## Deploying
 

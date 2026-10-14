@@ -1,0 +1,36 @@
+---
+// One of the app's single-color SVGs (public/art, linked from the app's public/), drawn in the
+// theme's ink color, as the app's InkArt does. As an <img> it would stay black, invisible in dark
+// mode, so the SVG masks an ink fill instead. Set its size with a width (or height) in `class`.
+interface Props {
+  art: keyof typeof ART;
+  // For the title, which is the name in words; the rest are decoration
+  alt?: string;
+  class?: string;
+}
+
+// Each SVG's width / height, from its viewBox
+const ART = {
+  'title-text': 514.91 / 226.49,
+  'hobbit-hole': 446.05 / 97.79,
+  'plant-icon': 131.56 / 70.62,
+};
+
+const { art, alt, class: className } = Astro.props;
+const mask = `url(/art/${art}.svg) center / contain no-repeat`;
+---
+
+<span
+  class:list={['ink', className]}
+  role={alt ? 'img' : undefined}
+  aria-label={alt}
+  aria-hidden={alt ? undefined : 'true'}
+  style={`aspect-ratio: ${ART[art]}; mask: ${mask}; -webkit-mask: ${mask};`}
+></span>
+
+<style>
+  .ink {
+    display: block;
+    background: var(--ink);
+  }
+</style>
