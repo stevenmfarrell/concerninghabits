@@ -2,13 +2,13 @@
 export async function register() {
   // Only in Node: the Edge runtime has no process to stop, and reminders need web-push and Prisma
   if (process.env.NEXT_RUNTIME === 'nodejs') {
-    // A mistyped DEPLOYMENT_MODE stops the server, so it fails to start (and a host rolls back the
-    // deploy) rather than running and answering every request with an error
-    const { deploymentMode } = await import('./lib/deployment');
-    try {
-      deploymentMode();
-    } catch (error) {
-      console.error(error instanceof Error ? error.message : error);
+    // A mistyped DEPLOYMENT_MODE, or the hosted version without its sign-in settings, stops the
+    // server, so it fails to start (and a host rolls back the deploy) rather than running and
+    // answering every request with an error, or with no way to sign in
+    const { deploymentProblem } = await import('./lib/deployment');
+    const problem = deploymentProblem();
+    if (problem) {
+      console.error(problem);
       process.exit(1);
     }
 

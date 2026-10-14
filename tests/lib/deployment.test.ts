@@ -41,7 +41,7 @@ describe('GET /api/meta', () => {
       version,
       apiVersion: 1,
       mode: 'cloud',
-      signIn: ['password'],
+      signIn: ['google'],
       features: { ai: true, mqtt: false },
     });
   });

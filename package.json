@@ -25,6 +25,7 @@
     "@rjsf/validator-ajv8": "^6.10.1",
     "@typesafe-ai/sdk": "^0.6.0",
     "ai": "^7.0.108",
+    "arctic": "3.7.0",
     "bcryptjs": "^3.0.3",
     "chrono-node": "2.10.1",
     "lucide-react": "^1.47.0",
