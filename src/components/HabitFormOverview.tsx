@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import Form from '@rjsf/core';
 import validator from '@rjsf/validator-ajv8';
 import { ChevronRight, Eye, Plus } from 'lucide-react';
@@ -85,7 +86,9 @@ export function FormPreviewButton({ schema, title }: { schema: HabitSchema; titl
         Preview form
       </Button>
 
-      {previewOpen && (
+      {/* Portaled to <body>: the button sits in a sticky heading, a stacking context of its own, which
+          would leave the sheet under the sections that follow it */}
+      {previewOpen && createPortal(
         <BottomSheet title={title || 'New Habit'} ariaLabel="Form preview" onClose={() => setPreviewOpen(false)}>
           <p className="text-sm text-ink-muted -mt-3">A preview: nothing is logged.</p>
           {hasFields ? (
@@ -108,7 +111,8 @@ export function FormPreviewButton({ schema, title }: { schema: HabitSchema; titl
           ) : (
             <p className="text-ink-secondary">This habit has no form: its Log button logs it straight away.</p>
           )}
-        </BottomSheet>
+        </BottomSheet>,
+        document.body,
       )}
     </>
   );
