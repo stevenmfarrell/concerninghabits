@@ -181,6 +181,15 @@ describe('logging through the API', () => {
     expect((await response.json()).values).toEqual({ distance: 3, treadmill: true });
   });
 
+  it('logs on an earlier day when the text says so, counted from "at"', async () => {
+    await prisma.user.update({ where: { id: owner.user.id }, data: { timeZone: 'America/Denver' } });
+    generateObject.mockResolvedValue({ object: { distance: 3 } });
+    // 2pm on October 10 in Denver: yesterday is October 9, logged at noon there
+    const response = await logTo(runId, { key: ownerKey, body: { text: 'ran 3 miles yesterday', at: '2026-10-10T20:00:00.000Z' } });
+    expect(response.status).toBe(201);
+    expect((await response.json()).loggedAt).toBe('2026-10-09T18:00:00.000Z');
+  });
+
   it('logs nothing from text that leaves a required field empty', async () => {
     generateObject.mockResolvedValue({ object: { treadmill: true } });
     const response = await logTo(runId, { key: ownerKey, body: { text: 'went for a run' } });

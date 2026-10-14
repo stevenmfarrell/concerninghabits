@@ -7,13 +7,14 @@ const KEY = 'pendingSmartEntry';
 // long-lived tab) can't be logged by surprise the next time the user opens that habit.
 const MAX_AGE_MS = 60_000;
 
-export function setPendingSmartEntry(habitId: string, transcript: string) {
-  sessionStorage.setItem(KEY, JSON.stringify({ habitId, transcript, createdAt: Date.now() }));
+// `loggedAt` is when it says it was done, when that's earlier (e.g. "yesterday", see whenDone)
+export function setPendingSmartEntry(habitId: string, transcript: string, loggedAt?: Date) {
+  sessionStorage.setItem(KEY, JSON.stringify({ habitId, transcript, createdAt: Date.now(), ...(loggedAt ? { loggedAt: loggedAt.toISOString() } : {}) }));
 }
 
 // The pending input for this habit, if there's a fresh one. Always clears it, so Strict Mode's
 // second effect run, a refresh, or back-navigation doesn't process it again.
-export function takePendingSmartEntry(habitId: string): string | null {
+export function takePendingSmartEntry(habitId: string): { transcript: string; loggedAt?: Date } | null {
   const raw = sessionStorage.getItem(KEY);
   if (!raw) return null;
   sessionStorage.removeItem(KEY);
@@ -21,7 +22,9 @@ export function takePendingSmartEntry(habitId: string): string | null {
   try {
     const pending = JSON.parse(raw);
     const fresh = typeof pending.createdAt === 'number' && Date.now() - pending.createdAt < MAX_AGE_MS;
-    return fresh && pending.habitId === habitId && typeof pending.transcript === 'string' ? pending.transcript : null;
+    if (!fresh || pending.habitId !== habitId || typeof pending.transcript !== 'string') return null;
+    const loggedAt = typeof pending.loggedAt === 'string' ? new Date(pending.loggedAt) : null;
+    return { transcript: pending.transcript, ...(loggedAt && !Number.isNaN(loggedAt.getTime()) ? { loggedAt } : {}) };
   } catch {
     return null;
   }

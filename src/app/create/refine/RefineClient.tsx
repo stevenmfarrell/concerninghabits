@@ -25,6 +25,8 @@ interface HabitDraft {
   // and whether it reported something they did, so it's logged as the first entry by default
   transcript?: string;
   logFirstEntry?: boolean;
+  // When the transcript says it was done, if earlier than now (see whenDone), for its first entry
+  loggedAt?: string;
 }
 
 // Only rendered in the browser (see page.tsx), so sessionStorage is always available here.
@@ -57,7 +59,7 @@ export default function RefineClient({ weekStartsOn, bedtime, hasDevice }: { wee
     // Hand what the user said to the new habit's log page, which fills the entry in against the
     // form as saved (it may have been edited here) and submits it, the same as for an existing habit
     if (draft?.transcript && logFirstEntry) {
-      setPendingSmartEntry(habit.id, draft.transcript);
+      setPendingSmartEntry(habit.id, draft.transcript, draft.loggedAt ? new Date(draft.loggedAt) : undefined);
       router.push(`/log/${habit.id}`);
     } else {
       router.push('/');

@@ -14,7 +14,18 @@ import type { HabitSchema } from '@/lib/types';
 import { aiContextPrompt, formFillSystem } from '@/lib/aiPrompts';
 import { aiModel } from '@/lib/aiModel';
 import { habitMatcherName, matchHabit, type HabitCandidate, type HabitMatch, type HabitMatcherName } from '@/lib/habitMatcher';
+import { whenDone } from '@/lib/entryDate';
 import { createHabitLog, getMembership } from './internal';
+
+// Who an entry is logged for, with whose days it's placed on. `timeZone` is null until their browser
+// has reported one, when the server's is used, as pages do (see getDefaultUser).
+export type EntryUser = { id: string; name: string; timeZone: string | null; bedtime: string };
+
+// When something said or typed says it was done (see whenDone), counted from `reference`, or null
+// for then
+export function whenSaid(user: EntryUser, input: string, reference = new Date()) {
+  return whenDone(input, { timeZone: user.timeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone, bedtime: user.bedtime }, reference);
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- the AI's values, checked when logged
 export type ParsedLog = { success: boolean; data?: Record<string, any>; error?: string };
@@ -97,16 +108,18 @@ export function missingRequired(schema: HabitSchema, data: Record<string, unknow
 
 export type InputLogResult =
   | { success: true; logged: true; logId: string; createdAt: Date; data: Record<string, unknown>; schema: HabitSchema }
-  | { success: true; logged: false; data: Record<string, unknown>; schema: HabitSchema; problem: string }
+  | { success: true; logged: false; data: Record<string, unknown>; schema: HabitSchema; problem: string; loggedAt?: Date }
   | { success: false; error: string };
 
 // Logs something the user said or typed to `habitId`, filling in the habit's form from it the same
 // way as voice logging. `values` are given values that win over what's filled in (e.g. sent to the
 // API alongside the text). When the form can't be completed, or what was filled in isn't valid,
-// nothing is logged and what could be filled in is returned (`logged: false`) for the user to finish.
+// nothing is logged and what could be filled in is returned (`logged: false`) for the user to finish,
+// with when it says it was done (`loggedAt`). It's logged at `createdAt` (or now), unless it says
+// it was done on an earlier day (e.g. "yesterday", see whenDone), counted from then.
 // `id` is the entry's id when the browser made one (see createHabitLog): once it's logged, sending
 // it again returns that entry without asking the AI again.
-export async function logFromInput(user: { id: string; name: string }, habitId: string, input: string, values: Record<string, unknown> = {}, createdAt?: Date, id?: string): Promise<InputLogResult> {
+export async function logFromInput(user: EntryUser, habitId: string, input: string, values: Record<string, unknown> = {}, createdAt?: Date, id?: string): Promise<InputLogResult> {
   if (id) {
     const existing = await prisma.habitLog.findUnique({ where: { id } });
     if (existing && existing.userId === user.id && existing.habitId === habitId) {
@@ -118,19 +131,20 @@ export async function logFromInput(user: { id: string; name: string }, habitId: 
   if (!filled.success) return filled;
   const { schema } = filled;
   const data = { ...filled.data, ...values };
+  const loggedAt = whenSaid(user, input, createdAt) ?? createdAt;
 
   const missing = missingRequired(schema, data);
   if (missing.length > 0) {
     const fields = fieldsOf(schema);
-    return { success: true, logged: false, data, schema, problem: `Missing ${missing.map(key => fields[key]?.title || key).join(', ')}` };
+    return { success: true, logged: false, data, schema, problem: `Missing ${missing.map(key => fields[key]?.title || key).join(', ')}`, loggedAt };
   }
 
   try {
-    const log = await createHabitLog(user, habitId, data, createdAt, id);
+    const log = await createHabitLog(user, habitId, data, loggedAt, id);
     return { success: true, logged: true, logId: log.id, createdAt: log.createdAt, data, schema };
   } catch (error) {
     // e.g. a value the AI filled in that the form doesn't accept: let the user fix it on the form
-    return { success: true, logged: false, data, schema, problem: error instanceof Error ? error.message : 'Its values aren\'t valid' };
+    return { success: true, logged: false, data, schema, problem: error instanceof Error ? error.message : 'Its values aren\'t valid', loggedAt };
   }
 }
 
@@ -149,7 +163,7 @@ export type AnyHabitLogResult =
 // Logs something the user said or typed to whichever of their habits it's about, as the Agenda's
 // smart entry does but without asking: only to a habit the matcher is sure of, and never a new one. For the
 // API (see src/app/api/log) and for text queued while offline (see src/app/api/sync).
-export async function logToAnyHabit(user: { id: string; name: string }, text: string, createdAt?: Date, id?: string): Promise<AnyHabitLogResult> {
+export async function logToAnyHabit(user: EntryUser, text: string, createdAt?: Date, id?: string): Promise<AnyHabitLogResult> {
   const interpretation = await interpretInput(user, text);
   if (!interpretation.success) return { logged: false, error: interpretation.error, candidates: [] };
   const { confident, didIt } = interpretation;

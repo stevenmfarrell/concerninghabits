@@ -11,19 +11,13 @@ import BottomSheet from '@/components/BottomSheet';
 import { HABIT_FORM_WIDGETS, habitFormUiSchema } from '@/components/widgets/habitForm';
 import { fieldsOf } from '@/lib/formFields';
 import { parseHabitSchema } from '@/lib/habitSchema';
+import { toDateTimeInputValue } from '@/lib/format';
 import { INPUT } from '@/components/ui/Input';
 
 export interface EditableEntry {
   id: string;
   payload: Record<string, unknown>;
   createdAt: Date;
-}
-
-// A time as a datetime-local input's value ("2026-10-03T13:06"), in the browser's time zone, which
-// is also how the input's value is read back
-function toInputValue(date: Date) {
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
 // The entry sheet for correcting an entry already logged: its values (the habit's form, if it has
@@ -37,7 +31,7 @@ export default function EditEntrySheet({ habit, entry, onClose }: {
   const properties = fieldsOf(schema);
   const hasForm = Object.keys(properties).length > 0;
 
-  const initialTime = toInputValue(new Date(entry.createdAt));
+  const initialTime = toDateTimeInputValue(new Date(entry.createdAt));
   const [formData, setFormData] = useState<Record<string, unknown>>(entry.payload);
   const [time, setTime] = useState(initialTime);
   const [saving, setSaving] = useState(false);

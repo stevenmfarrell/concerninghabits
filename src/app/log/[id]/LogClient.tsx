@@ -13,6 +13,7 @@ import toast from 'react-hot-toast';
 import { fieldsOf, type FieldSchema } from '@/lib/formFields';
 import { parseHabitSchema } from '@/lib/habitSchema';
 import { takePendingSmartEntry } from '@/lib/pendingSmartEntry';
+import { LOGGED_AT_PARAM } from '@/lib/prefillHref';
 import { queueTextEntry } from '@/lib/offline/actions';
 import { isNetworkError } from '@/lib/offline/sync';
 import type { CategoryOption, HabitDetail, SessionUser } from '@/lib/types';
@@ -61,6 +62,11 @@ export default function LogClient({ habit, user, people, categories, reminder, s
   const [menuOpen, setMenuOpen] = useState(false);
 
   const [prefill] = useState(() => prefillFrom(searchParams, fieldsOf(parseHabitSchema(habit.schema))));
+  // When the prefilled entry was done, if not now (see prefillHref)
+  const [prefillLoggedAt] = useState(() => {
+    const date = new Date(searchParams.get(LOGGED_AT_PARAM) ?? '');
+    return Number.isNaN(date.getTime()) ? undefined : date;
+  });
 
   // Logging happens here in place. Afterwards the address bar is cleared of prefill values (and of
   // the history's paging, which starts over at the new entry), so a refresh doesn't fill them in again.
@@ -71,8 +77,8 @@ export default function LogClient({ habit, user, people, categories, reminder, s
     },
   });
 
-  // Opened with values for the form (e.g. a shortcut, or something said on the dashboard that needs
-  // finishing): show them in the entry sheet, ready to check and log. A "submit URL" (the prefill
+  // Opened with values for the form, or when it was done (e.g. a shortcut, or something said on the
+  // dashboard that needs finishing): show them in the entry sheet, ready to check and log. A "submit URL" (the prefill
   // URL plus `submit=1`) logs them as soon as the page opens instead. The ref guards against Strict
   // Mode running this twice, and `submit` is stripped from the address bar first so a refresh or
   // back-navigation doesn't log a second entry.
@@ -82,7 +88,7 @@ export default function LogClient({ habit, user, people, categories, reminder, s
     prefillHandled.current = true;
 
     if (searchParams.get('submit') !== '1') {
-      if (Object.keys(prefill).length > 0) logger.openSheet();
+      if (Object.keys(prefill).length > 0 || prefillLoggedAt) logger.openSheet({ logDate: prefillLoggedAt });
       return;
     }
 
@@ -94,10 +100,10 @@ export default function LogClient({ habit, user, people, categories, reminder, s
 
     if (!logger.isComplete(prefill)) {
       toast.error('Submit URL is missing required fields. Please complete the form.');
-      logger.openSheet();
+      logger.openSheet({ logDate: prefillLoggedAt });
       return;
     }
-    logger.logEntry(prefill, { source: 'From a submit link' });
+    logger.logEntry(prefill, { source: 'From a submit link', createdAt: prefillLoggedAt });
     // Only ever runs on the initial mount, with the formData prefilled from the URL.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -106,12 +112,13 @@ export default function LogClient({ habit, user, people, categories, reminder, s
   // SmartEntry and RefineClient), to log as its first entry: filled in the same way as voice
   // logging, or, for a habit with no fields, logged straight away.
   useEffect(() => {
-    const transcript = takePendingSmartEntry(habit.id);
-    if (!transcript) return;
+    const pending = takePendingSmartEntry(habit.id);
+    if (!pending) return;
+    const { transcript, loggedAt } = pending;
 
     const source = `From “${transcript}”`;
     if (!logger.hasForm) {
-      logger.logEntry({}, { source });
+      logger.logEntry({}, { source, createdAt: loggedAt });
       return;
     }
     const toastId = toast.loading('AI is filling in your entry...');
@@ -125,7 +132,7 @@ export default function LogClient({ habit, user, people, categories, reminder, s
     }
     parseVoiceLog(habit.schema, transcript, habit.aiContext)
       .then(async result => {
-        if (result.success && result.data) await logger.fillIn(result.data, source, toastId);
+        if (result.success && result.data) await logger.fillIn(result.data, source, toastId, loggedAt);
         else toast.error(result.error || 'AI could not understand', { id: toastId });
       })
       .catch(err => (isNetworkError(err) ? keepForLater() : toast.error('Failed to connect to AI', { id: toastId })));
