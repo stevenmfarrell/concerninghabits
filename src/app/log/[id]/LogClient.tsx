@@ -258,7 +258,7 @@ export default function LogClient({ habit, user, people, connectedIds, cloud, ca
           habitId={habit.id}
           habitName={habit.name}
           // The people the owner can share with, and anyone already on it, so they can be taken off
-          candidates={[...new Set([...connectedIds, ...sharedWith])].map(id => people[id]).filter(p => p && p.id !== user.id)}
+          candidates={Object.values(people).filter(p => p.id !== user.id && (connectedIds.includes(p.id) || sharedWith.includes(p.id)))}
           cloud={cloud}
           sharedWithIds={sharedWith}
           onClose={() => setShareOpen(false)}

@@ -39,10 +39,10 @@ model User {
   connectionsB        Connection[]       @relation("ConnectionB")
 }
 
-// Two people on the hosted version who can see each other's names and share habits with each other
-// (see src/lib/connections.ts), made when one accepts the other's invite. Mutual, so one row per
-// pair, with the smaller user id as `userA`. A self-hosted server stores none: everyone on it is
-// connected.
+// Two people who can see each other's names and share habits with each other (see
+// src/lib/connections.ts). On a self-hosted server, everyone is connected to everyone, made as each
+// person is added; on the hosted version, when one accepts the other's invite. Mutual, so one row
+// per pair, with the smaller user id as `userA`.
 model Connection {
   userAId   String
   userA     User     @relation("ConnectionA", fields: [userAId], references: [id], onDelete: Cascade)

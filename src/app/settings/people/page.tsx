@@ -1,4 +1,3 @@
-import { notFound } from 'next/navigation';
 import PageHeader from '@/components/PageHeader';
 import { PANE_INSET, PanePage, PaneSection } from '@/components/Pane';
 import PersonLabel from '@/components/PersonLabel';
@@ -6,19 +5,22 @@ import { getConnectedIds, getPeople } from '@/app/actions/user';
 import { isCloud } from '@/lib/deployment';
 import RemoveConnectionButton from './RemoveConnectionButton';
 
-// The people the current user is connected to on the hosted version (see connections.ts): who they
-// can share habits with and see the names of, with a way to remove someone. A self-hosted server
-// has no such list, since everyone on it is connected.
+// The people the current user is connected to (see connections.ts): who they can share habits with
+// and see the names of, with a way to remove someone. On a self-hosted server that's everyone on
+// it, unless they've removed someone.
 export default async function PeoplePage() {
-  if (!isCloud()) notFound();
+  const cloud = isCloud();
   const [people, connected] = await Promise.all([getPeople(), getConnectedIds()]);
-  const connections = connected.map(id => people[id]).filter(Boolean);
+  // In account creation order, like their colors (see getPeople)
+  const connections = Object.values(people).filter(person => connected.includes(person.id));
 
   return (
     <PanePage width="3xl" header={<PageHeader title="People" backHref="/settings" />}>
       <PaneSection
         title="Connected"
-        empty={connections.length === 0 && 'You aren\'t connected with anyone yet. Once someone accepts your invite, you can share habits with each other.'}
+        empty={connections.length === 0 && (cloud
+          ? 'You aren\'t connected with anyone yet. Once someone accepts your invite, you can share habits with each other.'
+          : 'You aren\'t connected with anyone yet. An admin can add family members under Settings.')}
       >
         {connections.map(person => (
           <div key={person.id} className={`${PANE_INSET} py-3 flex items-center justify-between gap-3`}>

@@ -10,6 +10,7 @@ import { seedDefaultCategories } from '@/lib/defaultCategories';
 import { RETURN_TO_PARAM, safeReturnTo } from '@/lib/returnTo';
 import { clientIp } from '@/lib/rateLimit';
 import { isCloud } from '@/lib/deployment';
+import { connectToEveryone } from '@/lib/connections';
 
 const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 // Failed logins allowed per client (IP + email). Keyed per client so a stranger can't lock you out.
@@ -132,6 +133,9 @@ export async function setupInitialAdmin(formData: FormData) {
 }
 
 export async function provisionUser(formData: FormData) {
+  // On the hosted version, accounts are made by signing in with Google, and nobody is everyone's
+  // household (see connectToEveryone below)
+  if (isCloud()) return { error: 'Accounts are made by signing in with Google' };
   const name = formData.get('name') as string;
   const email = formData.get('email') as string;
   const password = formData.get('password') as string;
@@ -179,6 +183,8 @@ export async function provisionUser(formData: FormData) {
   });
 
   await seedDefaultCategories(user.id);
+  // One household: they can share habits with everyone else on the server, and see their names
+  await connectToEveryone(user.id);
 
   const { revalidatePath } = await import('next/cache');
   revalidatePath('/settings/users');

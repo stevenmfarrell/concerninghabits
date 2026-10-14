@@ -28,3 +28,13 @@ vi.mock('next/navigation', () => ({
 vi.mock('next/cache', () => ({
   revalidatePath: () => {},
 }));
+
+// Connects whoever the session cookie signs in as to `userIds` (see src/lib/connections.ts), as
+// adding a family member or accepting an invite would, so they can share habits with each other.
+// Test users are made straight in the database, so they start out connected to no one.
+export async function connectSignedInUserTo(...userIds: string[]) {
+  const { prisma } = await import('@/lib/prisma');
+  const { connect } = await import('@/lib/connections');
+  const session = await prisma.session.findUniqueOrThrow({ where: { id: cookieJar.get('session') } });
+  for (const id of userIds) await connect(session.userId, id);
+}

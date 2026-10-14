@@ -73,8 +73,8 @@ export async function updateUserPreferences(prefs: { bedtime?: string, weekStart
 }
 
 // Everyone whose name the current user can see, with their display color as the current user sees
-// it (green for themselves), in account creation order: the people they're connected to (everyone,
-// on a self-hosted server; see connections.ts), and anyone else on a habit they're in (e.g. someone
+// it (green for themselves), in account creation order: the people they're connected to (see
+// connections.ts), and anyone else on a habit they're in (e.g. someone
 // else the habit's owner shared it with). Anyone else who logged entries they can see shows as a
 // former member (see PersonLabel).
 export async function getPeople() {
@@ -99,8 +99,8 @@ export async function getConnectedIds() {
   return connectedIds((await getDefaultUser()).id);
 }
 
-// Disconnects the current user from someone on the hosted version (Settings → People): they stop
-// seeing each other, and come off the habits they'd shared with each other (see disconnect)
+// Disconnects the current user from someone (Settings → People): they stop seeing each other, and
+// come off the habits they'd shared with each other (see disconnect)
 export async function removeConnection(otherId: string) {
   const user = await getDefaultUser();
   await disconnect(user.id, z.string().parse(otherId));

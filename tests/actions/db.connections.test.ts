@@ -5,6 +5,7 @@ import { saveHabit, setHabitSharing } from '@/app/actions/habits';
 import { logHabitEvent } from '@/app/actions/entries';
 import { getConnectedIds, getPeople, removeConnection } from '@/app/actions/user';
 import { connect, connectedIds } from '@/lib/connections';
+import { provisionUser } from '@/app/actions/auth';
 
 const testSchema = { type: 'object' as const, properties: {} };
 
@@ -25,22 +26,40 @@ afterEach(() => {
 });
 
 describe('on a self-hosted server', () => {
-  it('everyone is connected: they see each other and can share with each other', async () => {
-    const sam = await createTestUser('Sam');
-    const pat = await createTestUser('Pat');
-    as(sam);
-    expect(await peopleIds()).toEqual(expect.arrayContaining([sam.user.id, pat.user.id]));
-    expect(await getConnectedIds()).toContain(pat.user.id);
+  it('adding a family member connects them to everyone, so they can share with each other', async () => {
+    const earlier = await createTestUser('Earlier');
+    const admin = await prisma.user.create({ data: { name: 'Admin', email: `admin-${crypto.randomUUID()}@example.test`, passwordHash: 'x', isAdmin: true } });
+    const adminSession = await prisma.session.create({ data: { userId: admin.id, expiresAt: new Date(Date.now() + 60 * 60 * 1000) } });
+    setSessionCookie(adminSession.id);
+    const email = `kid-${crypto.randomUUID()}@example.test`;
+    const form = new FormData();
+    form.set('name', 'Kid');
+    form.set('email', email);
+    form.set('password', 'a long enough password');
+    expect(await provisionUser(form)).toBeUndefined();
+    const kid = await prisma.user.findUniqueOrThrow({ where: { email } });
+
+    // Everyone already on the server, the admin included
+    expect(await connectedIds(kid.id)).toEqual(expect.arrayContaining([admin.id, earlier.user.id]));
+    expect(await connectedIds(earlier.user.id)).toContain(kid.id);
+    expect(await peopleIds()).toContain(kid.id);
     const habit = await saveHabit('Water plants', '', testSchema);
-    await setHabitSharing(habit.id, [pat.user.id]);
+    await setHabitSharing(habit.id, [kid.id]);
     expect(await prisma.habitMember.count({ where: { habitId: habit.id } })).toBe(2);
   });
 
-  it('there\'s no one to disconnect from', async () => {
+  it('works the same as the hosted version from there: removing someone disconnects you', async () => {
     const sam = await createTestUser('Sam');
     const pat = await createTestUser('Pat');
+    await connect(sam.user.id, pat.user.id);
     as(sam);
-    await expect(removeConnection(pat.user.id)).rejects.toThrow('Everyone on a self-hosted server is connected');
+    await removeConnection(pat.user.id);
+    expect(await getConnectedIds()).not.toContain(pat.user.id);
+  });
+
+  it('only the self-hosted server adds people this way', async () => {
+    vi.stubEnv('DEPLOYMENT_MODE', 'cloud');
+    expect(await provisionUser(new FormData())).toEqual({ error: 'Accounts are made by signing in with Google' });
   });
 });
 
