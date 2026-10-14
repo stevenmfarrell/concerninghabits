@@ -6,7 +6,7 @@
 // - the app reads an environment variable the README never mentions, or the README (or
 //   .env.example) sets one the app no longer reads
 // - an API route that takes an API key isn't documented with its method, or the README documents a
-//   route or method that doesn't exist
+//   route or method that doesn't exist (public routes, like /api/meta, may be documented too)
 // - the README names a migration that isn't in prisma/migrations
 // - the compose example's port, data volume or image don't match the Dockerfile and the repo
 //
@@ -63,15 +63,15 @@ function envVarsSetIn(text) {
   return found;
 }
 
-// The routes another app can call with an API key (they authenticate with authenticateApiRequest),
-// with the methods each exports, as `/api/habits/[id]/log`
-function apiKeyRoutes() {
+// Every API route, with the methods it exports, as `/api/habits/[id]/log`, and whether another app
+// calls it with an API key (it authenticates with authenticateApiRequest)
+function apiRoutes() {
   return filesUnder('src/app/api', f => /(^|\/)route\.ts$/.test(f))
     .map(file => ({ file, code: read(file) }))
-    .filter(({ code }) => code.includes('authenticateApiRequest'))
     .map(({ file, code }) => ({
       route: '/' + path.dirname(path.relative('src/app', file)).split(path.sep).join('/'),
       methods: [...code.matchAll(/export\s+async\s+function\s+(GET|POST|PUT|PATCH|DELETE)\b/g)].map(m => m[1]),
+      takesKey: code.includes('authenticateApiRequest'),
     }));
 }
 
@@ -115,7 +115,8 @@ for (const [file, text] of [['README.md', readme], ['.env.example', read('.env.e
 }
 
 // API routes, both ways
-const routes = apiKeyRoutes();
+const allRoutes = apiRoutes();
+const routes = allRoutes.filter(({ takesKey }) => takesKey);
 for (const { route, methods } of routes) {
   for (const method of methods) {
     const documented = [...readme.matchAll(new RegExp(`\\b${method}\\s+(${DOCUMENTED_ROUTE})`, 'g'))].some(([, r]) => sameRoute(r, route));
@@ -123,8 +124,8 @@ for (const { route, methods } of routes) {
   }
 }
 for (const [, method, documented] of readme.matchAll(new RegExp(`\\b(GET|POST|PUT|PATCH|DELETE)\\s+(${DOCUMENTED_ROUTE})`, 'g'))) {
-  if (!routes.some(({ route, methods }) => methods.includes(method) && sameRoute(documented, route))) {
-    problems.push(`README.md documents ${method} ${documented}, but no API-key route answers it.`);
+  if (!allRoutes.some(({ route, methods }) => methods.includes(method) && sameRoute(documented, route))) {
+    problems.push(`README.md documents ${method} ${documented}, but no API route answers it.`);
   }
 }
 

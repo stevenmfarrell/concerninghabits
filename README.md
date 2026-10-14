@@ -168,6 +168,8 @@ Text that says when it was done ("yesterday", "3 days ago", "on October 10th", "
 
 Both answer `201` with the new entry. A key can make 600 requests an hour, and requests with `text` count toward the user's AI limit.
 
+`GET /api/meta` needs no key. It answers with what the server is, for apps to adapt to: the app's `version`, the `apiVersion` of these routes, the `mode`, how people `signIn`, and which optional `features` are set up (`ai`, `mqtt`). The mode is `selfhost` unless `DEPLOYMENT_MODE=cloud`, which is for the hosted version at concerninghabits.com, so leave it unset.
+
 ## Home Assistant (MQTT)
 
 Set `MQTT_URL` (plus `MQTT_USERNAME` and `MQTT_PASSWORD` if your broker needs them) and every entry logged is published to an MQTT broker such as Home Assistant's, as JSON on `concerninghabits/users/<user>/habits/<habit>/log` (retained, so Home Assistant has the latest after a restart). `MQTT_TOPIC_PREFIX` changes the `concerninghabits` part. To log *from* Home Assistant, use the [API](#logging-from-other-apps-api).
