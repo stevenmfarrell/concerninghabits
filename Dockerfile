@@ -76,5 +76,11 @@ ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 ENV DATABASE_URL="file:/app/data/concerning_habits.db"
 
+# Docker marks the container healthy once the app answers /api/health, which needs its database.
+# Node's own fetch rather than curl, which the image doesn't have. The start period covers
+# migrations on startup.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
+  CMD ["node", "-e", "fetch('http://127.0.0.1:' + (process.env.PORT || 3000) + '/api/health').then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+
 # We must use sqlite in a volume, so we map DATABASE_URL in docker-compose
 CMD ["/app/start.sh"]
