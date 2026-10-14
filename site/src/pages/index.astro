@@ -3,6 +3,7 @@
 import { AlarmClock, CloudOff, Cpu, DatabaseBackup, Moon, Server, Smartphone, TreePalm, Users, Zap } from '@lucide/astro';
 import Base from '../layouts/Base.astro';
 import Feature from '../components/Feature.astro';
+import Ink from '../components/Ink.astro';
 import Phone from '../components/Phone.astro';
 
 const GITHUB = 'https://github.com/stevenmfarrell/concerninghabits';
@@ -39,10 +40,6 @@ volumes:
   description="A habit tracker for you and your household. Describe a habit and let AI design how you'll track it, then log by tapping, talking, typing or snapping a photo. It works offline, and you can host it yourself."
 >
   <header class="nav">
-    <a class="brand" href="/">
-      <img src="/apple-touch-icon.png" alt="" width="32" height="32" />
-      <span>Concerning Habits</span>
-    </a>
     <nav>
       <a href="#features">Features</a>
       <a href="#self-host">Self-host</a>
@@ -53,6 +50,11 @@ volumes:
   <main>
     <section class="hero">
       <div>
+        <div class="art">
+          <Ink art="hobbit-hole" class="art-hill" />
+          <Ink art="title-text" alt="Concerning Habits" class="art-title" />
+          <Ink art="plant-icon" class="art-plant" />
+        </div>
         <h1>Habits that bend instead of break</h1>
         <p class="pitch">
           A habit tracker for you and your household. Describe a habit and AI designs how you’ll track it.
@@ -167,6 +169,7 @@ volumes:
   </main>
 
   <footer>
+    <Ink art="plant-icon" class="footer-plant" />
     <a href={GITHUB}>GitHub</a>
     <a href={`${GITHUB}/releases`}>Releases</a>
     <span>Free software under the AGPL-3.0 license</span>
@@ -192,29 +195,14 @@ volumes:
     }
   }
 
+  /* Only links: the hero below has the title */
   .nav {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-end;
     gap: 1rem;
     padding-top: 1rem;
     padding-bottom: 1rem;
-  }
-
-  .brand {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    font-weight: 700;
-    text-decoration: none;
-  }
-
-  .brand img {
-    border-radius: 0.5rem;
-  }
-
-  .brand span {
-    white-space: nowrap;
   }
 
   .nav nav {
@@ -253,12 +241,35 @@ volumes:
     }
   }
 
+  /* The sign-in page's art: the hill, the title, and a plant under it */
+  .art {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: min(100%, 22rem);
+    margin-bottom: 2.5rem;
+  }
+
+  .art :global(.art-hill),
+  .art :global(.art-title) {
+    width: 100%;
+  }
+
+  .art :global(.art-title) {
+    margin-top: 0.5rem;
+  }
+
+  .art :global(.art-plant) {
+    width: 3rem;
+    margin-top: -0.5rem;
+  }
+
   h1 {
-    font-size: clamp(2.4rem, 7vw, 4rem);
-    line-height: 1.02;
+    font-size: clamp(2.1rem, 5.5vw, 3.25rem);
+    line-height: 1.05;
     letter-spacing: -0.035em;
     margin: 0 0 1.25rem;
-    max-width: 14ch;
+    max-width: 16ch;
   }
 
   .pitch {
@@ -457,11 +468,17 @@ volumes:
   footer {
     display: flex;
     flex-wrap: wrap;
+    align-items: center;
     gap: 0.5rem 1.5rem;
     padding-top: 2rem;
     padding-bottom: 3rem;
     border-top: 1px solid var(--line);
     color: var(--ink-muted);
     font-size: 0.9rem;
+  }
+
+  footer :global(.footer-plant) {
+    width: 2.5rem;
+    opacity: 0.5;
   }
 </style>
