@@ -168,6 +168,8 @@ Text that says when it was done ("yesterday", "3 days ago", "on October 10th", "
 
 Both answer `201` with the new entry. A key can make 600 requests an hour, and requests with `text` count toward the user's AI limit.
 
+`GET /api/health` needs no key either. It answers `200` with `{"status": "ok"}` when the server can read its database, and `503` when it can't, for an uptime monitor or a reverse proxy's health check. The image's Docker health check uses it, so `docker ps` shows the container as healthy or unhealthy. Compose doesn't restart an unhealthy container by itself.
+
 `GET /api/meta` needs no key. It answers with what the server is, for apps to adapt to: the app's `version`, the `apiVersion` of these routes, the `mode`, how people `signIn`, and which optional `features` are set up (`ai`, `mqtt`). The mode is `selfhost` unless `DEPLOYMENT_MODE=cloud`, which is for the hosted version at concerninghabits.com, so leave it unset.
 
 ## Home Assistant (MQTT)
