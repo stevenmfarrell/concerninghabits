@@ -18,7 +18,7 @@ A self-hosted, AI-powered habit tracker for you and your household. Install it o
 </table>
 
 - **Habits shaped to you:** custom fields designed by AI (or built by hand), flexible schedules and limits, categories, skips and vacations
-- **Quick logging:** a tap on the Agenda, or "ran 3 miles in 28 minutes" by voice or text, filled in for you
+- **Quick logging:** a tap on the Agenda, or "ran 3 miles in 28 minutes" by voice or text, filled in for you. Say when for an earlier entry: "read yesterday", "3 days ago", "on October 10th", "last Tuesday at 6pm"
 - **Works offline** once installed: changes sync when you're back online
 - **Charts, calculated fields, and habit health** instead of streaks
 - **Shared habits** for a household, with users managed by an admin
@@ -163,6 +163,8 @@ Other apps (iOS Shortcuts, Home Assistant, Tasker, an NFC tag) can log and read 
 - `POST /api/habits/<habit id>/log` (a key that can log) logs one habit. The body is optional JSON: `{"values": {"distance": 3}}` with the habit's field keys, and/or `{"text": "ran 3 miles"}` for AI to fill them in, plus an optional `"at"` (an ISO 8601 date and time) for an earlier entry. Each habit's address, field keys and an example request are in its ⋮ menu → Log from Another App.
 - `GET /api/habits/<habit id>/entries?limit=10` (a key that can read) returns the habit's latest entries, newest first (1 to 100, 10 by default), each with who logged it.
 - `POST /api/log` (a key that can log) with `{"text": "ran 3 miles in 25 minutes"}` works out which habit was meant, like the Agenda's "I did..." button. It never creates a habit, and logs nothing (answering 422 with its best guesses) when it isn't sure.
+
+Text that says when it was done ("yesterday", "3 days ago", "on October 10th", "yesterday at 6pm") is logged then, counted from `"at"` when given, using the user's time zone and bedtime. Without a time it's logged at noon that day.
 
 Both answer `201` with the new entry. A key can make 600 requests an hour, and requests with `text` count toward the user's AI limit.
 

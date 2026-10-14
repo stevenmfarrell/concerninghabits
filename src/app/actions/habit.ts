@@ -4,7 +4,7 @@ import { generateObject } from 'ai';
 import { z } from 'zod';
 import { getCategories } from './categories';
 import { getHabit } from './habits';
-import { extractFromTranscript, fillFromInput, interpretInput, logFromInput, type Interpretation, type ParsedLog } from './smartEntry';
+import { extractFromTranscript, fillFromInput, interpretInput, logFromInput, whenSaid, type Interpretation, type ParsedLog } from './smartEntry';
 import { getDefaultUser } from './user';
 import { buildCategoryChoices } from '@/lib/categoryChoices';
 import type { HabitSchema } from '@/lib/types';
@@ -121,25 +121,30 @@ export async function parseImageLog(schemaStr: string, base64Image: string, aiCo
 
 export type { HabitCandidate } from './smartEntry';
 
-// Interpret something the user said or typed on the dashboard (see interpretInput)
-export async function interpretSmartEntry(input: string): Promise<Interpretation> {
-  return interpretInput(await getDefaultUser(), input);
+// Interpret something the user said or typed on the dashboard (see interpretInput), with when it
+// says it was done when that's an earlier time (`loggedAt`, see whenDone), e.g. for the first entry
+// of a new habit drafted from it
+export async function interpretSmartEntry(input: string): Promise<Interpretation & { loggedAt?: Date }> {
+  const user = await getDefaultUser();
+  const interpretation = await interpretInput(user, input);
+  const loggedAt = whenSaid(user, input);
+  return loggedAt ? { ...interpretation, loggedAt } : interpretation;
 }
 
 // Logs something the user said or typed on the dashboard (see SmartEntry) to the habit it was
 // matched to, filling in the habit's form from it the same way as voice logging, so it can be
 // logged without leaving the dashboard. When the form can't be completed from what was said, nothing
 // is logged and what could be filled in is returned (`logged: false`) for the user to finish on the
-// habit's page.
+// habit's page. Logged on an earlier day when it says so (e.g. "yesterday", see whenDone).
 export async function logSmartEntry(habitId: string, input: string): Promise<
-  | { success: true; logged: true; logId: string; data: Record<string, unknown>; schema: HabitSchema }
-  | { success: true; logged: false; data: Record<string, unknown> }
+  | { success: true; logged: true; logId: string; createdAt: Date; data: Record<string, unknown>; schema: HabitSchema }
+  | { success: true; logged: false; data: Record<string, unknown>; loggedAt?: Date }
   | { success: false; error: string }
 > {
   const result = await logFromInput(await getDefaultUser(), habitId, input);
   if (!result.success) return result;
-  if (!result.logged) return { success: true, logged: false, data: result.data };
-  return { success: true, logged: true, logId: result.logId, data: result.data, schema: result.schema };
+  if (!result.logged) return { success: true, logged: false, data: result.data, ...(result.loggedAt ? { loggedAt: result.loggedAt } : {}) };
+  return { success: true, logged: true, logId: result.logId, createdAt: result.createdAt, data: result.data, schema: result.schema };
 }
 
 // What could be filled in on a habit's form from input that matched the habit but didn't read as

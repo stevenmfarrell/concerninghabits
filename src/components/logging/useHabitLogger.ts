@@ -48,8 +48,10 @@ export function useHabitLogger(habit: LoggableHabit, { initialData = {}, onLogge
 
   const [formData, setFormData] = useState<Record<string, unknown>>(initialData);
   const [sheetOpen, setSheetOpen] = useState(false);
-  // Whether the sheet opened straight to picking a custom date, e.g. to backdate a habit with no form
+  // Whether the sheet opened straight to picking a custom date, e.g. to backdate a habit with no form,
+  // and the date it starts with, e.g. "yesterday" said on the dashboard
   const [sheetBackdate, setSheetBackdate] = useState(false);
+  const [sheetLogDate, setSheetLogDate] = useState<Date | undefined>();
   const [busy, setBusy] = useState(false);
   // Entries logged here that the page doesn't show yet: each counts from when it's logged until the
   // page is rendered again with it, e.g. to fill an Agenda row's ring at once (see LogRing)
@@ -66,6 +68,7 @@ export function useHabitLogger(habit: LoggableHabit, { initialData = {}, onLogge
       if (!data) return;
       setFormData(data);
       setSheetBackdate(false);
+      setSheetLogDate(undefined);
       setSheetOpen(true);
     };
     reopen();
@@ -94,7 +97,7 @@ export function useHabitLogger(habit: LoggableHabit, { initialData = {}, onLogge
     try {
       const log = await logOrQueue(habit, data, createdAt);
       showLoggedToast(
-        { habitId: habit.id, habitName: habit.name, logId: log.logId, data, schemaProperties: properties, source, queued: log.queued },
+        { habitId: habit.id, habitName: habit.name, logId: log.logId, data, schemaProperties: properties, source, queued: log.queued, loggedAt: createdAt },
         {
           toastId,
           // Through pendingReopen rather than this hook's own state: logging may have unmounted it
@@ -113,8 +116,9 @@ export function useHabitLogger(habit: LoggableHabit, { initialData = {}, onLogge
     }
   };
 
-  const openSheet = ({ backdate = false } = {}) => {
-    setSheetBackdate(backdate);
+  const openSheet = ({ backdate = false, logDate }: { backdate?: boolean; logDate?: Date } = {}) => {
+    setSheetBackdate(backdate || !!logDate);
+    setSheetLogDate(logDate);
     setSheetOpen(true);
   };
 
@@ -122,18 +126,19 @@ export function useHabitLogger(habit: LoggableHabit, { initialData = {}, onLogge
   const start = () => (hasForm ? openSheet() : logEntry({}));
 
   // Values filled in by AI (from voice, a photo, or something said on the dashboard): logged
-  // straight away when they complete the form, otherwise left in the sheet to finish
-  const fillIn = async (data: Record<string, unknown>, source: string, toastId: string) => {
+  // straight away when they complete the form, otherwise left in the sheet to finish. `createdAt` is
+  // when it was done, if not now (e.g. "yesterday" said on the dashboard).
+  const fillIn = async (data: Record<string, unknown>, source: string, toastId: string, createdAt?: Date) => {
     if (Object.keys(data).length === 0) {
       toast.error('Could not find any relevant data.', { id: toastId });
       return;
     }
     const merged = { ...formData, ...data };
     if (isComplete(merged)) {
-      await logEntry(merged, { source, toastId });
+      await logEntry(merged, { source, toastId, createdAt });
     } else {
       setFormData(merged);
-      openSheet();
+      openSheet({ logDate: createdAt });
       toast.success('Form partially filled by AI. Please complete missing fields.', { id: toastId });
     }
   };
@@ -147,6 +152,7 @@ export function useHabitLogger(habit: LoggableHabit, { initialData = {}, onLogge
     setFormData,
     sheetOpen,
     sheetBackdate,
+    sheetLogDate,
     openSheet,
     closeSheet: () => setSheetOpen(false),
     busy,

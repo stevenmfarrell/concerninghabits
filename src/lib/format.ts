@@ -48,3 +48,10 @@ export function fuzzyDays(days: number) {
     : [Math.round(days / DAYS_PER_MONTH), 'month' as const];
   return { count, unit: count === 1 ? unit : `${unit}s`, short: `${count}${SHORT_UNITS[unit]}` };
 }
+
+// A time as a datetime-local input's value ("2026-10-03T13:06"), in the browser's time zone, which
+// is also how the input's value is read back
+export function toDateTimeInputValue(date: Date) {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}

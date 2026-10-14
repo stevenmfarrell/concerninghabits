@@ -167,6 +167,14 @@ describe('syncing changes made offline', () => {
     expect((await send([vague])).results[0]).toMatchObject({ status: 'failed', habitId: runId, values: {} });
   });
 
+  it('logs text saying an earlier day on that day, counted from when it was said', async () => {
+    await prisma.user.update({ where: { id: owner.user.id }, data: { timeZone: 'America/Denver' } });
+    generateObject.mockResolvedValue({ object: { distance: 5 } });
+    const text = op({ kind: 'text', entryId: crypto.randomUUID(), habitId: runId, text: 'ran 5 miles yesterday', createdAt: '2026-10-10T20:00:00.000Z' });
+    expect((await send([text])).results[0].status).toBe('done');
+    expect((await prisma.habitLog.findUniqueOrThrow({ where: { id: text.entryId } })).createdAt.toISOString()).toBe('2026-10-09T18:00:00.000Z');
+  });
+
   it('matches text to a habit first when it was said with none', async () => {
     systemOne.mockResolvedValue({ answers: { habit: { probabilities: { Run: 0.95, Water: 0.03, 'new habit': 0.02 }, confidence: 0.95 }, did_it: { noul: 0.9 } } });
     generateObject.mockResolvedValue({ object: { distance: 2 } });

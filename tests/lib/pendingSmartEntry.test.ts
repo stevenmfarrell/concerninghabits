@@ -21,8 +21,14 @@ describe('pending smart entry handoff', () => {
 
   it('hands the input to the matching habit once', () => {
     setPendingSmartEntry('running', 'I ran a mile in 8 minutes');
-    expect(takePendingSmartEntry('running')).toBe('I ran a mile in 8 minutes');
+    expect(takePendingSmartEntry('running')).toEqual({ transcript: 'I ran a mile in 8 minutes' });
     expect(takePendingSmartEntry('running')).toBeNull();
+  });
+
+  it('hands over when it was done, when it says', () => {
+    const loggedAt = new Date('2026-10-12T18:00:00Z');
+    setPendingSmartEntry('running', 'I ran a mile yesterday', loggedAt);
+    expect(takePendingSmartEntry('running')).toEqual({ transcript: 'I ran a mile yesterday', loggedAt });
   });
 
   it('ignores, and clears, input meant for a different habit', () => {

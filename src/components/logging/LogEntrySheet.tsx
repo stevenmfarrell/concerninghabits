@@ -12,14 +12,15 @@ import type { HabitLogger } from './useHabitLogger';
 import { useVoiceLogging } from './useVoiceLogging';
 import { useImageLogging } from './useImageLogging';
 import { INPUT } from '@/components/ui/Input';
+import { toDateTimeInputValue } from '@/lib/format';
 
 // A habit's entry form in a pane that slides up from the bottom, over whatever page the Log button
 // was on: its fields (fillable by voice or photo), an optional custom date, and the submit button.
 // Render it only while `logger.sheetOpen`, so its speech recognition only exists while it's up.
 export default function LogEntrySheet({ logger }: { logger: HabitLogger }) {
-  const { habit, schema, properties, hasForm, formData, setFormData, busy, sheetBackdate } = logger;
+  const { habit, schema, properties, hasForm, formData, setFormData, busy, sheetBackdate, sheetLogDate } = logger;
   const [showBackdate, setShowBackdate] = useState(sheetBackdate);
-  const [logDate, setLogDate] = useState('');
+  const [logDate, setLogDate] = useState(() => (sheetLogDate ? toDateTimeInputValue(sheetLogDate) : ''));
 
   const handleExtracted = (data: Record<string, unknown>, toastId: string, source: string) => logger.fillIn(data, source, toastId);
   const { isListening, isProcessing: voiceProcessing, toggleListen } = useVoiceLogging(habit, handleExtracted, logger.closeSheet);

@@ -24,17 +24,19 @@ import { isNetworkError } from '@/lib/offline/sync';
 // habit is filled in and logged right here (or finished on the habit's page if it needs more than
 // was said); a new habit is drafted by the AI model for the user to review, with the input as its
 // first entry when it was something done. When the matcher isn't sure which habit, the user picks
-// from its top candidates instead.
+// from its top candidates instead. Said to be done on an earlier day ("yesterday", "on October 10th"),
+// it's logged then (see whenDone).
 export default function SmartEntry({ size }: { size?: ButtonSize }) {
   const router = useRouter();
   // While the input is being matched or a new habit drafted: what's happening, and the input
   const [status, setStatus] = useState<SpeakOrTypeStatus>(null);
-  const [picker, setPicker] = useState<{ input: string; candidates: HabitCandidate[]; didIt: boolean } | null>(null);
+  const [picker, setPicker] = useState<{ input: string; candidates: HabitCandidate[]; didIt: boolean; loggedAt?: Date } | null>(null);
 
   const closePanel = () => setStatus(null);
 
   // Continues in the panel until the app navigates away, which unmounts this
-  const proceed = async (candidate: HabitCandidate, input: string, didIt: boolean) => {
+  // `loggedAt` is when the input says it was done, if earlier than now
+  const proceed = async (candidate: HabitCandidate, input: string, didIt: boolean, loggedAt?: Date) => {
     setPicker(null);
 
     if (candidate.habitId && didIt) {
@@ -54,11 +56,12 @@ export default function SmartEntry({ size }: { size?: ButtonSize }) {
           data: result.data,
           schemaProperties: fieldsOf(result.schema),
           source: `From “${input}”`,
+          loggedAt: result.createdAt,
         });
       } else {
         toast(`Add the rest of the details for ${candidate.name}`, { icon: '✏️' });
         setStatus({ message: `Opening ${candidate.name}...`, input });
-        router.push(prefillHref(candidate.habitId, result.data));
+        router.push(prefillHref(candidate.habitId, result.data, result.loggedAt));
       }
       return;
     }
@@ -71,7 +74,7 @@ export default function SmartEntry({ size }: { size?: ButtonSize }) {
       const data = await prefillSmartEntry(candidate.habitId, input);
       if (Object.keys(data).length > 0) {
         toast(`Check the details for ${candidate.name}, then log it`, { icon: '✏️' });
-        router.push(prefillHref(candidate.habitId, data));
+        router.push(prefillHref(candidate.habitId, data, loggedAt));
       } else {
         toast(`You already track ${candidate.name}`, { icon: '👍' });
         router.push(`/log/${candidate.habitId}`);
@@ -85,7 +88,7 @@ export default function SmartEntry({ size }: { size?: ButtonSize }) {
     );
     if (result.success) {
       // The input rides along so saving the drafted habit can also log it as the first entry
-      sessionStorage.setItem('draftHabit', JSON.stringify({ ...result, transcript: input, logFirstEntry: didIt }));
+      sessionStorage.setItem('draftHabit', JSON.stringify({ ...result, transcript: input, logFirstEntry: didIt, ...(loggedAt ? { loggedAt: loggedAt.toISOString() } : {}) }));
       router.push('/create/refine');
     } else {
       closePanel();
@@ -115,14 +118,14 @@ export default function SmartEntry({ size }: { size?: ButtonSize }) {
         closePanel();
         toast.error(result.error);
       } else if (result.confident) {
-        await proceed(result.candidates[0], input, result.didIt);
+        await proceed(result.candidates[0], input, result.didIt, result.loggedAt);
       } else {
         closePanel();
         // Always offer a new habit, even when it's not among the matcher's top candidates
         const candidates = result.candidates.some(c => !c.habitId)
           ? result.candidates
           : [...result.candidates, { habitId: null, name: 'New habit', probability: null }];
-        setPicker({ input, candidates, didIt: result.didIt });
+        setPicker({ input, candidates, didIt: result.didIt, loggedAt: result.loggedAt });
       }
     } catch (err) {
       if (isNetworkError(err)) return keepForLater(input);
@@ -172,7 +175,7 @@ export default function SmartEntry({ size }: { size?: ButtonSize }) {
                   key={candidate.habitId ?? 'new'}
                   variant="outline"
                   size="lg"
-                  onClick={() => proceed(candidate, picker.input, picker.didIt)}
+                  onClick={() => proceed(candidate, picker.input, picker.didIt, picker.loggedAt)}
                   className="w-full"
                 >
                   {!candidate.habitId && <Sparkles className="w-5 h-5 text-accent-ink shrink-0" />}

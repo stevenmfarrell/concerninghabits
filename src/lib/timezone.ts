@@ -76,3 +76,27 @@ export const civilDateFor = (instant: Date | string | number, user: DayOwner) =>
 
 // Today for `user`, as a civil day key
 export const todayKeyFor = (user: DayOwner, now = new Date()) => civilDayKey(civilDateFor(now, user));
+
+const minuteFormatters = new Map<string, Intl.DateTimeFormat>();
+
+// How far `timeZone`'s clocks are ahead of UTC at `instant`, in minutes (e.g. -360 in Denver in summer)
+export function zoneOffsetMinutes(instant: Date, timeZone: string) {
+  let formatter = minuteFormatters.get(timeZone);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat('en-US', { timeZone, year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', hourCycle: 'h23' });
+    minuteFormatters.set(timeZone, formatter);
+  }
+  const parts = formatter.formatToParts(instant);
+  const part = (type: Intl.DateTimeFormatPartTypes) => Number(parts.find(p => p.type === type)?.value);
+  const wall = Date.UTC(part('year'), part('month') - 1, part('day'), part('hour'), part('minute'));
+  return Math.round((wall - Math.floor(instant.getTime() / 60_000) * 60_000) / 60_000);
+}
+
+// The instant a clock in `timeZone` shows `hour`:`minute` on civil date `day`
+export function wallTimeToInstant(day: Date, hour: number, minute: number, timeZone: string) {
+  const wall = Date.UTC(day.getUTCFullYear(), day.getUTCMonth(), day.getUTCDate(), hour, minute);
+  // The offset at the wall time read as UTC is right unless a clock change falls in between, so
+  // check it again at the instant that gives
+  const guess = wall - zoneOffsetMinutes(new Date(wall), timeZone) * 60_000;
+  return new Date(wall - zoneOffsetMinutes(new Date(guess), timeZone) * 60_000);
+}

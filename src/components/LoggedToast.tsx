@@ -19,6 +19,8 @@ export interface LoggedEntry {
   // How the entry was made when it wasn't typed in by hand, e.g. `From “ran a mile”`. Its presence
   // marks an automatic entry, which stays up longer so there's time to check it.
   source?: string;
+  // When it was done, when that isn't now (e.g. a backdated entry)
+  loggedAt?: Date;
   // Kept on this device to send once back online (see src/lib/offline), rather than logged yet
   queued?: boolean;
 }
@@ -60,7 +62,7 @@ export function showLoggedToast(entry: LoggedEntry, { onUndone, toastId }: { onU
       icon={<Check className="w-5 h-5" strokeWidth={3} />}
       iconClassName="bg-accent text-on-accent"
       title={`${entry.habitName} logged`}
-      detail={entry.queued ? (entry.source ? `${entry.source} · saved offline` : QUEUED_DETAIL) : entry.source}
+      detail={[loggedOn(entry.loggedAt), entry.queued ? (entry.source ? `${entry.source} · saved offline` : QUEUED_DETAIL) : entry.source].filter(Boolean).join(' · ') || undefined}
       values={values}
       onUndo={() => undo(t)}
     />
@@ -68,6 +70,18 @@ export function showLoggedToast(entry: LoggedEntry, { onUndone, toastId }: { onU
     id: toastId,
     duration: entry.source || entry.queued ? AUTOMATIC_DURATION_MS : MANUAL_DURATION_MS,
   });
+}
+
+// The day a backdated entry was logged on, for its toast, e.g. "For yesterday" or "For Sat, Oct 10".
+// Nothing for one logged today.
+function loggedOn(loggedAt: Date | undefined) {
+  if (!loggedAt) return '';
+  const day = new Date(loggedAt);
+  const today = new Date();
+  const yesterday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
+  if (day.toDateString() === today.toDateString()) return '';
+  if (day.toDateString() === yesterday.toDateString()) return 'For yesterday';
+  return `For ${day.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', ...(day.getFullYear() !== today.getFullYear() ? { year: 'numeric' } : {}) })}`;
 }
 
 // Confirms a habit or category just skipped (e.g. swiped away on the Agenda), with an Undo that
