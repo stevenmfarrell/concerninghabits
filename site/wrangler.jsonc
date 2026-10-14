@@ -16,5 +16,8 @@
     { "pattern": "www.concerninghabits.com", "custom_domain": true }
   ],
   // Gives every branch and pull request its own preview address; can stay empty
-  "previews": {}
+  "previews": {},
+  // Serves those previews on workers.dev. Off by default, and a deploy applies the default, so
+  // without it the first production deploy turned preview addresses off.
+  "preview_urls": true
 }
