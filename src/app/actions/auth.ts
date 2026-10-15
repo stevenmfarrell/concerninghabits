@@ -10,6 +10,7 @@ import { seedDefaultCategories } from '@/lib/defaultCategories';
 import { RETURN_TO_PARAM, safeReturnTo } from '@/lib/returnTo';
 import { clientIp } from '@/lib/rateLimit';
 import { isCloud, isServerAdmin, usesPasswords } from '@/lib/deployment';
+import { deleteAccount, selfDeletionProblem } from '@/lib/accounts';
 import { connectToEveryone } from '@/lib/connections';
 
 const LOGIN_WINDOW_MS = 15 * 60 * 1000;
@@ -217,18 +218,30 @@ export async function deleteUser(userIdToDelete: string) {
     return { error: 'You cannot delete yourself' };
   }
 
-  // Removes the user's own entries (including on habits others shared with them), and their habits
-  // along with everyone's entries on those. Memberships go with the user and habits (cascade).
-  await prisma.$transaction([
-    prisma.habitLog.deleteMany({ where: { OR: [{ userId: userIdToDelete }, { habit: { userId: userIdToDelete } }] } }),
-    prisma.habit.deleteMany({ where: { userId: userIdToDelete } }),
-    prisma.category.deleteMany({ where: { userId: userIdToDelete } }),
-    prisma.user.delete({ where: { id: userIdToDelete } })
-  ]);
+  await deleteAccount(userIdToDelete);
 
   const { revalidatePath } = await import('next/cache');
   revalidatePath('/settings/users');
   return { success: true };
+}
+
+// Deletes the current user's own account and everything in it (see deleteAccount), then signs them
+// out. `confirmation` is what they typed to confirm, which must be DELETE.
+export async function deleteMyAccount(confirmation: string) {
+  const { verifySession } = await import('@/lib/auth');
+  const session = await verifySession();
+  if (!session?.userId) return { error: 'Unauthorized' };
+  if (confirmation.trim().toUpperCase() !== 'DELETE') return { error: 'Type DELETE to confirm' };
+
+  const user = await prisma.user.findUnique({ where: { id: session.userId }, select: { id: true, isAdmin: true } });
+  if (!user) return { error: 'Unauthorized' };
+  const problem = await selfDeletionProblem(user);
+  if (problem) return { error: problem };
+
+  await deleteAccount(user.id);
+  // Its sessions went with it; this clears the cookie
+  await deleteSession();
+  redirect('/login');
 }
 
 export async function updatePassword(formData: FormData) {
