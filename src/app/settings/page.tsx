@@ -73,6 +73,7 @@ export default async function SettingsPage() {
         {user.isAdmin && (
           <SettingsLink href="/settings/users" icon={<Users className="w-5 h-5" />} title="Family Users" description="Add or remove family members" />
         )}
+        <SettingsLink href="/settings/people" icon={<Users className="w-5 h-5" />} title="People" description="Who you can share habits with" />
       </PaneSection>
 
       <PaneSection title="Help">

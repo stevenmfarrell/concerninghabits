@@ -11,6 +11,8 @@ import { assignUserColors } from '@/lib/userColors';
 import { cookies, headers } from 'next/headers';
 import { RETURN_TO_HEADER, withReturnTo } from '@/lib/returnTo';
 import { revalidateLists } from './internal';
+import { connectedIds, disconnect } from '@/lib/connections';
+import { z } from 'zod';
 
 export async function getDefaultUser(allowNeedsUpdate = false) {
   return getRequestUser(allowNeedsUpdate);
@@ -70,11 +72,38 @@ export async function updateUserPreferences(prefs: { bedtime?: string, weekStart
   revalidateLists();
 }
 
-// Everyone on this instance with their display color as the current user sees it (green for
-// themselves), in account creation order. An instance is one household, so users can see each
-// other's names to share habits and read shared history.
+// Everyone whose name the current user can see, with their display color as the current user sees
+// it (green for themselves), in account creation order: the people they're connected to (see
+// connections.ts), and anyone else on a habit they're in (e.g. someone
+// else the habit's owner shared it with). Anyone else who logged entries they can see shows as a
+// former member (see PersonLabel).
 export async function getPeople() {
   const user = await getDefaultUser();
-  const users = await prisma.user.findMany({ orderBy: { createdAt: 'asc' }, select: { id: true, name: true } });
-  return assignUserColors(users, user.id);
+  const [connected, coMembers] = await Promise.all([
+    connectedIds(user.id),
+    prisma.habitMember.findMany({
+      where: { habit: { members: { some: { userId: user.id } } }, userId: { not: user.id } },
+      select: { userId: true },
+    }),
+  ]);
+  const ids = [...new Set([user.id, ...connected, ...coMembers.map(m => m.userId)])];
+  // Sorted here rather than with orderBy: Prisma splits a long `in` list into several queries for
+  // SQLite, and combining that with orderBy crashes its query engine
+  const users = (await prisma.user.findMany({ where: { id: { in: ids } }, select: { id: true, name: true, createdAt: true } }))
+    .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime() || a.id.localeCompare(b.id));
+  return assignUserColors(users.map(({ id, name }) => ({ id, name })), user.id);
+}
+
+// The people the current user can share habits with (see connections.ts), in account creation order
+export async function getConnectedIds() {
+  return connectedIds((await getDefaultUser()).id);
+}
+
+// Disconnects the current user from someone (Settings → People): they stop seeing each other, and
+// come off the habits they'd shared with each other (see disconnect)
+export async function removeConnection(otherId: string) {
+  const user = await getDefaultUser();
+  await disconnect(user.id, z.string().parse(otherId));
+  revalidateLists();
+  revalidatePath('/settings/people');
 }

@@ -11,6 +11,7 @@ import type { CalculatedField } from '@/lib/calculatedFields';
 import { cadenceJson, END_OF_LIST_ORDER, revalidateLists, getOwnedCategory, habitListRows, toHabitListItem, getRecentLogsCutoff, getMembership, getOwnedHabit, fileHabit, checkCalculatedFields, filingChange } from './internal';
 import { getDefaultUser } from './user';
 import { loggableHabitsOf } from './smartEntry';
+import { connectedIds } from '@/lib/connections';
 
 // A habit's name, description and form checked, since they come from the browser
 function checkHabit(name: string, description: string, schema: HabitSchema) {
@@ -188,18 +189,22 @@ export async function setHabitAiContext(habitId: string, aiContext: string) {
   revalidatePath(`/edit/${habitId}`);
 }
 
-// Sets exactly which other users a habit is shared with (owner only). Newly added users find it in
+// Sets exactly which other users a habit is shared with (owner only), from the people the owner is
+// connected to. Newly added users find it in
 // their Uncategorized list. Removed users lose access, but the entries they logged stay.
 export async function setHabitSharing(habitId: string, userIds: string[]) {
   const user = await getDefaultUser();
   const habit = await getOwnedHabit(user.id, habitId);
   const sharedWith = [...new Set(z.array(z.string()).parse(userIds))].filter(id => id !== habit.userId);
-  if (await prisma.user.count({ where: { id: { in: sharedWith } } }) !== sharedWith.length) {
-    throw new Error("Unknown user");
-  }
-
   const existing = await prisma.habitMember.findMany({ where: { habitId }, select: { userId: true } });
   const existingIds = new Set(existing.map(m => m.userId));
+
+  // Only with people the owner is connected to (everyone, on a self-hosted server; see
+  // connections.ts), or who are already on it, so a stranger's id can't be slipped in
+  const allowed = new Set([...await connectedIds(user.id), ...existingIds]);
+  if (sharedWith.some(id => !allowed.has(id))) {
+    throw new Error("You can only share with people you're connected to");
+  }
   await prisma.$transaction([
     prisma.habitMember.deleteMany({ where: { habitId, userId: { notIn: [habit.userId, ...sharedWith] } } }),
     prisma.habitMember.createMany({

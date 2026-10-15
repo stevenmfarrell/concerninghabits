@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { prisma } from '@/lib/prisma';
-import { setSessionCookie } from '../setup';
+import { setSessionCookie, connectSignedInUserTo } from '../setup';
 import { saveHabit, setHabitSharing } from '@/app/actions/habits';
 import { getApiKeys, makeApiKey, revokeApiKey, setApiKeyPermissions } from '@/app/actions/apiKeys';
 import type { ApiPermissions } from '@/lib/apiKeys';
@@ -80,6 +80,7 @@ describe('logging through the API', () => {
     setSessionCookie(owner.sessionId);
     runId = (await saveHabit('Run', '', runSchema)).id;
     waterId = (await saveHabit('Water', '', { type: 'object', properties: {} })).id;
+    await connectSignedInUserTo(member.user.id);
     await setHabitSharing(runId, [member.user.id]);
     ownerKey = await newKey(owner.sessionId);
   });

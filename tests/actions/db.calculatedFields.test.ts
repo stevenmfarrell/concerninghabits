@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { prisma } from '@/lib/prisma';
-import { setSessionCookie } from '../setup';
+import { setSessionCookie, connectSignedInUserTo } from '../setup';
 import { deleteCalculatedField, saveCalculatedField } from '@/app/actions/charts';
 import { saveHabit, setHabitSharing, updateHabit } from '@/app/actions/habits';
 import { parseCalculatedFields, type CalculatedField } from '@/lib/calculatedFields';
@@ -88,6 +88,7 @@ describe('calculated fields', () => {
   it('only lets the owner change them, even on a shared habit', async () => {
     await saveCalculatedField(habitId, null, pace);
     const member = await createTestUser('Member');
+    await connectSignedInUserTo(member.user.id);
     await setHabitSharing(habitId, [member.user.id]);
 
     setSessionCookie(member.sessionId);

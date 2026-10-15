@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { prisma } from '@/lib/prisma';
-import { setSessionCookie } from '../setup';
+import { setSessionCookie, connectSignedInUserTo } from '../setup';
 import { saveHabit, setHabitSharing } from '@/app/actions/habits';
 import { logHabitEvent } from '@/app/actions/entries';
 import { POST as sync } from '@/app/api/sync/route';
@@ -131,6 +131,7 @@ describe('syncing changes made offline', () => {
 
   it('doesn\'t let an edit or deletion touch someone else\'s entry', async () => {
     const member = await createTestUser('Member');
+    await connectSignedInUserTo(member.user.id);
     await setHabitSharing(runId, [member.user.id]);
     const entry = logOp(runId, { distance: 3 });
     await send([entry]);

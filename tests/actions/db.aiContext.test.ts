@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { prisma } from '@/lib/prisma';
-import { setSessionCookie } from '../setup';
+import { setSessionCookie, connectSignedInUserTo } from '../setup';
 import { getHabit, getLoggableHabits, saveHabit, setHabitAiContext, setHabitSharing, updateHabit } from '@/app/actions/habits';
 import { MAX_AI_CONTEXT_LENGTH } from '@/lib/constants';
 
@@ -35,6 +35,7 @@ describe('per-member context for AI', () => {
     asOwner();
     const habit = await saveHabit('Cycling', '', testSchema, undefined, { type: 'daily', timesPerDay: 1 }, false, '  Bike commute is 4 miles, 30 minutes.  ');
     habitId = habit.id;
+    await connectSignedInUserTo(member.user.id);
     await setHabitSharing(habitId, [member.user.id]);
   });
 

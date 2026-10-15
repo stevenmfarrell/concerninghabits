@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { prisma } from '@/lib/prisma';
-import { setSessionCookie } from '../setup';
+import { setSessionCookie, connectSignedInUserTo } from '../setup';
 import { createCategory, getCategory } from '@/app/actions/categories';
 import { deleteHabitLog, getHabitLogs, logHabitEvent, updateHabitLog } from '@/app/actions/entries';
 import { deleteHabit, getHabit, getUncategorizedHabits, leaveHabit, reorderHabits, saveHabit, setHabitCategory, setHabitSharing, updateHabit } from '@/app/actions/habits';
@@ -40,6 +40,7 @@ describe('habit sharing', () => {
     const category = await createCategory('Chores', 'List');
     const habit = await saveHabit('Take out trash', '', testSchema, category.id);
     habitId = habit.id;
+    await connectSignedInUserTo(member.user.id);
     await setHabitSharing(habitId, [member.user.id]);
   });
 
@@ -180,7 +181,8 @@ describe('habit sharing', () => {
 
   it('rejects sharing with a user that doesn\'t exist', async () => {
     asOwner();
-    await expect(setHabitSharing(habitId, ['not-a-user'])).rejects.toThrow('Unknown user');
+    // Nobody is connected to a user that doesn't exist
+    await expect(setHabitSharing(habitId, ['not-a-user'])).rejects.toThrow('You can only share with people you\'re connected to');
   });
 
   it('lets a member remove a shared habit from their lists, but not the owner', async () => {
@@ -211,6 +213,7 @@ describe('habit sharing', () => {
     asMember();
     await logHabitEvent(habitId, {});
     const memberHabit = await saveHabit('Member Habit', '', testSchema);
+    await connectSignedInUserTo(owner.user.id);
     await setHabitSharing(memberHabit.id, [owner.user.id]);
     asOwner();
     const ownerLogOnMemberHabit = await logHabitEvent(memberHabit.id, {});

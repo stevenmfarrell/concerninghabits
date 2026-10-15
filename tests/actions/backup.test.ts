@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { prisma } from '@/lib/prisma';
-import { setSessionCookie } from '../setup';
+import { setSessionCookie, connectSignedInUserTo } from '../setup';
 import { collectBackup, restoreBackup } from '@/app/actions/backupStore';
 import { createCategory, setCategoryCadence } from '@/app/actions/categories';
 import { logHabitEvent } from '@/app/actions/entries';
@@ -110,6 +110,7 @@ describe('backup and restore', () => {
   it('has only the habits the user owns, and their own entries on them', async () => {
     const member = await createTestUser('Member');
     const [run] = backup.habits;
+    await connectSignedInUserTo(member.user.id);
     await setHabitSharing(run.id, [member.user.id]);
     setSessionCookie(member.sessionId);
     await logHabitEvent(run.id, { distance: 1 });

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { prisma } from '@/lib/prisma';
-import { setSessionCookie } from '../setup';
+import { setSessionCookie, connectSignedInUserTo } from '../setup';
 import { getHabitLogPresence, getHabitLogs } from '@/app/actions/entries';
 import { saveHabit, setHabitSharing } from '@/app/actions/habits';
 
@@ -58,6 +58,7 @@ describe('habit log window', () => {
 
   it('reports a former member\'s entries even when they fall outside the window', async () => {
     const member = await createTestUser('Member');
+    await connectSignedInUserTo(member.user.id);
     await setHabitSharing(habitId, [member.user.id]);
     await addLog('2023-01-15T12:00:00Z', member.user.id);
     await setHabitSharing(habitId, []);

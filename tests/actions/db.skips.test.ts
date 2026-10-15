@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { prisma } from '@/lib/prisma';
-import { cookieJar, setSessionCookie } from '../setup';
+import { cookieJar, setSessionCookie, connectSignedInUserTo } from '../setup';
 import { createCategory, deleteCategory, getCategoriesWithHierarchy, getCategory } from '@/app/actions/categories';
 import { deleteHabit, getHabit, getUncategorizedHabits, saveHabit, setHabitSharing } from '@/app/actions/habits';
 import { skipToday, undoSkip } from '@/app/actions/skips';
@@ -48,6 +48,7 @@ describe('skipping a habit', () => {
   it('lets anyone the habit is shared with skip it, for everyone, and no one else', async () => {
     const habit = await saveHabit('Trash', '', testSchema);
     const member = await createTestUser('Member');
+    await connectSignedInUserTo(member.user.id);
     await setHabitSharing(habit.id, [member.user.id]);
 
     setSessionCookie(member.sessionId);

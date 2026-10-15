@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { prisma } from '@/lib/prisma';
-import { cookieJar, setSessionCookie } from '../setup';
+import { cookieJar, setSessionCookie, connectSignedInUserTo } from '../setup';
 import { getDayEntries } from '@/app/actions/entries';
 import { saveHabit, setHabitSharing } from '@/app/actions/habits';
 import { TIMEZONE_COOKIE } from '@/lib/timezone';
@@ -33,6 +33,7 @@ describe('getDayEntries', () => {
 
     setSessionCookie(me.sessionId);
     habitId = (await saveHabit('Swim', '', testSchema)).id;
+    await connectSignedInUserTo(partner.user.id);
     await setHabitSharing(habitId, [partner.user.id]);
   });
 
