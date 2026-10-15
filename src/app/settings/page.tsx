@@ -3,7 +3,7 @@ import { getVacation } from '../actions/vacation';
 import { describeVacation } from '@/lib/vacation';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
-import { AlarmClock, ChevronRight, Code, DatabaseBackup, ExternalLink, FolderTree, GraduationCap, Users, Sliders, LogOut, KeyRound, TreePalm, Zap } from 'lucide-react';
+import { AlarmClock, ChevronRight, Code, DatabaseBackup, ExternalLink, FolderTree, GraduationCap, Users, Sliders, LogOut, KeyRound, TreePalm, Trash2, Zap } from 'lucide-react';
 import Icon from '../../components/Icon';
 import PageHeader from '@/components/PageHeader';
 import { PANE_INSET, PanePage, PaneSection } from '@/components/Pane';
@@ -87,6 +87,7 @@ export default async function SettingsPage() {
         <SettingsLink href="/settings/backup" icon={<DatabaseBackup className="w-5 h-5" />} title="Backup & Restore" description="Download your data as JSON or CSV, or restore it" />
         <SettingsLink href="/settings/api-keys" icon={<Zap className="w-5 h-5" />} title="API Keys" description="Log habits from Shortcuts, Home Assistant and other apps" />
         {usesPasswords() && <SettingsLink href="/update-password" icon={<KeyRound className="w-5 h-5" />} title="Change Password" />}
+        <SettingsLink href="/settings/delete-account" icon={<Trash2 className="w-5 h-5" />} title="Delete Account" description="Delete your account and everything in it" />
         {/* A row like the others rather than a Button, so it reads as part of the list */}
         <form action={async () => {
           'use server';
