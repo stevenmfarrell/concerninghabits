@@ -8,7 +8,7 @@ import { habitSchemaProblem } from '@/lib/habitSchema';
 import { DEFAULT_CADENCE, type Cadence } from '@/lib/cadence';
 import type { HabitSchema } from '@/lib/types';
 import type { CalculatedField } from '@/lib/calculatedFields';
-import { cadenceJson, END_OF_LIST_ORDER, revalidateLists, getOwnedCategory, habitListRows, toHabitListItem, getRecentLogsCutoff, getMembership, getOwnedHabit, fileHabit, checkCalculatedFields, filingChange } from './internal';
+import { cadenceJson, END_OF_LIST_ORDER, revalidateLists, getOwnedCategory, habitListRows, toHabitListItem, listCutoffs, loadListEntries, getMembership, getOwnedHabit, fileHabit, checkCalculatedFields, filingChange } from './internal';
 import { getDefaultUser } from './user';
 import { loggableHabitsOf } from './smartEntry';
 import { connectedIds } from '@/lib/connections';
@@ -66,15 +66,17 @@ export async function getLoggableHabits() {
 }
 
 // `weeks` bounds how far back logs are fetched; see getCategory, which shares this cutoff with the
-// "Uncategorized" synthetic category's history view.
-export async function getUncategorizedHabits(weeks: number = MAX_HISTORY_WEEKS) {
+// "Uncategorized" synthetic category's history view. With `health`, each habit's go back as far as
+// its health needs (see ListHistory).
+export async function getUncategorizedHabits(weeks: number = MAX_HISTORY_WEEKS, health = false) {
   const user = await getDefaultUser();
   // Includes habits newly shared with this user, until they file them into a category
   const memberships = await prisma.habitMember.findMany({
     where: { userId: user.id, categoryId: null },
-    ...habitListRows(getRecentLogsCutoff(weeks)),
+    ...habitListRows,
   });
-  return memberships.map(toHabitListItem);
+  const entries = await loadListEntries(listCutoffs({ weeks, health }, [{ members: memberships, cadences: [] }]), health);
+  return memberships.map(membership => toHabitListItem(membership, entries));
 }
 
 // A habit the current user can see (their own or one shared with them), with their own placement

@@ -56,6 +56,10 @@ export const CONSISTENCY_LABELS: Record<ConsistencyLevel, string> = {
 
 const latest = (a: Date, b: Date) => (a > b ? a : b);
 
+// How far before the start of a calendar cadence's window its first period can begin (a month's),
+// with room to spare: entries before then can't count toward any of its opportunities
+const PERIOD_LEAD_DAYS = 62;
+
 // One time the cadence meant it to be done, and how much of it was: `day` is when it was settled
 // (its last day, or the day it was done), which its weight is counted back from. `size` is how many
 // opportunities' worth it is, for a late every-N-days entry that took more than its N days (see
@@ -71,8 +75,25 @@ interface Opportunity {
 function calendarOpportunities(cadence: Cadence, entryDays: Date[], skips: { from: Date; to: Date }[], from: Date, today: Date, user: CadenceUser): Opportunity[] {
   const needed = entriesNeeded(cadence);
   const limit = limitOf(cadence);
-  const covering = entryDays.map(day => cadenceCovers(cadence, day, user));
   const settlesAtEnd = dueByPeriodEnd(cadence);
+
+  // How many entries count toward each day, from a little before `from` (its first period can begin
+  // before it) to today: each entry adds one over the days its period covers. A running total over
+  // the days, rather than checking every entry against every day.
+  const base = addDays(from, -PERIOD_LEAD_DAYS);
+  const indexOf = (day: Date) => Math.round((day.getTime() - base.getTime()) / DAY_MS);
+  const span = indexOf(today) + 1;
+  const changes = new Array<number>(span + 1).fill(0);
+  for (const day of entryDays) {
+    const range = cadenceCovers(cadence, day, user);
+    const first = Math.max(0, indexOf(range.from));
+    const last = Math.min(span - 1, indexOf(range.to));
+    if (first > last) continue;
+    changes[first]++;
+    changes[last + 1]--;
+  }
+  const countingOn: number[] = [];
+  for (let i = 0, running = 0; i < span; i++) countingOn.push(running += changes[i]);
   const seen = new Set<string>();
   const opportunities: Opportunity[] = [];
 
@@ -87,7 +108,7 @@ function calendarOpportunities(cadence: Cadence, entryDays: Date[], skips: { fro
     seen.add(key);
 
     if (skips.some(skip => skip.from <= anchor && anchor <= skip.to)) continue;
-    const count = covering.filter(range => range.from <= anchor && anchor <= range.to).length;
+    const count = countingOn[indexOf(anchor)] ?? 0;
     if (limit !== null) {
       // Kept only once it's over, but gone over as soon as it is. A week or month the habit didn't
       // exist for all of isn't counted: keeping to a limit for part of one says little.
@@ -174,10 +195,15 @@ function scoreAt(cadence: Cadence, logDates: Date[], skippedDays: readonly strin
   const began = entryDays.reduce((earliest, day) => (day < earliest ? day : earliest), civil(createdAt));
   const from = latest(began, addDays(today, -lookbackDays(cadence)));
 
+  // Only the entries that can still count: those in a period reaching into the window, or for an
+  // every-N-days cadence, whose N days do. A year of a daily habit's entries is mostly older than
+  // its window.
   const shape = shapeOf(cadence);
+  const relevantFrom = addDays(from, -(PERIOD_LEAD_DAYS + (shape.kind === 'rolling' ? shape.days : 0)));
+  const relevant = entryDays.filter(day => day >= relevantFrom);
   const opportunities = shape.kind === 'rolling'
-    ? countdownOpportunities(cadence, shape.days, entryDays, skips, from, today, user)
-    : calendarOpportunities(cadence, entryDays, skips, from, today, user);
+    ? countdownOpportunities(cadence, shape.days, relevant, skips, from, today, user)
+    : calendarOpportunities(cadence, relevant, skips, from, today, user);
 
   const halfLife = halfLifeDays(cadence);
   let weighted = 0;
@@ -209,6 +235,20 @@ function spacingDays(cadence: Cadence): number {
 // How long it takes a cadence's opportunity to count half as much, and how far back they're looked for
 export const halfLifeDays = (cadence: Cadence) => Math.max(MIN_HALF_LIFE_DAYS, HALF_LIFE_OPPORTUNITIES * spacingDays(cadence));
 export const lookbackDays = (cadence: Cadence) => Math.min(MAX_LOOKBACK_DAYS, Math.round(LOOKBACK_HALF_LIVES * halfLifeDays(cadence)));
+
+// How many days of entries a cadence's score and trend can need: its lookback, the week its trend
+// looks back, and the periods (or every-N-days stretch) reaching into the start of that (see
+// scoreAt). CONSISTENCY_HISTORY_WEEKS is the most any cadence needs.
+export function healthHistoryDays(cadence: Cadence) {
+  const shape = shapeOf(cadence);
+  return lookbackDays(cadence) + TREND_DAYS + PERIOD_LEAD_DAYS + (shape.kind === 'rolling' ? shape.days : 0);
+}
+
+// When a category's history began, for its consistency: when it was made, or the first entry on any
+// of its habits if that's earlier
+export function categoryBegan(createdAt: Date, habits: readonly { began?: Date }[]) {
+  return habits.reduce((earliest, habit) => (habit.began && habit.began < earliest ? habit.began : earliest), createdAt);
+}
 
 const levelFor = (score: number): ConsistencyLevel => (score >= THRIVING_FROM ? 'thriving' : score >= TAKING_ROOT_FROM ? 'takingRoot' : 'needsCare');
 

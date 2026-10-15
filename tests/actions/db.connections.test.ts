@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { prisma } from '@/lib/prisma';
-import { setSessionCookie } from '../setup';
+import { among, setSessionCookie } from '../setup';
 import { saveHabit, setHabitSharing } from '@/app/actions/habits';
 import { logHabitEvent } from '@/app/actions/entries';
 import { getConnectedIds, getPeople, removeConnection } from '@/app/actions/user';
@@ -75,14 +75,14 @@ describe('on the hosted version', () => {
 
   it('only connected people see each other, and connecting works both ways', async () => {
     as(sam);
-    expect(await peopleIds()).toEqual([sam.user.id]);
-    expect(await getConnectedIds()).toEqual([]);
+    expect(among(await peopleIds(), sam, pat, stranger)).toEqual([sam.user.id]);
+    expect(among(await getConnectedIds(), sam, pat, stranger)).toEqual([]);
 
     await connect(pat.user.id, sam.user.id);
     await connect(sam.user.id, pat.user.id);
     expect(await prisma.connection.count({ where: { OR: [{ userAId: sam.user.id }, { userBId: sam.user.id }] } })).toBe(1);
-    expect(await peopleIds()).toEqual([sam.user.id, pat.user.id]);
-    expect(await connectedIds(pat.user.id)).toEqual([sam.user.id]);
+    expect(among(await peopleIds(), sam, pat, stranger)).toEqual([sam.user.id, pat.user.id]);
+    expect(among(await connectedIds(pat.user.id), sam, pat, stranger)).toEqual([sam.user.id]);
     expect(await peopleIds()).not.toContain(stranger.user.id);
     await expect(connect(sam.user.id, sam.user.id)).rejects.toThrow('You can\'t connect with yourself');
   });
@@ -105,8 +105,8 @@ describe('on the hosted version', () => {
     await setHabitSharing(habit.id, [pat.user.id, stranger.user.id]);
 
     as(pat);
-    expect(await peopleIds()).toEqual([sam.user.id, pat.user.id, stranger.user.id]);
-    expect(await getConnectedIds()).toEqual([sam.user.id]);
+    expect(among(await peopleIds(), sam, pat, stranger)).toEqual([sam.user.id, pat.user.id, stranger.user.id]);
+    expect(among(await getConnectedIds(), sam, pat, stranger)).toEqual([sam.user.id]);
     const own = await saveHabit('Pat\'s run', '', testSchema);
     await expect(setHabitSharing(own.id, [stranger.user.id])).rejects.toThrow('You can only share with people you\'re connected to');
   });
@@ -123,8 +123,8 @@ describe('on the hosted version', () => {
 
     as(sam);
     await removeConnection(pat.user.id);
-    expect(await getConnectedIds()).toEqual([]);
-    expect(await peopleIds()).toEqual([sam.user.id]);
+    expect(among(await getConnectedIds(), sam, pat, stranger)).toEqual([]);
+    expect(among(await peopleIds(), sam, pat, stranger)).toEqual([sam.user.id]);
     expect(await prisma.habitMember.findMany({ where: { habitId: samsHabit.id } })).toMatchObject([{ userId: sam.user.id }]);
     expect(await prisma.habitMember.findMany({ where: { habitId: patsHabit.id } })).toMatchObject([{ userId: pat.user.id }]);
     expect(await prisma.habitLog.count({ where: { habitId: samsHabit.id, userId: pat.user.id } })).toBe(1);

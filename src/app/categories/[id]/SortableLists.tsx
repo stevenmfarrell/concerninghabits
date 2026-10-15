@@ -11,9 +11,10 @@ import ActivityCalendar from '../../../components/ActivityCalendar';
 import { reorderCategories } from '@/app/actions/categories';
 import { reorderHabits } from '@/app/actions/habits';
 import { NO_CADENCE, parseCadence } from '@/lib/cadence';
-import { skippedDaysOf, type RowStatus as Status } from '@/lib/dueList';
+import type { RowStatus as Status } from '@/lib/dueList';
 import type { HabitListItem, SessionUser, SubcategoryListItem } from '@/lib/types';
-import { isSharedHabit, type Person } from '@/lib/userColors';
+import type { Person } from '@/lib/userColors';
+import { ROW_CALENDAR_WEEKS } from '@/lib/calendarRange';
 import { useReorderableList } from './useReorderableList';
 import LogHabitButton from '@/components/logging/LogHabitButton';
 import HoldToLog from '@/components/logging/HoldToLog';
@@ -213,8 +214,6 @@ const SortableHabitItem = ({ habit, status, health, user, people, isOverlay, isR
     transition: transition || undefined,
   };
 
-  const logs = habit.logs ?? [];
-  const isShared = isSharedHabit(habit.userId, habit.memberCount ?? 1, logs);
   const cadence = parseCadence(habit.cadence);
 
   // An Agenda row (with a ring) is roomier side to side and less so top to bottom, with a larger name.
@@ -264,18 +263,15 @@ const SortableHabitItem = ({ habit, status, health, user, people, isOverlay, isR
           <div className={`shrink-0 flex items-center ${holdToLog ? 'gap-4' : 'gap-3'}`}>
             {status && <RowStatus days={status.dueInDays} limit={status.limit} />}
             <div className="opacity-80 group-hover/row:opacity-100 transition-opacity pointer-events-none">
+              {/* Worked out on the server (see toRowHabit), a shared habit's days colored by who logged them */}
               <ActivityCalendar
-                dates={logs.map(l => l.createdAt)}
-                loggedBy={isShared ? logs.map(l => l.userId) : undefined}
-                people={isShared ? people : undefined}
-                weeks={4}
+                summary={habit.calendar ?? {}}
+                people={people}
+                weeks={ROW_CALENDAR_WEEKS}
                 size="xs"
                 emptyColor="bg-surface-strong/70"
                 futureColor="bg-transparent"
                 cadence={cadence}
-                skippedDays={skippedDaysOf(habit)}
-                vacations={user.vacations}
-                since={habit.createdAt}
                 bedtime={user.bedtime} 
                 weekStartsOn={user.weekStartsOn}
                 timeZone={user.timeZone}

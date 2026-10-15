@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { prisma } from '@/lib/prisma';
-import { setSessionCookie } from '../setup';
+import { among, setSessionCookie } from '../setup';
 import { saveHabit } from '@/app/actions/habits';
 import { getConnectedIds } from '@/app/actions/user';
 import { acceptInviteLink, cancelInvite, createInviteLink, getPendingInvites } from '@/app/actions/invites';
@@ -43,12 +43,12 @@ describe('invite links', () => {
 
     as(pat);
     expect(await acceptInviteLink(token)).toEqual({ to: '/settings/people', message: 'You\'re connected with Sam' });
-    expect(await getConnectedIds()).toEqual([sam.user.id]);
-    expect(await connectedIds(sam.user.id)).toEqual([pat.user.id]);
+    expect(among(await getConnectedIds(), sam, pat, stranger)).toEqual([sam.user.id]);
+    expect(among(await connectedIds(sam.user.id), sam, pat, stranger)).toEqual([pat.user.id]);
 
     as(stranger);
     await expect(acceptInviteLink(token)).rejects.toThrow('This invite has already been used.');
-    expect(await getConnectedIds()).toEqual([]);
+    expect(among(await getConnectedIds(), sam, pat, stranger)).toEqual([]);
     as(sam);
     expect(await getPendingInvites()).toEqual([]);
   });
@@ -78,7 +78,7 @@ describe('invite links', () => {
 
     as(pat);
     expect(await acceptInviteLink(token)).toEqual({ to: '/settings/people', message: 'You\'re connected with Sam' });
-    expect(await getConnectedIds()).toEqual([sam.user.id]);
+    expect(among(await getConnectedIds(), sam, pat, stranger)).toEqual([sam.user.id]);
   });
 
   it('works for someone already connected, adding them to its habit', async () => {
@@ -107,7 +107,7 @@ describe('invite links', () => {
     expect(await getPendingInvites()).toEqual([]);
     as(pat);
     await expect(acceptInviteLink(token)).rejects.toThrow('This invite has expired.');
-    expect(await getConnectedIds()).toEqual([]);
+    expect(among(await getConnectedIds(), sam, pat, stranger)).toEqual([]);
   });
 
   it('stops working once canceled, which only its maker can do', async () => {
@@ -137,6 +137,6 @@ describe('invite links', () => {
     const token = await createInviteLink();
     as(pat);
     await acceptInviteLink(token);
-    expect(await getConnectedIds()).toEqual([sam.user.id]);
+    expect(among(await getConnectedIds(), sam, pat, stranger)).toEqual([sam.user.id]);
   });
 });

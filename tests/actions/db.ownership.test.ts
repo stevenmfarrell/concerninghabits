@@ -1,6 +1,6 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { prisma } from '@/lib/prisma';
-import { setSessionCookie } from '../setup';
+import { among, setSessionCookie } from '../setup';
 import { createCategory, deleteCategory, getCategory, reorderCategories, setCategoryCadence, updateCategory } from '@/app/actions/categories';
 import { deleteHabitLog, getHabitLogPresence, getHabitLogs, logHabitEvent, updateHabitLog } from '@/app/actions/entries';
 import { deleteHabit, getHabit, isMqttConfigured, leaveHabit, reorderHabits, saveHabit, setHabitAiContext, setHabitCadence, setHabitCategory, setHabitSharing, updateHabit } from '@/app/actions/habits';
@@ -245,7 +245,7 @@ describe('between accounts on the hosted version', () => {
     await setHabitSharing(habit.id, [quinn.user.id]);
 
     as(quinn);
-    expect(Object.keys(await getPeople()).sort()).toEqual([sam.user.id, quinn.user.id].sort());
+    expect(among(Object.keys(await getPeople()), sam, pat, quinn, stranger).sort()).toEqual([sam.user.id, quinn.user.id].sort());
     const { csv } = await exportHabitLogsCsv(habit.id);
     expect(csv).toContain('Former member');
     expect(csv).toContain('Sam');

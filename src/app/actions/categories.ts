@@ -6,37 +6,45 @@ import { MAX_HISTORY_WEEKS, MAX_NAME_LENGTH, UNCATEGORIZED_ID, UNCATEGORIZED_ICO
 import { isIconName } from '@/lib/icons';
 import { NO_CADENCE, type Cadence } from '@/lib/cadence';
 import { getUncategorizedHabits } from './habits';
-import { cadenceJson, revalidateLists, getOwnedCategory, assertValidParent, habitListRows, withHabits, categorySkips, getRecentLogsCutoff } from './internal';
+import { cadenceJson, revalidateLists, getOwnedCategory, assertValidParent, habitListRows, withHabits, categorySkips, listCutoffs, loadListEntries } from './internal';
 import { getDefaultUser } from './user';
 
 // `weeks` bounds how far back logs are fetched: enough for the 4-week row calendars by default, or
 // more for a caller that looks further back (the Habits page, for each category's consistency)
-export async function getCategoriesWithHierarchy(weeks = 5) {
+// With `health` (the Habits page), each habit's entries go back as far as its health needs, and its
+// categories' (see ListHistory)
+export async function getCategoriesWithHierarchy(weeks = 5, health = false) {
   const user = await getDefaultUser();
-  const logsCutoff = getRecentLogsCutoff(weeks);
   const categories = await prisma.category.findMany({
     where: { userId: user.id, parentId: null },
     orderBy: [{ order: 'asc' }, { name: 'asc' }],
     include: {
       children: {
         orderBy: [{ order: 'asc' }, { name: 'asc' }],
-        include: { habitMembers: habitListRows(logsCutoff), skips: categorySkips }
+        include: { habitMembers: habitListRows, skips: categorySkips }
       },
-      habitMembers: habitListRows(logsCutoff),
+      habitMembers: habitListRows,
       skips: categorySkips
     }
   });
-  return categories.map(category => ({ ...withHabits(category), children: category.children.map(withHabits) }));
+  // A subcategory's habits count toward its parent too
+  const cutoffs = listCutoffs({ weeks, health }, categories.flatMap(category => [
+    { members: category.habitMembers, cadences: [category.cadence] },
+    ...category.children.map(child => ({ members: child.habitMembers, cadences: [child.cadence, category.cadence] })),
+  ]));
+  const entries = await loadListEntries(cutoffs, health);
+  return categories.map(category => ({ ...withHabits(category, entries), children: category.children.map(child => withHabits(child, entries)) }));
 }
 
 // `weeks` bounds how far back logs are fetched for the activity heatmap; pass the widest horizon
-// a caller might display (the habit page's horizon toggle tops out at MAX_HISTORY_WEEKS).
-export async function getCategory(id: string, weeks: number = MAX_HISTORY_WEEKS) {
+// a caller might display (the habit page's horizon toggle tops out at MAX_HISTORY_WEEKS). With
+// `health`, each habit's go back as far as its health and the category's need (see ListHistory).
+export async function getCategory(id: string, weeks: number = MAX_HISTORY_WEEKS, health = false) {
   const user = await getDefaultUser();
 
   // Habits without a category get a synthetic category so they can use the same pages
   if (id === UNCATEGORIZED_ID) {
-    const habits = await getUncategorizedHabits(weeks);
+    const habits = await getUncategorizedHabits(weeks, health);
     return {
       id: UNCATEGORIZED_ID,
       name: 'Uncategorized',
@@ -51,21 +59,25 @@ export async function getCategory(id: string, weeks: number = MAX_HISTORY_WEEKS)
     };
   }
 
-  const logsCutoff = getRecentLogsCutoff(weeks);
   const category = await prisma.category.findUnique({
     where: { id },
     include: {
       children: {
         orderBy: [{ order: 'asc' }, { name: 'asc' }],
-        include: { habitMembers: habitListRows(logsCutoff), skips: categorySkips }
+        include: { habitMembers: habitListRows, skips: categorySkips }
       },
-      habitMembers: habitListRows(logsCutoff),
+      habitMembers: habitListRows,
       skips: categorySkips,
       parent: true
     }
   });
   if (!category || category.userId !== user.id) return null;
-  return { ...withHabits(category), children: category.children.map(withHabits) };
+  const cutoffs = listCutoffs({ weeks, health }, [
+    { members: category.habitMembers, cadences: [category.cadence] },
+    ...category.children.map(child => ({ members: child.habitMembers, cadences: [child.cadence, category.cadence] })),
+  ]);
+  const entries = await loadListEntries(cutoffs, health);
+  return { ...withHabits(category, entries), children: category.children.map(child => withHabits(child, entries)) };
 }
 
 export async function getCategories() {

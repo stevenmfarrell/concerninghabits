@@ -1,11 +1,11 @@
 'use client';
 
 import { civilDateFor, civilDayKey } from '@/lib/timezone';
-import { DEFAULT_CADENCE, entriesNeeded, limitOf, postpones, startOfWeek, type Cadence } from '@/lib/cadence';
-import { calendarDays } from '@/lib/calendarDays';
+import { DEFAULT_CADENCE, entriesNeeded, limitOf, postpones, type Cadence } from '@/lib/cadence';
+import { calendarCadence, calendarDays, summarizedDay, type CalendarSummary } from '@/lib/calendarDays';
 import type { VacationRange } from '@/lib/vacation';
 import { ACTIVITY_PALETTES, activityShade, type ActivityColor } from '@/lib/activityShade';
-import { calendarStart } from '@/lib/calendarRange';
+import { calendarSpan } from '@/lib/calendarRange';
 import type { Person } from '@/lib/userColors';
 import type { LimitShade } from '@/lib/calendarDays';
 
@@ -15,7 +15,10 @@ const isDifferentMonth = (neighbor: Date | null, day: Date) =>
   !neighbor || neighbor.getUTCMonth() !== day.getUTCMonth();
 
 interface ActivityCalendarProps {
-  dates: Date[];
+  // The entries to shade it by, or the days worked out from them ahead (see summarizeCalendar), for
+  // a list's calendars, whose rows would otherwise each send every entry behind their health
+  dates?: Date[];
+  summary?: CalendarSummary;
   // The viewer's IANA time zone. Days are bucketed in this zone, so the server render and the
   // browser render agree regardless of where each one runs.
   timeZone: string;
@@ -36,7 +39,8 @@ interface ActivityCalendarProps {
   weekStartsOn?: string;
   onDateClick?: (date: Date) => void;
   // For a shared habit: color each day by who logged it instead of the single emerald scale.
-  // `loggedBy[i]` is the id of the user who logged `dates[i]`; `people` has each user's color.
+  // `loggedBy[i]` is the id of the user who logged `dates[i]`; `people` has each user's color. With a
+  // `summary`, the days it says who logged are colored by person.
   loggedBy?: string[];
   people?: Record<string, Person>;
   // Fill color for logged days: emerald for a habit, blue for a category's combined calendar
@@ -64,14 +68,14 @@ function personFill(ids: string[], people: Record<string, Person>) {
 // A limit's calendar is shaded the other way round: a day whose period is over and was kept to the
 // limit is done, with or without entries; one in a period that went over is amber (deeper on the
 // days with entries); and in the period still going, days with entries are lightly shaded.
-export default function ActivityCalendar({ dates, timeZone, weeks = 5, cadence = DEFAULT_CADENCE, density, size = 'sm', monthsPerColumn = 4, bedtime = '00:00', weekStartsOn = 'sunday', emptyColor = 'bg-surface-muted', futureColor = 'bg-transparent border border-line-subtle', onDateClick, loggedBy, people, color = 'emerald', skippedDays, vacations, since }: ActivityCalendarProps) {
+export default function ActivityCalendar({ dates = [], summary, timeZone, weeks = 5, cadence = DEFAULT_CADENCE, density, size = 'sm', monthsPerColumn = 4, bedtime = '00:00', weekStartsOn = 'sunday', emptyColor = 'bg-surface-muted', futureColor = 'bg-transparent border border-line-subtle', onDateClick, loggedBy, people, color = 'emerald', skippedDays, vacations, since }: ActivityCalendarProps) {
   const startsMonday = weekStartsOn === 'monday';
 
   // A combined calendar's density works like a habit due that many times a day
-  const effectiveCadence: Cadence = density ? { type: 'daily', timesPerDay: Math.max(1, density) } : cadence;
+  const effectiveCadence: Cadence = calendarCadence(cadence, density);
   const limit = limitOf(effectiveCadence);
   // A limit's shading is about keeping to it, not who logged
-  const colorByPerson = !!(loggedBy && people) && limit === null;
+  const colorByPerson = !!((loggedBy || summary) && people) && limit === null;
   const needed = entriesNeeded(effectiveCadence);
   // What a fully shaded logged day takes: the cadence's daily target, or one entry when it has none
   const shadeTarget = Number.isFinite(needed) ? needed : 1;
@@ -79,14 +83,9 @@ export default function ActivityCalendar({ dates, timeZone, weeks = 5, cadence =
   const user = { timeZone, bedtime, weekStartsOn, vacations };
   const today = civilDateFor(new Date(), user);
 
-  const getStartOfWeek = (d: Date) => startOfWeek(d, weekStartsOn);
-
-  const endDate = getStartOfWeek(today);
-  endDate.setUTCDate(endDate.getUTCDate() + 6);
-
   // Whole months when it draws month dividers (all but a row's plain xs calendar), so its first row
   // never has a divider over only part of it
-  const startDate = calendarStart(today, weeks, weekStartsOn, size !== 'xs');
+  const { from: startDate, to: endDate } = calendarSpan(today, weeks, weekStartsOn, size !== 'xs');
 
   const allDays = [];
   for (let d = new Date(startDate); d <= endDate; d.setUTCDate(d.getUTCDate() + 1)) {
@@ -115,8 +114,9 @@ export default function ActivityCalendar({ dates, timeZone, weeks = 5, cadence =
   }
   if (currentColumn.length > 0) columns.push(currentColumn);
 
-  // How each day shown stands (see calendarDays)
-  const days = calendarDays({ dates, loggedBy: colorByPerson ? loggedBy : undefined, cadence: effectiveCadence, user, skippedDays, since, from: startDate, to: endDate });
+  // How each day shown stands (see calendarDays), worked out here or ahead
+  const days = summary ? null : calendarDays({ dates, loggedBy: colorByPerson ? loggedBy : undefined, cadence: effectiveCadence, user, skippedDays, since, from: startDate, to: endDate });
+  const dayAt = (day: Date) => (days ? days.get(civilDayKey(day))! : summarizedDay(summary!, day, today));
 
   // Loggers in account order (the order of `people`), so a day's color bands are always arranged
   // the same way.
@@ -144,7 +144,7 @@ export default function ActivityCalendar({ dates, timeZone, weeks = 5, cadence =
           continue;
         }
         
-        const { loggers, ...status } = days.get(civilDayKey(day))!;
+        const { loggers, ...status } = dayAt(day);
 
         const isNewMonthLeft = d > 0 && isDifferentMonth(cellAt(w, d - 1), day);
         const isNewMonthRight = d < 6 && isDifferentMonth(cellAt(w, d + 1), day);

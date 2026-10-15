@@ -28,10 +28,13 @@ export async function connect(userId: string, otherId: string) {
   await prisma.connection.upsert({ where: { userAId_userBId: key }, create: key, update: {} });
 }
 
-// Connects someone just added to a self-hosted server to everyone else on it, as one household
+// Connects someone just added to a self-hosted server to everyone else on it, as one household. In
+// one transaction, so someone removed meanwhile isn't connected to after they're gone.
 export async function connectToEveryone(userId: string) {
-  const others = await prisma.user.findMany({ where: { id: { not: userId } }, select: { id: true } });
-  await prisma.connection.createMany({ data: others.map(other => pair(userId, other.id)) });
+  await prisma.$transaction(async tx => {
+    const others = await tx.user.findMany({ where: { id: { not: userId } }, select: { id: true } });
+    await tx.connection.createMany({ data: others.map(other => pair(userId, other.id)) });
+  });
 }
 
 // Disconnects two people. Each also comes off the habits the other shared with them; the entries

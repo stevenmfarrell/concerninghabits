@@ -1,5 +1,6 @@
-import { addDays, civilDateFor, civilDayKey } from './timezone';
+import { addDays, civilDateFor, civilDayKey, DAY_MS } from './timezone';
 import { cadenceCovers, entriesNeeded, limitOf, skippedCovers, type Cadence, type CadenceUser } from './cadence';
+import { calendarSpan } from './calendarRange';
 
 // How each day of an activity calendar stands, for ActivityCalendar to shade: the entries made on
 // it, the entries counting toward it by the cadence, whether it's done by entries on other days or
@@ -100,4 +101,84 @@ export function calendarDays({ dates, loggedBy, cadence, user, skippedDays = [],
     days.set(key, { isFuture, isToday: key === todayKey, count, counting, isPeriodCompleted, isSkipped, limitShade, loggers });
   }
   return days;
+}
+
+// A day of a calendar worked out ahead (see summarizeCalendar), with only what isn't the default: a
+// day with nothing on it isn't there at all. Whether it's today or in the future isn't kept, since
+// the calendar knows the date.
+export interface DaySummary {
+  count?: number;
+  counting?: number;
+  periodDone?: true;
+  skipped?: true;
+  limitShade?: LimitShade;
+  loggers?: string[];
+}
+
+// A calendar's days worked out on the server, by civil day key, so a page sends what each day shows
+// rather than every entry behind it (which for a habit's health can go back a year)
+export type CalendarSummary = Record<string, DaySummary>;
+
+// The cadence a calendar shades by: a habit's own, or for one combining several habits (a
+// category's with no cadence of its own), a daily target of `density` entries
+export function calendarCadence(cadence: Cadence, density?: number): Cadence {
+  return density ? { type: 'daily', timesPerDay: Math.max(1, density) } : cadence;
+}
+
+// The days of a calendar of `weeks` weeks as ActivityCalendar would work them out from `dates` (see
+// calendarDays), for it to draw instead. `wholeMonths` is whether it draws month dividers (all but a
+// row's plain xs calendar).
+export function summarizeCalendar({ weeks, wholeMonths, density, now = new Date(), ...input }: Omit<Parameters<typeof calendarDays>[0], 'from' | 'to'> & {
+  weeks: number;
+  wholeMonths: boolean;
+  density?: number;
+}): CalendarSummary {
+  const cadence = calendarCadence(input.cadence, density);
+  const { from, to } = calendarSpan(civilDateFor(now, input.user), weeks, input.user.weekStartsOn, wholeMonths);
+  // Only entries that can reach a day shown: within a period (a month at most) or an every-N-days
+  // stretch of the first. A habit's entries are loaded back as far as its health needs, which for a
+  // row's four weeks is mostly too old to show. Its first entry still says when a limit began.
+  const reach = 62 + (cadence.type === 'everyNDays' ? cadence.days : 0);
+  const earliest = addDays(from, -reach).getTime() - DAY_MS;
+  const kept = input.dates.flatMap((date, i) => (date.getTime() >= earliest ? [i] : []));
+  const since = input.since ?? input.dates.reduce<Date | undefined>((first, date) => (!first || date < first ? date : first), undefined);
+  const summary: CalendarSummary = {};
+  for (const [key, day] of calendarDays({
+    ...input,
+    dates: kept.map(i => input.dates[i]),
+    loggedBy: input.loggedBy && kept.map(i => input.loggedBy![i]),
+    since,
+    cadence,
+    from,
+    to,
+    now,
+  })) {
+    const kept: DaySummary = {
+      ...(day.count ? { count: day.count } : {}),
+      ...(day.counting ? { counting: day.counting } : {}),
+      ...(day.isPeriodCompleted ? { periodDone: true as const } : {}),
+      ...(day.isSkipped ? { skipped: true as const } : {}),
+      ...(day.limitShade ? { limitShade: day.limitShade } : {}),
+      ...(day.loggers.length > 0 ? { loggers: day.loggers } : {}),
+    };
+    if (Object.keys(kept).length > 0) summary[key] = kept;
+  }
+  return summary;
+}
+
+// A day of a summarized calendar as calendarDays would have it, `today` being the civil date today
+export function summarizedDay(summary: CalendarSummary, day: Date, today: Date): CalendarDay {
+  const key = civilDayKey(day);
+  const kept = summary[key] ?? {};
+  const isFuture = day > today;
+  return {
+    isFuture,
+    isToday: key === civilDayKey(today),
+    count: isFuture ? 0 : kept.count ?? 0,
+    counting: isFuture ? 0 : kept.counting ?? 0,
+    isPeriodCompleted: !!kept.periodDone,
+    isSkipped: !!kept.skipped,
+    limitShade: kept.limitShade ?? null,
+    loggers: kept.loggers ?? [],
+  };
 }

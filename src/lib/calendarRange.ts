@@ -1,5 +1,8 @@
 import { startOfWeek } from './cadence';
 
+// How many weeks a list row's calendar shows (the Agenda, Habits and category pages)
+export const ROW_CALENDAR_WEEKS = 4;
+
 // The first day an activity calendar of `weeks` weeks shows (see ActivityCalendar), for `today` (a
 // civil date). A year starts on the 1st, 11 months back, so it's exactly 12 months. A few months
 // (more than 7 weeks) start on the 1st of the month `weeks` weeks back. A few weeks start at the
@@ -21,4 +24,12 @@ export function calendarStart(today: Date, weeks: number, weekStartsOn: string, 
     if (wholeMonths) start.setUTCDate(1);
   }
   return start;
+}
+
+// The days an activity calendar of `weeks` weeks shows for `today` (a civil date), first to last:
+// from calendarStart to the end of today's week
+export function calendarSpan(today: Date, weeks: number, weekStartsOn: string, wholeMonths: boolean) {
+  const to = startOfWeek(today, weekStartsOn);
+  to.setUTCDate(to.getUTCDate() + 6);
+  return { from: calendarStart(today, weeks, weekStartsOn, wholeMonths), to };
 }
