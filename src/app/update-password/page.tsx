@@ -2,10 +2,14 @@ import { getDefaultUser } from '@/app/actions/user';
 import UpdatePasswordForm from './UpdatePasswordForm';
 import PageHeader from '@/components/PageHeader';
 import { PANE_INSET, PanePage } from '@/components/Pane';
+import { notFound } from 'next/navigation';
+import { usesPasswords } from '@/lib/deployment';
 
 // Changing your password from Settings, or setting one before going on (e.g. a provisioned account's
-// temporary password), which has nothing to go back to
+// temporary password), which has nothing to go back to. Not on the hosted version, which has no
+// passwords.
 export default async function UpdatePasswordPage() {
+  if (!usesPasswords()) notFound();
   const user = await getDefaultUser(true);
   const needsUpdate = user.passwordNeedsUpdate;
 

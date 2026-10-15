@@ -8,6 +8,7 @@ import Icon from '../../components/Icon';
 import PageHeader from '@/components/PageHeader';
 import { PANE_INSET, PanePage, PaneSection } from '@/components/Pane';
 import { SOURCE_CODE_URL } from '@/lib/constants';
+import { isServerAdmin, usesPasswords } from '@/lib/deployment';
 
 // A row's icon and text, shared by the link rows and the Log Out button row
 function RowContent({ icon, title, description }: { icon: ReactNode; title: string; description?: string }) {
@@ -47,6 +48,7 @@ function SettingsExternalLink({ href, ...content }: { href: string; icon: ReactN
 
 export default async function SettingsPage() {
   const [user, vacation] = await Promise.all([getDefaultUser(), getVacation()]);
+  const admin = isServerAdmin(user);
 
   return (
     <PanePage width="3xl" header={<PageHeader title="Settings" showBack={false} />}>
@@ -57,7 +59,7 @@ export default async function SettingsPage() {
         <div className="min-w-0">
           <h2 className="text-xl font-bold text-ink truncate">{user.name}</h2>
           <p className="text-ink-muted text-sm truncate">{user.email}</p>
-          {user.isAdmin && (
+          {admin && (
             <span className="inline-block mt-1 px-2 py-0.5 bg-accent-soft-strong text-accent-ink-strong text-[10px] font-bold rounded-md uppercase tracking-wider">
               Admin
             </span>
@@ -70,7 +72,7 @@ export default async function SettingsPage() {
         <SettingsLink href="/settings/reminders" icon={<AlarmClock className="w-5 h-5" />} title="Reminders" description="Nudges when you're running late on a habit" />
         <SettingsLink href="/settings/vacation" icon={<TreePalm className="w-5 h-5" />} title="Vacation" description={vacation ? describeVacation(vacation) : 'Take a break without it counting against you'} />
         <SettingsLink href="/settings/categories" icon={<FolderTree className="w-5 h-5" />} title="Manage Categories" />
-        {user.isAdmin && (
+        {admin && (
           <SettingsLink href="/settings/users" icon={<Users className="w-5 h-5" />} title="Family Users" description="Add or remove family members" />
         )}
         <SettingsLink href="/settings/people" icon={<Users className="w-5 h-5" />} title="People" description="Who you can share habits with" />
@@ -84,7 +86,7 @@ export default async function SettingsPage() {
       <PaneSection title="Account">
         <SettingsLink href="/settings/backup" icon={<DatabaseBackup className="w-5 h-5" />} title="Backup & Restore" description="Download your data as JSON or CSV, or restore it" />
         <SettingsLink href="/settings/api-keys" icon={<Zap className="w-5 h-5" />} title="API Keys" description="Log habits from Shortcuts, Home Assistant and other apps" />
-        <SettingsLink href="/update-password" icon={<KeyRound className="w-5 h-5" />} title="Change Password" />
+        {usesPasswords() && <SettingsLink href="/update-password" icon={<KeyRound className="w-5 h-5" />} title="Change Password" />}
         {/* A row like the others rather than a Button, so it reads as part of the list */}
         <form action={async () => {
           'use server';

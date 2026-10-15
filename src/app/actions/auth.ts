@@ -9,7 +9,7 @@ import { MAX_PASSWORD_BYTES, MIN_PASSWORD_LENGTH } from '@/lib/constants';
 import { seedDefaultCategories } from '@/lib/defaultCategories';
 import { RETURN_TO_PARAM, safeReturnTo } from '@/lib/returnTo';
 import { clientIp } from '@/lib/rateLimit';
-import { isCloud } from '@/lib/deployment';
+import { isCloud, isServerAdmin, usesPasswords } from '@/lib/deployment';
 import { connectToEveryone } from '@/lib/connections';
 
 const LOGIN_WINDOW_MS = 15 * 60 * 1000;
@@ -158,7 +158,7 @@ export async function provisionUser(formData: FormData) {
     where: { id: session.userId }
   });
 
-  if (!currentUser?.isAdmin) {
+  if (!isServerAdmin(currentUser)) {
     return { error: 'Only admins can provision new accounts' };
   }
 
@@ -196,6 +196,8 @@ export async function logout() {
 }
 
 export async function deleteUser(userIdToDelete: string) {
+  // The hosted version has no admin to remove other people's accounts
+  if (isCloud()) return { error: 'Only admins can delete accounts' };
   const { verifySession } = await import('@/lib/auth');
   const session = await verifySession();
   
@@ -207,7 +209,7 @@ export async function deleteUser(userIdToDelete: string) {
     where: { id: session.userId }
   });
 
-  if (!currentUser?.isAdmin) {
+  if (!isServerAdmin(currentUser)) {
     return { error: 'Only admins can delete accounts' };
   }
   
@@ -230,6 +232,8 @@ export async function deleteUser(userIdToDelete: string) {
 }
 
 export async function updatePassword(formData: FormData) {
+  // The hosted version stores no passwords
+  if (!usesPasswords()) return { error: 'This account signs in with Google, so it has no password' };
   const { verifySession } = await import('@/lib/auth');
   const session = await verifySession();
   

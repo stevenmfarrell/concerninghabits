@@ -1,16 +1,20 @@
 import { getDefaultUser } from '@/app/actions/user';
 import { prisma } from '@/lib/prisma';
-import { redirect } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
+import { isCloud, isServerAdmin } from '@/lib/deployment';
 import ProvisionUserForm from './ProvisionUserForm';
 import DeleteUserButton from './DeleteUserButton';
 import { Shield } from 'lucide-react';
 import PageHeader from '@/components/PageHeader';
 import { PANE_INSET, PanePage, PaneSection } from '@/components/Pane';
 
+// The self-hosted server's admin adding and removing the household's accounts. The hosted version has
+// no admin, so no such page.
 export default async function UsersSettingsPage() {
+  if (isCloud()) notFound();
   const currentUser = await getDefaultUser();
 
-  if (!currentUser.isAdmin) {
+  if (!isServerAdmin(currentUser)) {
     redirect('/');
   }
 

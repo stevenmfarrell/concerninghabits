@@ -26,6 +26,16 @@ export function signInMethods(): ('password' | 'google')[] {
   return isCloud() ? ['google'] : ['password'];
 }
 
+// Whether accounts here have passwords, to change in Settings or set before going on (a family
+// member's temporary one). Not on the hosted version.
+export const usesPasswords = () => signInMethods().includes('password');
+
+// Whether `user` is this server's admin, who added the household's accounts and can remove them. Only a
+// self-hosted server has one: the hosted version's accounts are each their own, made by signing in.
+export function isServerAdmin<U extends { isAdmin: boolean }>(user: U | null | undefined): user is U {
+  return !isCloud() && !!user?.isAdmin;
+}
+
 // The address people reach the hosted version at (e.g. https://app.concerninghabits.com), from
 // APP_URL, without a trailing slash: Google sends people back to it after signing in, and requests
 // can't be trusted to say it themselves.
