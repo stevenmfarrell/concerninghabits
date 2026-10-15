@@ -30,6 +30,11 @@ export function signInMethods(): ('password' | 'google')[] {
 // member's temporary one). Not on the hosted version.
 export const usesPasswords = () => signInMethods().includes('password');
 
+// Whether entries are published to Home Assistant over MQTT (see mqtt.ts): when MQTT_URL is set, on a
+// self-hosted server only. The hosted version would publish everyone's entries to one broker, where
+// anyone subscribed to it could read them all.
+export const mqttEnabled = () => !!process.env.MQTT_URL && !isCloud();
+
 // Whether `user` is this server's admin, who added the household's accounts and can remove them. Only a
 // self-hosted server has one: the hosted version's accounts are each their own, made by signing in.
 export function isServerAdmin<U extends { isAdmin: boolean }>(user: U | null | undefined): user is U {

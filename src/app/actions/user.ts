@@ -11,7 +11,7 @@ import { assignUserColors } from '@/lib/userColors';
 import { cookies, headers } from 'next/headers';
 import { RETURN_TO_HEADER, withReturnTo } from '@/lib/returnTo';
 import { revalidateLists } from './internal';
-import { connectedIds, disconnect } from '@/lib/connections';
+import { connectedIds, disconnect, visibleUsers } from '@/lib/connections';
 import { usesPasswords } from '@/lib/deployment';
 import { z } from 'zod';
 
@@ -73,26 +73,12 @@ export async function updateUserPreferences(prefs: { bedtime?: string, weekStart
   revalidateLists();
 }
 
-// Everyone whose name the current user can see, with their display color as the current user sees
-// it (green for themselves), in account creation order: the people they're connected to (see
-// connections.ts), and anyone else on a habit they're in (e.g. someone
-// else the habit's owner shared it with). Anyone else who logged entries they can see shows as a
-// former member (see PersonLabel).
+// Everyone whose name the current user can see (see visibleUsers), with their display color as the
+// current user sees it (green for themselves). Anyone else who logged entries they can see shows as
+// a former member (see PersonLabel).
 export async function getPeople() {
   const user = await getDefaultUser();
-  const [connected, coMembers] = await Promise.all([
-    connectedIds(user.id),
-    prisma.habitMember.findMany({
-      where: { habit: { members: { some: { userId: user.id } } }, userId: { not: user.id } },
-      select: { userId: true },
-    }),
-  ]);
-  const ids = [...new Set([user.id, ...connected, ...coMembers.map(m => m.userId)])];
-  // Sorted here rather than with orderBy: Prisma splits a long `in` list into several queries for
-  // SQLite, and combining that with orderBy crashes its query engine
-  const users = (await prisma.user.findMany({ where: { id: { in: ids } }, select: { id: true, name: true, createdAt: true } }))
-    .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime() || a.id.localeCompare(b.id));
-  return assignUserColors(users.map(({ id, name }) => ({ id, name })), user.id);
+  return assignUserColors(await visibleUsers(user.id), user.id);
 }
 
 // The people the current user can share habits with (see connections.ts), in account creation order

@@ -1,4 +1,5 @@
 import mqtt from 'mqtt';
+import { mqttEnabled } from './deployment';
 
 const MQTT_URL = process.env.MQTT_URL;
 const MQTT_USERNAME = process.env.MQTT_USERNAME;
@@ -11,8 +12,8 @@ const globalForMqtt = global as unknown as { mqttClient: mqtt.MqttClient | null 
 let client = globalForMqtt.mqttClient || null;
 
 export function getMqttClient() {
+  if (!MQTT_URL || !mqttEnabled()) return null;
   if (client) return client;
-  if (!MQTT_URL) return null;
 
   try {
     client = mqtt.connect(MQTT_URL, {

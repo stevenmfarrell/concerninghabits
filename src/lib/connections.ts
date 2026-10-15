@@ -5,6 +5,7 @@
 // people connect by accepting each other's invites. Server-only.
 
 import { prisma } from './prisma';
+import { FORMER_MEMBER } from './userColors';
 
 // A pair as it's stored: the smaller id first, so each pair has one row
 function pair(userId: string, otherId: string) {
@@ -47,4 +48,32 @@ export async function disconnect(userId: string, otherId: string) {
       },
     }),
   ]);
+}
+
+// Everyone whose name `userId` can see, themselves included, in account creation order: the people
+// they're connected to, and anyone else on a habit they're in (e.g. someone else its owner shared
+// it with). Anyone else who logged an entry they can see is shown as a former member (see
+// FORMER_MEMBER), since anyone still on the habit is on this list.
+export async function visibleUsers(userId: string) {
+  const [connected, coMembers] = await Promise.all([
+    connectedIds(userId),
+    prisma.habitMember.findMany({
+      where: { habit: { members: { some: { userId } } }, userId: { not: userId } },
+      select: { userId: true },
+    }),
+  ]);
+  const ids = [...new Set([userId, ...connected, ...coMembers.map(m => m.userId)])];
+  // Sorted here rather than with orderBy: Prisma splits a long `in` list into several queries for
+  // SQLite, and combining that with orderBy crashes its query engine
+  const users = await prisma.user.findMany({ where: { id: { in: ids } }, select: { id: true, name: true, createdAt: true } });
+  return users
+    .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime() || a.id.localeCompare(b.id))
+    .map(({ id, name }) => ({ id, name }));
+}
+
+// Who logged an entry, as `userId` may see it: their name if they can see it (see visibleUsers),
+// otherwise as a former member
+export async function loggerNames(userId: string) {
+  const names = new Map((await visibleUsers(userId)).map(user => [user.id, user.name]));
+  return (loggerId: string) => names.get(loggerId) ?? FORMER_MEMBER;
 }

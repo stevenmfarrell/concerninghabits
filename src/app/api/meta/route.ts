@@ -1,6 +1,6 @@
 import { version } from '../../../../package.json';
 import { aiModelConfigured } from '@/lib/aiModel';
-import { deploymentMode, signInMethods } from '@/lib/deployment';
+import { deploymentMode, mqttEnabled, signInMethods } from '@/lib/deployment';
 
 // The version of the routes other apps call (see src/app/api). Raised only for a change that would
 // break an app written against the old routes, so the mobile apps can tell whether they can talk to
@@ -21,7 +21,7 @@ export async function GET() {
       // Designing habits and filling in entries from what's said, typed or photographed
       ai: aiModelConfigured(),
       // Publishing entries to Home Assistant
-      mqtt: !!process.env.MQTT_URL,
+      mqtt: mqttEnabled(),
     },
   });
 }
