@@ -37,6 +37,8 @@ model User {
   identities          Identity[]
   connectionsA        Connection[]       @relation("ConnectionA")
   connectionsB        Connection[]       @relation("ConnectionB")
+  invitesSent         Invite[]           @relation("InvitesSent")
+  invitesAccepted     Invite[]           @relation("InvitesAccepted")
 }
 
 // Two people who can see each other's names and share habits with each other (see
@@ -98,6 +100,7 @@ model Habit {
   userId           String
   user             User           @relation(fields: [userId], references: [id])
   members          HabitMember[]
+  invites          Invite[]
   logs             HabitLog[]
   remindersSent    ReminderSent[]
   skips            HabitSkip[]
@@ -254,7 +257,6 @@ model Vacation {
   @@index([userId])
 }
 
-
 // A key another app (a shortcut, Home Assistant) uses to log entries as the user through the API, and
 // read a habit's recent ones (see src/lib/apiKeys.ts). Only its hash is kept: the key itself is shown
 // once, when it's made.
@@ -276,4 +278,27 @@ model ApiKey {
   createdAt  DateTime  @default(now())
 
   @@index([userId])
+}
+
+// A link someone sends another person to connect with them, at /invite/<token> (see invites.ts):
+// good for one use, for a week. Only the token's hash is kept, like an API key's.
+model Invite {
+  id           String    @id @default(uuid())
+  // The token's SHA-256, as hex
+  hash         String    @unique
+  inviterId    String
+  inviter      User      @relation("InvitesSent", fields: [inviterId], references: [id], onDelete: Cascade)
+  // A habit of the inviter's that whoever accepts also joins, for an invite made from its share
+  // dialog. Deleting the habit leaves the invite to connect them.
+  habitId      String?
+  habit        Habit?    @relation(fields: [habitId], references: [id], onDelete: SetNull)
+  expiresAt    DateTime
+  acceptedAt   DateTime?
+  acceptedById String?
+  acceptedBy   User?     @relation("InvitesAccepted", fields: [acceptedById], references: [id], onDelete: SetNull)
+  createdAt    DateTime  @default(now())
+
+  @@index([inviterId])
+  @@index([habitId])
+  @@index([acceptedById])
 }
