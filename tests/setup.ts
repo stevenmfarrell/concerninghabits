@@ -23,6 +23,7 @@ vi.mock('next/headers', () => ({
 // thrown error, same as an unauthorized action throwing "Unauthorized" would.
 vi.mock('next/navigation', () => ({
   redirect: (url: string) => { throw new Error(`REDIRECT:${url}`); },
+  notFound: () => { throw new Error('NOT_FOUND'); },
 }));
 
 vi.mock('next/cache', () => ({

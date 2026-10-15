@@ -12,6 +12,7 @@ import { cookies, headers } from 'next/headers';
 import { RETURN_TO_HEADER, withReturnTo } from '@/lib/returnTo';
 import { revalidateLists } from './internal';
 import { connectedIds, disconnect } from '@/lib/connections';
+import { usesPasswords } from '@/lib/deployment';
 import { z } from 'zod';
 
 export async function getDefaultUser(allowNeedsUpdate = false) {
@@ -39,7 +40,7 @@ const getRequestUser = cache(async (allowNeedsUpdate: boolean) => {
     redirect('/api/logout');
   }
 
-  if (user.passwordNeedsUpdate && !allowNeedsUpdate) {
+  if (user.passwordNeedsUpdate && !allowNeedsUpdate && usesPasswords()) {
     redirect('/update-password');
   }
 

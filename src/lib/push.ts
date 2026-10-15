@@ -1,5 +1,6 @@
 import webpush from 'web-push';
 import { prisma } from './prisma';
+import { appUrl, isCloud } from './deployment';
 
 // Web Push, for reminders. Push services only accept messages signed with the server's VAPID key
 // pair, which is set with VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY, or else generated on first use
@@ -41,9 +42,11 @@ async function loadVapidKeys(): Promise<VapidKeys> {
 }
 
 // Who push services can contact about this server's messages: VAPID_SUBJECT, or else the first
-// admin's email. Apple's push service rejects messages without a real-looking one.
+// admin's email, or on the hosted version, which has no admin, its https address (web-push refuses
+// any other kind). Apple's push service rejects messages without a real-looking one.
 async function vapidSubject() {
   if (process.env.VAPID_SUBJECT) return process.env.VAPID_SUBJECT;
+  if (isCloud() && appUrl().startsWith('https://')) return appUrl();
   const admin = await prisma.user.findFirst({ where: { isAdmin: true }, orderBy: { createdAt: 'asc' }, select: { email: true } });
   return `mailto:${admin?.email ?? 'admin@example.com'}`;
 }
