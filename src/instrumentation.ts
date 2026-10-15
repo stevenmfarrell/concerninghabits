@@ -12,7 +12,12 @@ export async function register() {
       process.exit(1);
     }
 
-    // Only one copy of the reminder scheduler should run
+    // One reminder scheduler per server process (it keeps itself to one across a dev server's
+    // reloads). Two servers on the same database, as for a moment during a deploy, are safe: neither
+    // sends a reminder the other has (see claim in reminderScheduler.ts). More than that isn't
+    // supported: the database is SQLite, a file one machine has, so the app, self-hosted or hosted,
+    // runs as a single instance. Spreading it over several would need a shared database and a job
+    // queue for reminders.
     const { startReminderScheduler } = await import('./lib/reminderScheduler');
     startReminderScheduler();
   }
