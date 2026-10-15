@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { prisma } from './prisma';
 import { evaluate, parseCadence } from './cadence';
 import { fieldsOf } from './formFields';
@@ -9,7 +10,9 @@ import { sendPush } from './push';
 
 // Sends habit reminders (see reminders.ts for how it decides what and when). It runs in the server
 // process, started from src/instrumentation.ts, checking every minute for users with a habit
-// running late.
+// running late. More than one server on the same database (e.g. old and new during a deploy) never
+// sends the same reminder twice (see claim), and a check missed while the server was down is made
+// up by the next, which still finds the habit late.
 
 const TICK_MS = 60_000;
 // How far back to read a habit's entries to learn its usual time: enough for MAX_SAMPLES days of a
@@ -143,17 +146,38 @@ export async function runReminderTick(now = new Date()) {
       const habits = await dueReminders(user, now);
       if (habits.length === 0) continue;
       const habitIds = habits.map(h => h.habitId);
+      const day = todayKeyFor(user, now);
+      if (!(await claim(user.id, habitIds, day, now))) continue;
       // One with nothing to fill in can be logged straight from the notification
       const quickLog = habits.length === 1 && !(await hasForm(habitIds[0])) ? { habitId: habitIds[0] } : {};
       const delivered = await sendPush(user.id, { ...reminderMessage(habits, user.bedtime), ...quickLog });
-      // Not recorded if no device got it, so it's tried again next tick
-      if (!delivered) continue;
-      const day = todayKeyFor(user, now);
-      await prisma.reminderSent.createMany({ data: habitIds.map(habitId => ({ userId: user.id, habitId, day, sentAt: now })) });
+      // Given back if no device got it, so it's tried again next tick
+      if (!delivered) await unclaim(user.id, habitIds, day, now);
     } catch (error) {
       console.error(`Reminders failed for user ${user.id}`, error);
     }
   }
+}
+
+// Records a reminder as sent before it's sent, so it goes out once however many checks are running:
+// a deploy can briefly run the new server alongside the old one, and each has its own scheduler.
+// Each habit is reminded about at most once a day (ReminderSent's key), so whichever check records
+// it first sends it, and another finds it taken and leaves it. All of a notification's habits are
+// recorded together, or none are. A server stopped between recording and sending loses that one
+// notification rather than sending it twice.
+async function claim(userId: string, habitIds: string[], day: string, now: Date) {
+  try {
+    await prisma.reminderSent.createMany({ data: habitIds.map(habitId => ({ userId, habitId, day, sentAt: now })) });
+    return true;
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') return false;
+    throw error;
+  }
+}
+
+// Takes back a claim (see claim) for a notification no device got
+async function unclaim(userId: string, habitIds: string[], day: string, now: Date) {
+  await prisma.reminderSent.deleteMany({ where: { userId, day, habitId: { in: habitIds }, sentAt: now } });
 }
 
 async function hasForm(habitId: string) {

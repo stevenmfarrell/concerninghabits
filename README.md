@@ -146,6 +146,8 @@ Left unset, it's `jev` if `TYPESAFE_API_KEY` is set, otherwise `llm` if the AI m
 
 Habit reminders are Web Push notifications, turned on per device under Settings → Reminders and per habit on its page. They need [https](#using-https). The keys for sending them are generated on first use, so there's nothing to set up.
 
+The app sends them itself, checking every minute, so they only go out while it's running. One that came due while it was stopped (e.g. during an upgrade) is sent once it's back, if the habit still hasn't been done. Run one copy of the app per database. Two at once, as for a moment while a new version starts, won't send a reminder twice.
+
 ## Offline
 
 Installed as an app, Concerning Habits keeps working without a connection:

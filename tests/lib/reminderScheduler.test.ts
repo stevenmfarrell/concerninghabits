@@ -3,8 +3,11 @@ import { prisma } from '@/lib/prisma';
 import { IGNORED_LIMIT, MAX_PER_DAY } from '@/lib/reminders';
 
 const sent: { userId: string; title: string; body: string; habitId?: string }[] = [];
+// Whether a device gets what's sent, as the push service says
+const push = { delivers: true };
 vi.mock('@/lib/push', () => ({
   sendPush: async (userId: string, payload: { title: string; body: string; habitId?: string }) => {
+    if (!push.delivers) return false;
     sent.push({ userId, ...payload });
     return true;
   },
@@ -43,6 +46,7 @@ describe('runReminderTick', () => {
   let user: Awaited<ReturnType<typeof createUser>>;
   beforeEach(async () => {
     sent.length = 0;
+    push.delivers = true;
     user = await createUser();
   });
   const mine = () => sent.filter(s => s.userId === user.id);
@@ -69,6 +73,29 @@ describe('runReminderTick', () => {
     await runReminderTick(at(21, 0, 30)); // 12:30am, still the 20th by the 01:00 bedtime
     expect(mine()).toEqual([]);
     await runReminderTick(at(22, 0, 30)); // the 21st, back from vacation
+    expect(mine()).toEqual([expect.objectContaining({ title: 'Meds' })]);
+  });
+
+  it('sends it once when two servers check at the same time, as during a deploy', async () => {
+    await createHabit(user.id, 'Meds', usuallyAt2340);
+    await Promise.all([runReminderTick(at(21, 0, 30)), runReminderTick(at(21, 0, 30))]);
+    expect(mine()).toHaveLength(1);
+  });
+
+  it('tries again next time when no device got it', async () => {
+    await createHabit(user.id, 'Meds', usuallyAt2340);
+    push.delivers = false;
+    await runReminderTick(at(21, 0, 30));
+    expect(await prisma.reminderSent.count({ where: { userId: user.id } })).toBe(0);
+    push.delivers = true;
+    await runReminderTick(at(21, 0, 31));
+    expect(mine()).toEqual([expect.objectContaining({ title: 'Meds' })]);
+  });
+
+  it('still sends it after the server was down when it was due, once it\'s back', async () => {
+    await createHabit(user.id, 'Meds', usuallyAt2340);
+    // Due from 12:30am; the first check after is at 12:55am
+    await runReminderTick(at(21, 0, 55));
     expect(mine()).toEqual([expect.objectContaining({ title: 'Meds' })]);
   });
 
