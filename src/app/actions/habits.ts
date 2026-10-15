@@ -12,6 +12,7 @@ import { cadenceJson, END_OF_LIST_ORDER, revalidateLists, getOwnedCategory, habi
 import { getDefaultUser } from './user';
 import { loggableHabitsOf } from './smartEntry';
 import { connectedIds } from '@/lib/connections';
+import { mqttEnabled } from '@/lib/deployment';
 
 // A habit's name, description and form checked, since they come from the browser
 function checkHabit(name: string, description: string, schema: HabitSchema) {
@@ -226,7 +227,7 @@ export async function leaveHabit(habitId: string) {
 }
 
 export async function isMqttConfigured() {
-  return !!process.env.MQTT_URL;
+  return mqttEnabled();
 }
 
 export async function reorderHabits(updates: { id: string; order: number }[]) {

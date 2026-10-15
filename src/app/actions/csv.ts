@@ -7,6 +7,7 @@ import { encodeCsv, parseCsv } from '@/lib/csv';
 import { fieldsOf } from '@/lib/formFields';
 import { revalidateEntries, getMembership, sanitizeLogPayload } from './internal';
 import { getDefaultUser } from './user';
+import { loggerNames } from '@/lib/connections';
 
 export async function exportHabitLogsCsv(habitId: string) {
   const user = await getDefaultUser();
@@ -14,14 +15,13 @@ export async function exportHabitLogsCsv(habitId: string) {
   const properties = fieldsOf(parseHabitSchema(habit.schema));
   const fieldKeys = Object.keys(properties);
 
-  const logs = await prisma.habitLog.findMany({
-    where: { habitId },
-    orderBy: { createdAt: 'asc' },
-    include: { user: { select: { name: true } } }
-  });
+  const [logs, nameOf] = await Promise.all([
+    prisma.habitLog.findMany({ where: { habitId }, orderBy: { createdAt: 'asc' } }),
+    loggerNames(user.id),
+  ]);
 
-  // Name who logged each entry once more than one person has. Import ignores this column, since
-  // it matches no form field.
+  // Name who logged each entry once more than one person has, as the habit's page does: someone the
+  // user can't see is a former member. Import ignores this column, since it matches no form field.
   const includeLoggedBy = new Set(logs.map(log => log.userId)).size > 1;
 
   const header = ['Date', ...fieldKeys.map(key => properties[key].title || key), ...(includeLoggedBy ? ['Logged By'] : [])];
@@ -33,7 +33,7 @@ export async function exportHabitLogsCsv(habitId: string) {
         const val = payload[key];
         return val === undefined || val === null ? '' : String(val);
       }),
-      ...(includeLoggedBy ? [log.user.name] : [])
+      ...(includeLoggedBy ? [nameOf(log.userId)] : [])
     ];
   });
 

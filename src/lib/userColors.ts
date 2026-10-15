@@ -12,6 +12,10 @@ const OTHER_COLORS = [
   '#d946ef', // fuchsia-500
 ] as const;
 
+// What someone who logged an entry is called to a viewer who can't see their name (see
+// visibleUsers): they've left the habit, and the viewer isn't connected with them
+export const FORMER_MEMBER = 'Former member';
+
 export interface Person {
   id: string;
   name: string;
