@@ -1,11 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { Check, Loader2, Users } from 'lucide-react';
+import { Check, Loader2, Plus, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Button } from '@/components/ui/Button';
 import { Dialog, DialogFooter } from '@/components/ui/Dialog';
 import PersonLabel from '@/components/PersonLabel';
+import InviteDialog from '@/components/InviteDialog';
 import { setHabitSharing } from '@/app/actions/habits';
 import type { Person } from '@/lib/userColors';
 
@@ -15,7 +16,8 @@ interface ShareDialogProps {
   // Everyone the habit could be shared with: the people the owner is connected to (everyone else on
   // a self-hosted server), and anyone already on it
   candidates: Person[];
-  // The hosted version, where that's only people they've connected with (see connections.ts)
+  // The hosted version, where that's only people they've connected with (see connections.ts), and
+  // anyone new can accept an invite
   cloud: boolean;
   sharedWithIds: string[];
   onClose: () => void;
@@ -23,10 +25,12 @@ interface ShareDialogProps {
 }
 
 // Picks who a habit is shared with. Shared members can see the habit and its
-// history and log entries into it; only the owner can change or delete it.
+// history and log entries into it; only the owner can change or delete it. Someone the owner isn't
+// connected with yet can be sent an invite link that adds them to it (see InviteDialog).
 export default function ShareDialog({ habitId, habitName, candidates, cloud, sharedWithIds, onClose, onSaved }: ShareDialogProps) {
   const [selected, setSelected] = useState(() => new Set(sharedWithIds));
   const [saving, setSaving] = useState(false);
+  const [inviting, setInviting] = useState(false);
 
   const toggle = (id: string) => {
     setSelected(prev => {
@@ -49,6 +53,8 @@ export default function ShareDialog({ habitId, habitName, candidates, cloud, sha
     }
   };
 
+  if (inviting) return <InviteDialog habit={{ id: habitId, name: habitName }} cloud={cloud} onClose={onClose} />;
+
   return (
     <Dialog label="Share Habit">
       <div className="p-6 sm:p-8 space-y-4">
@@ -67,7 +73,7 @@ export default function ShareDialog({ habitId, habitName, candidates, cloud, sha
         {candidates.length === 0 ? (
           <p className="text-sm text-ink-muted italic">
             {cloud
-              ? 'You aren\'t connected with anyone yet. You can share with someone once they accept your invite.'
+              ? 'You aren\'t connected with anyone yet. Invite someone, and they\'ll join this habit when they accept.'
               : 'There\'s no one else to share with yet. An admin can add family members under Settings.'}
           </p>
         ) : (
@@ -93,6 +99,14 @@ export default function ShareDialog({ habitId, habitName, candidates, cloud, sha
             })}
           </ul>
         )}
+        <button
+          type="button"
+          onClick={() => setInviting(true)}
+          disabled={saving}
+          className="w-full flex items-center gap-2 p-3 rounded-xl text-left text-sm font-medium text-accent-ink-strong hover:bg-surface-subtle transition-colors"
+        >
+          <Plus className="w-4 h-4" /> Invite Someone
+        </button>
       </div>
       <DialogFooter>
         <Button variant="ghost" onClick={onClose} disabled={saving} className="w-full sm:w-auto">
