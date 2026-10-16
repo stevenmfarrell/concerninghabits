@@ -20,8 +20,9 @@ import { parseHabitSchema } from './habitSchema';
 export type HabitCandidate = { habitId: string | null; name: string; probability: number | null };
 
 // The most likely habits, best first. `confident` says whether the first is sure enough to act on
-// without asking, and `didIt` whether the input reports something done (so it becomes an entry)
-// rather than only describing a habit to set up.
+// without asking, and `didIt` whether the input reports something done rather than only describing
+// a habit to set up: for a new habit, whether the input is also its first entry. (Matched to an
+// existing habit, it's logged either way.)
 export type HabitMatch = { confident: boolean; candidates: HabitCandidate[]; didIt: boolean };
 
 export type MatchableHabit = { id: string; name: string; description: string | null; schema: string; aiContext: string | null };

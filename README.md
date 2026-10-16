@@ -164,7 +164,7 @@ Other apps (iOS Shortcuts, Home Assistant, Tasker, an NFC tag) can log and read 
 
 - `POST /api/habits/<habit id>/log` (a key that can log) logs one habit. The body is optional JSON: `{"values": {"distance": 3}}` with the habit's field keys, and/or `{"text": "ran 3 miles"}` for AI to fill them in, plus an optional `"at"` (an ISO 8601 date and time) for an earlier entry. Each habit's address, field keys and an example request are in its ⋮ menu → Log from Another App.
 - `GET /api/habits/<habit id>/entries?limit=10` (a key that can read) returns the habit's latest entries, newest first (1 to 100, 10 by default), each with who logged it. Someone who has since left the habit, and whom you aren't connected with, is named "Former member", as in the app.
-- `POST /api/log` (a key that can log) with `{"text": "ran 3 miles in 25 minutes"}` works out which habit was meant, like the quill in the app's bottom bar. It never creates a habit, and logs nothing (answering 422 with its best guesses) when it isn't sure.
+- `POST /api/log` (a key that can log) with `{"text": "ran 3 miles in 25 minutes"}` works out which habit was meant, like the quill in the app's bottom bar. It never creates a habit, and logs nothing (answering 422 with its best guesses) when it isn't sure which habit. Once it's sure, it logs, even if the text doesn't read as something done (e.g. "play ping pong", misheard).
 
 Text that says when it was done ("yesterday", "3 days ago", "on October 10th", "yesterday at 6pm") is logged then, counted from `"at"` when given, using the user's time zone and bedtime. Without a time it's logged at noon that day.
 

@@ -4,7 +4,7 @@ import { generateObject } from 'ai';
 import { z } from 'zod';
 import { getCategories } from './categories';
 import { getHabit } from './habits';
-import { extractFromTranscript, fillFromInput, interpretInput, logFromInput, whenSaid, type Interpretation, type ParsedLog } from './smartEntry';
+import { extractFromTranscript, interpretInput, logFromInput, whenSaid, type Interpretation, type ParsedLog } from './smartEntry';
 import { getDefaultUser } from './user';
 import { buildCategoryChoices } from '@/lib/categoryChoices';
 import type { HabitSchema } from '@/lib/types';
@@ -145,15 +145,6 @@ export async function logSmartEntry(habitId: string, input: string): Promise<
   if (!result.success) return result;
   if (!result.logged) return { success: true, logged: false, data: result.data, ...(result.loggedAt ? { loggedAt: result.loggedAt } : {}) };
   return { success: true, logged: true, logId: result.logId, createdAt: result.createdAt, data: result.data, schema: result.schema };
-}
-
-// What could be filled in on a habit's form from input that matched the habit but didn't read as
-// something done (see SmartEntry), for the user to check and log themselves if it was. Empty when
-// nothing could be: an intention like "I want to track my weight" names no values. Best effort, so
-// a failure is just nothing filled in.
-export async function prefillSmartEntry(habitId: string, input: string): Promise<Record<string, unknown>> {
-  const filled = await fillFromInput(await getDefaultUser(), habitId, input);
-  return filled.success ? filled.data : {};
 }
 
 // A calculated field drafted from what the user asked for (e.g. "pace per mile"), for them to check

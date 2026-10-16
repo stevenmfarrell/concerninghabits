@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { Dialog, DialogFooter } from '@/components/ui/Dialog';
 import QuillIconWavy from '@/components/QuillIconWavy';
 import SpeakOrType, { type SpeakOrTypeStatus } from '@/components/SpeakOrType';
-import { generateHabitSchema, interpretSmartEntry, logSmartEntry, prefillSmartEntry, type HabitCandidate } from './actions/habit';
+import { generateHabitSchema, interpretSmartEntry, logSmartEntry, type HabitCandidate } from './actions/habit';
 import { showLoggedToast } from '@/components/LoggedToast';
 import { fieldsOf } from '@/lib/formFields';
 import { prefillHref } from '@/lib/prefillHref';
@@ -41,11 +41,14 @@ export default function SmartEntry({ userId }: { userId: string }) {
   });
 
   // Continues in the panel until it opens a page, or logs or fails right here
-  // `loggedAt` is when the input says it was done, if earlier than now
+  // `loggedAt` is when the input says it was done, if earlier than now. `didIt` (whether it reads as
+  // something done) only matters for a new habit, which logs it as its first entry if so: anything
+  // matched to an existing habit is logged, since that's what the quill is for. (A mishearing like
+  // "play ping pong" for "played ping pong" would otherwise log nothing.)
   const proceed = async (candidate: HabitCandidate, input: string, didIt: boolean, loggedAt?: Date) => {
     setPicker(null);
 
-    if (candidate.habitId && didIt) {
+    if (candidate.habitId) {
       // Logged right here, like everywhere else in the app. Only an entry that needs more than was
       // said goes to the habit's page, with what could be filled in, to finish it there.
       setStatus({ message: `Logging ${candidate.name}...`, input });
@@ -68,22 +71,6 @@ export default function SmartEntry({ userId }: { userId: string }) {
         toast(`Add the rest of the details for ${candidate.name}`, { icon: '✏️' });
         setStatus({ message: `Opening ${candidate.name}...`, input });
         openPage(prefillHref(candidate.habitId, result.data, result.loggedAt));
-      }
-      return;
-    }
-
-    if (candidate.habitId) {
-      // e.g. "I want to run more" when they already track running: show the habit, log nothing. If
-      // the input names values for its form, though, it may have been something done after all, so
-      // they're filled in on the habit's entry sheet, to log with a tap if it was.
-      setStatus({ message: `Opening ${candidate.name}...`, input });
-      const data = await prefillSmartEntry(candidate.habitId, input);
-      if (Object.keys(data).length > 0) {
-        toast(`Check the details for ${candidate.name}, then log it`, { icon: '✏️' });
-        openPage(prefillHref(candidate.habitId, data, loggedAt));
-      } else {
-        toast(`You already track ${candidate.name}`, { icon: '👍' });
-        openPage(`/log/${candidate.habitId}`);
       }
       return;
     }

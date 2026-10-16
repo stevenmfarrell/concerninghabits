@@ -258,7 +258,8 @@ export default function Tutorial({ days, now }: { days: Days; now: number }) {
       setQuillStatus(null);
       const id = QUILL_WORDS.find(([words]) => words.test(input))?.[1];
       const habit = step.rows.find(h => h.id === id);
-      if (habit && !/\b(want|start|begin)\b/i.test(input)) log(habit, 'quill', { said: input });
+      // Anything matched to a habit is logged, as by the quill in the app
+      if (habit) log(habit, 'quill', { said: input });
       else act({ kind: 'unmatched', input });
     }, QUILL_DELAY_MS);
   };
