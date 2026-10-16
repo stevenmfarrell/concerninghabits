@@ -15,7 +15,8 @@ import { UNCATEGORIZED_ID, UNCATEGORIZED_ICON } from '@/lib/constants';
 import { NO_CADENCE, parseCadence } from '@/lib/cadence';
 import { entryDates, listRowStatus, pickerSections, skippedDaysOf, type PickerSection, type RowStatus } from '@/lib/dueList';
 import { DEFAULT_CATEGORY_ICON } from '@/lib/constants';
-import { CONSISTENCY_HISTORY_WEEKS } from '@/lib/consistency';
+import { categoryBegan as began } from '@/lib/consistency';
+import { categoryRowCalendar, rowHabits, rowSections } from '@/lib/rowCalendar';
 import { HABITS_DIR_COOKIE, HABITS_SORT_COOKIE, HABITS_VIEW_COOKIE, parseHabitsDir, parseHabitsSort, parseHabitsView, sortRows, type SortableRow } from '@/lib/habitsView';
 import type { HabitListItem, SessionUser } from '@/lib/types';
 import type { Person } from '@/lib/userColors';
@@ -85,14 +86,17 @@ export default async function HabitsPage(props: { searchParams: Promise<{ view?:
 
   const user = await getDefaultUser();
   // The 4-week calendars and the rings read entries here (5 weeks, so a month's entries count), and
-  // consistency further back; the latest entries are for an every-N-days cadence's older ones, and
-  // for when each was last done
+  // each one's health further back, as far as its cadence needs; the latest entries are for an
+  // every-N-days cadence's older ones, and for when each was last done
   const [categories, uncategorized, latestLogDates, people] = await Promise.all([
-    getCategoriesWithHierarchy(CONSISTENCY_HISTORY_WEEKS),
-    getUncategorizedHabits(CONSISTENCY_HISTORY_WEEKS),
+    getCategoriesWithHierarchy(5, true),
+    getUncategorizedHabits(5, true),
     getLatestLogDates(),
     getPeople(),
   ]);
+  // Each habit as its row has it, with its calendar worked out here in place of the entries loaded
+  // for its health (see toRowHabit)
+  const rowOf = rowHabits(user);
   const lastDone = (habits: HabitListItem[]) => {
     const times = habits.flatMap(h => (latestLogDates[h.id] ? [new Date(latestLogDates[h.id]).getTime()] : []));
     return times.length > 0 ? new Date(Math.max(...times)) : null;
@@ -107,7 +111,7 @@ export default async function HabitsPage(props: { searchParams: Promise<{ view?:
     index: number,
   ): CategoryListRow => {
     const cadence = parseCadence(cat.cadence ?? '', NO_CADENCE);
-    const status = listRowStatus(cadence, habits.flatMap(h => entryDates(h, latestLogDates)), user, { habit: false, skippedDays: skippedDaysOf(cat), createdAt: cat.createdAt });
+    const status = listRowStatus(cadence, habits.flatMap(h => entryDates(h, latestLogDates)), user, { habit: false, skippedDays: skippedDaysOf(cat), createdAt: began(cat.createdAt, habits) });
     return {
       kind: 'category',
       id: cat.id,
@@ -115,17 +119,15 @@ export default async function HabitsPage(props: { searchParams: Promise<{ view?:
       name: cat.name,
       lastDone: lastDone(habits),
       consistency: status.consistency,
-      sections: pickerSections(cat.habits, children),
+      sections: rowSections(pickerSections(cat.habits, children), rowOf),
       row: {
         href: `/categories/${cat.id}`,
         name: cat.name,
         icon: cat.icon || DEFAULT_CATEGORY_ICON,
-        dates: habits.flatMap(h => (h.logs ?? []).map(l => l.createdAt)),
+        calendar: categoryRowCalendar(habits, cadence, user, skippedDaysOf(cat)),
         habitCount: habits.length,
         showCadence: true,
         cadence,
-        skippedDays: skippedDaysOf(cat),
-        vacations: user.vacations,
         status,
         bedtime: user.bedtime,
         weekStartsOn: user.weekStartsOn,
@@ -143,10 +145,10 @@ export default async function HabitsPage(props: { searchParams: Promise<{ view?:
   const habitStatuses: Record<string, RowStatus> = {};
   const unsorted: (HabitListRow | CategoryListRow)[] = [];
   const addHabit = (habit: HabitListItem) => {
-    const status = listRowStatus(parseCadence(habit.cadence), entryDates(habit, latestLogDates), user, { habit: true, skippedDays: skippedDaysOf(habit), createdAt: habit.createdAt });
+    const status = listRowStatus(parseCadence(habit.cadence), entryDates(habit, latestLogDates), user, { habit: true, skippedDays: skippedDaysOf(habit), createdAt: habit.began ?? habit.createdAt });
     habitStatuses[habit.id] = status;
     const lastDoneAt = latestLogDates[habit.id];
-    unsorted.push({ kind: 'habit', habit, index: unsorted.length, name: habit.name, lastDone: lastDoneAt ? new Date(lastDoneAt) : null, consistency: status.consistency });
+    unsorted.push({ kind: 'habit', habit: rowOf(habit), index: unsorted.length, name: habit.name, lastDone: lastDoneAt ? new Date(lastDoneAt) : null, consistency: status.consistency });
   };
   for (const cat of categories) {
     if (hasCadence(cat)) unsorted.push(categoryRow(cat, [...cat.habits, ...cat.children.flatMap(c => c.habits)], cat.children, unsorted.length));
@@ -209,12 +211,12 @@ export default async function HabitsPage(props: { searchParams: Promise<{ view?:
         {view === 'categories' && uncategorized.length > 0 && (
           <HoldableCategoryRow
             id={UNCATEGORIZED_ID}
-            sections={[{ subcategory: null, habits: uncategorized }]}
+            sections={[{ subcategory: null, habits: uncategorized.map(rowOf) }]}
             row={{
               href: `/categories/${UNCATEGORIZED_ID}`,
               name: 'Uncategorized',
               icon: UNCATEGORIZED_ICON,
-              dates: uncategorized.flatMap(h => h.logs.map(l => l.createdAt)),
+              calendar: categoryRowCalendar(uncategorized, NO_CADENCE, user),
               habitCount: uncategorized.length,
               showCadence: true,
               cadence: NO_CADENCE,

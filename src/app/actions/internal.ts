@@ -8,11 +8,12 @@ import type { Prisma } from '@prisma/client';
 import rjsfValidator from '@rjsf/validator-ajv8';
 import { MAX_LOG_PAYLOAD_BYTES } from '@/lib/constants';
 import { parseHabitSchema } from '@/lib/habitSchema';
-import { cadenceSchema, type Cadence } from '@/lib/cadence';
+import { cadenceSchema, NO_CADENCE, parseCadence, type Cadence } from '@/lib/cadence';
 import type { HabitSchema } from '@/lib/types';
 import { calculatedFieldsSchema, type CalculatedField } from '@/lib/calculatedFields';
 import { fieldsOf } from '@/lib/formFields';
-import { parseCivilDayKey } from '@/lib/timezone';
+import { DAY_MS, parseCivilDayKey } from '@/lib/timezone';
+import { healthHistoryDays } from '@/lib/consistency';
 import type { Skippable } from './skips';
 
 // Habits placed in a list without a chosen position (new, newly shared, or moved to another
@@ -58,33 +59,103 @@ export async function assertValidParent(userId: string, parentId: string, catego
   }
 }
 
-// A user's habits in one list (a category, uncategorized), in that user's saved order,
-// each with the recent log times its mini calendar shows, and the days it was skipped. Logs are everyone's, not just the
-// viewer's: a shared habit's history is the whole household's.
-export const habitListRows = (logsCutoff: Date) => ({
+// A user's habits in one list (a category, uncategorized), in that user's saved order, with the
+// days each was skipped. Their entries are loaded after (see loadListEntries), each back as far as
+// it needs.
+export const habitListRows = {
   orderBy: [{ order: 'asc' }, { habit: { name: 'asc' } }],
   include: {
     habit: {
       include: {
-        logs: { where: { createdAt: { gte: logsCutoff } }, select: { createdAt: true, userId: true } },
         // All of them, not just recent ones: there are few, and an every-N-days skip can count for months
         skips: { select: { day: true } },
         _count: { select: { members: true } },
       }
     }
   }
-}) satisfies Prisma.HabitMemberFindManyArgs;
+} satisfies Prisma.HabitMemberFindManyArgs;
 
-export type HabitListMembership = Prisma.HabitMemberGetPayload<ReturnType<typeof habitListRows>>;
+export type HabitListMembership = Prisma.HabitMemberGetPayload<typeof habitListRows>;
 
-// Flatten a membership onto its habit, so list rows read the viewer's own order and category the
-// same way whether the habit is theirs or shared with them.
-export function toHabitListItem({ habit, order, categoryId, aiContext }: HabitListMembership) {
-  return { ...habit, order, categoryId, aiContext, memberCount: habit._count.members };
+// How far back a list loads its habits' entries: enough for its calendars and rings, `weeks` weeks,
+// and with `health` (the Habits and category pages), as far back as each habit's health needs, and
+// each category's it counts toward. That depends on the cadence: a daily habit's health looks back
+// about three months, a monthly one's a year (see healthHistoryDays).
+export interface ListHistory {
+  weeks: number;
+  health?: boolean;
 }
 
-export function withHabits<C extends { habitMembers: HabitListMembership[] }>({ habitMembers, ...category }: C) {
-  return { ...category, habits: habitMembers.map(toHabitListItem) };
+// The first moment a habit's entries are needed from, for `history` and the cadences of the habit
+// and the categories it counts toward. On a day boundary, so habits needing the same are loaded
+// together.
+export function historyCutoff({ weeks, health }: ListHistory, cadences: Cadence[], now: Date) {
+  let cutoff = getRecentLogsCutoff(weeks, now);
+  if (!health) return cutoff;
+  for (const cadence of cadences) {
+    if (cadence.type === 'none') continue;
+    const needed = new Date(now.getTime() - healthHistoryDays(cadence) * DAY_MS);
+    needed.setUTCHours(0, 0, 0, 0);
+    if (needed < cutoff) cutoff = needed;
+  }
+  return cutoff;
+}
+
+// Each listed habit's cutoff (see historyCutoff), from its own cadence and those of the categories
+// it counts toward (`cadences`, as stored)
+export function listCutoffs(history: ListHistory, lists: { members: HabitListMembership[]; cadences: string[] }[], now = new Date()) {
+  const cutoffs = new Map<string, Date>();
+  for (const { members, cadences } of lists) {
+    const categoryCadences = cadences.map(cadence => parseCadence(cadence, NO_CADENCE));
+    for (const { habit } of members) cutoffs.set(habit.id, historyCutoff(history, [parseCadence(habit.cadence), ...categoryCadences], now));
+  }
+  return cutoffs;
+}
+
+// A list's entries: everyone's, not just the viewer's, since a shared habit's history is everyone
+// on it's. `began` is when each habit's history began, for its health: when it was made, or its
+// first entry if that's earlier (e.g. imported), which may be older than what's loaded.
+export interface ListEntries {
+  logs: Map<string, { createdAt: Date; userId: string }[]>;
+  began: Map<string, Date>;
+}
+
+// Each habit's entries from its cutoff on (see historyCutoff), and with `health`, its first entry's
+// time, in two queries for the whole list
+export async function loadListEntries(cutoffs: Map<string, Date>, health = false): Promise<ListEntries> {
+  const entries: ListEntries = { logs: new Map(), began: new Map() };
+  if (cutoffs.size === 0) return entries;
+  const groups = new Map<number, string[]>();
+  for (const [habitId, cutoff] of cutoffs) groups.set(cutoff.getTime(), [...(groups.get(cutoff.getTime()) ?? []), habitId]);
+  const [logs, firsts] = await Promise.all([
+    prisma.habitLog.findMany({
+      where: { OR: [...groups].map(([cutoff, habitIds]) => ({ habitId: { in: habitIds }, createdAt: { gte: new Date(cutoff) } })) },
+      select: { habitId: true, createdAt: true, userId: true },
+    }),
+    health ? prisma.habitLog.groupBy({ by: ['habitId'], where: { habitId: { in: [...cutoffs.keys()] } }, _min: { createdAt: true } }) : [],
+  ]);
+  for (const { habitId, createdAt, userId } of logs) entries.logs.set(habitId, [...(entries.logs.get(habitId) ?? []), { createdAt, userId }]);
+  for (const { habitId, _min } of firsts) if (_min.createdAt) entries.began.set(habitId, _min.createdAt);
+  return entries;
+}
+
+// Flatten a membership onto its habit, so list rows read the viewer's own order and category the
+// same way whether the habit is theirs or shared with them, with its entries from `entries`
+export function toHabitListItem({ habit, order, categoryId, aiContext }: HabitListMembership, entries: ListEntries) {
+  const firstEntry = entries.began.get(habit.id);
+  return {
+    ...habit,
+    order,
+    categoryId,
+    aiContext,
+    memberCount: habit._count.members,
+    logs: entries.logs.get(habit.id) ?? [],
+    began: firstEntry && firstEntry < habit.createdAt ? firstEntry : habit.createdAt,
+  };
+}
+
+export function withHabits<C extends { habitMembers: HabitListMembership[] }>({ habitMembers, ...category }: C, entries: ListEntries) {
+  return { ...category, habits: habitMembers.map(membership => toHabitListItem(membership, entries)) };
 }
 
 // The days a category was skipped (see CategorySkip), all of them, as for a habit's
@@ -96,8 +167,8 @@ export const categorySkips = { select: { day: true } } as const;
 // 1st of the month, then keep a generous buffer: another whole month and week, which also covers
 // week starts, the viewer's time zone vs. the server's, and bedtime (logs before bedtime count
 // toward the previous day).
-export function getRecentLogsCutoff(weeks: number) {
-  const cutoff = new Date();
+export function getRecentLogsCutoff(weeks: number, now = new Date()) {
+  const cutoff = new Date(now);
   cutoff.setUTCHours(0, 0, 0, 0);
   cutoff.setUTCDate(cutoff.getUTCDate() - weeks * 7);
   cutoff.setUTCDate(1);

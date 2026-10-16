@@ -6,7 +6,8 @@ import RowStatus from './RowStatus';
 import ActivityCalendar from './ActivityCalendar';
 import CadenceLabel from './CadenceLabel';
 import type { Cadence } from '@/lib/cadence';
-import type { VacationRange } from '@/lib/vacation';
+import type { CalendarSummary } from '@/lib/calendarDays';
+import { ROW_CALENDAR_WEEKS } from '@/lib/calendarRange';
 import type { RowStatus as Status } from '@/lib/dueList';
 
 export interface CategoryRowProps {
@@ -18,14 +19,11 @@ export interface CategoryRowProps {
   // Its cadence under the name instead (none without one), as habit rows show theirs on the Agenda
   // and Habits pages (see CadenceLabel)
   showCadence?: boolean;
-  // Every entry on the category's habits, for its calendar
-  dates: Date[];
+  // Its calendar, worked out on the server from its habits' entries (see categoryRowCalendar)
+  calendar: CalendarSummary;
   habitCount: number;
   // The category's own cadence, or none
   cadence: Cadence;
-  // The days it was skipped, as civil day keys, marked on its calendar with the viewer's vacations
-  skippedDays?: string[];
-  vacations?: readonly VacationRange[];
   // What the Agenda page shows beside its calendar: how far off it's due (see RowStatus)
   status?: Status;
   // A button at the row's start in place of its icon's tile, beside its link rather than in it, e.g.
@@ -46,7 +44,7 @@ export interface CategoryRowProps {
 
 // A category as a row in a list, linking to its page: its name and a line about it, and a
 // calendar of its recent entries (shaded by its cadence, or by how many of its habits were logged)
-export default function CategoryRow({ href, name, icon, subtitle, showCadence, dates, habitCount, cadence, skippedDays, vacations, status, leading, alignWithHabitRows, action, bedtime, weekStartsOn, timeZone }: CategoryRowProps) {
+export default function CategoryRow({ href, name, icon, subtitle, showCadence, calendar, habitCount, cadence, status, leading, alignWithHabitRows, action, bedtime, weekStartsOn, timeZone }: CategoryRowProps) {
   const padding = 'pane-inset py-3';
   const buttons = action || leading;
   return (
@@ -77,10 +75,10 @@ export default function CategoryRow({ href, name, icon, subtitle, showCadence, d
           {status && <RowStatus days={status.dueInDays} limit={status.limit} />}
           <div className="opacity-80 group-hover/row:opacity-100 transition-opacity">
             <ActivityCalendar
-              dates={dates}
-              weeks={4}
+              summary={calendar}
+              weeks={ROW_CALENDAR_WEEKS}
               size="xs"
-              {...(cadence.type === 'none' ? { density: habitCount } : { cadence, skippedDays, vacations })}
+              {...(cadence.type === 'none' ? { density: habitCount } : { cadence })}
               bedtime={bedtime}
               weekStartsOn={weekStartsOn}
               timeZone={timeZone}

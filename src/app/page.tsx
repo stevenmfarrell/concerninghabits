@@ -20,13 +20,14 @@ import { PANE_INSET, PaneHeading, PanePage, PaneSection } from '@/components/Pan
 import { buildDueList, type DueCategory } from '@/lib/dueList';
 import { civilDateFor } from '@/lib/timezone';
 import type { HabitListItem, SessionUser } from '@/lib/types';
+import { categoryRowCalendar, rowHabits, rowSections } from '@/lib/rowCalendar';
 import { DEFAULT_CATEGORY_ICON } from '@/lib/constants';
 
 // Categories with a cadence that are due or upcoming, as rows linking to their pages, each with a
 // calendar of its recent entries like a habit's. Tapping its ring, or pressing and holding the row,
 // picks a habit in it to log. Each has its cadence under its name, as habit rows here do. One that
 // `leavesWhenDone` zooms away once logging makes it done (not a limit's, which is never done).
-function CategoryList({ categories, user, leavesWhenDone = true }: { categories: DueCategory[]; user: SessionUser; leavesWhenDone?: boolean }) {
+function CategoryList({ categories, user, rowOf, leavesWhenDone = true }: { categories: DueCategory[]; user: SessionUser; rowOf: (habit: HabitListItem) => HabitListItem; leavesWhenDone?: boolean }) {
   return (
     <div className="divide-y divide-line-subtle flex flex-col">
       {categories.map(category => {
@@ -35,11 +36,9 @@ function CategoryList({ categories, user, leavesWhenDone = true }: { categories:
           name: category.name,
           icon: category.icon || DEFAULT_CATEGORY_ICON,
           showCadence: true,
-          dates: category.habits.flatMap(h => (h.logs ?? []).map(l => l.createdAt)),
+          calendar: categoryRowCalendar(category.habits, category.cadence, user, category.skippedDays),
           habitCount: category.habits.length,
           cadence: category.cadence,
-          skippedDays: category.skippedDays,
-          vacations: user.vacations,
           status: category.status,
           alignWithHabitRows: true,
           bedtime: user.bedtime,
@@ -48,7 +47,7 @@ function CategoryList({ categories, user, leavesWhenDone = true }: { categories:
         };
         // A category with no habits has nothing to log, so its ring can't be tapped
         return category.habits.length > 0
-          ? <CategoryHoldToLog key={category.id} category={category} row={row} leavesWhenDone={leavesWhenDone} />
+          ? <CategoryHoldToLog key={category.id} category={{ id: category.id, name: category.name, icon: category.icon, sections: rowSections(category.sections, rowOf) }} row={row} leavesWhenDone={leavesWhenDone} />
           : <CategoryRow key={category.id} {...row} leading={category.status && <LogRing status={category.status} label="No habits to log" color="blue" disabled />} />;
       })}
     </div>
@@ -130,6 +129,9 @@ export default async function AgendaPage() {
   const onVacation = !!vacation?.active;
   const anyHabits = uncategorized.length > 0 || categories.some(c => c.habits.length > 0 || c.children.some(child => child.habits.length > 0));
 
+  // Each habit as its row has it, with its calendar in place of its entries (see toRowHabit)
+  const rowOf = rowHabits(user);
+
   // Today in the viewer's time zone, following the same bedtime rule as the calendars
   const today = civilDateFor(new Date(), user);
 
@@ -167,10 +169,10 @@ export default async function AgendaPage() {
                 while a new habit's cadence is easy to have left unset */}
             <PaneSection title="Due Now" empty={!anyDue && (clearedToday ? <DueNowCleared /> : !anyCadence ? <NoCadenceYet /> : onVacation ? 'You’re on vacation. Nothing’s due.' : 'Nothing due right now.')}>
               {dueHabits.length > 0 && (
-                <SortableHabitList items={dueHabits} statuses={statuses} user={user} people={people} dndContextId="due-habits" bare holdToLog showCadence leavesWhenDone />
+                <SortableHabitList items={dueHabits.map(rowOf)} statuses={statuses} user={user} people={people} dndContextId="due-habits" bare holdToLog showCadence leavesWhenDone />
               )}
               {dueCategories.length > 0 && (
-                <CategoryList categories={dueCategories} user={user} />
+                <CategoryList categories={dueCategories} user={user} rowOf={rowOf} />
               )}
             </PaneSection>
           </SmoothHeight>
@@ -179,7 +181,7 @@ export default async function AgendaPage() {
             <PaneSection title="Upcoming">
               {upcomingHabits.length > 0 && (
                 <SortableHabitList
-                  items={upcomingHabits.map(u => u.item)}
+                  items={upcomingHabits.map(u => rowOf(u.item))}
                   statuses={statuses}
                   user={user}
                   people={people}
@@ -191,7 +193,7 @@ export default async function AgendaPage() {
                 />
               )}
               {upcomingCategories.length > 0 && (
-                <CategoryList categories={upcomingCategories.map(u => u.item)} user={user} />
+                <CategoryList categories={upcomingCategories.map(u => u.item)} user={user} rowOf={rowOf} />
               )}
             </PaneSection>
           )}
@@ -200,10 +202,10 @@ export default async function AgendaPage() {
           {anyLimits && (
             <PaneSection title="Limits">
               {limitHabits.length > 0 && (
-                <SortableHabitList items={limitHabits} statuses={statuses} user={user} people={people} dndContextId="limit-habits" bare holdToLog showCadence />
+                <SortableHabitList items={limitHabits.map(rowOf)} statuses={statuses} user={user} people={people} dndContextId="limit-habits" bare holdToLog showCadence />
               )}
               {limitCategories.length > 0 && (
-                <CategoryList categories={limitCategories} user={user} leavesWhenDone={false} />
+                <CategoryList categories={limitCategories} user={user} rowOf={rowOf} leavesWhenDone={false} />
               )}
             </PaneSection>
           )}

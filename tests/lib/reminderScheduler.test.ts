@@ -47,6 +47,9 @@ describe('runReminderTick', () => {
   beforeEach(async () => {
     sent.length = 0;
     push.delivers = true;
+    // Each check goes through every user with a device to remind, so earlier tests' users are left
+    // without one, or each test would take longer than the last (and time out under load)
+    await prisma.pushSubscription.deleteMany({ where: { user: { email: { startsWith: 'rem-' } } } });
     user = await createUser();
   });
   const mine = () => sent.filter(s => s.userId === user.id);

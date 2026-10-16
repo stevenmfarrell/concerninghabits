@@ -39,3 +39,11 @@ export async function connectSignedInUserTo(...userIds: string[]) {
   const session = await prisma.session.findUniqueOrThrow({ where: { id: cookieJar.get('session') } });
   for (const id of userIds) await connect(session.userId, id);
 }
+
+// The ids among `ids` that are `users`', in the same order. Tests share one database, and adding a
+// family member on a self-hosted server connects them to everyone in it, including users other test
+// files have made meanwhile, so a test checks its own users' connections rather than all of them.
+export function among(ids: string[], ...users: { user: { id: string } }[]) {
+  const mine = new Set(users.map(u => u.user.id));
+  return ids.filter(id => mine.has(id));
+}

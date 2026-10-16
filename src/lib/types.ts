@@ -5,6 +5,7 @@ import type { getCategories, getCategory } from '@/app/actions/categories';
 import type { getHabitLogs } from '@/app/actions/entries';
 import type { getHabit } from '@/app/actions/habits';
 import type { getDefaultUser } from '@/app/actions/user';
+import type { CalendarSummary } from './calendarDays';
 
 // A habit's form definition: an RJSF (draft-07) JSON schema plus this app's own extensions.
 export type HabitSchema = RJSFSchema & {
@@ -35,12 +36,16 @@ export interface HabitListItem {
   logs?: { createdAt: Date; userId: string }[];
   // The days it was skipped, as civil day keys (see HabitSkip)
   skips?: { day: string }[];
-  // When it was created, which its consistency is counted from (see consistency)
+  // When it was created, and when its history began for its consistency: then, or its first entry if
+  // that's earlier (e.g. imported), which may be older than its loaded entries (see loadListEntries)
   createdAt?: Date;
+  began?: Date;
   // How many people have this habit (1 unless it's shared)
   memberCount?: number;
   // The viewer's own notes on the habit, for voice and photo logging from the row's Log button
   aiContext?: string | null;
+  // Its row's calendar, worked out on the server in place of `logs` and `skips` (see toRowHabit)
+  calendar?: CalendarSummary;
 }
 
 export interface SubcategoryListItem {
