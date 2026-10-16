@@ -1,10 +1,13 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { startTransition, useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
+import { refreshPages } from '@/app/actions/user';
 
-// How long the app has to have been in the background before coming back reloads it
+// How long the app has to have been in the background before coming back reloads it, and before
+// it refreshes its pages instead
 const RELOAD_AFTER_MS = 30 * 60 * 1000;
+const REFRESH_AFTER_MS = 60 * 1000;
 
 // Reloads the page when the app comes back after a long time in the background. A phone keeps a
 // home screen app's page frozen in memory rather than loading it again, so it can come back
@@ -14,6 +17,10 @@ const RELOAD_AFTER_MS = 30 * 60 * 1000;
 //
 // Unless that would lose something: not with a dialog or sheet open, or after anything was typed
 // or picked on the current page, since there's no telling whether it was saved.
+//
+// After a shorter while, or when it can't reload, it refreshes instead: the page showing, and every
+// page kept for going back to or prefetched (see staleTimes in next.config.ts and BottomNav), which
+// may be out of date. That keeps what's on screen, typed or not.
 export default function ResumeReload() {
   const pathname = usePathname();
   const edited = useRef(false);
@@ -36,8 +43,12 @@ export default function ResumeReload() {
       }
       const away = hiddenAt === null ? 0 : Date.now() - hiddenAt;
       hiddenAt = null;
-      // Nor offline, where a reload can only bring back the page as it was kept (see sw.js)
-      if (away < RELOAD_AFTER_MS || edited.current || !navigator.onLine || document.querySelector('[aria-modal="true"]')) return;
+      // Neither offline, where a reload can only bring back the page as it was kept (see sw.js)
+      if (away < REFRESH_AFTER_MS || !navigator.onLine) return;
+      if (away < RELOAD_AFTER_MS || edited.current || document.querySelector('[aria-modal="true"]')) {
+        startTransition(() => refreshPages().catch(() => {}));
+        return;
+      }
       window.location.reload();
     };
 

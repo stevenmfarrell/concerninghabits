@@ -86,6 +86,15 @@ export async function getConnectedIds() {
   return connectedIds((await getDefaultUser()).id);
 }
 
+// Clears every page the browser has kept (see staleTimes in next.config.ts) and refreshes the one
+// showing, for when the app comes back after a while (see ResumeReload): something may have changed
+// meanwhile that this browser didn't do, e.g. someone logging a habit shared with them, or a
+// reminder's Done button
+export async function refreshPages() {
+  await getDefaultUser();
+  revalidatePath('/', 'layout');
+}
+
 // Disconnects the current user from someone (Settings → People): they stop seeing each other, and
 // come off the habits they'd shared with each other (see disconnect)
 export async function removeConnection(otherId: string) {

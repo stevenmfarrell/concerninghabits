@@ -36,9 +36,13 @@ export default function BottomNav({ status }: { status?: ReactNode }) {
             const isActive = pathname === item.href || item.matchPrefixes.some(prefix => pathname.startsWith(prefix));
 
             return (
+              // Prefetched in full, data and all, so tapping a tab shows it straight away rather than
+              // its skeleton. Kept for five minutes (staleTimes); anything changed meanwhile clears it
+              // (revalidatePath), as does coming back to the app after a while (see ResumeReload).
               <Link
                 key={item.name}
                 href={item.href}
+                prefetch={true}
                 className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors ${
                   isActive ? 'text-accent-ink' : 'text-ink-subtle hover:text-ink-secondary'
                 }`}
