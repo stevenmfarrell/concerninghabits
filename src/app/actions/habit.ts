@@ -7,6 +7,7 @@ import { getHabit } from './habits';
 import { extractFromTranscript, interpretInput, logFromInput, whenSaid, type Interpretation, type ParsedLog } from './smartEntry';
 import { getDefaultUser } from './user';
 import { buildCategoryChoices } from '@/lib/categoryChoices';
+import { prisma } from '@/lib/prisma';
 import type { HabitSchema } from '@/lib/types';
 import { CADENCE_TYPES, cadenceFromSuggestion } from '@/lib/cadence';
 import { calculatedFieldProblem, calculatedFieldSchema, parseCalculatedFields, type CalculatedField } from '@/lib/calculatedFields';
@@ -23,21 +24,25 @@ export async function generateHabitSchema(prompt: string, currentSchema?: HabitS
   const problem = (currentSchema && habitSchemaProblem(currentSchema)) || await aiRequestProblem(user.id, prompt);
   if (problem) return { success: false, error: problem };
 
-  // Let the AI choose from the user's own categories, then map its choice back to an id
-  const categoryIdsByLabel = buildCategoryChoices(await getCategories());
+  // For a new draft, the AI picks one of the user's own categories, or none, then its pick is mapped
+  // back to an id. It's told the habits already in each, which say more about what a category holds
+  // than its name. A change to a draft keeps its category, so it isn't asked.
+  const categories = currentSchema ? [] : await getCategories();
+  const categoryIdsByLabel = buildCategoryChoices(categories);
   const categoryLabels = [...categoryIdsByLabel.keys()];
   const categorySchema = categoryLabels.length > 0
-    ? z.enum(categoryLabels as [string, ...string[]]).describe(
-        "The user's category this habit best fits into. Subcategories are written 'Parent:Child' (e.g. 'Fitness:Cardio' is the Cardio subcategory of Fitness). Prefer the most specific subcategory that fits; use the parent category when no subcategory fits."
+    ? z.enum([categoryLabels[0], ...categoryLabels.slice(1), NO_CATEGORY]).describe(
+        `The user's category this habit best fits into (see "The user's categories"). Subcategories are written 'Parent:Child' (e.g. 'Fitness:Cardio' is the Cardio subcategory of Fitness). Prefer the most specific subcategory that fits; use the parent category when no subcategory fits. Use '${NO_CATEGORY}' when none of them fits, rather than forcing one (e.g. 'learn Spanish' when the categories are Fitness, Health and Home).`
       )
     : z.null();
+  const categoryContext = categoryLabels.length > 0 ? `\n\nThe user's categories, with the habits already in each:\n${await describeCategories(user.id, categoryIdsByLabel)}` : '';
 
   try {
     const { object } = await generateObject({
       model: aiModel(),
       maxRetries: 0,
       system: habitSchemaSystem(user, currentSchema),
-      prompt: `User instructions: ${prompt}`,
+      prompt: `User instructions: ${prompt}${categoryContext}`,
       schema: z.object({
         title: z.string().describe(`A short, concise name for the habit. Do NOT prefix with 'Track' or 'Log'. ${user.useEmojiTitle ? 'MUST start with a relevant emoji.' : 'NO emojis.'}`),
         category: categorySchema.optional(),
@@ -62,12 +67,28 @@ export async function generateHabitSchema(prompt: string, currentSchema?: HabitS
       success: true,
       schema,
       cadence: cadenceFromSuggestion(cadence),
-      categoryId: category ? categoryIdsByLabel.get(category) : undefined,
+      categoryId: category && category !== NO_CATEGORY ? categoryIdsByLabel.get(category) : undefined,
     };
   } catch (error) {
     console.error("Error generating schema:", error);
     return { success: false, error: "Failed to generate schema." };
   }
+}
+
+// The AI's option for none of the user's categories, in parentheses so no category's name matches it
+const NO_CATEGORY = '(none of these)';
+
+// The user's categories as the AI is told them for picking one: each label (see buildCategoryChoices)
+// with the habits filed in it, e.g. "- Home: Water Plants, Laundry"
+async function describeCategories(userId: string, categoryIdsByLabel: Map<string, string>) {
+  const memberships = await prisma.habitMember.findMany({
+    where: { userId, categoryId: { in: [...categoryIdsByLabel.values()] } },
+    select: { categoryId: true, habit: { select: { name: true } } },
+  });
+  return [...categoryIdsByLabel].map(([label, id]) => {
+    const habits = memberships.filter(m => m.categoryId === id).map(m => m.habit.name);
+    return `- ${label}: ${habits.length > 0 ? habits.join(', ') : '(no habits yet)'}`;
+  }).join('\n');
 }
 
 // A form and AI context sent from the browser checked the same as when they're saved, since
