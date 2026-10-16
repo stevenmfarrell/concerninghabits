@@ -62,7 +62,7 @@ function rememberRecent(key: string, input: string) {
 export type SpeakOrTypeStatus = { message: string; input: string } | null;
 
 interface SpeakOrTypeProps {
-  // In the round button, with a small badge for whether a tap speaks or types
+  // In the round button
   icon: ReactNode;
   ariaLabel: { speak: string; type: string };
   disabled?: boolean;
@@ -189,12 +189,9 @@ export default function SpeakOrType({
         disabled={disabled || panelOpen}
         title={ariaLabel[mode]}
         aria-label={ariaLabel[mode]}
-        className="relative w-14 h-14 rounded-full bg-accent text-on-accent shadow-lg ring-4 ring-canvas flex items-center justify-center hover:bg-accent-hover active:scale-95 transition disabled:opacity-60 focus-visible:outline-none focus-visible:ring-focus"
+        className="w-14 h-14 rounded-full bg-accent text-on-accent shadow-lg ring-4 ring-canvas flex items-center justify-center hover:bg-accent-hover active:scale-95 transition disabled:opacity-60 focus-visible:outline-none focus-visible:ring-focus"
       >
         {icon}
-        <span className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-surface text-accent-ink border border-line flex items-center justify-center" aria-hidden="true">
-          {mode === 'speak' ? <Mic className="w-3 h-3" strokeWidth={2.5} /> : <Keyboard className="w-3 h-3" strokeWidth={2.5} />}
-        </span>
       </button>
 
       {/* Full-screen while listening, typing, or working on the input. Above the bottom nav (z-50),
