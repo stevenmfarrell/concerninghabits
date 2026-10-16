@@ -226,8 +226,8 @@ describe('describeCadence', () => {
     expect(describeCadence({ type: 'daily', timesPerDay: 1 }, user)).toBe('Daily');
     expect(describeCadence({ type: 'daily', timesPerDay: 3 }, user)).toBe('3× daily');
     expect(describeCadence({ type: 'everyNDays', days: 3 }, user)).toBe('Every 3 days');
-    expect(describeCadence({ type: 'calendarWeek' }, user)).toBe('Weekly');
-    expect(describeCadence({ type: 'calendarMonth' }, user)).toBe('Monthly');
+    expect(describeCadence({ type: 'calendarWeek' }, user)).toBe('Each week');
+    expect(describeCadence({ type: 'calendarMonth' }, user)).toBe('Each month');
     expect(describeCadence({ type: 'calendarWeek', times: 3 }, user)).toBe('3× weekly');
     expect(describeCadence({ type: 'calendarMonth', times: 2 }, user)).toBe('2× monthly');
     expect(describeCadence({ type: 'none' }, user)).toBe('No set cadence');

@@ -94,7 +94,7 @@ export type LimitPeriod = Period;
 const PERIODS: Record<Period, {
   covers: (day: Date, context: CadenceContext) => DayRange;
   progress: ProgressPeriod;
-  // For people: "Daily", "3× daily", "Skip today"
+  // For people: "Daily" or "Each week" on a habit's row, "3× daily", "Skip today"
   title: string;
   adverb: string;
   current: string;
@@ -102,8 +102,8 @@ const PERIODS: Record<Period, {
   days: number;
 }> = {
   day: { covers: day => justThatDay(day), progress: 'daily', title: 'Daily', adverb: 'daily', current: 'today', days: 1 },
-  week: { covers: weekOf, progress: 'weekly', title: 'Weekly', adverb: 'weekly', current: 'this week', days: 7 },
-  month: { covers: day => monthOf(day), progress: 'monthly', title: 'Monthly', adverb: 'monthly', current: 'this month', days: 30 },
+  week: { covers: weekOf, progress: 'weekly', title: 'Each week', adverb: 'weekly', current: 'this week', days: 7 },
+  month: { covers: day => monthOf(day), progress: 'monthly', title: 'Each month', adverb: 'monthly', current: 'this month', days: 30 },
 };
 
 // About how many days a period is

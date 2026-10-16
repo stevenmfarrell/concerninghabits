@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Select from './Select';
+import { cadenceExample } from '@/lib/cadenceExample';
 import { CADENCE_TYPES, toggleWeekday, weekdaysInOrder, withTimes, type Cadence, type CadenceType, type LimitPeriod } from '@/lib/cadence';
 import { INPUT_SM } from '@/components/ui/Input';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
@@ -12,8 +13,8 @@ const CADENCE_OPTIONS: { [T in CadenceType]: { label: string; initial: () => Ext
   daily: { label: 'Daily', initial: () => ({ type: 'daily', timesPerDay: 1 }) },
   everyNDays: { label: 'Every N days', initial: () => ({ type: 'everyNDays', days: 2 }) },
   weekdays: { label: 'On certain days', initial: () => ({ type: 'weekdays', days: [1, 2, 3, 4, 5] }) },
-  calendarWeek: { label: 'Weekly', initial: () => ({ type: 'calendarWeek' }) },
-  calendarMonth: { label: 'Monthly', initial: () => ({ type: 'calendarMonth' }) },
+  calendarWeek: { label: 'Each calendar week', initial: () => ({ type: 'calendarWeek' }) },
+  calendarMonth: { label: 'Each calendar month', initial: () => ({ type: 'calendarMonth' }) },
   none: { label: 'No set cadence', initial: () => ({ type: 'none' }) },
   limit: { label: 'At most (a limit)', initial: () => ({ type: 'limit', period: 'day', max: 1 }) },
 };
@@ -59,7 +60,8 @@ export function CadenceSettings({ value, onChange, disabled, weekStartsOn }: { v
         <CadenceNumber
           key="everyNDays"
           label="Days apart"
-          help="An entry counts for its own day and the days after it, then it's due again."
+          help="For something that needs doing again a set time after the last, like changing a filter or watering plants."
+          example={cadenceExample(value, today(), weekStartsOn)}
           value={value.days}
           min={2}
           max={365}
@@ -74,7 +76,8 @@ export function CadenceSettings({ value, onChange, disabled, weekStartsOn }: { v
         <CadenceNumber
           key="calendarWeek"
           label="Times a week"
-          help="How many entries a week it takes to be done. Weeks begin on your week's start day."
+          help="For a goal for the week, like calling your mom, or the gym 3 times a week."
+          example={cadenceExample(value, today(), weekStartsOn)}
           value={value.times ?? 1}
           min={1}
           max={100}
@@ -87,7 +90,8 @@ export function CadenceSettings({ value, onChange, disabled, weekStartsOn }: { v
         <CadenceNumber
           key="calendarMonth"
           label="Times a month"
-          help="How many entries a month it takes to be done. Months begin on the 1st."
+          help="For a goal for the month, like paying rent, or a massage twice a month."
+          example={cadenceExample(value, today(), weekStartsOn)}
           value={value.times ?? 1}
           min={1}
           max={100}
@@ -127,7 +131,8 @@ export function CadenceSettings({ value, onChange, disabled, weekStartsOn }: { v
 
 // A cadence's whole-number setting. What's typed is kept as typed (so "10" can be typed through
 // "1"), and only passed on while it's in range; leaving the field puts it back in range.
-function CadenceNumber({ label, help, value, min, max, onChange, disabled }: { label: string; help: string; value: number; min: number; max: number; onChange: (value: number) => void; disabled?: boolean }) {
+// `example` works it through from today (see cadenceExample).
+function CadenceNumber({ label, help, example, value, min, max, onChange, disabled }: { label: string; help: string; example?: string | null; value: number; min: number; max: number; onChange: (value: number) => void; disabled?: boolean }) {
   const [typed, setTyped] = useState(String(value));
   const inRange = (n: number) => Number.isInteger(n) && n >= min && n <= max;
 
@@ -157,8 +162,16 @@ function CadenceNumber({ label, help, value, min, max, onChange, disabled }: { l
         />
       </label>
       <p className="text-xs text-ink-muted mt-1">{help}</p>
+      {/* Today by this browser's clock, which may differ from the server's around midnight */}
+      {example && <p className="text-sm text-ink-secondary mt-2" suppressHydrationWarning>{example}</p>}
     </div>
   );
+}
+
+// Today's date by this browser's clock, as a civil date (UTC midnight), for cadenceExample
+function today() {
+  const now = new Date();
+  return new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
 }
 
 // The days of the week a weekday cadence is on, as a row of toggles in the order the user's weeks
