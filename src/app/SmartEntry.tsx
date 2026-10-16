@@ -1,45 +1,54 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useTransition } from 'react';
 import { createPortal } from 'react-dom';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { SquarePen, Sparkles } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { Button, type ButtonSize } from '@/components/ui/Button';
+import { Button } from '@/components/ui/Button';
 import { Dialog, DialogFooter } from '@/components/ui/Dialog';
 import QuillIconWavy from '@/components/QuillIconWavy';
 import SpeakOrType, { type SpeakOrTypeStatus } from '@/components/SpeakOrType';
-import { generateHabitSchema, interpretSmartEntry, logSmartEntry, prefillSmartEntry, type HabitCandidate } from './actions/habit';
+import { generateHabitSchema, interpretSmartEntry, logSmartEntry, type HabitCandidate } from './actions/habit';
 import { showLoggedToast } from '@/components/LoggedToast';
 import { fieldsOf } from '@/lib/formFields';
-import { MENU_ITEM } from '@/components/ui/Menu';
 import { prefillHref } from '@/lib/prefillHref';
 import { queueTextEntry } from '@/lib/offline/actions';
 import { isNetworkError } from '@/lib/offline/sync';
 
-// The dashboard's main button: say or type what you did, or a habit you want to start. The server's
+// The app's main button, raised in the middle of the bottom nav on every page: say or type what you did, or a habit you want to start. The server's
 // habit matcher (Jev, the AI model, or shared words; see src/lib/habitMatcher.ts) picks which habit
 // it's about (or a new one) and whether it reports something done. Something done on an existing
 // habit is filled in and logged right here (or finished on the habit's page if it needs more than
 // was said); a new habit is drafted by the AI model for the user to review, with the input as its
 // first entry when it was something done. When the matcher isn't sure which habit, the user picks
 // from its top candidates instead. Said to be done on an earlier day ("yesterday", "on October 10th"),
-// it's logged then (see whenDone).
-export default function SmartEntry({ size }: { size?: ButtonSize }) {
+// it's logged then (see whenDone). What `userId` said lately is offered to say again (see recentKey).
+export default function SmartEntry({ userId }: { userId: string }) {
   const router = useRouter();
+  const [, startNavigation] = useTransition();
   // While the input is being matched or a new habit drafted: what's happening, and the input
   const [status, setStatus] = useState<SpeakOrTypeStatus>(null);
   const [picker, setPicker] = useState<{ input: string; candidates: HabitCandidate[]; didIt: boolean; loggedAt?: Date } | null>(null);
 
   const closePanel = () => setStatus(null);
+  // Goes to `href`, closing the panel once the page it's going to is showing: in the same
+  // transition, so the panel says what it's opening until then. It's in the bottom nav, so it stays
+  // mounted from page to page.
+  const openPage = (href: string) => startNavigation(() => {
+    router.push(href);
+    closePanel();
+  });
 
-  // Continues in the panel until the app navigates away, which unmounts this
-  // `loggedAt` is when the input says it was done, if earlier than now
+  // Continues in the panel until it opens a page, or logs or fails right here
+  // `loggedAt` is when the input says it was done, if earlier than now. `didIt` (whether it reads as
+  // something done) only matters for a new habit, which logs it as its first entry if so: anything
+  // matched to an existing habit is logged, since that's what the quill is for. (A mishearing like
+  // "play ping pong" for "played ping pong" would otherwise log nothing.)
   const proceed = async (candidate: HabitCandidate, input: string, didIt: boolean, loggedAt?: Date) => {
     setPicker(null);
 
-    if (candidate.habitId && didIt) {
+    if (candidate.habitId) {
       // Logged right here, like everywhere else in the app. Only an entry that needs more than was
       // said goes to the habit's page, with what could be filled in, to finish it there.
       setStatus({ message: `Logging ${candidate.name}...`, input });
@@ -61,23 +70,7 @@ export default function SmartEntry({ size }: { size?: ButtonSize }) {
       } else {
         toast(`Add the rest of the details for ${candidate.name}`, { icon: '✏️' });
         setStatus({ message: `Opening ${candidate.name}...`, input });
-        router.push(prefillHref(candidate.habitId, result.data, result.loggedAt));
-      }
-      return;
-    }
-
-    if (candidate.habitId) {
-      // e.g. "I want to run more" when they already track running: show the habit, log nothing. If
-      // the input names values for its form, though, it may have been something done after all, so
-      // they're filled in on the habit's entry sheet, to log with a tap if it was.
-      setStatus({ message: `Opening ${candidate.name}...`, input });
-      const data = await prefillSmartEntry(candidate.habitId, input);
-      if (Object.keys(data).length > 0) {
-        toast(`Check the details for ${candidate.name}, then log it`, { icon: '✏️' });
-        router.push(prefillHref(candidate.habitId, data, loggedAt));
-      } else {
-        toast(`You already track ${candidate.name}`, { icon: '👍' });
-        router.push(`/log/${candidate.habitId}`);
+        openPage(prefillHref(candidate.habitId, result.data, result.loggedAt));
       }
       return;
     }
@@ -89,7 +82,7 @@ export default function SmartEntry({ size }: { size?: ButtonSize }) {
     if (result.success) {
       // The input rides along so saving the drafted habit can also log it as the first entry
       sessionStorage.setItem('draftHabit', JSON.stringify({ ...result, transcript: input, logFirstEntry: didIt, ...(loggedAt ? { loggedAt: loggedAt.toISOString() } : {}) }));
-      router.push('/create/refine');
+      openPage('/create/refine');
     } else {
       closePanel();
       toast.error(result.error || 'Failed to design a new habit');
@@ -137,25 +130,16 @@ export default function SmartEntry({ size }: { size?: ButtonSize }) {
   return (
     <>
       <SpeakOrType
-        icon={<QuillIconWavy className="w-6 h-6" strokeWidth={2.5} />}
-        size={size}
+        icon={<QuillIconWavy className="w-7 h-7" strokeWidth={2.5} />}
         ariaLabel={{ speak: 'Say what you did', type: 'Type what you did' }}
-        menuExtras={
-          <Link
-            href="/create"
-            className={MENU_ITEM}
-          >
-            <SquarePen className="w-4 h-4" />
-            Build a habit manually
-          </Link>
-        }
+        panelLink={{ href: '/create', label: 'Build a habit by hand', icon: <SquarePen className="w-4 h-4" /> }}
         prompt={{
           listening: 'Listening...',
-          typing: 'What did you do?',
+          typing: 'What do you want to log?',
           hint: "Tell me something you did, or a habit you'd like to start.",
-          placeholder: 'e.g. "Ran 3 miles in 28 minutes"',
         }}
         examples={EXAMPLES}
+        recentKey={`smartEntryRecent:${userId}`}
         status={status}
         onInput={handleInput}
       />

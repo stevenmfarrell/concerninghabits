@@ -13,7 +13,7 @@ export interface Step {
   // The Agenda's rows to try it on, or the Habits page's (which open a habit's page, and nothing else)
   view: 'agenda' | 'habits';
   rows: DemoHabit[];
-  // The quill above the rows, to say or type what was done
+  // Whether the quill in the bottom nav works on this step, to say or type what was done
   quill?: boolean;
   // What to say about `action`, given the rows after it and whether the goal was already reached,
   // or nothing for the general description and hint (see verdictFor)
@@ -186,12 +186,12 @@ export const STEPS: Step[] = [
     title: 'Tell it what you did',
     body: (
       <>
-        <p>The quill at the top of the Agenda takes what you did in your own words, like &ldquo;ran 3 miles in 28 minutes&rdquo;, and logs it to the right habit with its form filled in. Describe a habit you&apos;d like to start, and it drafts one for you.</p>
-        <p>Speak or type: the arrow beside the quill switches between them. Here it only goes by a few words. In the app, AI reads what you said.</p>
+        <p>The quill in the middle of the bar at the bottom takes what you did in your own words, like &ldquo;ran 3 miles in 28 minutes&rdquo;, and logs it to the right habit with its form filled in. It&apos;s there on every page. Describe a habit you&apos;d like to start, and it drafts one for you.</p>
+        <p>Speak or type: Type instead or Speak instead, under its panel, switches between them, and it remembers which. Here it only goes by a few words. In the app, AI reads what you said.</p>
       </>
     ),
     goal: 'Log your vitamins without touching their row: tell the quill you took them.',
-    hint: 'Tap the quill above the list, then say or type “took my vitamins”.',
+    hint: 'Tap the quill in the middle of the bottom bar, then say or type “took my vitamins”.',
     view: 'agenda',
     rows: [VITAMINS, WATER],
     quill: true,

@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { Check, SkipForward } from 'lucide-react';
 import Icon from '../components/Icon';
 import { SortableHabitList } from './categories/[id]/SortableLists';
-import SmartEntry from './SmartEntry';
 import { getVacation } from './actions/vacation';
 import VacationChip from '@/components/VacationChip';
 import EmptyState from '@/components/EmptyState';
@@ -142,7 +141,6 @@ export default async function AgendaPage() {
           title="Agenda"
           subtitle={today.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })}
           showBack={false}
-          actions={<SmartEntry size="md" />}
         />
       }
     >
@@ -154,7 +152,7 @@ export default async function AgendaPage() {
       )}
       {!anyHabits ? (
         <EmptyState title="No habits here yet" action={<LinkButton href="/tutorial" variant="outline">Take the Tour</LinkButton>}>
-          Tap the quill at the top and tell it something you did, or a habit you&apos;d like to start.
+          Tap the quill in the middle of the bar below and tell it something you did, or a habit you&apos;d like to start.
         </EmptyState>
       ) : !anyDue && !anyUpcoming && !anyLimits && !anyRecent && !onVacation ? (
         <EmptyState title="Nothing on the agenda" action={<LinkButton href="/habits" variant="outline">Go to Habits</LinkButton>}>

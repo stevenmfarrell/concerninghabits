@@ -47,7 +47,7 @@ You need Docker with Docker Compose. For the AI features you also need an AI mod
          - GOOGLE_GENERATIVE_AI_API_KEY=your-google-gemini-api-key
          # - AI_MODEL=local:qwen3:8b
          # - AI_BASE_URL=http://host.docker.internal:11434/v1
-         # Optional: a TypeSafe API key for matching "I did..." to a habit (see "Matching What You Say to a Habit")
+         # Optional: a TypeSafe API key for matching what you say to a habit (see "Matching What You Say to a Habit")
          # - TYPESAFE_API_KEY=your-typesafe-api-key
 
          # Optional: Home Assistant (MQTT) Integration
@@ -132,13 +132,13 @@ Designing a habit's form, filling in entries from what you say, type or photogra
 
 ### Matching What You Say to a Habit
 
-The Agenda's "I did..." button, `POST /api/log`, and "I did..." text queued while offline first work out which of your habits you meant. `HABIT_MATCHER` chooses how:
+The quill in the middle of the bottom bar, `POST /api/log`, and what was said to it while offline first work out which of your habits you meant. `HABIT_MATCHER` chooses how:
 
 | `HABIT_MATCHER` | How | Needs |
 | --- | --- | --- |
 | `jev` | TypeSafe's Jev. The most accurate, with calibrated confidence. | `TYPESAFE_API_KEY` |
 | `llm` | The model set by `AI_MODEL`. More likely to ask which habit you meant. | A working `AI_MODEL` |
-| `none` | No AI: "I did..." always asks, listing the habits that share words with what you said. `/api/log` and queued text without a habit log nothing, so log to a habit directly. | Nothing |
+| `none` | No AI: the quill always asks, listing the habits that share words with what you said. `/api/log` and queued text without a habit log nothing, so log to a habit directly. | Nothing |
 
 Left unset, it's `jev` if `TYPESAFE_API_KEY` is set, otherwise `llm` if the AI model is set up, otherwise `none`. However they're matched, `/api/log` and queued text only log to a habit the matcher is sure of.
 
@@ -153,7 +153,7 @@ The app sends them itself, checking every minute, so they only go out while it's
 Installed as an app, Concerning Habits keeps working without a connection:
 
 - **Opening it:** the app keeps a copy of each page you visit, plus the tabs and the habit and category pages they link to. Online, pages always come from the server; the copies are only used when it can't be reached. A page never opened on the device shows a short offline notice instead.
-- **Making changes:** logging, editing or deleting an entry, and skipping, keep working. If the server can't be reached, the change is kept on the device and sent once it can, with the time it was actually made. A pill above the bottom nav says how many are waiting. Anything said or typed for AI to fill in (voice, or the Agenda's "I did…") is kept as text and filled in once it's sent. Logging from a photo needs a connection.
+- **Making changes:** logging, editing or deleting an entry, and skipping, keep working. If the server can't be reached, the change is kept on the device and sent once it can, with the time it was actually made. A pill above the bottom nav says how many are waiting. Anything said or typed for AI to fill in (voice, or the quill) is kept as text and filled in once it's sent. Logging from a photo needs a connection.
 - **When a change can't be made** (say the habit was deleted meanwhile, or its form now needs a value the entry doesn't have), it's kept as "Couldn't sync". From there you can finish it by hand, try again, or discard it. Nothing is dropped silently.
 
 Copies of pages are cleared on signing out. Changes waiting on a shared device are only ever sent for the person who made them.
@@ -164,7 +164,7 @@ Other apps (iOS Shortcuts, Home Assistant, Tasker, an NFC tag) can log and read 
 
 - `POST /api/habits/<habit id>/log` (a key that can log) logs one habit. The body is optional JSON: `{"values": {"distance": 3}}` with the habit's field keys, and/or `{"text": "ran 3 miles"}` for AI to fill them in, plus an optional `"at"` (an ISO 8601 date and time) for an earlier entry. Each habit's address, field keys and an example request are in its ⋮ menu → Log from Another App.
 - `GET /api/habits/<habit id>/entries?limit=10` (a key that can read) returns the habit's latest entries, newest first (1 to 100, 10 by default), each with who logged it. Someone who has since left the habit, and whom you aren't connected with, is named "Former member", as in the app.
-- `POST /api/log` (a key that can log) with `{"text": "ran 3 miles in 25 minutes"}` works out which habit was meant, like the Agenda's "I did..." button. It never creates a habit, and logs nothing (answering 422 with its best guesses) when it isn't sure.
+- `POST /api/log` (a key that can log) with `{"text": "ran 3 miles in 25 minutes"}` works out which habit was meant, like the quill in the app's bottom bar. It never creates a habit, and logs nothing (answering 422 with its best guesses) when it isn't sure which habit. Once it's sure, it logs, even if the text doesn't read as something done (e.g. "play ping pong", misheard).
 
 Text that says when it was done ("yesterday", "3 days ago", "on October 10th", "yesterday at 6pm") is logged then, counted from `"at"` when given, using the user's time zone and bedtime. Without a time it's logged at noon that day.
 

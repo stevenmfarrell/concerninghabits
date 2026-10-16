@@ -62,8 +62,8 @@ export async function loggableHabitsOf(userId: string) {
 export type Interpretation = ({ success: true; matcher: HabitMatcherName } & HabitMatch) | { success: false; error: string };
 
 // Interpret something the user said or typed: which of their habits it's about (or a new one), and
-// whether it reports something they did (so it becomes an entry) or only describes a habit to set
-// up. Candidates are the most likely habits, best first; `confident` says whether the first is sure
+// whether it reports something they did or only describes a habit to set up, which for a new habit
+// decides whether it's also its first entry (anything matched to an existing habit is logged). Candidates are the most likely habits, best first; `confident` says whether the first is sure
 // enough to act on without asking.
 export async function interpretInput(user: { id: string }, input: string): Promise<Interpretation> {
   try {
@@ -160,18 +160,18 @@ export type AnyHabitLogResult =
   // matched to one, that habit and what could be filled in, to finish by hand
   | { logged: false; error: string; candidates: HabitCandidate[]; habit?: { id: string; name: string }; data?: Record<string, unknown> };
 
-// Logs something the user said or typed to whichever of their habits it's about, as the Agenda's
-// smart entry does but without asking: only to a habit the matcher is sure of, and never a new one. For the
-// API (see src/app/api/log) and for text queued while offline (see src/app/api/sync).
+// Logs something the user said or typed to whichever of their habits it's about, as the quill's
+// smart entry does but without asking: only to a habit the matcher is sure of, and never a new one.
+// Whether it reads as something done doesn't matter, as for the quill: matched to a habit, it's
+// logged. For the API (see src/app/api/log) and for text queued while offline (see src/app/api/sync).
 export async function logToAnyHabit(user: EntryUser, text: string, createdAt?: Date, id?: string): Promise<AnyHabitLogResult> {
   const interpretation = await interpretInput(user, text);
   if (!interpretation.success) return { logged: false, error: interpretation.error, candidates: [] };
-  const { confident, didIt } = interpretation;
+  const { confident } = interpretation;
   const candidates = interpretation.candidates.filter(c => c.habitId);
 
   const [best] = interpretation.candidates;
   if (interpretation.matcher === 'none') return { logged: false, error: `Matching text to a habit is turned off on this server, so log "${text}" to a habit directly`, candidates };
-  if (!didIt) return { logged: false, error: `"${text}" doesn't read as something you did, so nothing was logged`, candidates };
   if (!best?.habitId) return { logged: false, error: `"${text}" doesn't match any of your habits. Make one in the app first.`, candidates };
   if (!confident) return { logged: false, error: `Not sure which habit "${text}" is about: ${describeCandidates(candidates)}`, candidates };
 

@@ -14,6 +14,7 @@ import ToastLimit from "../components/ToastLimit";
 import ToastTouchResume from "../components/ToastTouchResume";
 import { TOAST_OPTIONS } from "../components/toastOptions";
 import BottomNav from "../components/BottomNav";
+import SmartEntry from "./SmartEntry";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -71,7 +72,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         <Toaster position="bottom-center" containerStyle={{ bottom: 100 }} toastOptions={TOAST_OPTIONS} />
         <ToastLimit />
         <ToastTouchResume />
-        <BottomNav status={user && <SyncStatus />} />
+        <BottomNav status={user && <SyncStatus />} center={user && <SmartEntry userId={user.id} />} />
         <ServiceWorkerSetup signedIn={!!user} />
         <OfflineSync user={user} />
         <TimeZoneSync />

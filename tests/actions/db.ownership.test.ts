@@ -7,7 +7,7 @@ import { deleteHabit, getHabit, isMqttConfigured, leaveHabit, reorderHabits, sav
 import { getPeople, removeConnection, updateUserPreferences } from '@/app/actions/user';
 import { exportHabitLogsCsv, importHabitLogsCsv } from '@/app/actions/csv';
 import { deleteCalculatedField, deleteChart, saveCalculatedField } from '@/app/actions/charts';
-import { generateChart, logSmartEntry, prefillSmartEntry } from '@/app/actions/habit';
+import { generateChart, logSmartEntry } from '@/app/actions/habit';
 import { getHabitReminder, removePushSubscription, setHabitReminder } from '@/app/actions/reminders';
 import { revokeApiKey, setApiKeyPermissions } from '@/app/actions/apiKeys';
 import { skipToday, undoSkip } from '@/app/actions/skips';
@@ -204,7 +204,6 @@ describe('between accounts on the hosted version', () => {
     await expect(getHabitReminder(habit.id)).resolves.toBeNull();
     // These answer with an error rather than throwing, without asking the AI anything
     await expect(logSmartEntry(habit.id, 'ran 20 minutes')).resolves.toMatchObject({ success: false });
-    await expect(prefillSmartEntry(habit.id, 'ran 20 minutes')).resolves.toEqual({});
     await expect(generateChart(habit.id, 'minutes over time')).resolves.toMatchObject({ success: false });
 
     // And nothing changed
