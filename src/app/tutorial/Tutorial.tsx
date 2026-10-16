@@ -371,7 +371,7 @@ export default function Tutorial({ days, now }: { days: Days; now: number }) {
       {/* In the bottom nav, as in the app, though it only does anything on its own step */}
       {quillSlot && createPortal(
         <SpeakOrType
-          icon={<QuillIconWavy className="w-7 h-7" strokeWidth={2.5} />}
+          icon={<QuillIconWavy className="w-8 h-8" strokeWidth={2.5} />}
           ariaLabel={{ speak: 'Say what you did', type: 'Type what you did' }}
           disabled={!step.quill}
           prompt={{

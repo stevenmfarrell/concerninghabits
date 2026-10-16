@@ -52,15 +52,15 @@ export default function BottomNav({ status, center }: { status?: ReactNode; cent
   return (
     <>
       {/* Spacer to prevent content from hiding behind the fixed navbar, and the quill rising out of it */}
-      <div className="h-24 shrink-0" />
+      <div className="h-28 shrink-0" />
       
       <nav className="fixed bottom-0 left-0 right-0 z-50 bg-surface/80 backdrop-blur-md border-t border-line" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
         {/* Above the quill, which rises out of the bar */}
-        {status && <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-8">{status}</div>}
+        {status && <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-10">{status}</div>}
         <div className="grid grid-cols-5 items-center h-16 px-2 sm:px-4 max-w-md mx-auto">
           {navItems.slice(0, 2).map(tab)}
           {/* Raised out of the bar, half above it. The tutorial's quill goes here on its page. */}
-          <div className="flex justify-center -mt-7">
+          <div className="flex justify-center -mt-8">
             {pathname === '/tutorial' ? <div id={TUTORIAL_QUILL_SLOT} /> : center}
           </div>
           {navItems.slice(2).map(tab)}
