@@ -118,6 +118,10 @@ An on/off setting is a `<Toggle>` row (`src/components/ui/Toggle.tsx`): icon, ti
 
 Settings that are rarely changed go in a `<CollapsibleSection title="…" summary="…">` (`src/components/CollapsibleSection.tsx`). It's a row in a pane's list that folds its contents away but keeps a one-line summary of their state in view, and unfolds them below it as more rows (e.g. `bare` toggles). The habit editor's More settings is the example.
 
+## The bottom nav
+
+The four tabs, with the quill (`SmartEntry`) raised in the middle between them, on every signed-in page: the app's main action, within reach of a thumb. Don't put another copy of it in a page's header. The tutorial puts its own pretend quill in the same place (`TUTORIAL_QUILL_SLOT`).
+
 ## Page headers
 
 Every page gets the sticky `<PageHeader>` (`src/components/PageHeader.tsx`), a frosted bar with an optional actions slot on the right. The bottom nav's four tabs use it; drill-in pages already did.
@@ -129,7 +133,6 @@ Every page gets the sticky `<PageHeader>` (`src/components/PageHeader.tsx`), a f
   title="Agenda"
   subtitle="Oct 4"
   showBack={false}
-  actions={<SmartEntry size="md" />}
 />
 ```
 
@@ -146,7 +149,7 @@ Every page gets the sticky `<PageHeader>` (`src/components/PageHeader.tsx`), a f
 - Keep tap targets in the bar at least 44px tall: icon buttons, or `md` buttons. `sm` buttons are too small here, and `lg` makes the bar too tall.
 - On drill-in pages, `titleInsetClassName` reserves space on each side so the centered title doesn't run under the back control or actions. The default `px-14` clears one icon button; pass `px-24` for two.
 - Keep the subtitle short; it doesn't shrink, the title truncates instead.
-- Anything `fixed` (a modal, a full-screen panel) rendered from inside the bar should be portaled to `<body>`, as `SmartEntry` and `SpeakOrType` do.
+- Anything `fixed` (a modal, a full-screen panel) rendered from inside the bar should be portaled to `<body>`, as `SmartEntry` and `SpeakOrType` do in the bottom nav.
 
 A page that's a step you can't leave (e.g. setting a new password before going on) uses the tab style (`showBack={false}`). Pages with no app around them (signing in, first-time setup) have no header; pass `centered` to `PanePage` instead.
 

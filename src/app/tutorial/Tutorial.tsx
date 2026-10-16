@@ -1,6 +1,7 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useRef, useState, useSyncExternalStore } from 'react';
+import { createPortal } from 'react-dom';
 import toast from 'react-hot-toast';
 import { Check } from 'lucide-react';
 import { ToastCard } from '@/components/LoggedToast';
@@ -15,12 +16,20 @@ import { skipLabels } from '@/lib/cadence';
 import { AgendaRow, Goal, Said, TutorialBar, DemoLogSheet, DemoPage, DemoPicker, HabitsRow } from './DemoParts';
 import { isDue, valueLines, type Action, type DemoEntry, type DemoHabit, type Days, type How, type Rows, type Verdict } from './demo';
 import { STEPS, verdictFor, type Step } from './steps';
+import { TUTORIAL_QUILL_SLOT } from '@/components/BottomNav';
 
 // The tutorial: a few steps, each a short explanation and a goal to reach on made-up habits built
 // from the app's own pieces (the Agenda's rows and their gestures, a habit's page, its entry form, a
 // category's picker, the quill), so what's learned here works the same in the app. Nothing is
 // saved. Whatever's done is checked against the step's goal (see steps), and logs and skips come
 // with the same notice and Undo as in the app, to take a wrong one back.
+
+// Looks for the quill's slot again once the nav has drawn it, as it may not have yet when this page
+// is opened from another (see quillSlot)
+function lookAgainNextFrame(onChange: () => void) {
+  const frame = requestAnimationFrame(onChange);
+  return () => cancelAnimationFrame(frame);
+}
 
 // How long the quill "works" on what it's told before logging it, as the AI would
 const QUILL_DELAY_MS = 900;
@@ -86,6 +95,9 @@ export default function Tutorial({ days, now }: { days: Days; now: number }) {
 
   const [quillStatus, setQuillStatus] = useState<SpeakOrTypeStatus>(null);
   const quillTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  // The bottom nav's middle, where the quill is in the app, which this page leaves for its own (see
+  // BottomNav). Nothing to find on the server.
+  const quillSlot = useSyncExternalStore(lookAgainNextFrame, () => document.getElementById(TUTORIAL_QUILL_SLOT), () => null);
 
   const habitById = (id: string) => step.rows.find(h => h.id === id)!;
 
@@ -355,24 +367,23 @@ export default function Tutorial({ days, now }: { days: Days; now: number }) {
         <div className="pt-2"><Goal goal={step.goal} reached={reached} /></div>
       </div>
 
-      {step.quill && (
-        <div className={`${PANE_INSET} py-3 flex items-center justify-between gap-4`}>
-          <span className="text-2xl font-extrabold text-ink tracking-tight">Agenda</span>
-          <SpeakOrType
-            icon={<QuillIconWavy className="w-6 h-6" strokeWidth={2.5} />}
-            size="md"
-            ariaLabel={{ speak: 'Say what you did', type: 'Type what you did' }}
-            prompt={{
-              listening: 'Listening...',
-              typing: 'What did you do?',
-              hint: "Tell me something you did, or a habit you'd like to start.",
-              placeholder: 'e.g. "Took my vitamins"',
-            }}
-            examples={QUILL_EXAMPLES}
-            status={quillStatus}
-            onInput={tellQuill}
-          />
-        </div>
+      {/* In the bottom nav, as in the app, though it only does anything on its own step */}
+      {quillSlot && createPortal(
+        <SpeakOrType
+          icon={<QuillIconWavy className="w-7 h-7" strokeWidth={2.5} />}
+          ariaLabel={{ speak: 'Say what you did', type: 'Type what you did' }}
+          disabled={!step.quill}
+          prompt={{
+            listening: 'Listening...',
+            typing: 'What did you do?',
+            hint: "Tell me something you did, or a habit you'd like to start.",
+            placeholder: 'e.g. "Took my vitamins"',
+          }}
+          examples={QUILL_EXAMPLES}
+          status={quillStatus}
+          onInput={tellQuill}
+        />,
+        quillSlot,
       )}
 
       {step.view === 'agenda' ? (

@@ -2,11 +2,11 @@
 
 import { useState, useSyncExternalStore, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, ChevronDown, Keyboard, Loader2, Mic } from 'lucide-react';
-import { Button, type ButtonSize } from '@/components/ui/Button';
+import Link from 'next/link';
+import { Check, Keyboard, Loader2, Mic } from 'lucide-react';
+import { Button, buttonClasses } from '@/components/ui/Button';
 import QuillIconWavy from '@/components/QuillIconWavy';
 import { useSpeechRecognition } from '@/lib/useSpeechRecognition';
-import { MENU_ITEM, MENU_PANEL, MENU_SEPARATOR, MenuBackdrop } from '@/components/ui/Menu';
 import { MAX_AI_INPUT_LENGTH } from '@/lib/constants';
 
 type Mode = 'speak' | 'type';
@@ -35,53 +35,43 @@ function storeMode(mode: Mode) {
   modeListeners.forEach(listener => listener());
 }
 
-const SPLIT_BORDER = { primary: 'border-accent-hover', secondary: 'border-inverse-hover' } as const;
-
 // What the parent is doing with submitted input; the panel stays open showing it until cleared
 export type SpeakOrTypeStatus = { message: string; input: string } | null;
 
 interface SpeakOrTypeProps {
-  // Shown before the mode's mic/keyboard icon
+  // In the round button, with a small badge for whether a tap speaks or types
   icon: ReactNode;
-  // Visible text after the icons; icon-only when omitted
-  label?: string;
   ariaLabel: { speak: string; type: string };
-  variant?: keyof typeof SPLIT_BORDER;
-  size?: ButtonSize;
   disabled?: boolean;
-  // Extra items at the bottom of the dropdown, after the Speak/Type choice
-  menuExtras?: ReactNode;
+  // A link at the bottom of the panel to do it another way, e.g. build a habit by hand
+  panelLink?: { href: string; label: string; icon: ReactNode };
   prompt: { listening: string; typing: string; hint: string; placeholder: string };
   examples: string[];
   status: SpeakOrTypeStatus;
   onInput: (input: string) => void;
 }
 
-// A split button for giving the AI some input by voice or typing, with a dropdown to switch between
-// them. Either way it opens a full-screen panel: listening (live transcript, Done / Cancel) or a text
-// box, with example inputs, then whatever `status` the parent sets while it works on the input.
+// A round button for giving the AI some input by voice or typing, raised in the middle of the
+// bottom nav (see BottomNav). A tap opens a full-screen panel: listening (live transcript, Done /
+// Cancel) or a text box, whichever was used last, with example inputs and a button to switch to the
+// other, then whatever `status` the parent sets while it works on the input.
 export default function SpeakOrType({
   icon,
-  label,
   ariaLabel,
-  variant = 'primary',
-  size = 'lg',
   disabled,
-  menuExtras,
+  panelLink,
   prompt,
   examples,
   status,
   onInput,
 }: SpeakOrTypeProps) {
   const mode = useSyncExternalStore(subscribeMode, readMode, () => 'speak' as const);
-  const [menuOpen, setMenuOpen] = useState(false);
   const [typing, setTyping] = useState(false);
   const [typedInput, setTypedInput] = useState('');
 
   const { isListening, liveTranscript, start, stop, cancel } = useSpeechRecognition(onInput);
 
   const panelOpen = isListening || typing || status !== null;
-  const iconSize = size === 'sm' ? 'w-4 h-4' : 'w-6 h-6';
 
   const handleMainClick = () => {
     if (mode === 'speak') start();
@@ -105,69 +95,57 @@ export default function SpeakOrType({
     setTyping(true);
   };
 
-  const chooseMode = (next: Mode) => {
+  // Switches between listening and typing, remembering the choice for next time
+  const switchTo = (next: Mode) => {
     storeMode(next);
-    setMenuOpen(false);
+    if (next === 'type') {
+      cancel();
+      setTyping(true);
+    } else {
+      setTyping(false);
+      start();
+    }
   };
+
+  // The panel's last row: switching to the other way of giving input, and `panelLink`
+  const otherWays = (current: Mode) => (
+    <div className="flex flex-wrap items-center justify-center gap-x-1 text-sm">
+      <Button type="button" variant="inverse-ghost" size="sm" onClick={() => switchTo(current === 'speak' ? 'type' : 'speak')}>
+        {current === 'speak' ? <Keyboard className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+        {current === 'speak' ? 'Type instead' : 'Speak instead'}
+      </Button>
+      {panelLink && (
+        <Link
+          href={panelLink.href}
+          onClick={() => {
+            cancel();
+            setTyping(false);
+          }}
+          className={buttonClasses('inverse-ghost', 'sm')}
+        >
+          {panelLink.icon}
+          {panelLink.label}
+        </Link>
+      )}
+    </div>
+  );
 
   return (
     <>
-      <div className="relative inline-flex">
-        <Button
-          variant={variant}
-          size={size}
-          onClick={handleMainClick}
-          disabled={disabled || panelOpen}
-          title={ariaLabel[mode]}
-          aria-label={ariaLabel[mode]}
-          className={`rounded-r-none ${label ? '' : 'px-5!'}`}
-        >
-          {icon}
-          {mode === 'speak' ? <Mic className={iconSize} strokeWidth={2.5} /> : <Keyboard className={iconSize} strokeWidth={2.5} />}
-          {label && <span>{label}</span>}
-        </Button>
-        <Button
-          variant={variant}
-          size={size}
-          onClick={() => setMenuOpen(!menuOpen)}
-          disabled={disabled || panelOpen}
-          title="Speak or type"
-          aria-label="Speak or type"
-          aria-expanded={menuOpen}
-          className={`rounded-l-none px-2.5! border-l ${SPLIT_BORDER[variant]}`}
-        >
-          <ChevronDown className={size === 'sm' ? 'w-4 h-4' : 'w-5 h-5'} />
-        </Button>
-
-        {menuOpen && (
-          <>
-            <MenuBackdrop onClose={() => setMenuOpen(false)} />
-            <div className={`${MENU_PANEL} absolute right-0 top-full mt-1 w-60`}>
-              {([
-                { value: 'speak', label: 'Speak', icon: Mic },
-                { value: 'type', label: 'Type', icon: Keyboard },
-              ] as const).map(({ value, label: modeLabel, icon: ModeIcon }) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => chooseMode(value)}
-                  className={MENU_ITEM}
-                >
-                  <ModeIcon className="w-4 h-4" />
-                  <span className="flex-1">{modeLabel}</span>
-                  {mode === value && <Check className="w-4 h-4 text-accent-ink" />}
-                </button>
-              ))}
-              {menuExtras && (
-                <>
-                  <div className={MENU_SEPARATOR} />
-                  {menuExtras}
-                </>
-              )}
-            </div>
-          </>
-        )}
-      </div>
+      {/* Its own round shape rather than a Button: the nav's one raised control */}
+      <button
+        type="button"
+        onClick={handleMainClick}
+        disabled={disabled || panelOpen}
+        title={ariaLabel[mode]}
+        aria-label={ariaLabel[mode]}
+        className="relative w-14 h-14 rounded-full bg-accent text-on-accent shadow-lg ring-4 ring-canvas flex items-center justify-center hover:bg-accent-hover active:scale-95 transition disabled:opacity-60 focus-visible:outline-none focus-visible:ring-focus"
+      >
+        {icon}
+        <span className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-surface text-accent-ink border border-line flex items-center justify-center" aria-hidden="true">
+          {mode === 'speak' ? <Mic className="w-3 h-3" strokeWidth={2.5} /> : <Keyboard className="w-3 h-3" strokeWidth={2.5} />}
+        </span>
+      </button>
 
       {/* Full-screen while listening, typing, or working on the input. Above the bottom nav (z-50),
           and portaled to <body> since a transformed ancestor (e.g. an entry animation) would
@@ -218,6 +196,7 @@ export default function SpeakOrType({
                 <Button variant="inverse-ghost" onClick={cancel}>
                   Cancel
                 </Button>
+                {otherWays('speak')}
               </div>
             </>
           ) : (
@@ -254,6 +233,7 @@ export default function SpeakOrType({
                 <Button type="button" variant="inverse-ghost" onClick={() => setTyping(false)}>
                   Cancel
                 </Button>
+                {otherWays('type')}
               </div>
             </form>
           )}

@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { Check, SkipForward } from 'lucide-react';
 import Icon from '../components/Icon';
 import { SortableHabitList } from './categories/[id]/SortableLists';
-import SmartEntry from './SmartEntry';
 import { getVacation } from './actions/vacation';
 import VacationChip from '@/components/VacationChip';
 import EmptyState from '@/components/EmptyState';
@@ -142,7 +141,6 @@ export default async function AgendaPage() {
           title="Agenda"
           subtitle={today.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })}
           showBack={false}
-          actions={<SmartEntry size="md" />}
         />
       }
     >
