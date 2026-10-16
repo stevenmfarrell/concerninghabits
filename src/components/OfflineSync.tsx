@@ -1,20 +1,19 @@
 'use client';
 
 import { startTransition, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { getOutbox, loadOutbox } from '@/lib/offline/outbox';
 import { isReachable, setOnSynced, setOutboxUser, setReachable, syncOutbox, type OutboxUser } from '@/lib/offline/sync';
+import { refreshPages } from '@/app/actions/user';
 
 // While a change is waiting, or the server's been unreachable, how often to try again
 const RETRY_EVERY_MS = 20 * 1000;
 
 // Keeps the outbox (see src/lib/offline) sent: as the app opens, when the browser says it's back
 // online, when the app comes back to the front, and every little while something's waiting. Each
-// sync that makes changes renders the page again with them. Knowing who's signed in (`user`, null on
+// sync that makes changes renders the page again with them, and clears the pages kept for going
+// back to or prefetched (the sync is a route, which doesn't clear them as an action would). Knowing who's signed in (`user`, null on
 // the sign-in pages), it only ever sends their changes.
 export default function OfflineSync({ user }: { user: OutboxUser | null }) {
-  const router = useRouter();
-
   useEffect(() => {
     setOutboxUser(user);
     // After the user's set, so what's loaded is shown as theirs
@@ -22,9 +21,9 @@ export default function OfflineSync({ user }: { user: OutboxUser | null }) {
   }, [user?.id, user?.bedtime]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    setOnSynced(() => startTransition(() => router.refresh()));
+    setOnSynced(() => startTransition(() => refreshPages().catch(() => {})));
     return () => setOnSynced(null);
-  }, [router]);
+  }, []);
 
   useEffect(() => {
     const sync = () => void syncOutbox();

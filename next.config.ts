@@ -17,11 +17,13 @@ const nextConfig: NextConfig = {
     ];
   },
   experimental: {
-    // Reuse a visited page for 30s on client-side navigation (the default is to refetch every
-    // time), so going back and forth between pages is instant. Server actions' revalidatePath
-    // calls still clear it, so your own changes show up right away.
+    // Reuse a visited page for five minutes on client-side navigation (the default is to refetch
+    // every time), so going back and forth between pages is instant, as the bottom tabs, prefetched
+    // in full, are (`static`, five minutes by default). Server actions' revalidatePath calls still
+    // clear them, so your own changes show up right away, and coming back to the app after a while
+    // refreshes them (see ResumeReload).
     staleTimes: {
-      dynamic: 30,
+      dynamic: 300,
     },
   }
 };
