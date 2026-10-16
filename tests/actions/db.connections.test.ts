@@ -80,7 +80,8 @@ describe('on the hosted version', () => {
 
     await connect(pat.user.id, sam.user.id);
     await connect(sam.user.id, pat.user.id);
-    expect(await prisma.connection.count({ where: { OR: [{ userAId: sam.user.id }, { userBId: sam.user.id }] } })).toBe(1);
+    // One row for the pair, however many times they connect
+    expect(await prisma.connection.count({ where: { OR: [{ userAId: sam.user.id, userBId: pat.user.id }, { userAId: pat.user.id, userBId: sam.user.id }] } })).toBe(1);
     expect(among(await peopleIds(), sam, pat, stranger)).toEqual([sam.user.id, pat.user.id]);
     expect(among(await connectedIds(pat.user.id), sam, pat, stranger)).toEqual([sam.user.id]);
     expect(await peopleIds()).not.toContain(stranger.user.id);

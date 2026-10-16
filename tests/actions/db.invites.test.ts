@@ -89,7 +89,8 @@ describe('invite links', () => {
     as(pat);
     await acceptInviteLink(token);
     expect(await prisma.habitMember.count({ where: { habitId: habit.id, userId: pat.user.id } })).toBe(1);
-    expect(await prisma.connection.count({ where: { OR: [{ userAId: pat.user.id }, { userBId: pat.user.id }] } })).toBe(1);
+    // Still one row for the pair
+    expect(await prisma.connection.count({ where: { OR: [{ userAId: pat.user.id, userBId: sam.user.id }, { userAId: sam.user.id, userBId: pat.user.id }] } })).toBe(1);
   });
 
   it('can\'t be accepted by whoever made it', async () => {
