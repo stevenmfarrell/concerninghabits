@@ -189,9 +189,11 @@ export default function SpeakOrType({
         disabled={disabled || panelOpen}
         title={ariaLabel[mode]}
         aria-label={ariaLabel[mode]}
-        className="w-14 h-14 rounded-full bg-accent text-on-accent shadow-lg ring-4 ring-canvas flex items-center justify-center hover:bg-accent-hover active:scale-95 transition disabled:opacity-60 focus-visible:outline-none focus-visible:ring-focus"
+        className="w-16 h-16 rounded-full bg-accent text-on-accent shadow-lg ring-4 ring-canvas flex items-center justify-center hover:bg-accent-hover active:scale-95 transition disabled:opacity-60 focus-visible:outline-none focus-visible:ring-focus"
       >
-        {icon}
+        {/* Nudged up and right: the quill's drawing sits low and left in its box (its wavy line
+            runs along the bottom), so centered by its box it looks too low */}
+        <span className="flex -translate-y-0.5 translate-x-px">{icon}</span>
       </button>
 
       {/* Full-screen while listening, typing, or working on the input. Above the bottom nav (z-50),

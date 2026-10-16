@@ -130,7 +130,7 @@ export default function SmartEntry({ userId }: { userId: string }) {
   return (
     <>
       <SpeakOrType
-        icon={<QuillIconWavy className="w-7 h-7" strokeWidth={2.5} />}
+        icon={<QuillIconWavy className="w-8 h-8" strokeWidth={2.5} />}
         ariaLabel={{ speak: 'Say what you did', type: 'Type what you did' }}
         panelLink={{ href: '/create', label: 'Build a habit by hand', icon: <SquarePen className="w-4 h-4" /> }}
         prompt={{

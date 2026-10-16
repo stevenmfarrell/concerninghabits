@@ -69,7 +69,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       </head>
       <body className="min-h-full flex flex-col bg-canvas">
         {children}
-        <Toaster position="bottom-center" containerStyle={{ bottom: 100 }} toastOptions={TOAST_OPTIONS} />
+        <Toaster position="bottom-center" containerStyle={{ bottom: 112 }} toastOptions={TOAST_OPTIONS} />
         <ToastLimit />
         <ToastTouchResume />
         <BottomNav status={user && <SyncStatus />} center={user && <SmartEntry userId={user.id} />} />
