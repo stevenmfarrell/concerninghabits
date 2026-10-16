@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useSyncExternalStore, type ReactNode } from 'react';
+import { useEffect, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { Check, Keyboard, Loader2, Mic } from 'lucide-react';
@@ -35,6 +35,29 @@ function storeMode(mode: Mode) {
   modeListeners.forEach(listener => listener());
 }
 
+// How many things said lately are kept and offered, and how often the example shown moves on
+const MAX_RECENT = 5;
+const EXAMPLE_EVERY_MS = 4000;
+
+// What was said or typed lately under `key`, newest first (see recentKey). Kept in this browser
+// only; an unreadable store is as good as an empty one.
+function readRecent(key: string): string[] {
+  try {
+    const stored = JSON.parse(localStorage.getItem(key) ?? '[]');
+    return Array.isArray(stored) ? stored.filter((item): item is string => typeof item === 'string').slice(0, MAX_RECENT) : [];
+  } catch {
+    return [];
+  }
+}
+
+// Puts `input` first among what was said lately, once, however it was capitalized before
+function rememberRecent(key: string, input: string) {
+  const rest = readRecent(key).filter(item => item.toLowerCase() !== input.toLowerCase());
+  try {
+    localStorage.setItem(key, JSON.stringify([input, ...rest].slice(0, MAX_RECENT)));
+  } catch {}
+}
+
 // What the parent is doing with submitted input; the panel stays open showing it until cleared
 export type SpeakOrTypeStatus = { message: string; input: string } | null;
 
@@ -45,8 +68,12 @@ interface SpeakOrTypeProps {
   disabled?: boolean;
   // A link at the bottom of the panel to do it another way, e.g. build a habit by hand
   panelLink?: { href: string; label: string; icon: ReactNode };
-  prompt: { listening: string; typing: string; hint: string; placeholder: string };
+  prompt: { listening: string; typing: string; hint: string };
+  // Things one might say, cycled through in the text box's placeholder and under "Listening..."
   examples: string[];
+  // Where this browser keeps what was said or typed lately, offered to say again, edited or not;
+  // none for a quill that shouldn't (the tutorial's). Per user, on a shared device.
+  recentKey?: string;
   status: SpeakOrTypeStatus;
   onInput: (input: string) => void;
 }
@@ -62,6 +89,7 @@ export default function SpeakOrType({
   panelLink,
   prompt,
   examples,
+  recentKey,
   status,
   onInput,
 }: SpeakOrTypeProps) {
@@ -69,14 +97,36 @@ export default function SpeakOrType({
   const [typing, setTyping] = useState(false);
   const [typedInput, setTypedInput] = useState('');
 
-  const { isListening, liveTranscript, start, stop, cancel } = useSpeechRecognition(onInput);
+  // What was said or typed lately (see recentKey), read as the panel opens
+  const [recent, setRecent] = useState<string[]>([]);
+  // Which example the placeholder and "Try saying" show, moving on every few seconds while it's open
+  const [exampleIndex, setExampleIndex] = useState(0);
+  const example = examples[exampleIndex % examples.length];
+
+  const submit = (input: string) => {
+    if (recentKey) rememberRecent(recentKey, input);
+    onInput(input);
+  };
+
+  const { isListening, liveTranscript, start, stop, cancel } = useSpeechRecognition(submit);
 
   const panelOpen = isListening || typing || status !== null;
+  const asking = isListening || typing;
 
-  const handleMainClick = () => {
-    if (mode === 'speak') start();
+  useEffect(() => {
+    if (!asking) return;
+    const timer = setInterval(() => setExampleIndex(index => index + 1), EXAMPLE_EVERY_MS);
+    return () => clearInterval(timer);
+  }, [asking]);
+
+  // Opens the panel listening or typing, with what was said lately
+  const open = (next: Mode) => {
+    setRecent(recentKey ? readRecent(recentKey) : []);
+    if (next === 'speak') start();
     else setTyping(true);
   };
+
+  const handleMainClick = () => open(mode);
 
   const submitTyped = (e: React.FormEvent) => {
     e.preventDefault();
@@ -84,10 +134,10 @@ export default function SpeakOrType({
     if (!input) return;
     setTyping(false);
     setTypedInput('');
-    onInput(input);
+    submit(input);
   };
 
-  // An example tapped while listening stops it, and opens the text box with the example in it, as
+  // Something said lately, tapped while listening, stops it and opens the text box with it in it, as
   // tapping one while typing fills the box, so it can be changed before it's sent
   const pickWhileListening = (example: string) => {
     cancel();
@@ -184,7 +234,9 @@ export default function SpeakOrType({
                       <p className="text-2xl font-semibold">{prompt.listening}</p>
                       <p className="text-emerald-100">{prompt.hint}</p>
                     </div>
-                    <Examples examples={examples} heading="Try saying, or tap one" onPick={pickWhileListening} />
+                    {recent.length > 0
+                      ? <Recent recent={recent} onPick={pickWhileListening} />
+                      : <p className="text-emerald-100/80">Try saying “{example}”</p>}
                   </div>
                 )}
               </div>
@@ -208,7 +260,7 @@ export default function SpeakOrType({
                 </div>
                 <textarea
                   className="w-full max-w-xl px-4 py-3 bg-white text-stone-900 border-0 rounded-xl focus:outline-none focus:ring-4 focus:ring-emerald-300 min-h-[112px] resize-none text-lg"
-                  placeholder={prompt.placeholder}
+                  placeholder={`e.g. “${example}”`}
                   maxLength={MAX_AI_INPUT_LENGTH}
                   value={typedInput}
                   onChange={(e) => setTypedInput(e.target.value)}
@@ -223,7 +275,7 @@ export default function SpeakOrType({
                   data-1p-ignore
                   enterKeyHint="send"
                 />
-                <Examples examples={examples} heading="Tap an example" onPick={setTypedInput} />
+                {recent.length > 0 && <Recent recent={recent} onPick={setTypedInput} />}
               </div>
               <div className="flex flex-col items-center gap-2 px-6 pb-8">
                 <Button type="submit" variant="inverse" size="xl" disabled={!typedInput.trim()} className="min-w-48 rounded-full!">
@@ -244,21 +296,21 @@ export default function SpeakOrType({
   );
 }
 
-// Example inputs for the panel under `heading`, each a button, since anything shaped like one gets
-// tapped: `onPick` puts it in the text box (opening it first, while listening)
-function Examples({ examples, heading, onPick }: { examples: string[]; heading: string; onPick: (example: string) => void }) {
+// What was said or typed lately, newest first, each a button that puts it in the text box (opening
+// it first, while listening) to send again, as it is or changed
+function Recent({ recent, onPick }: { recent: string[]; onPick: (input: string) => void }) {
   return (
     <div className="space-y-2">
-      <p className="text-xs font-semibold uppercase tracking-wider text-emerald-200/80">{heading}</p>
+      <p className="text-xs font-semibold uppercase tracking-wider text-emerald-200/80">Recent</p>
       <ul className="flex flex-wrap justify-center gap-2 max-w-xl">
-        {examples.map(example => (
-          <li key={example}>
+        {recent.map(input => (
+          <li key={input}>
             <button
               type="button"
-              onClick={() => onPick(example)}
+              onClick={() => onPick(input)}
               className="px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-sm text-emerald-50 transition-colors"
             >
-              “{example}”
+              {input}
             </button>
           </li>
         ))}

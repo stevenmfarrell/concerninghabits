@@ -72,7 +72,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         <Toaster position="bottom-center" containerStyle={{ bottom: 100 }} toastOptions={TOAST_OPTIONS} />
         <ToastLimit />
         <ToastTouchResume />
-        <BottomNav status={user && <SyncStatus />} center={user && <SmartEntry />} />
+        <BottomNav status={user && <SyncStatus />} center={user && <SmartEntry userId={user.id} />} />
         <ServiceWorkerSetup signedIn={!!user} />
         <OfflineSync user={user} />
         <TimeZoneSync />

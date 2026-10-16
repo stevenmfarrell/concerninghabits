@@ -152,7 +152,7 @@ export default async function AgendaPage() {
       )}
       {!anyHabits ? (
         <EmptyState title="No habits here yet" action={<LinkButton href="/tutorial" variant="outline">Take the Tour</LinkButton>}>
-          Tap the quill at the top and tell it something you did, or a habit you&apos;d like to start.
+          Tap the quill in the middle of the bar below and tell it something you did, or a habit you&apos;d like to start.
         </EmptyState>
       ) : !anyDue && !anyUpcoming && !anyLimits && !anyRecent && !onVacation ? (
         <EmptyState title="Nothing on the agenda" action={<LinkButton href="/habits" variant="outline">Go to Habits</LinkButton>}>

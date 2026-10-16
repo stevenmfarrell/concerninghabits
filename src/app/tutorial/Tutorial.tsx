@@ -375,9 +375,8 @@ export default function Tutorial({ days, now }: { days: Days; now: number }) {
           disabled={!step.quill}
           prompt={{
             listening: 'Listening...',
-            typing: 'What did you do?',
+            typing: 'What do you want to log?',
             hint: "Tell me something you did, or a habit you'd like to start.",
-            placeholder: 'e.g. "Took my vitamins"',
           }}
           examples={QUILL_EXAMPLES}
           status={quillStatus}

@@ -23,8 +23,8 @@ import { isNetworkError } from '@/lib/offline/sync';
 // was said); a new habit is drafted by the AI model for the user to review, with the input as its
 // first entry when it was something done. When the matcher isn't sure which habit, the user picks
 // from its top candidates instead. Said to be done on an earlier day ("yesterday", "on October 10th"),
-// it's logged then (see whenDone).
-export default function SmartEntry() {
+// it's logged then (see whenDone). What `userId` said lately is offered to say again (see recentKey).
+export default function SmartEntry({ userId }: { userId: string }) {
   const router = useRouter();
   const [, startNavigation] = useTransition();
   // While the input is being matched or a new habit drafted: what's happening, and the input
@@ -148,11 +148,11 @@ export default function SmartEntry() {
         panelLink={{ href: '/create', label: 'Build a habit by hand', icon: <SquarePen className="w-4 h-4" /> }}
         prompt={{
           listening: 'Listening...',
-          typing: 'What did you do?',
+          typing: 'What do you want to log?',
           hint: "Tell me something you did, or a habit you'd like to start.",
-          placeholder: 'e.g. "Ran 3 miles in 28 minutes"',
         }}
         examples={EXAMPLES}
+        recentKey={`smartEntryRecent:${userId}`}
         status={status}
         onInput={handleInput}
       />
