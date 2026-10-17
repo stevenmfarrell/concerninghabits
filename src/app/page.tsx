@@ -1,5 +1,3 @@
-import { getCategoriesWithHierarchy } from '@/app/actions/categories';
-import { getLatestLogDates, getUncategorizedHabits } from '@/app/actions/habits';
 import { getDefaultUser, getPeople } from '@/app/actions/user';
 import Link from 'next/link';
 import { Check, SkipForward } from 'lucide-react';
@@ -16,7 +14,8 @@ import LogRing from '@/components/logging/LogRing';
 import { LinkButton } from '@/components/ui/Button';
 import PageHeader from '@/components/PageHeader';
 import { PANE_INSET, PaneHeading, PanePage, PaneSection } from '@/components/Pane';
-import { buildDueList, type DueCategory } from '@/lib/dueList';
+import type { DueCategory } from '@/lib/dueList';
+import { dueListOf } from '@/lib/agenda';
 import { civilDateFor } from '@/lib/timezone';
 import type { HabitListItem, SessionUser } from '@/lib/types';
 import { categoryRowCalendar, rowHabits, rowSections } from '@/lib/rowCalendar';
@@ -112,15 +111,11 @@ function NoCadenceYet() {
 // now. Due Now emptied today by doing everything in it shows the hobbit hole (see DueNowCleared).
 export default async function AgendaPage() {
   const user = await getDefaultUser();
-  const [categories, uncategorized, latestLogDates, people, vacation] = await Promise.all([
-    getCategoriesWithHierarchy(),
-    getUncategorizedHabits(5),
-    getLatestLogDates(),
+  const [{ categories, uncategorized, dueHabits, upcomingHabits, recentHabits, dueCategories, upcomingCategories, recentCategories, limitHabits, limitCategories, statuses, skippedHabitIds, skippedCategoryIds, clearedToday, anyCadence }, people, vacation] = await Promise.all([
+    dueListOf(user),
     getPeople(),
     getVacation(),
   ]);
-
-  const { dueHabits, upcomingHabits, recentHabits, dueCategories, upcomingCategories, recentCategories, limitHabits, limitCategories, statuses, skippedHabitIds, skippedCategoryIds, clearedToday, anyCadence } = buildDueList(categories, uncategorized, latestLogDates, user);
   const anyDue = dueHabits.length > 0 || dueCategories.length > 0;
   const anyUpcoming = upcomingHabits.length > 0 || upcomingCategories.length > 0;
   const anyRecent = recentHabits.length > 0 || recentCategories.length > 0;

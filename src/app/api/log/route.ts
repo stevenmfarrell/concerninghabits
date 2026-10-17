@@ -1,6 +1,6 @@
 import { authenticateApiRequest } from '@/lib/apiKeys';
 import { apiError, loggedEntry, readLogBody, smartLogBody } from '@/lib/apiRequests';
-import { logToAnyHabit } from '@/app/actions/smartEntry';
+import { logToAnyHabit } from '@/lib/smartEntry';
 
 // Logs something said or typed to whichever of the user's habits it's about, the way the dashboard's
 // smart entry does, for another app: e.g. one shortcut that asks "What did you do?" for every habit.

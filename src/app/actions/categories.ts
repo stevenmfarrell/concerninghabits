@@ -6,34 +6,14 @@ import { MAX_HISTORY_WEEKS, MAX_NAME_LENGTH, UNCATEGORIZED_ID, UNCATEGORIZED_ICO
 import { isIconName } from '@/lib/icons';
 import { NO_CADENCE, type Cadence } from '@/lib/cadence';
 import { getUncategorizedHabits } from './habits';
-import { cadenceJson, revalidateLists, getOwnedCategory, assertValidParent, habitListRows, withHabits, categorySkips, listCutoffs, loadListEntries } from './internal';
+import { cadenceJson, revalidateLists, assertValidParent } from './internal';
 import { getDefaultUser } from './user';
+import { getOwnedCategory } from '@/lib/access';
+import { categoriesWithHierarchyOf, categorySkips, habitListRows, listCutoffs, loadListEntries, withHabits } from '@/lib/habitLists';
 
-// `weeks` bounds how far back logs are fetched: enough for the 4-week row calendars by default, or
-// more for a caller that looks further back (the Habits page, for each category's consistency)
-// With `health` (the Habits page), each habit's entries go back as far as its health needs, and its
-// categories' (see ListHistory)
+// The current user's categories with their habits (see categoriesWithHierarchyOf)
 export async function getCategoriesWithHierarchy(weeks = 5, health = false) {
-  const user = await getDefaultUser();
-  const categories = await prisma.category.findMany({
-    where: { userId: user.id, parentId: null },
-    orderBy: [{ order: 'asc' }, { name: 'asc' }],
-    include: {
-      children: {
-        orderBy: [{ order: 'asc' }, { name: 'asc' }],
-        include: { habitMembers: habitListRows, skips: categorySkips }
-      },
-      habitMembers: habitListRows,
-      skips: categorySkips
-    }
-  });
-  // A subcategory's habits count toward its parent too
-  const cutoffs = listCutoffs({ weeks, health }, categories.flatMap(category => [
-    { members: category.habitMembers, cadences: [category.cadence] },
-    ...category.children.map(child => ({ members: child.habitMembers, cadences: [child.cadence, category.cadence] })),
-  ]));
-  const entries = await loadListEntries(cutoffs, health);
-  return categories.map(category => ({ ...withHabits(category, entries), children: category.children.map(child => withHabits(child, entries)) }));
+  return categoriesWithHierarchyOf((await getDefaultUser()).id, weeks, health);
 }
 
 // `weeks` bounds how far back logs are fetched for the activity heatmap; pass the widest horizon

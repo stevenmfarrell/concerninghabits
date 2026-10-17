@@ -1,5 +1,6 @@
 import { deleteHabitLog, logHabitEvent, updateHabitLog } from '@/app/actions/entries';
-import { skipToday, undoSkip, type Skippable } from '@/app/actions/skips';
+import { skipToday, undoSkip } from '@/app/actions/skips';
+import type { Skippable } from '@/lib/skips';
 import { todayKeyFor } from '../timezone';
 import { addOp, getOutbox, removeOps, updateOp, type QueuedOp } from './outbox';
 import { getOutboxUser, isNetworkError, setReachable, syncOutbox } from './sync';

@@ -4,7 +4,7 @@ import { useSyncExternalStore } from 'react';
 import { civilDateFor, civilDayKey } from '../timezone';
 import { getOutbox, subscribeOutbox, type QueuedOp } from './outbox';
 import { getOutboxUser, isReachable, subscribeReachable } from './sync';
-import type { Skippable } from '@/app/actions/skips';
+import type { Skippable } from '@/lib/skips';
 
 // Reading the outbox (see outbox.ts) from components: the signed-in user's changes waiting to be
 // sent. Empty on the server and while hydrating, so pages render the same as the server's at first.

@@ -1,8 +1,9 @@
 import { authenticateApiRequest } from '@/lib/apiKeys';
 import { apiError, habitLogBody, loggedEntry, readLogBody, valuesForForm } from '@/lib/apiRequests';
 import { parseHabitSchema } from '@/lib/habitSchema';
-import { createHabitLog, getMembership } from '@/app/actions/internal';
-import { logFromInput } from '@/app/actions/smartEntry';
+import { getMembership } from '@/lib/access';
+import { createHabitLog } from '@/lib/entries';
+import { logFromInput } from '@/lib/smartEntry';
 
 // Logs an entry on one habit for another app (a shortcut, Home Assistant), as the user whose API key
 // it sends (see src/lib/apiKeys.ts). The JSON body is optional:

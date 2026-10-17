@@ -3,14 +3,17 @@
 import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { MAX_AI_CONTEXT_LENGTH, MAX_DESCRIPTION_LENGTH, MAX_HISTORY_WEEKS, MAX_NAME_LENGTH } from '@/lib/constants';
+import { END_OF_LIST_ORDER, MAX_AI_CONTEXT_LENGTH, MAX_DESCRIPTION_LENGTH, MAX_HISTORY_WEEKS, MAX_NAME_LENGTH } from '@/lib/constants';
 import { habitSchemaProblem } from '@/lib/habitSchema';
 import { DEFAULT_CADENCE, type Cadence } from '@/lib/cadence';
 import type { HabitSchema } from '@/lib/types';
 import type { CalculatedField } from '@/lib/calculatedFields';
-import { cadenceJson, END_OF_LIST_ORDER, revalidateLists, getOwnedCategory, habitListRows, toHabitListItem, listCutoffs, loadListEntries, getMembership, getOwnedHabit, fileHabit, checkCalculatedFields, filingChange } from './internal';
+import { cadenceJson, revalidateLists, fileHabit, checkCalculatedFields, filingChange } from './internal';
 import { getDefaultUser } from './user';
-import { loggableHabitsOf } from './smartEntry';
+import { getMembership, getOwnedCategory, getOwnedHabit } from '@/lib/access';
+import { latestLogDatesOf, uncategorizedHabitsOf } from '@/lib/habitLists';
+import { habitDetailOf } from '@/lib/habitDetails';
+import { loggableHabitsOf } from '@/lib/smartEntry';
 import { connectedIds } from '@/lib/connections';
 import { mqttEnabled } from '@/lib/deployment';
 
@@ -47,16 +50,9 @@ export async function saveHabit(name: string, description: string, schema: Habit
   return habit;
 }
 
-// When each of the user's habits was last logged, by anyone. List rows only carry the last few
-// weeks of entries, but an every-N-days habit can still be done by an entry older than that.
+// When each of the user's habits was last logged, by anyone (see latestLogDatesOf)
 export async function getLatestLogDates(): Promise<Record<string, Date>> {
-  const user = await getDefaultUser();
-  const latest = await prisma.habitLog.groupBy({
-    by: ['habitId'],
-    where: { habit: { members: { some: { userId: user.id } } } },
-    _max: { createdAt: true },
-  });
-  return Object.fromEntries(latest.flatMap(l => (l._max.createdAt ? [[l.habitId, l._max.createdAt]] : [])));
+  return latestLogDatesOf((await getDefaultUser()).id);
 }
 
 // Every habit the user can log into (their own and ones shared with them), for matching something
@@ -69,34 +65,12 @@ export async function getLoggableHabits() {
 // "Uncategorized" synthetic category's history view. With `health`, each habit's go back as far as
 // its health needs (see ListHistory).
 export async function getUncategorizedHabits(weeks: number = MAX_HISTORY_WEEKS, health = false) {
-  const user = await getDefaultUser();
-  // Includes habits newly shared with this user, until they file them into a category
-  const memberships = await prisma.habitMember.findMany({
-    where: { userId: user.id, categoryId: null },
-    ...habitListRows,
-  });
-  const entries = await loadListEntries(listCutoffs({ weeks, health }, [{ members: memberships, cadences: [] }]), health);
-  return memberships.map(membership => toHabitListItem(membership, entries));
+  return uncategorizedHabitsOf((await getDefaultUser()).id, weeks, health);
 }
 
-// A habit the current user can see (their own or one shared with them), with their own placement
-// of it and who has it. Null if they have no access.
+// A habit the current user can see, or null if they have no access (see habitDetailOf)
 export async function getHabit(id: string) {
-  const user = await getDefaultUser();
-  const membership = await prisma.habitMember.findUnique({
-    where: { habitId_userId: { habitId: id, userId: user.id } },
-    include: { habit: { include: { members: { select: { userId: true }, orderBy: { createdAt: 'asc' } }, skips: { select: { day: true } } } } }
-  });
-  if (!membership) return null;
-  const { habit: { members, skips, ...habit }, categoryId, aiContext } = membership;
-  return {
-    ...habit,
-    categoryId,
-    aiContext,
-    isOwner: habit.userId === user.id,
-    memberIds: members.map(m => m.userId),
-    skippedDays: skips.map(s => s.day),
-  };
+  return habitDetailOf((await getDefaultUser()).id, id);
 }
 
 // Changes the habit's definition (owner only) and which of the owner's categories it's filed in.

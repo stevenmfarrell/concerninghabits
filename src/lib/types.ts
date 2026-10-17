@@ -1,9 +1,9 @@
-// Shared types derived from the server actions' own return types, so they can't drift from the
+// Shared types derived from the server actions' (and their shared functions') return types, so they can't drift from the
 // Prisma queries that produce them. Import with `import type` only — these erase at build time.
 import type { RJSFSchema } from '@rjsf/utils';
 import type { getCategories, getCategory } from '@/app/actions/categories';
-import type { getHabitLogs } from '@/app/actions/entries';
-import type { getHabit } from '@/app/actions/habits';
+import type { habitLogsOf } from './entries';
+import type { habitDetailOf } from './habitDetails';
 import type { getDefaultUser } from '@/app/actions/user';
 import type { CalendarSummary } from './calendarDays';
 
@@ -17,8 +17,8 @@ export type HabitSchema = RJSFSchema & {
 export type SessionUser = Awaited<ReturnType<typeof getDefaultUser>>;
 export type CategoryOption = Awaited<ReturnType<typeof getCategories>>[number];
 export type CategoryDetail = NonNullable<Awaited<ReturnType<typeof getCategory>>>;
-export type HabitDetail = NonNullable<Awaited<ReturnType<typeof getHabit>>>;
-export type HabitWithLogs = HabitDetail & { logs: Awaited<ReturnType<typeof getHabitLogs>> };
+export type HabitDetail = NonNullable<Awaited<ReturnType<typeof habitDetailOf>>>;
+export type HabitWithLogs = HabitDetail & { logs: Awaited<ReturnType<typeof habitLogsOf>> };
 
 // Minimal shapes for the habit/subcategory list rows shared by the Agenda, Habits and category
 // pages. Kept structural (rather than tied to one query's exact `include`) since the Agenda page,

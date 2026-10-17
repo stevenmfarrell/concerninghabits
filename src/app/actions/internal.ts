@@ -1,24 +1,17 @@
-// Helpers the server actions share: access checks, the queries their lists are built from, and
-// checks on what's saved. Not actions themselves (a 'use server' file may only export async
-// functions), so only ever imported by server code.
+// Helpers the server actions share: refreshing pages after a change, and checks on what's saved. Not
+// actions themselves (a 'use server' file may only export async functions), so only ever imported by
+// server code. What the actions do for the signed-in user lives in src/lib, for a given user, so the
+// API can do the same (see entries.ts, skips.ts, habitLists.ts, agenda.ts, habitDetails.ts).
 
 import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
-import type { Prisma } from '@prisma/client';
-import rjsfValidator from '@rjsf/validator-ajv8';
-import { MAX_LOG_PAYLOAD_BYTES } from '@/lib/constants';
-import { parseHabitSchema } from '@/lib/habitSchema';
-import { cadenceSchema, NO_CADENCE, parseCadence, type Cadence } from '@/lib/cadence';
+import { END_OF_LIST_ORDER } from '@/lib/constants';
+import { cadenceSchema, type Cadence } from '@/lib/cadence';
 import type { HabitSchema } from '@/lib/types';
 import { calculatedFieldsSchema, type CalculatedField } from '@/lib/calculatedFields';
 import { fieldsOf } from '@/lib/formFields';
-import { DAY_MS, parseCivilDayKey } from '@/lib/timezone';
-import { healthHistoryDays } from '@/lib/consistency';
-import type { Skippable } from './skips';
-
-// Habits placed in a list without a chosen position (new, newly shared, or moved to another
-// category) go to the end of it.
-export const END_OF_LIST_ORDER = 9999;
+import { getMembership, getOwnedCategory } from '@/lib/access';
+import type { Skippable } from '@/lib/skips';
 
 // The Agenda page and the Habits page both list habits with their recent entries, so anything that
 // changes a habit, a category, or an entry refreshes both
@@ -34,16 +27,16 @@ export function revalidateEntries(habitId: string) {
   revalidatePath('/history');
 }
 
+// After something's skipped or unskipped: the lists, and its page
+export function revalidateSkip(target: Skippable) {
+  revalidateLists();
+  revalidatePath(target.kind === 'habit' ? `/log/${target.id}` : `/categories/${target.id}`);
+}
+
 // A cadence as it's stored (Habit.cadence, Category.cadence), checked here as well as typed, since
 // it comes from the browser
 export function cadenceJson(cadence: Cadence) {
   return JSON.stringify(cadenceSchema.parse(cadence));
-}
-
-export async function getOwnedCategory(userId: string, categoryId: string) {
-  const category = await prisma.category.findUnique({ where: { id: categoryId } });
-  if (!category || category.userId !== userId) throw new Error("Unauthorized");
-  return category;
 }
 
 // Categories nest one level deep: a parent must be a top-level category, and a category
@@ -59,142 +52,6 @@ export async function assertValidParent(userId: string, parentId: string, catego
   }
 }
 
-// A user's habits in one list (a category, uncategorized), in that user's saved order, with the
-// days each was skipped. Their entries are loaded after (see loadListEntries), each back as far as
-// it needs.
-export const habitListRows = {
-  orderBy: [{ order: 'asc' }, { habit: { name: 'asc' } }],
-  include: {
-    habit: {
-      include: {
-        // All of them, not just recent ones: there are few, and an every-N-days skip can count for months
-        skips: { select: { day: true } },
-        _count: { select: { members: true } },
-      }
-    }
-  }
-} satisfies Prisma.HabitMemberFindManyArgs;
-
-export type HabitListMembership = Prisma.HabitMemberGetPayload<typeof habitListRows>;
-
-// How far back a list loads its habits' entries: enough for its calendars and rings, `weeks` weeks,
-// and with `health` (the Habits and category pages), as far back as each habit's health needs, and
-// each category's it counts toward. That depends on the cadence: a daily habit's health looks back
-// about three months, a monthly one's a year (see healthHistoryDays).
-export interface ListHistory {
-  weeks: number;
-  health?: boolean;
-}
-
-// The first moment a habit's entries are needed from, for `history` and the cadences of the habit
-// and the categories it counts toward. On a day boundary, so habits needing the same are loaded
-// together.
-export function historyCutoff({ weeks, health }: ListHistory, cadences: Cadence[], now: Date) {
-  let cutoff = getRecentLogsCutoff(weeks, now);
-  if (!health) return cutoff;
-  for (const cadence of cadences) {
-    if (cadence.type === 'none') continue;
-    const needed = new Date(now.getTime() - healthHistoryDays(cadence) * DAY_MS);
-    needed.setUTCHours(0, 0, 0, 0);
-    if (needed < cutoff) cutoff = needed;
-  }
-  return cutoff;
-}
-
-// Each listed habit's cutoff (see historyCutoff), from its own cadence and those of the categories
-// it counts toward (`cadences`, as stored)
-export function listCutoffs(history: ListHistory, lists: { members: HabitListMembership[]; cadences: string[] }[], now = new Date()) {
-  const cutoffs = new Map<string, Date>();
-  for (const { members, cadences } of lists) {
-    const categoryCadences = cadences.map(cadence => parseCadence(cadence, NO_CADENCE));
-    for (const { habit } of members) cutoffs.set(habit.id, historyCutoff(history, [parseCadence(habit.cadence), ...categoryCadences], now));
-  }
-  return cutoffs;
-}
-
-// A list's entries: everyone's, not just the viewer's, since a shared habit's history is everyone
-// on it's. `began` is when each habit's history began, for its health: when it was made, or its
-// first entry if that's earlier (e.g. imported), which may be older than what's loaded.
-export interface ListEntries {
-  logs: Map<string, { createdAt: Date; userId: string }[]>;
-  began: Map<string, Date>;
-}
-
-// Each habit's entries from its cutoff on (see historyCutoff), and with `health`, its first entry's
-// time, in two queries for the whole list
-export async function loadListEntries(cutoffs: Map<string, Date>, health = false): Promise<ListEntries> {
-  const entries: ListEntries = { logs: new Map(), began: new Map() };
-  if (cutoffs.size === 0) return entries;
-  const groups = new Map<number, string[]>();
-  for (const [habitId, cutoff] of cutoffs) groups.set(cutoff.getTime(), [...(groups.get(cutoff.getTime()) ?? []), habitId]);
-  const [logs, firsts] = await Promise.all([
-    prisma.habitLog.findMany({
-      where: { OR: [...groups].map(([cutoff, habitIds]) => ({ habitId: { in: habitIds }, createdAt: { gte: new Date(cutoff) } })) },
-      select: { habitId: true, createdAt: true, userId: true },
-    }),
-    health ? prisma.habitLog.groupBy({ by: ['habitId'], where: { habitId: { in: [...cutoffs.keys()] } }, _min: { createdAt: true } }) : [],
-  ]);
-  for (const { habitId, createdAt, userId } of logs) entries.logs.set(habitId, [...(entries.logs.get(habitId) ?? []), { createdAt, userId }]);
-  for (const { habitId, _min } of firsts) if (_min.createdAt) entries.began.set(habitId, _min.createdAt);
-  return entries;
-}
-
-// Flatten a membership onto its habit, so list rows read the viewer's own order and category the
-// same way whether the habit is theirs or shared with them, with its entries from `entries`
-export function toHabitListItem({ habit, order, categoryId, aiContext }: HabitListMembership, entries: ListEntries) {
-  const firstEntry = entries.began.get(habit.id);
-  return {
-    ...habit,
-    order,
-    categoryId,
-    aiContext,
-    memberCount: habit._count.members,
-    logs: entries.logs.get(habit.id) ?? [],
-    began: firstEntry && firstEntry < habit.createdAt ? firstEntry : habit.createdAt,
-  };
-}
-
-export function withHabits<C extends { habitMembers: HabitListMembership[] }>({ habitMembers, ...category }: C, entries: ListEntries) {
-  return { ...category, habits: habitMembers.map(membership => toHabitListItem(membership, entries)) };
-}
-
-// The days a category was skipped (see CategorySkip), all of them, as for a habit's
-export const categorySkips = { select: { day: true } } as const;
-
-// The earliest log time a calendar of `weeks` weeks (see ActivityCalendar) can need. A calendar
-// never starts more than `weeks` weeks back, but a weekly or monthly habit's first cell is filled if
-// the habit was done anytime in that week or month, even before the calendar starts. So snap to the
-// 1st of the month, then keep a generous buffer: another whole month and week, which also covers
-// week starts, the viewer's time zone vs. the server's, and bedtime (logs before bedtime count
-// toward the previous day).
-export function getRecentLogsCutoff(weeks: number, now = new Date()) {
-  const cutoff = new Date(now);
-  cutoff.setUTCHours(0, 0, 0, 0);
-  cutoff.setUTCDate(cutoff.getUTCDate() - weeks * 7);
-  cutoff.setUTCDate(1);
-  cutoff.setUTCMonth(cutoff.getUTCMonth() - 1);
-  cutoff.setUTCDate(cutoff.getUTCDate() - 7);
-  return cutoff;
-}
-
-// The user's membership in a habit (their own, or one shared with them), with the habit.
-// Membership is what grants access: viewing, logging, and filing the habit in a category.
-export async function getMembership(userId: string, habitId: string) {
-  const membership = await prisma.habitMember.findUnique({
-    where: { habitId_userId: { habitId, userId } },
-    include: { habit: true }
-  });
-  if (!membership) throw new Error("Unauthorized");
-  return membership;
-}
-
-// A habit the user owns. Only the owner can change its form, share it, or delete it.
-export async function getOwnedHabit(userId: string, habitId: string) {
-  const habit = await prisma.habit.findUnique({ where: { id: habitId } });
-  if (!habit || habit.userId !== userId) throw new Error("Unauthorized");
-  return habit;
-}
-
 // Files a habit into one of the user's categories (or Uncategorized when null), moving it to the
 // end of that list if it's changing lists.
 export async function fileHabit(userId: string, habitId: string, categoryId: string | null) {
@@ -208,160 +65,6 @@ export async function fileHabit(userId: string, habitId: string, categoryId: str
 // null when it's already there
 export function filingChange(current: string | null, categoryId: string | null) {
   return current === categoryId ? null : { categoryId, order: END_OF_LIST_ORDER };
-}
-
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-// The entry already logged with `id` by `userId` on `habitId`, or null when there's none yet. An id
-// made by the browser (see src/lib/offline) can arrive more than once, e.g. when the answer to the
-// first try was lost with the connection, so logging it again finds this instead of a second entry.
-async function alreadyLogged(id: string, userId: string, habitId: string) {
-  const existing = await prisma.habitLog.findUnique({ where: { id } });
-  if (existing && (existing.userId !== userId || existing.habitId !== habitId)) throw new Error('That entry id is already used');
-  return existing;
-}
-
-// Logs an entry on a habit `user` has, as them: checked like any entry (see sanitizeLogPayload),
-// and published to MQTT when the habit is. Takes the user rather than reading the session, since
-// the API logs as whoever its key belongs to (see src/lib/apiKeys.ts). `id`, when given, is the
-// entry's id, made by the browser so it can be logged offline and sent later, as often as it takes:
-// an entry already logged with it is returned as it is.
-export async function createHabitLog(user: { id: string; name: string }, habitId: string, payload: Record<string, unknown>, createdAt?: Date, id?: string) {
-  if (id !== undefined && !UUID.test(id)) throw new Error('Invalid entry id');
-  if (createdAt && Number.isNaN(createdAt.getTime())) throw new Error('Invalid date');
-  const { habit } = await getMembership(user.id, habitId);
-  if (id) {
-    const existing = await alreadyLogged(id, user.id, habitId);
-    if (existing) return existing;
-  }
-
-  const sanitizedPayload = sanitizeLogPayload(habit, payload);
-
-  let log;
-  try {
-    log = await prisma.habitLog.create({
-      data: {
-        ...(id ? { id } : {}),
-        habitId,
-        userId: user.id,
-        payload: JSON.stringify(sanitizedPayload),
-        ...(createdAt ? { createdAt } : {})
-      }
-    });
-  } catch (error) {
-    // The same entry arriving twice at once: the other one logged it
-    const existing = id && await alreadyLogged(id, user.id, habitId);
-    if (existing) return existing;
-    throw error;
-  }
-
-  try {
-    if (habit.publishToMqtt) {
-      const { publishHabitLog } = await import('@/lib/mqtt');
-      publishHabitLog(user, habit, sanitizedPayload);
-    }
-  } catch (e) {
-    console.error('Failed to trigger MQTT publish', e);
-  }
-
-  revalidateEntries(habitId);
-  return log;
-}
-
-// Corrects an entry `userId` may change (see canChangeLog): its values, and its time when `createdAt`
-// is given. Not republished to MQTT, which announces new entries.
-export async function changeHabitLog(userId: string, logId: string, habitId: string, payload: Record<string, unknown>, createdAt?: Date) {
-  const log = await getChangeableLog(userId, logId, habitId);
-  if (createdAt && Number.isNaN(createdAt.getTime())) throw new Error('Invalid date');
-
-  await prisma.habitLog.update({
-    where: { id: logId },
-    data: {
-      payload: JSON.stringify(sanitizeLogPayload(log.habit, payload)),
-      ...(createdAt ? { createdAt } : {}),
-    },
-  });
-  revalidateEntries(habitId);
-}
-
-// Deletes an entry `userId` may change (see canChangeLog)
-export async function removeHabitLog(userId: string, logId: string, habitId: string) {
-  await getChangeableLog(userId, logId, habitId);
-  await prisma.habitLog.delete({ where: { id: logId } });
-  revalidateEntries(habitId);
-}
-
-// Checks `userId` can skip it, as anyone who has a habit can, the same as logging it, and only a
-// category's owner, as for anything about a category. Returns its page.
-async function skippablePage(userId: string, target: Skippable) {
-  if (target.kind === 'habit') {
-    await getMembership(userId, target.id);
-    return `/log/${target.id}`;
-  }
-  await getOwnedCategory(userId, target.id);
-  return `/categories/${target.id}`;
-}
-
-// Skips it on `day`, a civil day key (see HabitSkip): a habit's skip is the habit's, for everyone
-// who has it; a category's excuses its own cadence, not its habits'. Skipping it twice is one skip.
-export async function skipOn(userId: string, target: Skippable, day: string) {
-  if (!parseCivilDayKey(day)) throw new Error('Invalid day');
-  const page = await skippablePage(userId, target);
-  if (target.kind === 'habit') {
-    await prisma.habitSkip.upsert({ where: { habitId_day: { habitId: target.id, day } }, create: { habitId: target.id, day, userId }, update: {} });
-  } else {
-    await prisma.categorySkip.upsert({ where: { categoryId_day: { categoryId: target.id, day } }, create: { categoryId: target.id, day }, update: {} });
-  }
-  revalidateLists();
-  revalidatePath(page);
-}
-
-// Takes back its skip on `day` (see skipOn), if it has one
-export async function unskipOn(userId: string, target: Skippable, day: string) {
-  if (!parseCivilDayKey(day)) throw new Error('Invalid day');
-  const page = await skippablePage(userId, target);
-  if (target.kind === 'habit') await prisma.habitSkip.deleteMany({ where: { habitId: target.id, day } });
-  else await prisma.categorySkip.deleteMany({ where: { categoryId: target.id, day } });
-  revalidateLists();
-  revalidatePath(page);
-}
-
-// An entry's values with any keys the habit's own schema doesn't define dropped, validated against
-// the schema the same as the client-side rjsf Form would. The browser only enforces this in the UI.
-export function sanitizeLogPayload(habit: { schema: string }, payload: Record<string, unknown>) {
-  const schema: HabitSchema = { type: 'object', ...parseHabitSchema(habit.schema) };
-  const properties = fieldsOf(schema);
-  const sanitizedPayload = Object.fromEntries(
-    Object.entries(payload).filter(([key]) => key in properties)
-  );
-
-  const { errors } = rjsfValidator.validateFormData(sanitizedPayload, schema);
-  if (errors.length > 0) {
-    throw new Error(`Invalid log data: ${errors.map(e => e.stack).join('; ')}`);
-  }
-  const problem = payloadSizeProblem(sanitizedPayload);
-  if (problem) throw new Error(problem);
-  return sanitizedPayload;
-}
-
-// Why an entry's values are too big to store (see MAX_LOG_PAYLOAD_BYTES), or null if they fit
-function payloadSizeProblem(payload: Record<string, unknown>) {
-  const bytes = Buffer.byteLength(JSON.stringify(payload), 'utf8');
-  if (bytes <= MAX_LOG_PAYLOAD_BYTES) return null;
-  return `This entry is too long (${(bytes / 1024).toFixed(1)} KB; the limit is ${MAX_LOG_PAYLOAD_BYTES / 1024} KB)`;
-}
-
-// Anyone can edit or delete an entry they logged; a habit's owner can also edit or delete anyone's
-// entry on it
-export function canChangeLog(userId: string, log: { userId: string }, habit: { userId: string }) {
-  return log.userId === userId || habit.userId === userId;
-}
-
-// An entry the user may edit or delete, checked to belong to `habitId`
-export async function getChangeableLog(userId: string, logId: string, habitId: string) {
-  const log = await prisma.habitLog.findUnique({ where: { id: logId }, include: { habit: { select: { userId: true, schema: true } } } });
-  if (!log || log.habitId !== habitId || !canChangeLog(userId, log, log.habit)) throw new Error("Unauthorized");
-  return log;
 }
 
 // A habit's calculated fields as saved with its form, checked here as well as typed since they come

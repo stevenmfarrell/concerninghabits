@@ -2,8 +2,9 @@ import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { verifySession } from '@/lib/auth';
 import { MAX_OPS_PER_SYNC, opSchema, type Op, type OpResult } from '@/lib/offline/ops';
-import { changeHabitLog, createHabitLog, removeHabitLog, skipOn, unskipOn } from '@/app/actions/internal';
-import { logFromInput, logToAnyHabit, type EntryUser } from '@/app/actions/smartEntry';
+import { changeHabitLog, createHabitLog, removeHabitLog } from '@/lib/entries';
+import { skipOn, unskipOn } from '@/lib/skips';
+import { logFromInput, logToAnyHabit, type EntryUser } from '@/lib/smartEntry';
 
 // Makes the changes the browser kept in its outbox while offline (see src/lib/offline), in the order
 // they were made, as the signed-in user. The body is {"ops": [...]}; the answer is {"results": [...]},

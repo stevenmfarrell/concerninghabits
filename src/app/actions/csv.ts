@@ -5,7 +5,9 @@ import { MAX_CSV_IMPORT_ROWS } from '@/lib/constants';
 import { parseEntryValues, parseHabitSchema } from '@/lib/habitSchema';
 import { encodeCsv, parseCsv } from '@/lib/csv';
 import { fieldsOf } from '@/lib/formFields';
-import { revalidateEntries, getMembership, sanitizeLogPayload } from './internal';
+import { revalidateEntries } from './internal';
+import { getMembership } from '@/lib/access';
+import { sanitizeLogPayload } from '@/lib/entries';
 import { getDefaultUser } from './user';
 import { loggerNames } from '@/lib/connections';
 

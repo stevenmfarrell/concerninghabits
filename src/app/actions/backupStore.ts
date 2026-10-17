@@ -12,7 +12,8 @@ import { habitSchemaProblem, parseEntryValues, parseHabitSchema } from '@/lib/ha
 import { isIconName } from '@/lib/icons';
 import { userPreferencesSchema } from '@/lib/preferences';
 import type { HabitSchema } from '@/lib/types';
-import { checkCalculatedFields, sanitizeLogPayload } from './internal';
+import { checkCalculatedFields } from './internal';
+import { sanitizeLogPayload } from '@/lib/entries';
 
 // Everything of `userId`'s that goes in a backup (see Backup)
 export async function collectBackup(userId: string, now = new Date()): Promise<Backup> {

@@ -1,21 +1,22 @@
 // What turns something said or typed into an entry: matching it to one of the user's habits (see
 // habitMatcher.ts), and the AI model (see aiModel.ts) filling in the habit's form from it. For the
-// dashboard's smart entry and voice logging (see habit.ts) and the API (see src/app/api), so each
-// takes the user rather than reading the session. Not actions themselves, since a client could then pass any user:
-// only imported by server code.
+// dashboard's smart entry and voice logging (see src/app/actions/habit.ts) and the API (see
+// src/app/api), so each takes the user rather than reading the session. These don't refresh any
+// pages; the actions do that after. Server-only.
 
 import { generateObject } from 'ai';
 import { z } from 'zod';
-import { prisma } from '@/lib/prisma';
-import { aiRequestProblem } from '@/lib/aiLimits';
-import { fieldsOf } from '@/lib/formFields';
-import { parseHabitSchema } from '@/lib/habitSchema';
-import type { HabitSchema } from '@/lib/types';
-import { aiContextPrompt, formFillSystem } from '@/lib/aiPrompts';
-import { aiModel } from '@/lib/aiModel';
-import { habitMatcherName, matchHabit, type HabitCandidate, type HabitMatch, type HabitMatcherName } from '@/lib/habitMatcher';
-import { whenDone } from '@/lib/entryDate';
-import { createHabitLog, getMembership } from './internal';
+import { prisma } from './prisma';
+import { aiRequestProblem } from './aiLimits';
+import { fieldsOf } from './formFields';
+import { parseHabitSchema } from './habitSchema';
+import type { HabitSchema } from './types';
+import { aiContextPrompt, formFillSystem } from './aiPrompts';
+import { aiModel } from './aiModel';
+import { habitMatcherName, matchHabit, type HabitCandidate, type HabitMatch, type HabitMatcherName } from './habitMatcher';
+import { whenDone } from './entryDate';
+import { getMembership } from './access';
+import { createHabitLog } from './entries';
 
 // Who an entry is logged for, with whose days it's placed on. `timeZone` is null until their browser
 // has reported one, when the server's is used, as pages do (see getDefaultUser).
@@ -47,7 +48,7 @@ export async function extractFromTranscript(schemaStr: string, transcript: strin
   }
 }
 
-export type { HabitCandidate } from '@/lib/habitMatcher';
+export type { HabitCandidate } from './habitMatcher';
 
 // The habits a user can log (their own and those shared with them), with their notes for the AI
 export async function loggableHabitsOf(userId: string) {

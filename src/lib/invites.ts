@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { prisma } from './prisma';
 import { connect } from './connections';
-import { END_OF_LIST_ORDER } from '@/app/actions/internal';
+import { END_OF_LIST_ORDER } from './constants';
 
 // Invite links: how people connect (see connections.ts). Someone makes a link, sends it however they
 // like, and whoever opens it and accepts is connected with them. One made from a habit's share dialog
