@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { AlarmClock, AlarmClockOff, Lock, Repeat } from 'lucide-react';
-import { CadencePicker, CadenceSettings } from './CadenceField';
+import { CadenceField } from './CadenceField';
 import QuickEditDialog from './QuickEditDialog';
 import ReminderSettings, { reminderDraftOf, type ReminderDraft } from './reminders/ReminderSettings';
 import { describeCadence, limitOf, type Cadence } from '@/lib/cadence';
@@ -116,8 +116,7 @@ function CadenceDialog({ initial, weekStartsOn, onSave, lockedTitle, saveLabel, 
     >
       {onSave ? (
         <>
-          <CadencePicker value={cadence} onChange={setCadence} />
-          <CadenceSettings value={cadence} onChange={setCadence} weekStartsOn={weekStartsOn} />
+          <CadenceField value={cadence} onChange={setCadence} weekStartsOn={weekStartsOn} />
         </>
       ) : (
         <p className="flex items-center gap-2 text-sm text-ink-secondary">
