@@ -43,7 +43,9 @@ describe('logging, skipping, the due list and habit details for a given user', (
   });
 
   it('describes the habit from the user\'s side', async () => {
-    expect(await habitDetailOf(owner.id, habitId)).toMatchObject({ isOwner: true, memberIds: [owner.id, member.id] });
+    const asOwner = await habitDetailOf(owner.id, habitId);
+    expect(asOwner?.isOwner).toBe(true);
+    expect(asOwner?.memberIds.toSorted()).toEqual([owner.id, member.id].toSorted());
     expect(await habitDetailOf(member.id, habitId)).toMatchObject({ isOwner: false });
     expect(await habitDetailOf(stranger.id, habitId)).toBeNull();
   });
