@@ -3,6 +3,7 @@ import { authenticateApiRequest } from '@/lib/apiKeys';
 import { apiError } from '@/lib/apiRequests';
 import { parseEntryValues } from '@/lib/habitSchema';
 import { getMembership } from '@/lib/access';
+import { nullIfUnauthorized } from '@/lib/errors';
 import { loggerNames } from '@/lib/connections';
 
 // How many entries are sent when no `limit` is given, and the most that can be asked for
@@ -25,7 +26,7 @@ export async function GET(request: Request, ctx: { params: Promise<{ id: string 
     return apiError(`"limit" must be a whole number from 1 to ${MAX_ENTRIES_LIMIT}`, 400);
   }
 
-  const membership = await getMembership(auth.user.id, id).catch(() => null);
+  const membership = await getMembership(auth.user.id, id).catch(nullIfUnauthorized);
   if (!membership) return apiError('There\'s no habit with that id that you can see', 404);
   const { habit } = membership;
 

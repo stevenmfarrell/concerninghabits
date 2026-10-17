@@ -7,6 +7,7 @@ import { getVapidKeys, REMINDER_TAG, sendPush } from '@/lib/push';
 import { habitReminderStatus } from '@/lib/reminderScheduler';
 import { isValidTimeZone } from '@/lib/timezone';
 import { getDefaultUser } from './user';
+import { UnauthorizedError } from '@/lib/errors';
 
 // The key a browser needs to subscribe to this server's push messages
 export async function getPushPublicKey() {
@@ -63,7 +64,7 @@ export async function setHabitReminder(habitId: string, enabled: boolean, remind
   const user = await getDefaultUser();
   const time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).nullable().parse(remindAt);
   const membership = await prisma.habitMember.findUnique({ where: { habitId_userId: { habitId, userId: user.id } } });
-  if (!membership) throw new Error('Unauthorized');
+  if (!membership) throw new UnauthorizedError();
   await prisma.habitMember.update({
     where: { habitId_userId: { habitId, userId: user.id } },
     data: { remind: enabled, remindAt: time, remindMutedAt: null },

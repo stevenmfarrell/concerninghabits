@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma';
 import { createApiKey, type ApiPermissions } from '@/lib/apiKeys';
 import { MAX_NAME_LENGTH } from '@/lib/constants';
 import { getDefaultUser } from './user';
+import { UnauthorizedError } from '@/lib/errors';
 
 // The most keys a user can have at once
 const MAX_API_KEYS = 50;
@@ -45,7 +46,7 @@ export async function setApiKeyPermissions(id: string, permissions: ApiPermissio
   const canRead = permissions?.canRead === true;
   if (!canLog && !canRead) throw new Error('A key has to be allowed to log or read');
   const { count } = await prisma.apiKey.updateMany({ where: { id, userId: user.id }, data: { canLog, canRead } });
-  if (count === 0) throw new Error('Unauthorized');
+  if (count === 0) throw new UnauthorizedError();
   revalidatePath('/settings/api-keys');
 }
 
@@ -53,6 +54,6 @@ export async function setApiKeyPermissions(id: string, permissions: ApiPermissio
 export async function revokeApiKey(id: string) {
   const user = await getDefaultUser();
   const { count } = await prisma.apiKey.deleteMany({ where: { id, userId: user.id } });
-  if (count === 0) throw new Error('Unauthorized');
+  if (count === 0) throw new UnauthorizedError();
   revalidatePath('/settings/api-keys');
 }

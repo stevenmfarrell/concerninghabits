@@ -10,6 +10,7 @@ import { cadenceJson, revalidateLists, assertValidParent } from './internal';
 import { getDefaultUser } from './user';
 import { getOwnedCategory } from '@/lib/access';
 import { categoriesWithHierarchyOf, categorySkips, habitListRows, listCutoffs, loadListEntries, withHabits } from '@/lib/habitLists';
+import { UnauthorizedError } from '@/lib/errors';
 
 // The current user's categories with their habits (see categoriesWithHierarchyOf)
 export async function getCategoriesWithHierarchy(weeks = 5, health = false) {
@@ -90,7 +91,7 @@ export async function createCategory(name: string, icon?: string, parentId?: str
 export async function updateCategory(id: string, name: string, icon: string | null, parentId?: string | null) {
   const user = await getDefaultUser();
   const existing = await prisma.category.findUnique({ where: { id } });
-  if (!existing || existing.userId !== user.id) throw new Error("Unauthorized");
+  if (!existing || existing.userId !== user.id) throw new UnauthorizedError();
   checkCategory(name, icon);
   if (parentId) await assertValidParent(user.id, parentId, id);
 
@@ -118,7 +119,7 @@ export async function setCategoryCadence(id: string, cadence: Cadence) {
 export async function deleteCategory(id: string) {
   const user = await getDefaultUser();
   const existing = await prisma.category.findUnique({ where: { id } });
-  if (!existing || existing.userId !== user.id) throw new Error("Unauthorized");
+  if (!existing || existing.userId !== user.id) throw new UnauthorizedError();
 
   // First move any habits filed here to Uncategorized
   await prisma.habitMember.updateMany({

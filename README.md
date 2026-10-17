@@ -106,7 +106,7 @@ habits.example.com {
 }
 ```
 
-Nginx Proxy Manager, Traefik, Cloudflare Tunnel and Tailscale (`tailscale serve`) work too. Whatever you use, have it send `X-Forwarded-Proto` (most do by default) so the app knows the connection is secure, or set `COOKIE_SECURE=true`.
+Nginx Proxy Manager, Traefik, Cloudflare Tunnel and Tailscale (`tailscale serve`) work too. Whatever you use, have it send `X-Forwarded-Proto` (most do by default) so the app knows the connection is secure, or set `COOKIE_SECURE=true`. It should also add the client's address to `X-Forwarded-For` (again, most do), which the app reads to limit sign-in attempts per address. Don't also expose port 3000 itself to the internet: a client talking to the app directly can claim any address, leaving only the limit per account.
 
 Then open the https address on your phone and use the browser's **Install app** or **Add to Home Screen**. On iPhone and iPad, it has to be added to the Home Screen before reminders can be turned on.
 
@@ -129,6 +129,8 @@ Designing a habit's form, filling in entries from what you say, type or photogra
 - Matching what you say to a habit can use this model too (see below).
 
 `AI_REASONING_EFFORT` sets how much a thinking model thinks before answering, with any provider: `none`, `minimal`, `low`, `medium`, `high` or `xhigh` (or `provider-default`, the same as leaving it unset). Each provider maps it to its own setting: `reasoning_effort` for OpenAI and local servers, a thinking budget for Gemini, extended thinking for Claude. The app's requests are short form fills and lookups, so `none` is usually the right choice.
+
+`AI_TIMEOUT_SECONDS` is how long a request to the model (or to Jev) may take, retries included, before it's given up on and you're told it took too long. It's 60 by default. Raise it if a slow local model needs longer.
 
 ### Matching What You Say to a Habit
 

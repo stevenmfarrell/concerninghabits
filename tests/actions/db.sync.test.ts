@@ -187,4 +187,39 @@ describe('syncing changes made offline', () => {
     const unsure = op({ kind: 'text', entryId: crypto.randomUUID(), habitId: null, text: 'did it', createdAt: '2026-10-10T08:00:00.000Z' });
     expect((await send([unsure])).results[0]).toMatchObject({ status: 'failed', error: expect.stringContaining('Not sure') });
   });
+  it('gives every AI request a time limit', async () => {
+    generateObject.mockResolvedValue({ object: { distance: 5 } });
+    systemOne.mockResolvedValue({ answers: { habit: { probabilities: { Run: 0.95 }, confidence: 0.95 }, did_it: { noul: 0.9 } } });
+    await send([op({ kind: 'text', entryId: crypto.randomUUID(), habitId: null, text: 'ran 5 miles', createdAt: '2026-10-10T08:00:00.000Z' })]);
+    expect(generateObject.mock.calls[0][0].abortSignal).toBeInstanceOf(AbortSignal);
+    expect(systemOne.mock.calls[0][1].signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it('stops starting changes once it\'s taken long enough, keeping the rest in order to send again', async () => {
+    // Each AI request takes 20 seconds
+    let elapsed = 0;
+    const realNow = Date.now.bind(Date);
+    const now = vi.spyOn(Date, 'now').mockImplementation(() => realNow() + elapsed);
+    generateObject.mockImplementation(async () => {
+      elapsed += 20_000;
+      return { object: { distance: 5 } };
+    });
+    const texts = [1, 2, 3].map(n => op({ kind: 'text', entryId: crypto.randomUUID(), habitId: runId, text: `ran ${n} miles`, createdAt: '2026-10-10T08:00:00.000Z' }));
+    const log = logOp(waterId);
+    try {
+      const { results } = await send([...texts, log]);
+      expect(results.map(r => r.status)).toEqual(['done', 'done', 'retry', 'retry']);
+      expect(results.map(r => r.opId)).toEqual([...texts, log].map(t => t.opId));
+      expect(await prisma.habitLog.count({ where: { id: { in: [texts[2].entryId, log.entryId] } } })).toBe(0);
+    } finally {
+      now.mockRestore();
+    }
+  });
+
+  it('fails text for a habit that\'s gone with nothing to finish by hand', async () => {
+    const text = op({ kind: 'text', entryId: crypto.randomUUID(), habitId: crypto.randomUUID(), text: 'ran 5 miles', createdAt: '2026-10-10T08:00:00.000Z' });
+    const { results } = await send([text]);
+    expect(results[0]).toEqual({ opId: text.opId, status: 'failed', error: 'Habit not found.' });
+    expect(generateObject).not.toHaveBeenCalled();
+  });
 });

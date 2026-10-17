@@ -5,6 +5,7 @@ import { MAX_OPS_PER_SYNC, opSchema, type Op, type OpResult } from '@/lib/offlin
 import { changeHabitLog, createHabitLog, removeHabitLog } from '@/lib/entries';
 import { skipOn, unskipOn } from '@/lib/skips';
 import { logFromInput, logToAnyHabit, type EntryUser } from '@/lib/smartEntry';
+import { UnauthorizedError } from '@/lib/errors';
 
 // Makes the changes the browser kept in its outbox while offline (see src/lib/offline), in the order
 // they were made, as the signed-in user. The body is {"ops": [...]}; the answer is {"results": [...]},
@@ -15,12 +16,18 @@ import { logFromInput, logToAnyHabit, type EntryUser } from '@/lib/smartEntry';
 
 type SyncUser = EntryUser;
 
+// How long a sync keeps starting changes. Text is filled in by AI, one entry after another, so a
+// batch of it could otherwise outlast a reverse proxy's timeout (Cloudflare's is 100 seconds), and
+// the browser, never hearing back, would send all of it again. What's left once this is up is
+// answered `retry`, which the browser sends again straight away in the next request. At least one
+// change is always made, so a sync never stalls.
+const TIME_BUDGET_MS = 30_000;
+
 // Why a change can't be made, in words for the user, from what the action that tried it threw.
 // `gone` when what it was for is gone (or isn't the user's), so there's no finishing it by hand.
 function reason(error: unknown, fallback: string) {
-  const message = error instanceof Error ? error.message : '';
-  if (message === 'Unauthorized') return { error: 'You don\'t have this anymore, or it\'s been deleted', gone: true };
-  return { error: message || fallback, gone: false };
+  if (error instanceof UnauthorizedError) return { error: 'You don\'t have this anymore, or it\'s been deleted', gone: true };
+  return { error: (error instanceof Error && error.message) || fallback, gone: false };
 }
 
 // Makes one change. Anything it throws is the change failing, as it is.
@@ -50,7 +57,7 @@ async function apply(user: SyncUser, op: Op): Promise<OpResult> {
       }
       const result = await logFromInput(user, op.habitId, op.text, {}, createdAt, op.entryId);
       // Not found when the habit's gone, with nothing to finish by hand
-      if (!result.success) return failed(result.error, result.error === 'Habit not found.' ? {} : { habitId: op.habitId });
+      if (!result.success) return failed(result.error, result.gone ? {} : { habitId: op.habitId });
       return result.logged ? done : failed(result.problem, { habitId: op.habitId, values: result.data });
     }
 
@@ -93,11 +100,15 @@ export async function POST(request: Request) {
   const body = z.object({ ops: z.array(z.unknown()).max(MAX_OPS_PER_SYNC) }).safeParse(await request.json().catch(() => null));
   if (!body.success) return Response.json({ error: `Send {"ops": [...]}, at most ${MAX_OPS_PER_SYNC} at a time` }, { status: 400 });
 
+  const started = Date.now();
   const results: OpResult[] = [];
   for (const raw of body.data.ops) {
     const parsed = opSchema.safeParse(raw);
     const opId = typeof raw === 'object' && raw !== null && 'opId' in raw ? String(raw.opId) : '';
-    if (!parsed.success) {
+    if (results.length > 0 && Date.now() - started > TIME_BUDGET_MS) {
+      // Kept in order: none of the rest is made before those ahead of it
+      results.push({ opId, status: 'retry', error: 'Not reached in this sync' });
+    } else if (!parsed.success) {
       results.push({ opId, status: 'failed', error: 'This change can\'t be read, so it can\'t be made' });
     } else if (parsed.data.userId !== user.id) {
       // Someone else's, made on this device before they signed out: kept for when they're back

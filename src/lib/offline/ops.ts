@@ -45,7 +45,7 @@ export const MAX_OPS_PER_SYNC = 50;
 //   doesn't have. It waits for the user to fix or discard it, with what's known for finishing it by
 //   hand: the habit it was for and the values it had (or that AI could fill in).
 // - retry: it couldn't be made this time, e.g. it's someone else's (another user signed in on this
-//   device), so it's kept as it is to send again later
+//   device), or the sync ran out of time before reaching it, so it's kept as it is to send again
 export type OpResult =
   | { opId: string; status: 'done' }
   | { opId: string; status: 'failed'; error: string; habitId?: string; values?: Record<string, unknown> }

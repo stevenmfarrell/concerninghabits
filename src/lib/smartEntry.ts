@@ -12,10 +12,11 @@ import { fieldsOf } from './formFields';
 import { parseHabitSchema } from './habitSchema';
 import type { HabitSchema } from './types';
 import { aiContextPrompt, formFillSystem } from './aiPrompts';
-import { aiModel } from './aiModel';
+import { aiFailureMessage, aiModel, aiTimeoutSignal } from './aiModel';
 import { habitMatcherName, matchHabit, type HabitCandidate, type HabitMatch, type HabitMatcherName } from './habitMatcher';
 import { whenDone } from './entryDate';
 import { getMembership } from './access';
+import { nullIfUnauthorized } from './errors';
 import { createHabitLog } from './entries';
 
 // Who an entry is logged for, with whose days it's placed on. `timeZone` is null until their browser
@@ -36,6 +37,7 @@ export async function extractFromTranscript(schemaStr: string, transcript: strin
   try {
     const { object } = await generateObject({
       model: aiModel(),
+      abortSignal: aiTimeoutSignal(),
       schema: z.record(z.string(), z.any()),
       system: formFillSystem('transcript'),
       prompt: `Form Schema:\n${schemaStr}${aiContextPrompt(aiContext)}\n\nVoice Transcript:\n"${transcript}"`,
@@ -44,7 +46,7 @@ export async function extractFromTranscript(schemaStr: string, transcript: strin
     return { success: true, data: object };
   } catch (error) {
     console.error("Error parsing voice log:", error);
-    return { success: false, error: "Failed to parse voice log." };
+    return { success: false, error: aiFailureMessage(error, "Failed to parse voice log.") };
   }
 }
 
@@ -78,17 +80,18 @@ export async function interpretInput(user: { id: string }, input: string): Promi
     return { success: true, matcher, ...(await matchHabit(input, habits, matcher)) };
   } catch (error) {
     console.error("Error interpreting smart entry:", error);
-    return { success: false, error: "Failed to match that to a habit." };
+    return { success: false, error: aiFailureMessage(error, "Failed to match that to a habit.") };
   }
 }
 
 // A habit's form filled in from something the user said or typed, the same way as voice logging:
 // only the habit's own fields, as logging keeps. Nothing to fill in for a habit with no form.
+// `gone` when the habit is gone or isn't the user's, rather than the AI failing.
 export async function fillFromInput(user: { id: string }, habitId: string, input: string): Promise<
-  { success: true; data: Record<string, unknown>; schema: HabitSchema } | { success: false; error: string }
+  { success: true; data: Record<string, unknown>; schema: HabitSchema } | { success: false; error: string; gone?: true }
 > {
-  const membership = await getMembership(user.id, habitId).catch(() => null);
-  if (!membership) return { success: false, error: 'Habit not found.' };
+  const membership = await getMembership(user.id, habitId).catch(nullIfUnauthorized);
+  if (!membership) return { success: false, error: 'Habit not found.', gone: true };
   const { habit, aiContext } = membership;
 
   const schema = parseHabitSchema(habit.schema);
@@ -110,7 +113,7 @@ export function missingRequired(schema: HabitSchema, data: Record<string, unknow
 export type InputLogResult =
   | { success: true; logged: true; logId: string; createdAt: Date; data: Record<string, unknown>; schema: HabitSchema }
   | { success: true; logged: false; data: Record<string, unknown>; schema: HabitSchema; problem: string; loggedAt?: Date }
-  | { success: false; error: string };
+  | { success: false; error: string; gone?: true };
 
 // Logs something the user said or typed to `habitId`, filling in the habit's form from it the same
 // way as voice logging. `values` are given values that win over what's filled in (e.g. sent to the

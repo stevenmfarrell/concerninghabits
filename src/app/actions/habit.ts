@@ -17,7 +17,7 @@ import { fieldsOf } from '@/lib/formFields';
 import { aiRequestProblem } from '@/lib/aiLimits';
 import { habitSchemaProblem, jsonBytes, parseHabitSchema } from '@/lib/habitSchema';
 import { MAX_AI_CONTEXT_LENGTH } from '@/lib/constants';
-import { aiModel } from '@/lib/aiModel';
+import { aiFailureMessage, aiModel, aiTimeoutSignal } from '@/lib/aiModel';
 import { aiContextPrompt, calculatedFieldSystem, chartSystem, describeFormulaInputs, formFillSystem, habitSchemaSystem, tidyDraftField } from '@/lib/aiPrompts';
 
 export async function generateHabitSchema(prompt: string, currentSchema?: HabitSchema) {
@@ -41,6 +41,7 @@ export async function generateHabitSchema(prompt: string, currentSchema?: HabitS
   try {
     const { object } = await generateObject({
       model: aiModel(),
+      abortSignal: aiTimeoutSignal(),
       maxRetries: 0,
       system: habitSchemaSystem(user, currentSchema),
       prompt: `User instructions: ${prompt}${categoryContext}`,
@@ -72,7 +73,7 @@ export async function generateHabitSchema(prompt: string, currentSchema?: HabitS
     };
   } catch (error) {
     console.error("Error generating schema:", error);
-    return { success: false, error: "Failed to generate schema." };
+    return { success: false, error: aiFailureMessage(error, "Failed to generate schema.") };
   }
 }
 
@@ -121,6 +122,7 @@ export async function parseImageLog(schemaStr: string, base64Image: string, aiCo
     
     const { object } = await generateObject({
       model: aiModel(),
+      abortSignal: aiTimeoutSignal(),
       schema: z.record(z.string(), z.any()),
       system: formFillSystem('image'),
       messages: [
@@ -137,7 +139,7 @@ export async function parseImageLog(schemaStr: string, base64Image: string, aiCo
     return { success: true, data: object };
   } catch (error) {
     console.error("Error parsing image log:", error);
-    return { success: false, error: "Failed to parse image log." };
+    return { success: false, error: aiFailureMessage(error, "Failed to parse image log.") };
   }
 }
 
@@ -202,6 +204,7 @@ export async function generateCalculatedField(request: string, schema: HabitSche
     try {
       const { object } = await generateObject({
         model: aiModel(),
+        abortSignal: aiTimeoutSignal(),
         maxRetries: 0,
         system,
         prompt: `User request: ${request}${feedback}`,
@@ -215,7 +218,7 @@ export async function generateCalculatedField(request: string, schema: HabitSche
       feedback = `\n\nYour last answer was ${JSON.stringify(field)}, which doesn't work: ${problem}. Fix it.`;
     } catch (error) {
       console.error('Error generating calculated field:', error);
-      return { success: false, error: 'Failed to make that calculated field.' };
+      return { success: false, error: aiFailureMessage(error, 'Failed to make that calculated field.') };
     }
   }
   return { success: false, error: "Couldn't make a formula for that from this habit's fields." };
@@ -279,6 +282,7 @@ export async function generateChart(habitId: string, request: string, current?: 
     try {
       ({ object } = await generateObject({
         model: aiModel(),
+        abortSignal: aiTimeoutSignal(),
         maxRetries: 0,
         system,
         prompt: `User request: ${request}${feedback}`,
@@ -286,7 +290,7 @@ export async function generateChart(habitId: string, request: string, current?: 
       }));
     } catch (error) {
       console.error('Error generating chart:', error);
-      return { success: false, error: 'Failed to make that chart.' };
+      return { success: false, error: aiFailureMessage(error, 'Failed to make that chart.') };
     }
     if (!object.possible) return { success: false, error: object.reason || "That can't be charted from this habit's fields." };
 
