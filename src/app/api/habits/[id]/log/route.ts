@@ -1,6 +1,6 @@
 import { authenticateApiRequest } from '@/lib/apiKeys';
 import { apiError, habitLogBody, loggedEntry, readLogBody, valuesForForm } from '@/lib/apiRequests';
-import { parseHabitSchema } from '@/lib/habitSchema';
+import { parseEntryValues, parseHabitSchema } from '@/lib/habitSchema';
 import { getMembership } from '@/lib/access';
 import { nullIfUnauthorized } from '@/lib/errors';
 import { createHabitLog } from '@/lib/entries';
@@ -43,7 +43,7 @@ export async function POST(request: Request, ctx: { params: Promise<{ id: string
 
   try {
     const log = await createHabitLog(auth.user, id, checked.values, createdAt);
-    return loggedEntry(log, habit, JSON.parse(log.payload));
+    return loggedEntry(log, habit, parseEntryValues(log.payload) ?? {});
   } catch (error) {
     return apiError(error instanceof Error ? error.message : 'Those values aren\'t valid', 400);
   }

@@ -183,7 +183,7 @@ Set `MQTT_URL` (plus `MQTT_USERNAME` and `MQTT_PASSWORD` if your broker needs th
 ## Backups
 
 - **From the app:** Settings → Backup & Restore downloads your data as JSON, or as CSV for a spreadsheet, and restores from either. Each person's backup has their own habits, entries and settings; habits shared with them belong to whoever owns them.
-- **The whole server:** everyone's data is one SQLite file, `/app/data/concerning_habits.db` inside the container (set by `DATABASE_URL`, which there's no need to change). Stop the container and copy it out:
+- **The whole server:** everyone's data is one SQLite database, `/app/data/concerning_habits.db` inside the container (set by `DATABASE_URL`, which there's no need to change). While the app runs, its latest changes can also be in `concerning_habits.db-wal` beside it, so copy the whole folder, not just the `.db` file. Keep the volume on a local disk rather than a network share (NFS or SMB), which SQLite can't safely share between processes. Stop the container and copy the folder out:
   ```bash
   docker compose stop
   docker compose cp concerning-habits:/app/data ./habits-backup

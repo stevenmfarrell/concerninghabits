@@ -12,6 +12,9 @@ export async function register() {
       process.exit(1);
     }
 
+    const { enableWriteAheadLog } = await import('./lib/database');
+    await enableWriteAheadLog();
+
     // One reminder scheduler per server process (it keeps itself to one across a dev server's
     // reloads). Two servers on the same database, as for a moment during a deploy, are safe: neither
     // sends a reminder the other has (see claim in reminderScheduler.ts). More than that isn't
