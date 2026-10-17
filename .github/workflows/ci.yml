@@ -1,7 +1,6 @@
 # Checks every pull request (and every push to main). Pull requests can only merge into main once
-# the "Tests" and "README drift" jobs pass: the "Protect main" ruleset requires those checks, by
-# these job names, so rename them there too if they change here. "End-to-end" isn't required until
-# it's added there too.
+# all three jobs pass: the "Protect main" ruleset requires the "Tests", "README drift" and
+# "End-to-end" checks, by these job names, so rename them there too if they change here.
 name: CI
 
 on:
