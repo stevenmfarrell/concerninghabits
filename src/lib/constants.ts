@@ -29,3 +29,7 @@ export const MAX_AI_REQUESTS_PER_HOUR = 100;
 // version for others to offer them its source, so a fork that's run that way should point this at
 // its own.
 export const SOURCE_CODE_URL = 'https://github.com/stevenmfarrell/concerninghabits';
+
+// Habits placed in a list without a chosen position (new, newly shared, or moved to another
+// category) go to the end of it.
+export const END_OF_LIST_ORDER = 9999;

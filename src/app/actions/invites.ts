@@ -4,7 +4,8 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { acceptInvite, createInvite } from '@/lib/invites';
-import { getOwnedHabit, revalidateLists } from './internal';
+import { revalidateLists } from './internal';
+import { getOwnedHabit } from '@/lib/access';
 import { getDefaultUser } from './user';
 
 // A new invite link's token, for the current user to send someone (see src/lib/invites.ts). With a

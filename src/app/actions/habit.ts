@@ -4,7 +4,8 @@ import { generateObject } from 'ai';
 import { z } from 'zod';
 import { getCategories } from './categories';
 import { getHabit } from './habits';
-import { extractFromTranscript, interpretInput, logFromInput, whenSaid, type Interpretation, type ParsedLog } from './smartEntry';
+import { extractFromTranscript, interpretInput, logFromInput, whenSaid, type Interpretation, type ParsedLog } from '@/lib/smartEntry';
+import { revalidateEntries } from './internal';
 import { getDefaultUser } from './user';
 import { buildCategoryChoices } from '@/lib/categoryChoices';
 import { prisma } from '@/lib/prisma';
@@ -140,7 +141,7 @@ export async function parseImageLog(schemaStr: string, base64Image: string, aiCo
   }
 }
 
-export type { HabitCandidate } from './smartEntry';
+export type { HabitCandidate } from '@/lib/smartEntry';
 
 // Interpret something the user said or typed on the dashboard (see interpretInput), with when it
 // says it was done when that's an earlier time (`loggedAt`, see whenDone), e.g. for the first entry
@@ -164,6 +165,7 @@ export async function logSmartEntry(habitId: string, input: string): Promise<
 > {
   const result = await logFromInput(await getDefaultUser(), habitId, input);
   if (!result.success) return result;
+  if (result.logged) revalidateEntries(habitId);
   if (!result.logged) return { success: true, logged: false, data: result.data, ...(result.loggedAt ? { loggedAt: result.loggedAt } : {}) };
   return { success: true, logged: true, logId: result.logId, createdAt: result.createdAt, data: result.data, schema: result.schema };
 }

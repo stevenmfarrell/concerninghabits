@@ -6,7 +6,8 @@ import { parseHabitSchema } from '@/lib/habitSchema';
 import { calculatedFieldProblem, calculatedFieldSchema, MAX_CALCULATED_FIELDS, parseCalculatedFields, type CalculatedField } from '@/lib/calculatedFields';
 import { fieldsOf, keyFor } from '@/lib/formFields';
 import { chartProblem, chartSpecSchema, MAX_CHARTS, newChartId, parseCharts, plottableFields, type SavedChartInput } from '@/lib/charts';
-import { getOwnedHabit, checkCalculatedFields } from './internal';
+import { checkCalculatedFields } from './internal';
+import { getOwnedHabit } from '@/lib/access';
 import { getDefaultUser } from './user';
 
 // Adds a calculated field to a habit (`key` null), or changes one, saving straight away, e.g. from

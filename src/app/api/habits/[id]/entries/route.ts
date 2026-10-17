@@ -2,7 +2,7 @@ import { prisma } from '@/lib/prisma';
 import { authenticateApiRequest } from '@/lib/apiKeys';
 import { apiError } from '@/lib/apiRequests';
 import { parseEntryValues } from '@/lib/habitSchema';
-import { getMembership } from '@/app/actions/internal';
+import { getMembership } from '@/lib/access';
 import { loggerNames } from '@/lib/connections';
 
 // How many entries are sent when no `limit` is given, and the most that can be asked for
