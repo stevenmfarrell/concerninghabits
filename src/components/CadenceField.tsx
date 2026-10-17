@@ -3,21 +3,56 @@
 import { useState } from 'react';
 import Select from './Select';
 import { cadenceExample } from '@/lib/cadenceExample';
-import { CADENCE_TYPES, toggleWeekday, weekdaysInOrder, withTimes, type Cadence, type CadenceType, type LimitPeriod } from '@/lib/cadence';
+import { toggleWeekday, weekdaysInOrder, withTimes, type Cadence, type LimitPeriod } from '@/lib/cadence';
 import { INPUT_SM } from '@/components/ui/Input';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 
-// Each cadence as the editor offers it: its name in the picker, and what it starts as when picked.
-// Keyed by every cadence type, so a new one doesn't build until it's given a place here.
-const CADENCE_OPTIONS: { [T in CadenceType]: { label: string; initial: () => Extract<Cadence, { type: T }> } } = {
-  daily: { label: 'Daily', initial: () => ({ type: 'daily', timesPerDay: 1 }) },
-  everyNDays: { label: 'Every N days', initial: () => ({ type: 'everyNDays', days: 2 }) },
-  weekdays: { label: 'On certain days', initial: () => ({ type: 'weekdays', days: [1, 2, 3, 4, 5] }) },
-  calendarWeek: { label: 'Each calendar week', initial: () => ({ type: 'calendarWeek' }) },
-  calendarMonth: { label: 'Each calendar month', initial: () => ({ type: 'calendarMonth' }) },
-  none: { label: 'No set cadence', initial: () => ({ type: 'none' }) },
-  limit: { label: 'At most (a limit)', initial: () => ({ type: 'limit', period: 'day', max: 1 }) },
-};
+// The cadence picker: first how often (none, daily, weekly, monthly, every N days, or a limit), then
+// within weekly and monthly, which kind (counted from the last time, a number of times in the
+// calendar week or month, or certain days of the week), with what that needs set. A frequency comes
+// first because that's how people think of a habit; the kinds beneath it are where the calendar
+// and counting from the last time differ, each worked through from today (see cadenceExample).
+
+type Group = 'none' | 'daily' | 'weekly' | 'monthly' | 'everyNDays' | 'limit';
+
+const GROUPS: { id: Group; label: string; initial: () => Cadence }[] = [
+  { id: 'none', label: 'No set cadence', initial: () => ({ type: 'none' }) },
+  { id: 'daily', label: 'Daily', initial: () => ({ type: 'daily', timesPerDay: 1 }) },
+  // Counted from the last time unless they choose otherwise: right for upkeep, and near enough for
+  // most weekly goals
+  { id: 'weekly', label: 'Weekly', initial: () => ({ type: 'everyNDays', days: 7 }) },
+  { id: 'monthly', label: 'Monthly', initial: () => ({ type: 'calendarMonth' }) },
+  { id: 'everyNDays', label: 'Every N days', initial: () => ({ type: 'everyNDays', days: 2 }) },
+  { id: 'limit', label: 'At most (a limit)', initial: () => ({ type: 'limit', period: 'day', max: 1 }) },
+];
+
+// Where a saved cadence is offered: every 7 days is weekly, every 30 days monthly
+export function cadenceGroup(cadence: Cadence): Group {
+  switch (cadence.type) {
+    case 'everyNDays':
+      return cadence.days === 7 ? 'weekly' : cadence.days === 30 ? 'monthly' : 'everyNDays';
+    case 'weekdays':
+    case 'calendarWeek':
+      return 'weekly';
+    case 'calendarMonth':
+      return 'monthly';
+    default:
+      return cadence.type;
+  }
+}
+
+type WeeklyKind = 'every7' | 'times' | 'days';
+const WEEKLY_KINDS: { value: WeeklyKind; label: string; initial: () => Cadence }[] = [
+  { value: 'every7', label: 'Every 7 days', initial: () => ({ type: 'everyNDays', days: 7 }) },
+  { value: 'times', label: 'Times a week', initial: () => ({ type: 'calendarWeek' }) },
+  { value: 'days', label: 'On certain days', initial: () => ({ type: 'weekdays', days: [1, 2, 3, 4, 5] }) },
+];
+
+type MonthlyKind = 'times' | 'every30';
+const MONTHLY_KINDS: { value: MonthlyKind; label: string; initial: () => Cadence }[] = [
+  { value: 'times', label: 'Times a month', initial: () => ({ type: 'calendarMonth' }) },
+  { value: 'every30', label: 'Every 30 days', initial: () => ({ type: 'everyNDays', days: 30 }) },
+];
 
 const LIMIT_PERIOD_OPTIONS: { value: LimitPeriod; label: string }[] = [
   { value: 'day', label: 'A day' },
@@ -25,25 +60,37 @@ const LIMIT_PERIOD_OPTIONS: { value: LimitPeriod; label: string }[] = [
   { value: 'month', label: 'A month' },
 ];
 
-// The cadence picker. The setting the chosen cadence needs, if any, is CadenceSettings, which
-// HabitEditor shows below its row of pickers.
-export function CadencePicker({ value, onChange, disabled }: { value: Cadence; onChange: (cadence: Cadence) => void; disabled?: boolean }) {
+// The cadence picker and its settings. Which group is chosen is kept here rather than worked out
+// from the cadence, so typing 7 into Every N days doesn't move it to Weekly mid-edit.
+// `weekStartsOn` is the user's, to lay out the days of the week as their weeks run.
+export function CadenceField({ value, onChange, disabled, weekStartsOn }: { value: Cadence; onChange: (cadence: Cadence) => void; disabled?: boolean; weekStartsOn: string }) {
+  const [group, setGroup] = useState(() => cadenceGroup(value));
+
   return (
-    <Select
-      value={value.type}
-      onChange={type => onChange(type === value.type ? value : CADENCE_OPTIONS[type as CadenceType].initial())}
-      options={CADENCE_TYPES.map(type => ({ id: type, label: CADENCE_OPTIONS[type].label }))}
-      disabled={disabled}
-      size="sm"
-    />
+    <>
+      <Select
+        value={group}
+        onChange={next => {
+          if (next === group) return;
+          setGroup(next as Group);
+          onChange(GROUPS.find(g => g.id === next)!.initial());
+        }}
+        options={GROUPS.map(({ id, label }) => ({ id, label }))}
+        disabled={disabled}
+        size="sm"
+      />
+      <GroupSettings group={group} value={value} onChange={onChange} disabled={disabled} weekStartsOn={weekStartsOn} />
+    </>
   );
 }
 
-// `weekStartsOn` is the user's, to lay out the days of the week as their weeks run
-export function CadenceSettings({ value, onChange, disabled, weekStartsOn }: { value: Cadence; onChange: (cadence: Cadence) => void; disabled?: boolean; weekStartsOn: string }) {
-  switch (value.type) {
+function GroupSettings({ group, value, onChange, disabled, weekStartsOn }: { group: Group; value: Cadence; onChange: (cadence: Cadence) => void; disabled?: boolean; weekStartsOn: string }) {
+  const example = cadenceExample(value, today(), weekStartsOn);
+  switch (group) {
+    case 'none':
+      return null;
     case 'daily':
-      return (
+      return value.type === 'daily' && (
         <CadenceNumber
           key="daily"
           label="Times a day"
@@ -55,13 +102,61 @@ export function CadenceSettings({ value, onChange, disabled, weekStartsOn }: { v
           disabled={disabled}
         />
       );
-    case 'everyNDays':
+    case 'weekly': {
+      const kind: WeeklyKind = value.type === 'calendarWeek' ? 'times' : value.type === 'weekdays' ? 'days' : 'every7';
       return (
+        <>
+          <KindPicker label="Weekly" options={WEEKLY_KINDS} value={kind} onChange={next => onChange(WEEKLY_KINDS.find(k => k.value === next)!.initial())} />
+          {value.type === 'calendarWeek' ? (
+            <CadenceNumber
+              key="calendarWeek"
+              label="Times a week"
+              help="Any days of your calendar week: for a goal for the week, like calling your mom, or the gym 3 times a week."
+              example={example}
+              value={value.times ?? 1}
+              min={1}
+              max={100}
+              onChange={times => onChange(withTimes(value, times))}
+              disabled={disabled}
+            />
+          ) : value.type === 'weekdays' ? (
+            <WeekdayPicker key="weekdays" days={value.days} onChange={days => onChange({ ...value, days })} disabled={disabled} weekStartsOn={weekStartsOn} />
+          ) : (
+            <KindNote help="Counted from the last time: for upkeep, like changing a filter or checking the humidifier." example={example} />
+          )}
+        </>
+      );
+    }
+    case 'monthly': {
+      const kind: MonthlyKind = value.type === 'everyNDays' ? 'every30' : 'times';
+      return (
+        <>
+          <KindPicker label="Monthly" options={MONTHLY_KINDS} value={kind} onChange={next => onChange(MONTHLY_KINDS.find(k => k.value === next)!.initial())} />
+          {value.type === 'calendarMonth' ? (
+            <CadenceNumber
+              key="calendarMonth"
+              label="Times a month"
+              help="Any days of the calendar month: for paying rent, or a massage twice a month."
+              example={example}
+              value={value.times ?? 1}
+              min={1}
+              max={100}
+              onChange={times => onChange(withTimes(value, times))}
+              disabled={disabled}
+            />
+          ) : (
+            <KindNote help="Counted from the last time: for upkeep, like changing the furnace filter." example={example} />
+          )}
+        </>
+      );
+    }
+    case 'everyNDays':
+      return value.type === 'everyNDays' && (
         <CadenceNumber
           key="everyNDays"
           label="Days apart"
-          help="For something that needs doing again a set time after the last, like changing a filter or watering plants."
-          example={cadenceExample(value, today(), weekStartsOn)}
+          help="Again that many days after the last time, like watering plants every 3 days."
+          example={example}
           value={value.days}
           min={2}
           max={365}
@@ -69,40 +164,8 @@ export function CadenceSettings({ value, onChange, disabled, weekStartsOn }: { v
           disabled={disabled}
         />
       );
-    case 'weekdays':
-      return <WeekdayPicker key="weekdays" days={value.days} onChange={days => onChange({ ...value, days })} disabled={disabled} weekStartsOn={weekStartsOn} />;
-    case 'calendarWeek':
-      return (
-        <CadenceNumber
-          key="calendarWeek"
-          label="Times a week"
-          help="For a goal for the week, like calling your mom, or the gym 3 times a week."
-          example={cadenceExample(value, today(), weekStartsOn)}
-          value={value.times ?? 1}
-          min={1}
-          max={100}
-          onChange={times => onChange(withTimes(value, times))}
-          disabled={disabled}
-        />
-      );
-    case 'calendarMonth':
-      return (
-        <CadenceNumber
-          key="calendarMonth"
-          label="Times a month"
-          help="For a goal for the month, like paying rent, or a massage twice a month."
-          example={cadenceExample(value, today(), weekStartsOn)}
-          value={value.times ?? 1}
-          min={1}
-          max={100}
-          onChange={times => onChange(withTimes(value, times))}
-          disabled={disabled}
-        />
-      );
-    case 'none':
-      return null;
     case 'limit':
-      return (
+      return value.type === 'limit' && (
         <>
           <div className="mt-4 animate-in fade-in slide-in-from-top-2">
             <p className="text-sm font-semibold text-ink-secondary mb-2" id="limit-period-label">Per</p>
@@ -122,11 +185,27 @@ export function CadenceSettings({ value, onChange, disabled, weekStartsOn }: { v
           />
         </>
       );
-    default: {
-      const unhandled: never = value;
-      return unhandled;
-    }
   }
+}
+
+// Which kind of weekly or monthly cadence, as a choice of two or three
+function KindPicker<T extends string>({ label, options, value, onChange }: { label: string; options: { value: T; label: string }[]; value: T; onChange: (value: T) => void }) {
+  return (
+    <div className="mt-4 animate-in fade-in slide-in-from-top-2">
+      <SegmentedControl size="md" label={label} options={options.map(({ value, label }) => ({ value, label }))} value={value} onChange={onChange} />
+    </div>
+  );
+}
+
+// What a weekly or monthly kind with nothing to set suits, and its example from today
+function KindNote({ help, example }: { help: string; example: string | null }) {
+  return (
+    <div className="mt-3">
+      <p className="text-xs text-ink-muted">{help}</p>
+      {/* Today by this browser's clock, which may differ from the server's around midnight */}
+      {example && <p className="text-sm text-ink-secondary mt-2" suppressHydrationWarning>{example}</p>}
+    </div>
+  );
 }
 
 // A cadence's whole-number setting. What's typed is kept as typed (so "10" can be typed through

@@ -1,7 +1,7 @@
 import { addDays } from './timezone';
 import { startOfWeek, type Cadence } from './cadence';
 
-// A cadence worked through from today, for its settings (see CadenceSettings): when doing it today
+// A cadence worked through from today, for its settings (see CadenceField): when doing it today
 // would make it due again, or how long it would count for. It shows the difference between a
 // calendar week or month, which counts any day in it and starts over on schedule, and every N days,
 // counted from the last time, better than describing it. `today` is a civil date (UTC midnight for
