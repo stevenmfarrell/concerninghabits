@@ -9,7 +9,7 @@ import { z } from 'zod';
 import { prisma } from './prisma';
 import { aiRequestProblem } from './aiLimits';
 import { fieldsOf } from './formFields';
-import { parseHabitSchema } from './habitSchema';
+import { parseEntryValues, parseHabitSchema } from './habitSchema';
 import type { HabitSchema } from './types';
 import { aiContextPrompt, formFillSystem } from './aiPrompts';
 import { aiFailureMessage, aiModel, aiTimeoutSignal } from './aiModel';
@@ -128,7 +128,7 @@ export async function logFromInput(user: EntryUser, habitId: string, input: stri
     const existing = await prisma.habitLog.findUnique({ where: { id } });
     if (existing && existing.userId === user.id && existing.habitId === habitId) {
       const membership = await getMembership(user.id, habitId);
-      return { success: true, logged: true, logId: existing.id, createdAt: existing.createdAt, data: JSON.parse(existing.payload), schema: parseHabitSchema(membership.habit.schema) };
+      return { success: true, logged: true, logId: existing.id, createdAt: existing.createdAt, data: parseEntryValues(existing.payload) ?? {}, schema: parseHabitSchema(membership.habit.schema) };
     }
   }
   const filled = await fillFromInput(user, habitId, input);

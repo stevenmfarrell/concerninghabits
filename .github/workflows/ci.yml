@@ -1,6 +1,7 @@
 # Checks every pull request (and every push to main). Pull requests can only merge into main once
-# both jobs pass: the "Protect main" ruleset requires the "Tests" and "README drift" checks, by
-# these job names, so rename them there too if they change here.
+# the "Tests" and "README drift" jobs pass: the "Protect main" ruleset requires those checks, by
+# these job names, so rename them there too if they change here. "End-to-end" isn't required until
+# it's added there too.
 name: CI
 
 on:
@@ -54,3 +55,35 @@ jobs:
           node-version: 22
 
       - run: node scripts/check-readme.mjs
+
+  e2e:
+    name: End-to-end
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npx prisma generate
+
+      # Only Chromium, the browser the tests run in (see playwright.config.ts), with what it needs
+      # from the system
+      - run: npx playwright install --with-deps chromium
+
+      # Builds, then serves the build on a fresh database (scripts/e2e-server.mjs) and runs e2e/
+      - run: npm run test:e2e
+
+      - name: Keep the report and traces of a failed run
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7

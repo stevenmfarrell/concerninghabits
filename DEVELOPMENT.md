@@ -47,6 +47,14 @@ npx next typegen && npx tsc --noEmit
 node scripts/check-readme.mjs      # the README still matches the code
 ```
 
+**The end-to-end tests** (`e2e/`) run in a real browser against the production build, for what only shows up there: the service worker, and changes made offline waiting in the outbox until the connection's back. Install the browser once with `npx playwright install chromium`, then:
+
+```bash
+npm run test:e2e                   # builds, then serves the build on 127.0.0.1:3007 with a fresh database
+```
+
+They take the network away with Playwright's offline mode rather than stopping the server. CI runs them as the "End-to-end" check, with the report and traces of a failed run kept as an artifact.
+
 **The README check** keeps the self-hosting guide honest. It fails when the app reads an environment variable the README doesn't mention (or the README or `.env.example` sets one the app no longer reads), when an API-key route isn't documented as `METHOD /api/...`, or when the compose example's port, volume or image don't match the Dockerfile and repo. When you add, rename or remove a setting or an API route, update the README and `.env.example` in the same pull request.
 
 ## Changing the Database

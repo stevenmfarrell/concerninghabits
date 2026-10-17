@@ -12,6 +12,9 @@
 
 # testing
 /coverage
+# Playwright's results and report (see playwright.config.ts)
+/test-results/
+/playwright-report/
 
 # next.js
 /.next/
@@ -46,5 +49,9 @@ yarn-error.log*
 next-env.d.ts
 
 *.db
+# SQLite's write-ahead log and journal, beside a database (see src/lib/database.ts)
+*.db-wal
+*.db-shm
+*.db-journal
 
 scratch/
