@@ -8,7 +8,7 @@ import { headers } from 'next/headers';
 import { MAX_PASSWORD_BYTES, MIN_PASSWORD_LENGTH } from '@/lib/constants';
 import { seedDefaultCategories } from '@/lib/defaultCategories';
 import { RETURN_TO_PARAM, safeReturnTo } from '@/lib/returnTo';
-import { clientIp } from '@/lib/rateLimit';
+import { clientIp, countRequest, uncountRequest } from '@/lib/rateLimit';
 import { isCloud, isServerAdmin, usesPasswords } from '@/lib/deployment';
 import { deleteAccount, selfDeletionProblem } from '@/lib/accounts';
 import { connectToEveryone } from '@/lib/connections';
@@ -22,27 +22,6 @@ const MAX_FAILURES_PER_EMAIL = 20;
 
 async function getClientIp() {
   return clientIp(await headers());
-}
-
-async function getFailureCount(identifier: string) {
-  const limit = await prisma.rateLimit.findUnique({ where: { identifier } });
-  if (!limit || limit.resetTime < new Date()) return 0;
-  return limit.count;
-}
-
-async function recordFailure(identifier: string) {
-  const now = new Date();
-  const limit = await prisma.rateLimit.findUnique({ where: { identifier } });
-  if (limit && limit.resetTime >= now) {
-    await prisma.rateLimit.update({ where: { identifier }, data: { count: { increment: 1 } } });
-  } else {
-    const resetTime = new Date(now.getTime() + LOGIN_WINDOW_MS);
-    await prisma.rateLimit.upsert({
-      where: { identifier },
-      create: { identifier, count: 1, resetTime },
-      update: { count: 1, resetTime },
-    });
-  }
 }
 
 // Compared against when the email has no account, so response time doesn't reveal which emails exist
@@ -69,8 +48,16 @@ export async function login(formData: FormData) {
   const clientKey = `login:${await getClientIp()}:${normalizedEmail}`;
   const accountKey = `login:${normalizedEmail}`;
 
-  const [clientFailures, accountFailures] = await Promise.all([getFailureCount(clientKey), getFailureCount(accountKey)]);
-  if (clientFailures >= MAX_FAILURES_PER_CLIENT || accountFailures >= MAX_FAILURES_PER_EMAIL) {
+  // Each attempt is counted before the password is checked, so attempts made all at once can't all
+  // get in under the limit while the first are still being checked. Only failures are meant to
+  // count, so a correct password gives its attempt back (see below).
+  const [clientAllowed, accountAllowed] = await Promise.all([
+    countRequest(clientKey, MAX_FAILURES_PER_CLIENT, LOGIN_WINDOW_MS),
+    countRequest(accountKey, MAX_FAILURES_PER_EMAIL, LOGIN_WINDOW_MS),
+  ]);
+  if (!clientAllowed || !accountAllowed) {
+    // An attempt turned away isn't one at all, so it's given back to the limit that let it through
+    await Promise.all([clientAllowed && uncountRequest(clientKey), accountAllowed && uncountRequest(accountKey)]);
     return { error: 'Too many login attempts. Please try again later.' };
   }
 
@@ -82,14 +69,13 @@ export async function login(formData: FormData) {
   // the same timing, but can never match it: the dummy's own password must not sign anyone in
   const isValidPassword = await bcrypt.compare(password, user?.passwordHash ?? getDummyPasswordHash()) && !!user?.passwordHash;
 
-  if (!user || !isValidPassword) {
-    await Promise.all([recordFailure(clientKey), recordFailure(accountKey)]);
-    return { error: 'Invalid email or password' };
-  }
+  // Already counted as a failure above
+  if (!user || !isValidPassword) return { error: 'Invalid email or password' };
 
-  // Only failures count, so a successful login clears this client's count. The per-email count is
-  // left to expire so a correct login can't reset the budget of someone guessing from elsewhere.
-  await prisma.rateLimit.deleteMany({ where: { identifier: clientKey } });
+  // Only failures count, so a successful login clears this client's count. The per-email count only
+  // gets this attempt back, and the rest is left to expire, so a correct login can't reset the budget
+  // of someone guessing from elsewhere.
+  await Promise.all([prisma.rateLimit.deleteMany({ where: { identifier: clientKey } }), uncountRequest(accountKey)]);
 
   await createSession(user.id);
   redirect(safeReturnTo(formData.get(RETURN_TO_PARAM) as string | null) ?? '/');

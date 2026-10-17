@@ -67,6 +67,37 @@ describe('signing in with a password', () => {
     expect(cookieJar.get('session')).toBeTruthy();
   });
 
+  it('counts wrong passwords tried all at once against the limit, before checking any', async () => {
+    const email = `lee-${crypto.randomUUID()}@example.test`;
+    await prisma.user.create({ data: { name: 'Lee', email, passwordHash: await bcrypt.hash('correct horse battery', 4) } });
+    const attempt = (password: string) => {
+      const form = new FormData();
+      form.set('email', email);
+      form.set('password', password);
+      return login(form);
+    };
+    const results = await Promise.all(Array.from({ length: 12 }, (_, i) => attempt(`wrong guess ${i}`)));
+    // Five per client (the tests have no address, so all are one client)
+    expect(results.filter(r => r.error === 'Invalid email or password')).toHaveLength(5);
+    expect(results.filter(r => r.error === 'Too many login attempts. Please try again later.')).toHaveLength(7);
+    // Only the five checked count against the account
+    expect((await prisma.rateLimit.findUniqueOrThrow({ where: { identifier: `login:${email}` } })).count).toBe(5);
+  });
+
+  it('gives a correct password\'s attempt back', async () => {
+    const email = `kim-${crypto.randomUUID()}@example.test`;
+    await prisma.user.create({ data: { name: 'Kim', email, passwordHash: await bcrypt.hash('correct horse battery', 4) } });
+    const form = new FormData();
+    form.set('email', email);
+    form.set('password', 'wrong');
+    await login(form);
+    form.set('password', 'correct horse battery');
+    await expect(login(form)).rejects.toThrow('REDIRECT:/');
+    // The failure still counts against the account; the client's count is cleared
+    expect((await prisma.rateLimit.findUniqueOrThrow({ where: { identifier: `login:${email}` } })).count).toBe(1);
+    expect(await prisma.rateLimit.findFirst({ where: { identifier: { startsWith: `login:unknown:${email}` } } })).toBeNull();
+  });
+
   it('never signs in to an account without a password, even with the dummy password it\'s timed against', async () => {
     const email = `sam-${crypto.randomUUID()}@example.test`;
     await prisma.user.create({ data: { name: 'Sam', email } });

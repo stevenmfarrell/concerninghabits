@@ -11,7 +11,7 @@
 import { generateObject } from 'ai';
 import { choice, noul, TypeSafeClient, type ChoiceCriteria } from '@typesafe-ai/sdk';
 import { z } from 'zod';
-import { aiModel, aiModelConfigured } from './aiModel';
+import { aiModel, aiModelConfigured, aiTimeoutSignal } from './aiModel';
 import { fieldsOf } from './formFields';
 import { parseHabitSchema } from './habitSchema';
 
@@ -121,7 +121,7 @@ async function matchWithJev(input: string, habits: MatchableHabit[]): Promise<Ha
     const { answers } = await getTypeSafe().systemOne({
       state: { user_input: input },
       questions: { did_it: didItQuestion },
-    });
+    }, { signal: aiTimeoutSignal() });
     return { confident: true, candidates: [{ ...NEW_HABIT, probability: 1 }], didIt: answers.did_it.noul >= DID_IT_THRESHOLD };
   }
 
@@ -131,7 +131,7 @@ async function matchWithJev(input: string, habits: MatchableHabit[]): Promise<Ha
       habit: choice('The user told their habit-tracking app `user_input`. Which of their habits is it about?', criteria),
       did_it: didItQuestion,
     },
-  });
+  }, { signal: aiTimeoutSignal() });
 
   const candidates = Object.entries(answers.habit.probabilities)
     .filter(([option]) => options.has(option))
@@ -161,6 +161,7 @@ async function matchWithModel(input: string, habits: MatchableHabit[]): Promise<
   if (habits.length === 0) {
     const { object } = await generateObject({
       model: aiModel(),
+      abortSignal: aiTimeoutSignal(),
       schema: z.object({ did_it: z.boolean() }),
       system: `You read what a user told their habit-tracking app. Answer with:\n${DID_IT_INSTRUCTION}`,
       prompt: `User input: "${input}"`,
@@ -184,6 +185,7 @@ async function matchWithModel(input: string, habits: MatchableHabit[]): Promise<
 
   const { object } = await generateObject({
     model: aiModel(),
+    abortSignal: aiTimeoutSignal(),
     schema: z.object({ habit: pick, did_it: z.boolean(), sure: z.boolean(), alternatives: z.array(pick) }),
     system: `You match what a user told their habit-tracking app to one of their habits.
 

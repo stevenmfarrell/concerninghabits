@@ -2,6 +2,7 @@ import { authenticateApiRequest } from '@/lib/apiKeys';
 import { apiError, habitLogBody, loggedEntry, readLogBody, valuesForForm } from '@/lib/apiRequests';
 import { parseHabitSchema } from '@/lib/habitSchema';
 import { getMembership } from '@/lib/access';
+import { nullIfUnauthorized } from '@/lib/errors';
 import { createHabitLog } from '@/lib/entries';
 import { logFromInput } from '@/lib/smartEntry';
 
@@ -22,7 +23,7 @@ export async function POST(request: Request, ctx: { params: Promise<{ id: string
   if (!read.ok) return read.response;
   const { body, createdAt } = read;
 
-  const membership = await getMembership(auth.user.id, id).catch(() => null);
+  const membership = await getMembership(auth.user.id, id).catch(nullIfUnauthorized);
   if (!membership) return apiError('There\'s no habit with that id that you can log', 404);
   const { habit } = membership;
 

@@ -16,6 +16,7 @@ import { habitDetailOf } from '@/lib/habitDetails';
 import { loggableHabitsOf } from '@/lib/smartEntry';
 import { connectedIds } from '@/lib/connections';
 import { mqttEnabled } from '@/lib/deployment';
+import { UnauthorizedError } from '@/lib/errors';
 
 // A habit's name, description and form checked, since they come from the browser
 function checkHabit(name: string, description: string, schema: HabitSchema) {
@@ -216,7 +217,7 @@ export async function reorderHabits(updates: { id: string; order: number }[]) {
   });
 
   if (memberships.length !== updates.length) {
-    throw new Error("Unauthorized or invalid habit IDs");
+    throw new UnauthorizedError("Unauthorized or invalid habit IDs");
   }
 
   // Update in a transaction

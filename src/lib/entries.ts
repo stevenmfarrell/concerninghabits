@@ -7,6 +7,7 @@ import { fieldsOf } from './formFields';
 import { civilDateFor, civilDayKey, DAY_MS, parseCivilDayKey, type DayOwner } from './timezone';
 import { getMembership } from './access';
 import { getRecentLogsCutoff } from './habitLists';
+import { UnauthorizedError } from './errors';
 
 // Logging a habit, correcting and deleting entries, and reading them back, as a given user: the web
 // app's server actions act as whoever's signed in, the API as whoever its key belongs to (see
@@ -123,7 +124,7 @@ export function canChangeLog(userId: string, log: { userId: string }, habit: { u
 // An entry the user may edit or delete, checked to belong to `habitId`
 export async function getChangeableLog(userId: string, logId: string, habitId: string) {
   const log = await prisma.habitLog.findUnique({ where: { id: logId }, include: { habit: { select: { userId: true, schema: true } } } });
-  if (!log || log.habitId !== habitId || !canChangeLog(userId, log, log.habit)) throw new Error("Unauthorized");
+  if (!log || log.habitId !== habitId || !canChangeLog(userId, log, log.habit)) throw new UnauthorizedError();
   return log;
 }
 

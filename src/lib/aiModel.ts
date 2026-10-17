@@ -95,6 +95,34 @@ function defaultReasoning(reasoning: ReasoningEffort): LanguageModelMiddleware {
   };
 }
 
+// How long an AI request may take, its retries included, before it's given up on: AI_TIMEOUT_SECONDS,
+// or a minute. Without a limit, a model that hangs (or a slow local one) would hold the request open
+// for as long as it took, and offline sync, which fills in queued text one entry after another, with
+// it. Read on each request, like HABIT_MATCHER.
+const DEFAULT_TIMEOUT_SECONDS = 60;
+
+export function aiTimeoutMs(): number {
+  const set = process.env.AI_TIMEOUT_SECONDS?.trim();
+  if (!set) return DEFAULT_TIMEOUT_SECONDS * 1000;
+  const seconds = Number(set);
+  if (!Number.isFinite(seconds) || seconds <= 0) {
+    throw new Error(`AI_TIMEOUT_SECONDS must be a number of seconds above 0, not "${set}".`);
+  }
+  return seconds * 1000;
+}
+
+// The signal to pass to every AI request (generateObject's `abortSignal`, Jev's `signal`), made per
+// request so each gets the whole time
+export function aiTimeoutSignal(): AbortSignal {
+  return AbortSignal.timeout(aiTimeoutMs());
+}
+
+// What to tell the user about an AI request that failed: that it took too long, if that's why, or
+// `fallback`. AbortSignal.timeout ends a request with a TimeoutError.
+export function aiFailureMessage(error: unknown, fallback: string): string {
+  return error instanceof Error && error.name === 'TimeoutError' ? 'The AI took too long to answer. Try again in a moment.' : fallback;
+}
+
 // Made on first use rather than at import, so a misconfiguration shows up as an AI request failing
 // with a clear message instead of breaking the build or the pages that make no AI requests
 let model: LanguageModel | undefined;

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { generateObject } from 'ai';
 import { z } from 'zod';
-import { parseModelSpec } from '@/lib/aiModel';
+import { aiFailureMessage, aiTimeoutMs, parseModelSpec } from '@/lib/aiModel';
 
 // aiModel() keeps the model it makes, so each case loads the module afresh
 async function modelFor(env: Record<string, string | undefined>) {
@@ -77,5 +77,29 @@ describe('aiModel', () => {
     it('refuses an effort it doesn\'t know', async () => {
       await expect(modelFor({ AI_REASONING_EFFORT: 'off' })).rejects.toThrow(/isn't one of: provider-default, none/);
     });
+  });
+});
+
+describe('AI_TIMEOUT_SECONDS', () => {
+  it('is a minute unless set', () => {
+    expect(aiTimeoutMs()).toBe(60_000);
+    vi.stubEnv('AI_TIMEOUT_SECONDS', '90');
+    expect(aiTimeoutMs()).toBe(90_000);
+  });
+
+  it('refuses a time that isn\'t above 0', () => {
+    for (const value of ['0', '-5', 'soon']) {
+      vi.stubEnv('AI_TIMEOUT_SECONDS', value);
+      expect(() => aiTimeoutMs()).toThrow(/AI_TIMEOUT_SECONDS/);
+    }
+  });
+
+  it('says a request took too long when that\'s why it failed', async () => {
+    const timedOut = await new Promise<unknown>(resolve => {
+      const signal = AbortSignal.timeout(1);
+      signal.addEventListener('abort', () => resolve(signal.reason));
+    });
+    expect(aiFailureMessage(timedOut, 'Failed.')).toMatch(/too long/);
+    expect(aiFailureMessage(new Error('Bad gateway'), 'Failed.')).toBe('Failed.');
   });
 });
