@@ -104,3 +104,5 @@ gh release create v1.2.3 --generate-notes
 ```
 
 The tag starts `.github/workflows/release.yml`, which builds the image for `linux/amd64` and `linux/arm64` and publishes it to `ghcr.io/stevenmfarrell/concerninghabits` as `1.2.3`, `1.2`, `1` and `latest`. A pre-release (`v1.3.0-rc.1`) only gets its own tag. For a major version, say in the release notes what self-hosters need to do.
+
+The same tag deploys the hosted version at app.concerninghabits.com (`.github/workflows/deploy.yml`), except for a pre-release; every merge to `main` already deployed staging, so check a change there first. See [fly/README.md](fly/README.md).

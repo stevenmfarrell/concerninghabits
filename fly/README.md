@@ -2,6 +2,16 @@
 
 Production (`concerninghabits`, at app.concerninghabits.com, configured by `fly.toml`) and staging (`concerninghabits-staging`, by `fly.staging.toml`) run the Dockerfile's `fly` target. It is the self-host image plus Litestream, started by `start.sh` here instead of the image's own start script.
 
+## Deploys
+
+`.github/workflows/deploy.yml` deploys staging on every push to `main`, and production when a release tag like `v1.2.3` is pushed (not a pre-release like `v1.3.0-rc.1`). Fly builds the `fly` target from that commit. Each app has its own deploy token, the `FLY_API_TOKEN` secret of the GitHub environment of the same name, which only accepts `main` (staging) or `v*.*.*` tags (production). To replace one, create a new token and store it, then revoke the old one (`fly tokens list -a <app>`):
+
+```sh
+fly tokens create deploy -a concerninghabits --name github-actions-production | gh secret set FLY_API_TOKEN --env production
+```
+
+To deploy by hand instead, `fly deploy` (production) or `fly deploy -c fly.staging.toml` (staging) from a checkout of the commit you want.
+
 ## Backups
 
 Each app's SQLite database is backed up continuously to its own private Cloudflare R2 bucket, `concerninghabits-backups` and `concerninghabits-staging-backups`, by [Litestream](https://litestream.io) 0.5 (`litestream.yml`). A change reaches R2 within about a second, and Litestream syncs one last time when the machine stops. The bucket and endpoint are in each app's Fly config, and the R2 API token is the `LITESTREAM_ACCESS_KEY_ID` and `LITESTREAM_SECRET_ACCESS_KEY` secrets.

@@ -1,0 +1,60 @@
+# Deploys the hosted version to Fly.io: staging (fly.staging.toml) on every push to main, and
+# production (fly.toml) when a release tag like v1.2.3 is pushed. A pre-release tag (v1.3.0-rc.1)
+# doesn't deploy production.
+#
+# Fly builds the Dockerfile's fly target from the pushed commit, rather than deploying the image
+# release.yml publishes, which is the self-host target without Litestream (see fly/README.md).
+#
+# Each job's FLY_API_TOKEN is a deploy token for its one app (fly tokens create deploy), kept in the
+# GitHub environment of the same name. The staging environment only accepts main, and production
+# only v*.*.* tags, so neither token can be used from another branch.
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*.*.*']
+
+permissions:
+  contents: read
+
+jobs:
+  staging:
+    name: Deploy staging
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    environment:
+      name: staging
+      url: https://concerninghabits-staging.fly.dev
+    # One deploy at a time, and a newer push waits for the current one rather than cancelling it
+    # partway through
+    concurrency:
+      group: deploy-staging
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: superfly/flyctl-actions/setup-flyctl@1.5
+
+      - run: flyctl deploy --config fly.staging.toml --remote-only
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+  production:
+    name: Deploy production
+    if: startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-')
+    runs-on: ubuntu-24.04
+    environment:
+      name: production
+      url: https://app.concerninghabits.com
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: superfly/flyctl-actions/setup-flyctl@1.5
+
+      - run: flyctl deploy --config fly.toml --remote-only
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
