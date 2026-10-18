@@ -11,6 +11,12 @@ primary_region = 'iad'
 [build]
   build-target = 'fly'
 
+# Where Litestream backs the database up (see fly/litestream.yml). The R2 API token is the
+# LITESTREAM_ACCESS_KEY_ID and LITESTREAM_SECRET_ACCESS_KEY secrets.
+[env]
+  LITESTREAM_BUCKET = 'concerninghabits-staging-backups'
+  LITESTREAM_ENDPOINT = 'https://fa49363fc5c7442887dc50882c482e84.r2.cloudflarestorage.com'
+
 [[mounts]]
   source = 'data'
   destination = '/app/data'
