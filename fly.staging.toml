@@ -1,0 +1,42 @@
+# The staging app, for testing deploys, migrations and the Google sign-in setup before production
+# (fly.toml). Deploy it with `fly deploy -c fly.staging.toml`.
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'concerninghabits-staging'
+primary_region = 'iad'
+
+# The same image as production (see fly.toml)
+[build]
+  build-target = 'fly'
+
+[[mounts]]
+  source = 'data'
+  destination = '/app/data'
+  initial_size = '1gb'
+  auto_extend_size_threshold = 80
+  auto_extend_size_increment = '1GB'
+  auto_extend_size_limit = '3GB'
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  # Stops when idle, unlike production: staging's reminders don't matter, and a stopped machine
+  # costs next to nothing
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 0
+
+  # Fly ignores the Dockerfile's HEALTHCHECK, so check the same route here
+  [[http_service.checks]]
+    grace_period = '60s'
+    interval = '30s'
+    timeout = '5s'
+    method = 'GET'
+    path = '/api/health'
+
+[[vm]]
+  memory = '512mb'
+  cpu_kind = 'shared'
+  cpus = 1
