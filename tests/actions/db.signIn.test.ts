@@ -189,6 +189,26 @@ describe('the user a Google account signs in as', () => {
     await expect(userForGoogleAccount({ subject: `google-${crypto.randomUUID()}`, email, name: 'Pat' }))
       .rejects.toMatchObject({ code: 'email-taken' });
   });
+
+  it('is only made or found for an allowed email, when ALLOWED_EMAILS is set', async () => {
+    const subject = `google-${crypto.randomUUID()}`;
+    const email = `${subject}@example.test`;
+    // Its own case and spacing, against Google's email in lowercase
+    vi.stubEnv('ALLOWED_EMAILS', ` someone@example.test , ${email.toUpperCase()} `);
+    const user = await userForGoogleAccount({ subject, email, name: 'Sam' });
+
+    const stranger = `google-${crypto.randomUUID()}`;
+    await expect(userForGoogleAccount({ subject: stranger, email: `${stranger}@example.test`, name: 'Lee' }))
+      .rejects.toMatchObject({ code: 'not-allowed' });
+    expect(await prisma.user.findUnique({ where: { email: `${stranger}@example.test` } })).toBeNull();
+
+    // Taken off the list: an existing account can't sign in either
+    vi.stubEnv('ALLOWED_EMAILS', 'someone@example.test');
+    await expect(userForGoogleAccount({ subject, email, name: 'Sam' })).rejects.toMatchObject({ code: 'not-allowed' });
+
+    vi.stubEnv('ALLOWED_EMAILS', '');
+    expect((await userForGoogleAccount({ subject, email, name: 'Sam' })).id).toBe(user.id);
+  });
 });
 
 describe('the sign-in routes', () => {
@@ -244,6 +264,16 @@ describe('the sign-in routes', () => {
     validateAuthorizationCode.mockRejectedValue(new Error('invalid_grant'));
     vi.spyOn(console, 'error').mockImplementation(() => {});
     expect((await callback(`?code=bad&state=${state}`)).headers.get('location')).toBe('https://app.example.test/login?error=failed');
+    expect(cookieJar.get('session')).toBeUndefined();
+  });
+
+  it('turn away a Google account that isn\'t in ALLOWED_EMAILS, without signing in', async () => {
+    useCloud();
+    vi.stubEnv('ALLOWED_EMAILS', 'invited@example.test');
+    const state = new URL((await start('?next=%2Fsettings')).headers.get('location')!).searchParams.get('state')!;
+    validateAuthorizationCode.mockResolvedValue({ idToken: () => idToken({ sub: `google-${crypto.randomUUID()}`, email: 'uninvited@example.test' }) });
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    expect((await callback(`?code=the-code&state=${state}`)).headers.get('location')).toBe('https://app.example.test/login?error=not-allowed&next=%2Fsettings');
     expect(cookieJar.get('session')).toBeUndefined();
   });
 });

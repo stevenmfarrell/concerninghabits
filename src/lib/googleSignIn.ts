@@ -19,7 +19,7 @@ export function googleClient() {
 
 // Why signing in with Google didn't work, as a code for the sign-in page to explain (see
 // SIGN_IN_ERRORS in the login page)
-export type GoogleSignInError = 'cancelled' | 'expired' | 'failed' | 'unverified' | 'email-taken' | 'busy';
+export type GoogleSignInError = 'cancelled' | 'expired' | 'failed' | 'unverified' | 'email-taken' | 'not-allowed' | 'busy';
 
 // The sign-in page, saying why signing in didn't work, and keeping where to go once it does
 export function loginUrl(error: GoogleSignInError, returnTo: string | null) {
@@ -65,11 +65,24 @@ export function googleAccountFrom(idToken: string, now = new Date()): GoogleAcco
   return { subject: claims.sub, email, name };
 }
 
+// Whether a Google account's email may sign in, from ALLOWED_EMAILS: a comma-separated list of
+// addresses, for keeping the hosted version to the people invited before it opens to everyone.
+// Unset, anyone with a Google account can sign in.
+export function emailAllowed(email: string) {
+  const allowed = (process.env.ALLOWED_EMAILS ?? '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
+  return allowed.length === 0 || allowed.includes(email);
+}
+
 // The user a Google account signs in as, making one on its first sign-in, with the default
 // categories, as setting up a server does for its first user. Found by Google's id for the account,
 // never by email. An email already on another account isn't linked to it automatically (that would
-// let whoever controls the email take the account over), so it's refused instead.
+// let whoever controls the email take the account over), so it's refused instead. An email that
+// isn't allowed (see emailAllowed) is refused before anything else, so taking someone off the list
+// stops them signing in again, though it doesn't end a session they already have.
 export async function userForGoogleAccount(account: GoogleAccount) {
+  if (!emailAllowed(account.email)) {
+    throw new GoogleSignInFailure('not-allowed', `${account.email} isn't in ALLOWED_EMAILS`);
+  }
   const identity = await prisma.identity.findUnique({
     where: { provider_subject: { provider: 'google', subject: account.subject } },
     include: { user: true },
