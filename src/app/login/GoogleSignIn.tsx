@@ -11,6 +11,7 @@ const SIGN_IN_ERRORS: Record<GoogleSignInError, string> = {
   failed: 'Google couldn\'t sign you in. Please try again.',
   unverified: 'Your Google account\'s email address isn\'t verified yet. Verify it with Google, then try again.',
   'email-taken': 'That email address already has an account here, but not one that signs in with this Google account.',
+  'not-allowed': 'Concerning Habits isn\'t open to everyone yet, and this Google account isn\'t one of those invited.',
   busy: 'Too many sign-in attempts. Please wait a few minutes and try again.',
 };
 

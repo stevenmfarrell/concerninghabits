@@ -174,7 +174,7 @@ Both answer `201` with the new entry. A key can make 600 requests an hour, and r
 
 `GET /api/health` needs no key either. It answers `200` with `{"status": "ok"}` when the server can read its database, and `503` when it can't, for an uptime monitor or a reverse proxy's health check. The image's Docker health check uses it, so `docker ps` shows the container as healthy or unhealthy. Compose doesn't restart an unhealthy container by itself.
 
-`GET /api/meta` needs no key. It answers with what the server is, for apps to adapt to: the app's `version`, the `apiVersion` of these routes, the `mode`, how people `signIn`, and which optional `features` are set up (`ai`, `mqtt`). The mode is `selfhost` unless `DEPLOYMENT_MODE=cloud`, which is for the hosted version at concerninghabits.com, so leave it unset. (The hosted version signs in with Google instead of passwords, and won't start without `APP_URL`, its public address, and `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`, from a Google Cloud OAuth client.)
+`GET /api/meta` needs no key. It answers with what the server is, for apps to adapt to: the app's `version`, the `apiVersion` of these routes, the `mode`, how people `signIn`, and which optional `features` are set up (`ai`, `mqtt`). The mode is `selfhost` unless `DEPLOYMENT_MODE=cloud`, which is for the hosted version at concerninghabits.com, so leave it unset. (The hosted version signs in with Google instead of passwords, and won't start without `APP_URL`, its public address, and `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`, from a Google Cloud OAuth client. `ALLOWED_EMAILS`, a comma-separated list of email addresses, keeps it to those Google accounts.)
 
 ## Home Assistant (MQTT)
 
