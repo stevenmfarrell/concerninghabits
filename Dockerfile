@@ -37,7 +37,8 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
-RUN apk add --no-cache openssl
+# su-exec lets start.sh drop from root to the app's user
+RUN apk add --no-cache openssl su-exec
 
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 -G nodejs nextjs
@@ -61,10 +62,15 @@ COPY --from=builder /app/prisma ./prisma
 # inherits this ownership) and Next's runtime cache.
 RUN mkdir -p /app/data /app/.next/cache && chown nextjs:nodejs /app/data /app/.next/cache
 
-# Apply committed migrations, then replace the shell with node so it receives `docker stop`'s
-# SIGTERM directly and shuts down cleanly.
+# Started as root (the fly stage below), start.sh hands /app/data to the app's user, then re-runs
+# itself as that user. It applies committed migrations, then replaces
+# the shell with node so it receives `docker stop`'s SIGTERM directly and shuts down cleanly.
 RUN echo '#!/bin/sh' > /app/start.sh && \
     echo 'set -e' >> /app/start.sh && \
+    echo 'if [ "$(id -u)" = 0 ]; then' >> /app/start.sh && \
+    echo '  chown nextjs:nodejs /app/data' >> /app/start.sh && \
+    echo '  exec su-exec nextjs "$0" "$@"' >> /app/start.sh && \
+    echo 'fi' >> /app/start.sh && \
     echo 'prisma migrate deploy' >> /app/start.sh && \
     echo 'exec node server.js' >> /app/start.sh && \
     chmod +x /app/start.sh
@@ -84,3 +90,11 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
 
 # We must use sqlite in a volume, so we map DATABASE_URL in docker-compose
 CMD ["/app/start.sh"]
+
+# For Fly.io (fly.toml's build-target): its volumes mount owned by root, so this starts as root and
+# start.sh hands /app/data to nextjs before dropping to it
+FROM runner AS fly
+USER root
+
+# The default target, last so a plain `docker build` gives the image above
+FROM runner

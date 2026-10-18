@@ -1,0 +1,40 @@
+# fly.toml app configuration file generated for concerninghabits on 2026-10-18T20:00:00Z
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'concerninghabits'
+primary_region = 'iad'
+
+# Builds the repo's Dockerfile and runs its CMD (start.sh: apply migrations, then start the server).
+# The fly target starts as root so start.sh can hand the root-owned volume to the app's user.
+[build]
+  build-target = 'fly'
+
+# The SQLite database lives at /app/data (the Dockerfile's DATABASE_URL), so the volume goes there
+[[mounts]]
+  source = 'data'
+  destination = '/app/data'
+  auto_extend_size_threshold = 80
+  auto_extend_size_increment = '1GB'
+  auto_extend_size_limit = '10GB'
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 0
+
+  # Fly ignores the Dockerfile's HEALTHCHECK, so check the same route here
+  [[http_service.checks]]
+    grace_period = '60s'
+    interval = '30s'
+    timeout = '5s'
+    method = 'GET'
+    path = '/api/health'
+
+[[vm]]
+  memory = '1gb'
+  cpu_kind = 'shared'
+  cpus = 1
