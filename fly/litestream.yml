@@ -1,0 +1,15 @@
+# Litestream's continuous backup of the hosted version's database to Cloudflare R2 (see start.sh
+# beside this). The bucket and endpoint are set in fly.toml and fly.staging.toml, the R2 API token
+# as Fly secrets.
+dbs:
+  # The Dockerfile's DATABASE_URL
+  - path: /app/data/concerning_habits.db
+    replica:
+      type: s3
+      bucket: ${LITESTREAM_BUCKET}
+      path: concerning_habits.db
+      endpoint: ${LITESTREAM_ENDPOINT}
+      # Named here rather than left to Litestream's lookup, which prefers AWS_ACCESS_KEY_ID: Fly's
+      # launch set that, for a different storage service
+      access-key-id: ${LITESTREAM_ACCESS_KEY_ID}
+      secret-access-key: ${LITESTREAM_SECRET_ACCESS_KEY}

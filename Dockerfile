@@ -37,8 +37,7 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
-# su-exec lets start.sh drop from root to the app's user
-RUN apk add --no-cache openssl su-exec
+RUN apk add --no-cache openssl
 
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 -G nodejs nextjs
@@ -62,15 +61,10 @@ COPY --from=builder /app/prisma ./prisma
 # inherits this ownership) and Next's runtime cache.
 RUN mkdir -p /app/data /app/.next/cache && chown nextjs:nodejs /app/data /app/.next/cache
 
-# Started as root (the fly stage below), start.sh hands /app/data to the app's user, then re-runs
-# itself as that user. It applies committed migrations, then replaces
-# the shell with node so it receives `docker stop`'s SIGTERM directly and shuts down cleanly.
+# Apply committed migrations, then replace the shell with node so it receives `docker stop`'s
+# SIGTERM directly and shuts down cleanly.
 RUN echo '#!/bin/sh' > /app/start.sh && \
     echo 'set -e' >> /app/start.sh && \
-    echo 'if [ "$(id -u)" = 0 ]; then' >> /app/start.sh && \
-    echo '  chown nextjs:nodejs /app/data' >> /app/start.sh && \
-    echo '  exec su-exec nextjs "$0" "$@"' >> /app/start.sh && \
-    echo 'fi' >> /app/start.sh && \
     echo 'prisma migrate deploy' >> /app/start.sh && \
     echo 'exec node server.js' >> /app/start.sh && \
     chmod +x /app/start.sh
@@ -91,10 +85,17 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
 # We must use sqlite in a volume, so we map DATABASE_URL in docker-compose
 CMD ["/app/start.sh"]
 
-# For Fly.io (fly.toml's build-target): its volumes mount owned by root, so this starts as root and
-# start.sh hands /app/data to nextjs before dropping to it
+# The hosted version on Fly.io (fly.toml's build-target): the image above, started by fly/start.sh,
+# which backs the database up to R2 with Litestream. It starts as root because Fly mounts its volume
+# owned by root; su-exec lets it hand that to nextjs and drop to it.
 FROM runner AS fly
 USER root
+RUN apk add --no-cache su-exec
+# Keep the version pinned: 0.5 changed the backup format, so a restore needs a compatible release
+COPY --from=litestream/litestream:0.5.17-scratch /usr/local/bin/litestream /usr/local/bin/litestream
+COPY fly/litestream.yml /etc/litestream.yml
+COPY fly/start.sh /app/fly-start.sh
+CMD ["/app/fly-start.sh"]
 
 # The default target, last so a plain `docker build` gives the image above
 FROM runner
