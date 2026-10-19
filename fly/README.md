@@ -61,7 +61,7 @@ To deploy by hand instead, `fly deploy` (production) or `fly deploy -c fly.stagi
 
 ## Backups
 
-Each app's SQLite database is backed up continuously to its own private Cloudflare R2 bucket, `concerninghabits-backups` and `concerninghabits-staging-backups`, by [Litestream](https://litestream.io) 0.5 (`litestream.yml`). A change reaches R2 within about a second, and Litestream syncs one last time when the machine stops. The bucket and endpoint are in each app's Fly config, and the R2 API token is the `LITESTREAM_ACCESS_KEY_ID` and `LITESTREAM_SECRET_ACCESS_KEY` secrets.
+Each app's SQLite database is backed up continuously to its own private Cloudflare R2 bucket, `concerninghabits-backups` and `concerninghabits-staging-backups`, by [Litestream](https://litestream.io) 0.5 (`litestream.yml`). A change reaches R2 within about a second, and Litestream syncs one last time when the machine stops. It takes a full snapshot daily and keeps 30 days of history (`snapshot.retention`), so a restore can reach back that far, and no further: the privacy policy promises a deleted account is gone from the backups within about 30 days, so keep the two in step. The bucket and endpoint are in each app's Fly config, and the R2 API token is the `LITESTREAM_ACCESS_KEY_ID` and `LITESTREAM_SECRET_ACCESS_KEY` secrets.
 
 Fly also takes a daily snapshot of each volume and keeps it for 5 days (`fly volumes snapshots list <volume id>`), as a second copy that doesn't depend on Litestream or R2.
 

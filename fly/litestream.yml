@@ -1,6 +1,14 @@
 # Litestream's continuous backup of the hosted version's database to Cloudflare R2 (see start.sh
 # beside this). The bucket and endpoint are set in fly.toml and fly.staging.toml, the R2 API token
 # as Fly secrets.
+
+# Keep 30 days of backups (Litestream's default is 24h): the window a point-in-time restore can
+# reach back to, and what the privacy policy (site/src/pages/privacy.astro) promises, that a
+# deleted account is gone from the backups within about 30 days. Global in Litestream 0.5.
+snapshot:
+  interval: 24h
+  retention: 720h
+
 dbs:
   # The Dockerfile's DATABASE_URL
   - path: /app/data/concerning_habits.db
