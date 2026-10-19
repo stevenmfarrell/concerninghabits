@@ -10,12 +10,21 @@ primary_region = 'iad'
 # The fly target starts as root so start.sh can hand the root-owned volume to the app's user.
 [build]
   build-target = 'fly'
+  # Where the build uploads its source maps, given a SENTRY_AUTH_TOKEN build secret (see the Dockerfile)
+  [build.args]
+    SENTRY_ORG = 'steven-farrell-llc'
+    SENTRY_PROJECT = 'concerninghabits'
 
 # Where Litestream backs the database up (see fly/litestream.yml). The R2 API token is the
 # LITESTREAM_ACCESS_KEY_ID and LITESTREAM_SECRET_ACCESS_KEY secrets.
 [env]
   LITESTREAM_BUCKET = 'concerninghabits-backups'
   LITESTREAM_ENDPOINT = 'https://fa49363fc5c7442887dc50882c482e84.r2.cloudflarestorage.com'
+  # Error reports go to Sentry (the SENTRY_DSN secret), as this environment
+  SENTRY_ENVIRONMENT = 'production'
+  # Sentry raises an alert when the reminder scheduler stops checking in. Not on staging, whose
+  # machine stops when idle.
+  SENTRY_REMINDER_MONITOR = 'reminder-scheduler'
 
 # The SQLite database lives at /app/data (the Dockerfile's DATABASE_URL), so the volume goes there
 [[mounts]]

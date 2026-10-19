@@ -1,6 +1,7 @@
 import webpush from 'web-push';
 import { prisma } from './prisma';
 import { appUrl, isCloud } from './deployment';
+import { reportError } from './errorReporting';
 
 // Web Push, for reminders. Push services only accept messages signed with the server's VAPID key
 // pair, which is set with VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY, or else generated on first use
@@ -82,7 +83,7 @@ export async function sendPush(userId: string, payload: PushPayload) {
       if (status === 404 || status === 410) {
         await prisma.pushSubscription.deleteMany({ where: { id: subscription.id } });
       } else {
-        console.error('Push failed', status, error);
+        reportError(`Push failed (${status})`, error);
       }
       return false;
     }

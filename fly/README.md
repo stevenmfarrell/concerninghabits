@@ -23,7 +23,9 @@ Set up by hand, so neither the code nor its history shows it:
 - **DNS:** `app.concerninghabits.com` is an A and an AAAA record in Cloudflare, pointing at production's addresses (`fly ips list -a concerninghabits`), with Cloudflare's proxy off so Fly can issue and renew its certificate (`fly certs check app.concerninghabits.com -a concerninghabits`). The marketing site at `concerninghabits.com` is separate (see `site/`).
 - **Google sign-in:** one Google Cloud OAuth client is shared by both apps. Its authorized redirect URIs include each address's `/api/auth/google/callback`, so a new address needs adding there. It's in Testing mode, so only its test users can sign in at all. Publishing it (#88) opens sign-in to any Google account, which `ALLOWED_EMAILS` can still limit.
 - **Cloudflare R2:** the two buckets, and an R2 API token with read and write access to them, used by both apps. The account id is in each Fly config's `LITESTREAM_ENDPOINT`.
-- **GitHub:** the `staging` and `production` environments and their `FLY_API_TOKEN` secrets (see Deploys below).
+- **GitHub:** the `staging` and `production` environments and their `FLY_API_TOKEN` and `SENTRY_AUTH_TOKEN` secrets (see Deploys below).
+- **Sentry:** one project for both apps, told apart by environment, and its alerts (see Monitoring below).
+- **UptimeRobot:** the uptime monitor on production (see Monitoring below).
 - **Secrets on Fly**, below.
 
 ## Secrets
@@ -35,8 +37,9 @@ Fly secrets are set with `fly secrets set -a <app> NAME=value` (which restarts t
 - `GOOGLE_GENERATIVE_AI_API_KEY` and `TYPESAFE_API_KEY`, the AI keys, shared by both apps, so staging's AI use goes on the same bill. `AI_REASONING_EFFORT` isn't set, so the app's default applies.
 - `ALLOWED_EMAILS`, the Google accounts that can sign in (see the README)
 - `LITESTREAM_ACCESS_KEY_ID` and `LITESTREAM_SECRET_ACCESS_KEY`, the R2 token
+- `SENTRY_DSN`, the Sentry project's DSN, shared by both apps
 
-The settings that aren't secret (the R2 bucket and endpoint) are under `[env]` in each app's Fly config.
+The settings that aren't secret (the R2 bucket and endpoint, the Sentry environment and production's reminder monitor) are under `[env]` in each app's Fly config.
 
 ## Deploys
 
@@ -46,7 +49,15 @@ The settings that aren't secret (the R2 bucket and endpoint) are under `[env]` i
 fly tokens create deploy -a concerninghabits --name github-actions-production | gh secret set FLY_API_TOKEN --env production
 ```
 
+Each environment also has a `SENTRY_AUTH_TOKEN` secret, a Sentry organization token, which the deploy passes to Fly's builder as a build secret so the build can upload its source maps (see `next.config.ts`). The organization and project it uploads to are the `SENTRY_ORG` and `SENTRY_PROJECT` build args in each Fly config. Without the token, the deploy still works and reports show minified code. To replace it, create a new organization token in Sentry and store it in both environments: `gh secret set SENTRY_AUTH_TOKEN --env staging` and `--env production`, each reading the token from standard input.
+
 To deploy by hand instead, `fly deploy` (production) or `fly deploy -c fly.staging.toml` (staging) from a checkout of the commit you want.
+
+## Monitoring
+
+- **Errors:** both apps send their errors, the server's and the browser's, to Sentry (see `src/lib/errorReporting.ts`), as the `production` or `staging` environment (`SENTRY_ENVIRONMENT`). That covers anything that breaks a request, and failures the app catches but that mean something is wrong: the reminder scheduler, sending a notification, Google sign-in, AI requests, and the health check. No personal data is sent (see `src/lib/errorScrubbing.ts`). Sentry emails new issues by default; only production's need attention.
+- **Reminders:** production checks in with the Sentry cron monitor `reminder-scheduler` on every one-minute reminder check (`SENTRY_REMINDER_MONITOR`), which creates the monitor on its first check-in. Sentry raises an alert after three missed or failed check-ins in a row, so a deploy's restart doesn't set it off. Staging doesn't check in: its machine stops when idle.
+- **Uptime:** UptimeRobot requests `https://app.concerninghabits.com/api/health` every 5 minutes and alerts by email when it doesn't answer 200 (the endpoint gives 503 when the database can't be read). Fly's own health check on the same route restarts the machine but alerts no one. Staging isn't monitored.
 
 ## Backups
 

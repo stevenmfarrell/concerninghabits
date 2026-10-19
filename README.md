@@ -190,6 +190,10 @@ Set `MQTT_URL` (plus `MQTT_USERNAME` and `MQTT_PASSWORD` if your broker needs th
   docker compose start
   ```
 
+## Error Reports (Sentry)
+
+Off unless you set it up: the app sends nothing anywhere by default. To have the server's and the browser's errors sent to your own [Sentry](https://sentry.io) project, set `SENTRY_DSN` to its DSN. `SENTRY_ENVIRONMENT` labels the reports (`production` by default). Reports say where and how something broke, never what anyone tracks: no request bodies, cookies, headers or query strings, and an AI provider's errors by their kind only. Set `SENTRY_REMINDER_MONITOR` to a monitor's name (e.g. `reminder-scheduler`) and Sentry also raises an alert when the reminder checks stop coming in, so only set it on a server that's always running.
+
 ## Upgrading
 
 Check the [release notes](https://github.com/stevenmfarrell/concerninghabits/releases) first: a new major version (e.g. 1.x to 2.0) means something needs your attention, and its notes say what. [Back up](#backups), then pull the new image and restart:

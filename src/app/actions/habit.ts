@@ -18,6 +18,7 @@ import { aiRequestProblem } from '@/lib/aiLimits';
 import { habitSchemaProblem, jsonBytes, parseHabitSchema } from '@/lib/habitSchema';
 import { MAX_AI_CONTEXT_LENGTH } from '@/lib/constants';
 import { aiFailureMessage, aiModel, aiTimeoutSignal } from '@/lib/aiModel';
+import { reportError } from '@/lib/errorReporting';
 import { aiContextPrompt, calculatedFieldSystem, chartSystem, describeFormulaInputs, formFillSystem, habitSchemaSystem, tidyDraftField } from '@/lib/aiPrompts';
 
 export async function generateHabitSchema(prompt: string, currentSchema?: HabitSchema) {
@@ -72,7 +73,7 @@ export async function generateHabitSchema(prompt: string, currentSchema?: HabitS
       categoryId: category && category !== NO_CATEGORY ? categoryIdsByLabel.get(category) : undefined,
     };
   } catch (error) {
-    console.error("Error generating schema:", error);
+    reportError("Error generating schema:", error);
     return { success: false, error: aiFailureMessage(error, "Failed to generate schema.") };
   }
 }
@@ -138,7 +139,7 @@ export async function parseImageLog(schemaStr: string, base64Image: string, aiCo
 
     return { success: true, data: object };
   } catch (error) {
-    console.error("Error parsing image log:", error);
+    reportError("Error parsing image log:", error);
     return { success: false, error: aiFailureMessage(error, "Failed to parse image log.") };
   }
 }
@@ -217,7 +218,7 @@ export async function generateCalculatedField(request: string, schema: HabitSche
       if (!problem) return { success: true, field };
       feedback = `\n\nYour last answer was ${JSON.stringify(field)}, which doesn't work: ${problem}. Fix it.`;
     } catch (error) {
-      console.error('Error generating calculated field:', error);
+      reportError('Error generating calculated field:', error);
       return { success: false, error: aiFailureMessage(error, 'Failed to make that calculated field.') };
     }
   }
@@ -289,7 +290,7 @@ export async function generateChart(habitId: string, request: string, current?: 
         schema: outputSchema,
       }));
     } catch (error) {
-      console.error('Error generating chart:', error);
+      reportError('Error generating chart:', error);
       return { success: false, error: aiFailureMessage(error, 'Failed to make that chart.') };
     }
     if (!object.possible) return { success: false, error: object.reason || "That can't be charted from this habit's fields." };

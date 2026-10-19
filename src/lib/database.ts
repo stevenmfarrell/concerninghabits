@@ -1,4 +1,5 @@
 import { prisma } from './prisma';
+import { reportError } from './errorReporting';
 
 // Switches the SQLite database to its write-ahead log, so pages can keep reading while an entry or a
 // reminder is being written, rather than waiting on it (Prisma already waits up to 5 seconds for a
@@ -12,6 +13,6 @@ export async function enableWriteAheadLog() {
       console.warn(`The database stayed in "${row?.journal_mode}" journal mode rather than WAL. Is it on a network share? Keep /app/data on a local disk.`);
     }
   } catch (error) {
-    console.error('Couldn\'t switch the database to WAL', error);
+    reportError('Couldn\'t switch the database to WAL', error);
   }
 }

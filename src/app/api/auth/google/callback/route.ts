@@ -4,6 +4,7 @@ import { appUrl, signInMethods } from '@/lib/deployment';
 import { googleAccountFrom, googleClient, GoogleSignInFailure, loginUrl, userForGoogleAccount } from '@/lib/googleSignIn';
 import { takeGoogleSignIn } from '@/lib/googleSignInCookies';
 import { safeReturnTo } from '@/lib/returnTo';
+import { reportError } from '@/lib/errorReporting';
 
 // Where Google sends the browser back after someone picks an account (see ../route.ts). Checks the
 // callback belongs to the sign-in this browser started, trades its code for Google's ID token, and
@@ -33,7 +34,7 @@ export async function GET(request: NextRequest) {
       console.warn(`Google sign-in refused: ${error.message}`);
       return NextResponse.redirect(loginUrl(error.code, returnTo));
     }
-    console.error('Google sign-in failed', error);
+    reportError('Google sign-in failed', error);
     return NextResponse.redirect(loginUrl('failed', returnTo));
   }
 

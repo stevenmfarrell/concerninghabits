@@ -8,6 +8,8 @@ import { prisma } from "../lib/prisma";
 import TimeZoneSync from "../components/TimeZoneSync";
 import ResumeReload from "../components/ResumeReload";
 import ThemeSync from "../components/ThemeSync";
+import ErrorReporting from "../components/ErrorReporting";
+import { errorReportingConfig } from "../lib/errorReporting";
 import { THEME_SCRIPT } from "../lib/theme";
 import { Toaster } from "react-hot-toast";
 import ToastLimit from "../components/ToastLimit";
@@ -78,6 +80,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         <TimeZoneSync />
         <ResumeReload />
         <ThemeSync />
+        <ErrorReporting config={errorReportingConfig()} />
       </body>
     </html>
   );

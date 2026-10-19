@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma';
+import { reportError } from '@/lib/errorReporting';
 
 // Whether this server can serve requests, for Docker's HEALTHCHECK, a host's health checks (e.g.
 // Fly's) and uptime monitors: 200 when it can read its database, 503 when it can't. Needs no
@@ -12,7 +13,7 @@ export async function GET() {
     await prisma.appSetting.findFirst({ select: { key: true } });
     return Response.json({ status: 'ok' }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {
-    console.error('Health check failed: the database can\'t be read', error);
+    reportError('Health check failed: the database can\'t be read', error);
     return Response.json({ status: 'error' }, { status: 503, headers: { 'Cache-Control': 'no-store' } });
   }
 }

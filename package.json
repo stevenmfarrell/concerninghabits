@@ -24,6 +24,7 @@
     "@rjsf/core": "^6.10.1",
     "@rjsf/utils": "^6.10.1",
     "@rjsf/validator-ajv8": "^6.10.1",
+    "@sentry/nextjs": "11.8.0",
     "@typesafe-ai/sdk": "^0.6.0",
     "ai": "^7.0.108",
     "arctic": "3.7.0",

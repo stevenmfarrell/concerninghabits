@@ -24,8 +24,13 @@ RUN npx prisma generate
 ENV NEXT_TELEMETRY_DISABLED=1
 
 # Build the app. Next's build cache is kept between builds on the same machine, so a rebuild after a
-# small change only redoes what changed.
-RUN --mount=type=cache,target=/app/.next/cache npm run build
+# small change only redoes what changed. The hosted version's build is given a Sentry auth token as a
+# build secret (never stored in the image), plus its org and project, and uploads its source maps
+# (see next.config.ts). Any other build has no token and uploads nothing.
+ARG SENTRY_ORG
+ARG SENTRY_PROJECT
+RUN --mount=type=cache,target=/app/.next/cache --mount=type=secret,id=SENTRY_AUTH_TOKEN \
+    SENTRY_AUTH_TOKEN="$(cat /run/secrets/SENTRY_AUTH_TOKEN 2>/dev/null)" npm run build
 
 # Next's standalone output always includes sharp (about 28MB), for its image optimizer, which
 # next.config.ts turns off
