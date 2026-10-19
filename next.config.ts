@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { withSentryConfig } from "@sentry/nextjs/config";
 
 const nextConfig: NextConfig = {
   // Allow the local IP and localtunnel origins to access dev resources
@@ -28,4 +29,17 @@ const nextConfig: NextConfig = {
   }
 };
 
-export default nextConfig;
+// With a Sentry auth token at build time (the hosted version's, see fly/README.md), the build
+// uploads its source maps to Sentry, so error reports show the original code rather than the
+// minified bundles, and then deletes them, so they're never served. Any other build, a self-hosted
+// one included, is left as it is. A failed upload only warns: it never fails the build.
+export default process.env.SENTRY_AUTH_TOKEN
+  ? withSentryConfig(nextConfig, {
+      org: process.env.SENTRY_ORG,
+      project: process.env.SENTRY_PROJECT,
+      authToken: process.env.SENTRY_AUTH_TOKEN,
+      telemetry: false,
+      silent: true,
+      errorHandler: error => console.warn('Uploading source maps to Sentry failed:', error.message),
+    })
+  : nextConfig;

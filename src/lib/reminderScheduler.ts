@@ -7,6 +7,7 @@ import { civilDateFor, civilDayKey, DAY_MS, isValidTimeZone, todayKeyFor } from 
 import { currentVacation } from './vacation';
 import { dayMinute, learnUsualTime, nudgeTime, pickNudge, reminderMessage, shouldMute, usualTimeSamples, IGNORED_LIMIT, MAX_SAMPLES, type Candidate, type DayProgress, type LearnedTime } from './reminders';
 import { sendPush } from './push';
+import { reportError, withReminderMonitor } from './errorReporting';
 
 // Sends habit reminders (see reminders.ts for how it decides what and when). It runs in the server
 // process, started from src/instrumentation.ts, checking every minute for users with a habit
@@ -154,7 +155,7 @@ export async function runReminderTick(now = new Date()) {
       // Given back if no device got it, so it's tried again next tick
       if (!delivered) await unclaim(user.id, habitIds, day, now);
     } catch (error) {
-      console.error(`Reminders failed for user ${user.id}`, error);
+      reportError(`Reminders failed for user ${user.id}`, error);
     }
   }
 }
@@ -196,9 +197,9 @@ export function startReminderScheduler() {
     if (running) return;
     running = true;
     try {
-      await runReminderTick();
+      await withReminderMonitor(() => runReminderTick());
     } catch (error) {
-      console.error('Reminder check failed', error);
+      reportError('Reminder check failed', error);
     } finally {
       running = false;
     }

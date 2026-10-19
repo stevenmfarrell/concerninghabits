@@ -18,6 +18,7 @@ import { whenDone } from './entryDate';
 import { getMembership } from './access';
 import { nullIfUnauthorized } from './errors';
 import { createHabitLog } from './entries';
+import { reportError } from './errorReporting';
 
 // Who an entry is logged for, with whose days it's placed on. `timeZone` is null until their browser
 // has reported one, when the server's is used, as pages do (see getDefaultUser).
@@ -45,7 +46,7 @@ export async function extractFromTranscript(schemaStr: string, transcript: strin
 
     return { success: true, data: object };
   } catch (error) {
-    console.error("Error parsing voice log:", error);
+    reportError("Error parsing voice log:", error);
     return { success: false, error: aiFailureMessage(error, "Failed to parse voice log.") };
   }
 }
@@ -79,7 +80,7 @@ export async function interpretInput(user: { id: string }, input: string): Promi
     const habits = await loggableHabitsOf(user.id);
     return { success: true, matcher, ...(await matchHabit(input, habits, matcher)) };
   } catch (error) {
-    console.error("Error interpreting smart entry:", error);
+    reportError("Error interpreting smart entry:", error);
     return { success: false, error: aiFailureMessage(error, "Failed to match that to a habit.") };
   }
 }
