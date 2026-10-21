@@ -1,0 +1,345 @@
+---
+// The privacy policy: what this site and the hosted version collect, who processes
+// it, how long it's kept, and how to get it out or deleted. Self-hosted instances are their host's.
+// Change UPDATED with the text, and keep the hosted section in step with fly/README.md.
+import Base from '../layouts/Base.astro';
+import Ink from '../components/Ink.astro';
+
+const GITHUB = 'https://github.com/stevenmfarrell/concerninghabits';
+const CONTACT = 'privacy@concerninghabits.com';
+const UPDATED = 'October 18, 2026';
+
+const providers = [
+  { name: 'Cloudflare', what: 'Hosts this site, counts visits, and stores the hosted version’s backups', where: 'Worldwide; backups in the US' },
+  { name: 'Fly.io', what: 'Runs the hosted version and keeps its database', where: 'US (Virginia)' },
+  { name: 'Google', what: 'Sign-in for the hosted version, and its AI model (Gemini)', where: 'US' },
+  { name: 'TypeSafe', what: 'Matches what you log to one of your habits', where: 'US' },
+  { name: 'Sentry', what: 'Error reports, with personal data taken out', where: 'US' },
+];
+---
+
+<Base
+  title="Privacy Policy · Concerning Habits"
+  description="What concerninghabits.com and the hosted version collect, who processes it, how long it’s kept, and how to get it out or deleted."
+>
+  <nav class="nav">
+    <a href="/" class="home"><Ink art="plant-icon" class="home-plant" />Concerning Habits</a>
+  </nav>
+
+  <main>
+    <h1>Privacy Policy</h1>
+    <p class="updated">Last updated {UPDATED}</p>
+
+    <section class="summary">
+      <p>The short version:</p>
+      <ul>
+        <li>Concerning Habits doesn’t sell your data, show ads or track you across other sites.</li>
+        <li>A copy you host yourself sends us nothing. Its data stays on your server.</li>
+        <li>On the hosted version, your habits are kept to run the app for you. You can download them or delete your account at any time.</li>
+        <li>Questions or requests go to <a href={`mailto:${CONTACT}`}>{CONTACT}</a>.</li>
+      </ul>
+    </section>
+
+    <p>
+      This policy covers what the Concerning Habits project (“we”) runs: this website at
+      concerninghabits.com, and the hosted version at app.concerninghabits.com.
+    </p>
+
+    <h2>Self-hosted copies</h2>
+    <p>
+      Concerning Habits is <a href={GITHUB}>free software</a> you can run on your own server. A self-hosted copy
+      doesn’t report anything to us. Its data is held and controlled by whoever runs it, and it goes only to the
+      services they configure, such as the AI provider whose key they supply. If someone else hosts a copy for
+      you, ask them about their own practices.
+    </p>
+
+    <h2>This website</h2>
+    <p>
+      The site has no accounts, no forms and no cookies. Cloudflare serves it,
+      and like any web host it handles your IP address and browser details to deliver the pages and to block
+      attacks. We use Cloudflare Web Analytics to count visits. It sets no cookies, doesn’t identify you, and
+      only shows us totals such as page views, referring sites and countries.
+    </p>
+
+    <h2>The hosted version</h2>
+    <p>The hosted version keeps what it needs to work:</p>
+    <ul>
+      <li>
+        <strong>Your account:</strong> your name, email address and Google account ID from Google sign-in, and
+        your preferences, including your time zone so reminders arrive on time.
+      </li>
+      <li>
+        <strong>Early access:</strong> while the hosted version is open only to people we’ve invited, we keep
+        a list of their email addresses to let them sign in. It’s deleted once sign-up opens to everyone.
+      </li>
+      <li>
+        <strong>What you track:</strong> your habits, categories, entries, skips and vacations, and the people you
+        share habits with.
+      </li>
+      <li>
+        <strong>Devices and connections:</strong> push-notification subscriptions for the devices you turn
+        reminders on for, and any API keys and invites you create.
+      </li>
+      <li>
+        <strong>Sign-in cookies:</strong> a cookie that keeps you signed in, and short-lived ones during Google
+        sign-in. There are no advertising or analytics cookies.
+      </li>
+    </ul>
+
+    <h3>AI features</h3>
+    <p>
+      When you log something by typing, speaking or taking a photo, what you entered is sent to Google’s Gemini
+      model, together with the names and details of your habits, so it can work out what you did. The text
+      and your habit names also go to TypeSafe to pick the matching habit. Photos are sent for that one
+      request and aren’t stored by us. Only the resulting entry is saved.
+    </p>
+    <p>
+      Speech-to-text is done by your browser, not by us. Depending on your browser, your voice may go to its
+      maker (Google for Chrome, Apple for Safari) to be transcribed.
+    </p>
+
+    <h3>Reminders</h3>
+    <p>
+      Reminders are sent through your browser’s push service (Google, Apple or Mozilla, depending on the
+      browser), which receives the notification’s text to deliver it.
+    </p>
+
+    <h3>Error reports</h3>
+    <p>
+      When something breaks, a report goes to Sentry so we can fix it. Before it’s sent we remove request
+      contents, cookies, headers, query strings and anything else that would show what you track. The report
+      says where and how something failed, not who you are or what you logged.
+    </p>
+
+    <h3>Your data, and deleting it</h3>
+    <ul>
+      <li>
+        <strong>Download it</strong> at any time from Settings → Backup &amp; Restore, as JSON or CSV.
+      </li>
+      <li>
+        <strong>Delete your account</strong> from Settings → Delete Account. That removes your account and
+        everything in it from the database straight away. Copies in our backups age out within about 30 days.
+      </li>
+      <li>
+        Otherwise we keep your data for as long as you have an account. If you can’t sign in, email
+        <a href={`mailto:${CONTACT}`}>{CONTACT}</a> and we’ll handle the request for you.
+      </li>
+    </ul>
+
+    <h2>Who processes your data</h2>
+    <p>We use these providers, each only for the purpose shown:</p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Provider</th><th>What for</th><th>Where</th></tr>
+        </thead>
+        <tbody>
+          {providers.map(p => (
+            <tr><td>{p.name}</td><td>{p.what}</td><td>{p.where}</td></tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+    <p>
+      Most of them are in the United States, so if you’re elsewhere your data is transferred there. Where
+      the law requires it, these transfers rely on the providers’ standard contractual clauses or their
+      certification under the EU–US Data Privacy Framework.
+    </p>
+
+    <h2>Your rights</h2>
+    <p>
+      Wherever you live, you can ask us for a copy of your data, to correct it, to delete it, or to stop using it.
+      We’ll answer within 30 days. If you’re in the EU, the UK or a similar jurisdiction, the legal bases we
+      rely on are:
+    </p>
+    <ul>
+      <li><strong>Contract:</strong> running the hosted version you signed up for.</li>
+      <li>
+        <strong>Legitimate interests:</strong> keeping the site and app secure, fixing errors, and counting
+        visits in aggregate.
+      </li>
+    </ul>
+    <p>
+      You can also object to processing based on legitimate interests, and you have the right to complain to
+      your local data protection authority.
+    </p>
+
+    <h2>Children</h2>
+    <p>
+      Concerning Habits isn’t meant for children under 13, and we don’t knowingly collect their data. If you
+      think a child has signed up, email us and we’ll delete the account.
+    </p>
+
+    <h2>Changes to this policy</h2>
+    <p>
+      If this policy changes, the date at the top changes too, and the history of every version is
+      <a href={`${GITHUB}/commits/main/site/src/pages/privacy.astro`}>public on GitHub</a>. If a change
+      significantly affects how we use data you’ve already given us, we’ll email you before it takes effect.
+    </p>
+
+    <h2>Contact</h2>
+    <p>
+      Email <a href={`mailto:${CONTACT}`}>{CONTACT}</a> with any question or request about your data.
+    </p>
+  </main>
+
+  <footer>
+    <Ink art="plant-icon" class="footer-plant" />
+    <a href="/">Home</a>
+    <a href={GITHUB}>GitHub</a>
+    <span>Free software under the AGPL-3.0 license</span>
+  </footer>
+</Base>
+
+<style>
+  .nav,
+  main,
+  footer {
+    max-width: 44rem;
+    margin: 0 auto;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  @media (min-width: 40rem) {
+    .nav,
+    main,
+    footer {
+      padding-left: 1.5rem;
+      padding-right: 1.5rem;
+    }
+  }
+
+  .nav {
+    padding-top: 1.25rem;
+    padding-bottom: 1.25rem;
+  }
+
+  .home {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  .home :global(.home-plant) {
+    width: 1.75rem;
+  }
+
+  main {
+    padding-top: 1.5rem;
+    padding-bottom: 3rem;
+  }
+
+  h1 {
+    font-size: 2.25rem;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    margin: 0;
+  }
+
+  h2 {
+    font-size: 1.4rem;
+    letter-spacing: -0.01em;
+    margin: 2.5rem 0 0.75rem;
+  }
+
+  h3 {
+    font-size: 1.1rem;
+    margin: 1.75rem 0 0.5rem;
+  }
+
+  p,
+  li {
+    color: var(--ink-muted);
+  }
+
+  strong {
+    color: var(--ink);
+  }
+
+  main a {
+    color: var(--accent-ink);
+  }
+
+  ul {
+    padding-left: 1.25rem;
+  }
+
+  li + li {
+    margin-top: 0.5rem;
+  }
+
+  .updated {
+    margin: 0.5rem 0 2rem;
+    font-size: 0.9rem;
+  }
+
+  .summary {
+    background: var(--accent-soft);
+    border-radius: 1rem;
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 2rem;
+  }
+
+  .summary p {
+    margin: 0;
+    color: var(--ink);
+    font-weight: 600;
+  }
+
+  .summary li {
+    color: var(--ink);
+  }
+
+  /* The table scrolls on its own on a narrow phone, never the page */
+  .table-wrap {
+    overflow-x: auto;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.95rem;
+  }
+
+  th,
+  td {
+    text-align: left;
+    vertical-align: top;
+    padding: 0.6rem 0.75rem 0.6rem 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  th {
+    color: var(--ink);
+    font-weight: 600;
+  }
+
+  td {
+    color: var(--ink-muted);
+  }
+
+  td:first-child {
+    color: var(--ink);
+    white-space: nowrap;
+  }
+
+  footer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 1.5rem;
+    padding-top: 2rem;
+    padding-bottom: 3rem;
+    border-top: 1px solid var(--line);
+    color: var(--ink-muted);
+    font-size: 0.9rem;
+  }
+
+  footer :global(.footer-plant) {
+    width: 2.5rem;
+    opacity: 0.5;
+  }
+</style>
