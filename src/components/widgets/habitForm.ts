@@ -13,9 +13,10 @@ export function fieldTitle(key: string, properties: Record<string, FieldSchema> 
 }
 
 // Picks each field's widget from its `x-` extensions: a duration picker, a multi-line text box for
-// free-form writing (e.g. notes), or a number with its unit
+// free-form writing (e.g. notes), or a number with its unit. Without rjsf's own submit button: each
+// form brings its own, often in its sheet's footer (see BottomSheet), tied to the form by its id.
 export function habitFormUiSchema(properties: Record<string, FieldSchema> | undefined): UiSchema {
-  const uiSchema: UiSchema = {};
+  const uiSchema: UiSchema = { 'ui:submitButtonOptions': { norender: true } };
   for (const [key, prop] of Object.entries(properties ?? {})) {
     if (prop['x-widget'] === 'duration') uiSchema[key] = { 'ui:widget': 'duration' };
     else if (prop['x-widget'] === 'textarea') uiSchema[key] = { 'ui:widget': 'textarea', 'ui:options': { rows: 4 } };

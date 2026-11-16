@@ -194,7 +194,7 @@ A `PaneHeading` (or `PaneSection`'s `action`) can carry controls at its right en
 
 ## Dialogs
 
-A centered dialog is a `<Dialog>` (`src/components/ui/Dialog.tsx`), with its buttons in a `<DialogFooter>`. Don't hand-roll the `fixed inset-0` backdrop and white panel. Pass `onClose` to close it on a tap outside, `size="sm"` for a narrow one, and `clip={false}` when a dropdown inside needs to spill out. A sheet from the bottom is `BottomSheet`, and a confirmation is `ConfirmDialog`. Both are built on the same `OVERLAY`.
+A centered dialog is a `<Dialog>` (`src/components/ui/Dialog.tsx`), with its buttons in a `<DialogFooter>`. Don't hand-roll the `fixed inset-0` backdrop and white panel. Pass `onClose` to close it on a tap outside, `size="sm"` for a narrow one, and `clip={false}` when a dropdown inside needs to spill out. A sheet from the bottom is `BottomSheet`, and a confirmation is `ConfirmDialog`. Both are built on the same `OVERLAY`. A sheet's main button (Log Habit, Save Changes) goes in its `footer`, which stays in view below the scrolling fields; the sheet keeps above the on-screen keyboard, so the button isn't hidden under it. A form's button there submits it through `form={id}`, with the `id` from `useId()` on the form.
 
 ## Dropdown / popover menus
 

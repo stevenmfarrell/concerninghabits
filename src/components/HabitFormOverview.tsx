@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Form from '@rjsf/core';
 import validator from '@rjsf/validator-ajv8';
@@ -76,6 +76,7 @@ export default function HabitFormOverview({ schema, onEditField, onAddField }: {
 // A button to try the habit's real form, in a pane like the one used to log it. Nothing is logged.
 export function FormPreviewButton({ schema, title }: { schema: HabitSchema; title: string }) {
   const [previewOpen, setPreviewOpen] = useState(false);
+  const formId = useId();
   const properties = fieldsOf(schema);
   const hasFields = Object.keys(properties).length > 0;
 
@@ -89,11 +90,21 @@ export function FormPreviewButton({ schema, title }: { schema: HabitSchema; titl
       {/* Portaled to <body>: the button sits in a sticky heading, a stacking context of its own, which
           would leave the sheet under the sections that follow it */}
       {previewOpen && createPortal(
-        <BottomSheet title={title || 'New Habit'} ariaLabel="Form preview" onClose={() => setPreviewOpen(false)}>
+        <BottomSheet
+          title={title || 'New Habit'}
+          ariaLabel="Form preview"
+          onClose={() => setPreviewOpen(false)}
+          footer={hasFields && (
+            <Button type="submit" form={formId} variant="secondary" size="xl" className="w-full">
+              Test Submit
+            </Button>
+          )}
+        >
           <p className="text-sm text-ink-muted -mt-3">A preview: nothing is logged.</p>
           {hasFields ? (
             <div className="rjsf-custom">
               <Form
+                id={formId}
                 schema={{ ...schema, title: '' }}
                 uiSchema={habitFormUiSchema(properties)}
                 widgets={HABIT_FORM_WIDGETS}
@@ -102,11 +113,7 @@ export function FormPreviewButton({ schema, title }: { schema: HabitSchema; titl
                 noHtml5Validate
                 showErrorList={false}
                 className="rjsf space-y-6"
-              >
-                <Button type="submit" variant="secondary" size="xl" className="w-full">
-                  Test Submit
-                </Button>
-              </Form>
+              />
             </div>
           ) : (
             <p className="text-ink-secondary">This habit has no form: its Log button logs it straight away.</p>
