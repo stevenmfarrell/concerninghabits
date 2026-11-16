@@ -4,7 +4,7 @@ import { useRef, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 import toast from 'react-hot-toast';
 import { Check } from 'lucide-react';
-import { ToastCard } from '@/components/LoggedToast';
+import { notify, ToastCard } from '@/components/toasts/notify';
 import { SkipIcon } from '@/components/logging/skipping';
 import { swipeAway, zoomAway, type Leaving } from '@/components/logging/zoomAway';
 import PageHeader from '@/components/PageHeader';
@@ -147,21 +147,21 @@ export default function Tutorial({ days, now }: { days: Days; now: number }) {
 
     const logged = extra.picked ?? habit;
     const at = session.current;
-    toast.custom(t => (
+    notify.undoable(t => (
       <ToastCard
         t={t}
         icon={<Check className="w-5 h-5" strokeWidth={3} />}
         iconClassName="bg-accent text-on-accent"
         title={`${logged.name} logged`}
+        summary={valueLines(logged.form, extra.values).join(' · ') || undefined}
         detail={extra.said ? `From “${extra.said}”` : undefined}
-        values={valueLines(logged.form, extra.values)}
         onUndo={() => {
           toast.dismiss(t.id);
           if (session.current !== at) return;
           undoLog(habit, entry.key, logged, extra.values);
         }}
       />
-    ), { duration: extra.said ? 10000 : 6000 });
+    ), { automatic: !!extra.said });
   };
 
   // Takes an entry back, and for one from a form, opens the form again with its values to fix
@@ -182,7 +182,7 @@ export default function Tutorial({ days, now }: { days: Days; now: number }) {
     const away = sendAway(habit.id, 'swipe');
     act({ kind: 'skip', habit }, { ...rowsRef.current, [habit.id]: { ...rowsRef.current[habit.id], skipped: true } });
     const at = session.current;
-    toast.custom(t => (
+    notify.undoable(t => (
       <ToastCard
         t={t}
         icon={<SkipIcon postpones={labels?.postpones ?? false} className="w-4 h-4" />}
@@ -196,7 +196,7 @@ export default function Tutorial({ days, now }: { days: Days; now: number }) {
           toast.success(labels?.postpones ? 'Postponement undone.' : 'Skip undone.');
         }}
       />
-    ), { duration: 6000 });
+    ));
     return away;
   };
 

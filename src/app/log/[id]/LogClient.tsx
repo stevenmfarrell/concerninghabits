@@ -10,6 +10,7 @@ import { PANE_INSET, PanePage } from '@/components/Pane';
 import { Button } from '@/components/ui/Button';
 import { IconButton } from '@/components/ui/IconButton';
 import toast from 'react-hot-toast';
+import { notify } from '@/components/toasts/notify';
 import { fieldsOf, type FieldSchema } from '@/lib/formFields';
 import { parseHabitSchema } from '@/lib/habitSchema';
 import { takePendingSmartEntry } from '@/lib/pendingSmartEntry';
@@ -123,10 +124,10 @@ export default function LogClient({ habit, user, people, connectedIds, cloud, ca
       logger.logEntry({}, { source, createdAt: loggedAt });
       return;
     }
-    const toastId = toast.loading('AI is filling in your entry...');
+    const toastId = notify.progress('AI is filling in your entry...');
     // Offline, kept to fill in and log once back online (see src/lib/offline)
     const keepForLater = () => queueTextEntry(habit, transcript)
-      .then(() => toast(`“${transcript}” will be filled in and logged once you're back online`, { id: toastId, icon: '📴', duration: 8000 }))
+      .then(() => notify.queued(`“${transcript}” will be filled in and logged once you're back online`, { replaces: toastId }))
       .catch(() => toast.error('Couldn\'t save it', { id: toastId }));
     if (!navigator.onLine) {
       void keepForLater();

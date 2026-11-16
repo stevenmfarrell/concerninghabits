@@ -5,7 +5,7 @@ import { CalendarChevronsRight, SkipForward } from 'lucide-react';
 import toast from 'react-hot-toast';
 import type { Skippable } from '@/lib/skips';
 import { skip } from '@/lib/offline/actions';
-import { showSkippedToast } from '@/components/LoggedToast';
+import { notify } from '@/components/toasts/notify';
 import type { RowSwipe } from './RowGesture';
 import { swipeAway } from './zoomAway';
 
@@ -48,7 +48,7 @@ export function useSkipSwipe(target: SkipTarget, labels: SkipLabels | undefined,
         await leaving?.finished.catch(() => {});
         try {
           const { day, queued } = await skip(target);
-          showSkippedToast({ target, label: labels.skipped, day, postpones: labels.postpones, queued });
+          notify.skipped({ target, label: labels.skipped, day, postpones: labels.postpones, queued });
         } catch (err) {
           leaving?.cancel();
           toast.error(`Failed to ${labels.postpones ? 'postpone' : 'skip'}: ${err instanceof Error ? err.message : 'Unknown error'}`);

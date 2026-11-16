@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import toast from 'react-hot-toast';
+import { notify } from '@/components/toasts/notify';
 import { parseVoiceLog } from '@/app/actions/habit';
 import { useSpeechRecognition } from '@/lib/useSpeechRecognition';
 import { queueTextEntry } from '@/lib/offline/actions';
@@ -24,7 +25,7 @@ export function useVoiceLogging(habit: { id: string; name: string; schema: strin
   const keepForLater = async (transcript: string, loadingToast: string) => {
     try {
       await queueTextEntry(habit, transcript);
-      toast(`“${transcript}” will be filled in and logged once you're back online`, { id: loadingToast, icon: '📴', duration: 8000 });
+      notify.queued(`“${transcript}” will be filled in and logged once you're back online`, { replaces: loadingToast });
       onQueued?.();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Couldn\'t save it', { id: loadingToast });
@@ -33,7 +34,7 @@ export function useVoiceLogging(habit: { id: string; name: string; schema: strin
 
   const processTranscript = async (transcript: string, loadingMessage = 'AI is processing your voice...') => {
     setIsProcessing(true);
-    const loadingToast = toast.loading(loadingMessage);
+    const loadingToast = notify.progress(loadingMessage);
 
     try {
       if (!navigator.onLine) return await keepForLater(transcript, loadingToast);

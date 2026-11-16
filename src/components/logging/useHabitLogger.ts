@@ -4,7 +4,7 @@ import { startTransition, useEffect, useOptimistic, useState } from 'react';
 import toast from 'react-hot-toast';
 import { logEntry as logOrQueue } from '@/lib/offline/actions';
 import { useQueuedToday } from '@/lib/offline/useOutbox';
-import { showLoggedToast } from '@/components/LoggedToast';
+import { notify } from '@/components/toasts/notify';
 import { fieldsOf } from '@/lib/formFields';
 import { parseHabitSchema } from '@/lib/habitSchema';
 import { requestReopen, subscribeReopen, takeReopen } from './pendingReopen';
@@ -23,7 +23,8 @@ export interface LogOptions {
   createdAt?: Date;
   // How an automatic entry was made, for the logged toast, e.g. `From “ran a mile”`
   source?: string;
-  // A loading toast for the logged toast to replace
+  // A loading toast (see notify.progress) for the logged toast, or its failure, to replace. Loading
+  // toasts stay until replaced, so every path through logEntry replaces it.
   toastId?: string;
 }
 
@@ -80,7 +81,10 @@ export function useHabitLogger(habit: LoggableHabit, { initialData = {}, onLogge
 
   // In a transition, so `pending` lasts until the page has been rendered again with the entry
   const logEntry = (data: Record<string, unknown>, options: LogOptions = {}) => new Promise<void>(resolve => {
-    if (busy) return resolve();
+    if (busy) {
+      if (options.toastId) toast.error('Still logging the last entry. Try again in a moment.', { id: options.toastId });
+      return resolve();
+    }
     startTransition(async () => {
       addPending(1);
       const leaving = leave?.();
@@ -96,10 +100,10 @@ export function useHabitLogger(habit: LoggableHabit, { initialData = {}, onLogge
     setBusy(true);
     try {
       const log = await logOrQueue(habit, data, createdAt);
-      showLoggedToast(
+      notify.logged(
         { habitId: habit.id, habitName: habit.name, logId: log.logId, data, schemaProperties: properties, source, queued: log.queued, loggedAt: createdAt },
         {
-          toastId,
+          replaces: toastId,
           // Through pendingReopen rather than this hook's own state: logging may have unmounted it
           onUndone: hasForm ? () => requestReopen(habit.id, data) : undefined,
         },

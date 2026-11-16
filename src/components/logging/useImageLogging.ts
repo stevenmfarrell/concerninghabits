@@ -2,6 +2,7 @@
 
 import { useRef, useState } from 'react';
 import toast from 'react-hot-toast';
+import { notify } from '@/components/toasts/notify';
 import { parseImageLog } from '@/app/actions/habit';
 
 // `source` describes where the data came from, for the logged-entry toast
@@ -48,7 +49,7 @@ export function useImageLogging(habitSchema: string, aiContext: string | null, o
       toast.error('Logging from a photo needs a connection. Fill in the form instead, and it\'ll sync later.');
       return;
     }
-    const loadingToast = toast.loading('AI is analyzing your photo...');
+    const loadingToast = notify.progress('AI is analyzing your photo...');
     setIsProcessing(true);
 
     try {

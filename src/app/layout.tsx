@@ -11,10 +11,7 @@ import ThemeSync from "../components/ThemeSync";
 import ErrorReporting from "../components/ErrorReporting";
 import { errorReportingConfig } from "../lib/errorReporting";
 import { THEME_SCRIPT } from "../lib/theme";
-import { Toaster } from "react-hot-toast";
-import ToastLimit from "../components/ToastLimit";
-import ToastTouchResume from "../components/ToastTouchResume";
-import { TOAST_OPTIONS } from "../components/toastOptions";
+import AppToaster from "../components/toasts/AppToaster";
 import BottomNav from "../components/BottomNav";
 import SmartEntry from "./SmartEntry";
 import "./globals.css";
@@ -71,9 +68,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       </head>
       <body className="min-h-full flex flex-col bg-canvas">
         {children}
-        <Toaster position="bottom-center" containerStyle={{ bottom: 112 }} toastOptions={TOAST_OPTIONS} />
-        <ToastLimit />
-        <ToastTouchResume />
+        <AppToaster />
         <BottomNav status={user && <SyncStatus />} center={user && <SmartEntry userId={user.id} />} />
         <ServiceWorkerSetup signedIn={!!user} />
         <OfflineSync user={user} />

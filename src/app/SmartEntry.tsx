@@ -10,7 +10,7 @@ import { Dialog, DialogFooter } from '@/components/ui/Dialog';
 import QuillIconWavy from '@/components/QuillIconWavy';
 import SpeakOrType, { type SpeakOrTypeStatus } from '@/components/SpeakOrType';
 import { generateHabitSchema, interpretSmartEntry, logSmartEntry, type HabitCandidate } from './actions/habit';
-import { showLoggedToast } from '@/components/LoggedToast';
+import { notify } from '@/components/toasts/notify';
 import { fieldsOf } from '@/lib/formFields';
 import { prefillHref } from '@/lib/prefillHref';
 import { queueTextEntry } from '@/lib/offline/actions';
@@ -58,7 +58,7 @@ export default function SmartEntry({ userId }: { userId: string }) {
         toast.error(result.error);
       } else if (result.logged) {
         closePanel();
-        showLoggedToast({
+        notify.logged({
           habitId: candidate.habitId,
           habitName: candidate.name,
           logId: result.logId,
@@ -95,7 +95,7 @@ export default function SmartEntry({ userId }: { userId: string }) {
     closePanel();
     try {
       await queueTextEntry(null, input);
-      toast(`“${input}” will be matched to a habit and logged once you're back online`, { icon: '📴', duration: 8000 });
+      notify.queued(`“${input}” will be matched to a habit and logged once you're back online`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Couldn\'t save it');
     }
