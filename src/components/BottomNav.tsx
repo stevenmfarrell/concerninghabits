@@ -9,6 +9,10 @@ import { CalendarDays, LayoutGrid, ListChecks, Settings } from 'lucide-react';
 // it is in the app
 export const TUTORIAL_QUILL_SLOT = 'tutorial-quill';
 
+// How much room the bar takes at the bottom of the screen, with the quill rising out of it, before
+// the safe area under it: what the page leaves clear below its content, and what toasts sit above
+export const BOTTOM_NAV_CLEARANCE = '7rem';
+
 // The app's tabs along the bottom of the screen, with `center` raised in the middle between them:
 // the quill (see SmartEntry), within reach of a thumb on every page. `status` sits centered above
 // it, e.g. whether there are changes waiting to sync (see SyncStatus).
@@ -52,7 +56,7 @@ export default function BottomNav({ status, center }: { status?: ReactNode; cent
   return (
     <>
       {/* Spacer to prevent content from hiding behind the fixed navbar, and the quill rising out of it */}
-      <div className="h-28 shrink-0" />
+      <div className="shrink-0" style={{ height: BOTTOM_NAV_CLEARANCE }} />
       
       <nav className="fixed bottom-0 left-0 right-0 z-50 bg-surface/80 backdrop-blur-md border-t border-line" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
         {/* Above the quill, which rises out of the bar */}

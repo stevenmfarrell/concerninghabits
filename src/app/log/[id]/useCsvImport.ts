@@ -2,6 +2,7 @@
 
 import { useRef, useState } from 'react';
 import toast from 'react-hot-toast';
+import { notify } from '@/components/toasts/notify';
 import { importHabitLogsCsv } from '@/app/actions/csv';
 
 // CSV import: parse the picked file's rows against the habit's schema and report the outcome.
@@ -15,7 +16,7 @@ export function useCsvImport(habitId: string, onImported: () => void) {
     event.target.value = '';
 
     setImporting(true);
-    const loadingToast = toast.loading('Importing CSV...');
+    const loadingToast = notify.progress('Importing CSV...');
     try {
       const text = await file.text();
       const { imported, skipped, errors } = await importHabitLogsCsv(habitId, text);

@@ -196,6 +196,15 @@ A `PaneHeading` (or `PaneSection`'s `action`) can carry controls at its right en
 
 A centered dialog is a `<Dialog>` (`src/components/ui/Dialog.tsx`), with its buttons in a `<DialogFooter>`. Don't hand-roll the `fixed inset-0` backdrop and white panel. Pass `onClose` to close it on a tap outside, `size="sm"` for a narrow one, and `clip={false}` when a dropdown inside needs to spill out. A sheet from the bottom is `BottomSheet`, and a confirmation is `ConfirmDialog`. Both are built on the same `OVERLAY`. A sheet's main button (Log Habit, Save Changes) goes in its `footer`, which stays in view below the scrolling fields; the sheet keeps above the on-screen keyboard, so the button isn't hidden under it. A form's button there submits it through `form={id}`, with the `id` from `useId()` on the form.
 
+## Toasts
+
+Toasts are drawn by `AppToaster` (`src/components/toasts/AppToaster.tsx`), sitting just above the bottom nav. How long each kind stays up is `TOAST_DURATIONS` in `src/components/toasts/notify.tsx`; don't pass a `duration` of your own.
+
+- A quick confirmation or failure is react-hot-toast's own `toast.success` or `toast.error`.
+- An entry logged or a habit skipped is `notify.logged` or `notify.skipped`. These share one slot with an Undo, so a new one replaces the last instead of stacking.
+- Something kept offline to send later is `notify.queued`.
+- Work under way (e.g. AI filling in an entry) is `notify.progress`, which stays until something replaces it. Pass its id on (`replaces`, or `{ id }` to `toast.error`), and make sure every path replaces or dismisses it, failures included.
+
 ## Dropdown / popover menus
 
 Any menu anchored to a trigger button (kebab menu, chart field picker, etc.) must include `top-full` in its absolute positioning classes:
