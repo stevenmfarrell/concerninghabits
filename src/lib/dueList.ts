@@ -145,19 +145,23 @@ export type Upcoming<T> = { item: T; dueInDays: number };
 export interface DueList {
   dueHabits: HabitListItem[];
   upcomingHabits: Upcoming<HabitListItem>[];
-  // Recently Logged: habits logged lately (any, with a cadence or not) that aren't due or upcoming,
-  // and categories done for now, or skipped (see buildDueList)
-  recentHabits: HabitListItem[];
+  // Due Later: habits and categories with a cadence that are done for now, or skipped
+  laterHabits: HabitListItem[];
+  // Anytime: every habit with no cadence, which is never due, logged most recently first (see
+  // buildDueList)
+  anytimeHabits: HabitListItem[];
+  // The Anytime habits logged today (by the viewer's day, see listRowStatus), for their chips' check
+  loggedTodayIds: string[];
   dueCategories: DueCategory[];
   upcomingCategories: Upcoming<DueCategory>[];
-  recentCategories: DueCategory[];
+  laterCategories: DueCategory[];
   // Limits (see LimitStatus), which are never due: always listed, with how much of each is used
   limitHabits: HabitListItem[];
   limitCategories: DueCategory[];
   // What each due, upcoming, or limit habit's row shows beside its calendar, by habit id
   statuses: Record<string, RowStatus>;
-  // The recent habits and categories that are only there because they were skipped, for their chips
-  // to say so
+  // The Due Later habits and categories that are only there because they were skipped, for their
+  // chips to say so
   skippedHabitIds: string[];
   skippedCategoryIds: string[];
   // Whether anything due at the start of today has since been done, so an empty Due Now was earned
@@ -168,17 +172,13 @@ export interface DueList {
   anyCadence: boolean;
 }
 
-// The most Recently Logged chips the Agenda shows
-export const MAX_RECENT = 8;
-
-// What the Agenda page shows: every habit and category with a cadence, split into those due,
-// those not due yet but soon (upcoming), limits (always listed, never due), and what was recently
-// logged: habits that aren't due or
-// upcoming (those done for now, and those with no cadence, which are never due), and categories done
-// for now. All in the order of the user's category tree (uncategorized habits last). Only the
-// MAX_RECENT logged most recently are recent, by their latest entry, or for one done because it was
-// skipped, as if just now, since that was today; one never logged isn't.
-// Done-ness counts everyone's entries, so a shared habit is done when anyone does it.
+// What the Agenda page shows: every habit, and every category with a cadence, so nothing's out of
+// sight. Those with a cadence are due, not due yet but soon (upcoming), limits (always listed, never
+// due), or done for now (due later); habits with no cadence are never due, so they're listed as
+// Anytime, the most recently logged first and those never logged last. Otherwise all in the order of
+// the user's category tree (uncategorized habits last). Only the viewer's vacation leaves anything
+// off (see onVacation). Done-ness counts everyone's entries, so a shared habit is done when anyone
+// does it.
 //
 // A habit's `logs` only reach back a few weeks; `latestLogDates` (when each habit was last logged)
 // fills in for an every-N-days cadence whose last entry is older than that.
@@ -191,7 +191,7 @@ export function buildDueList(
 ): DueList {
   const datesOf = (habit: HabitListItem) => entryDates(habit, latestLogDates);
 
-  const list: DueList = { dueHabits: [], upcomingHabits: [], recentHabits: [], dueCategories: [], upcomingCategories: [], recentCategories: [], limitHabits: [], limitCategories: [], statuses: {}, skippedHabitIds: [], skippedCategoryIds: [], clearedToday: false, anyCadence: false };
+  const list: DueList = { dueHabits: [], upcomingHabits: [], laterHabits: [], anytimeHabits: [], loggedTodayIds: [], dueCategories: [], upcomingCategories: [], laterCategories: [], limitHabits: [], limitCategories: [], statuses: {}, skippedHabitIds: [], skippedCategoryIds: [], clearedToday: false, anyCadence: false };
 
   // A due or upcoming row's status, with what a skip's called if it can be skipped now (for
   // swiping it away)
@@ -210,9 +210,8 @@ export function buildDueList(
     return { status: snapshot.agenda, skipped };
   };
 
-  // When each recent habit or category was last logged, by id, to keep only the latest
-  const doneAt = new Map<string, number>();
-  const lastDone = (dates: Date[], skipped: boolean) => (skipped ? Infinity : Math.max(-Infinity, ...dates.map(d => d.getTime())));
+  // When each Anytime habit was last logged, by id, to put the latest first
+  const loggedAt = new Map<string, number>();
 
   const addHabit = (habit: HabitListItem) => {
     const cadence = parseCadence(habit.cadence);
@@ -225,17 +224,15 @@ export function buildDueList(
       return;
     }
     if (snapshot.kind === 'none') {
-      if (dates.length > 0) {
-        list.recentHabits.push(habit);
-        doneAt.set(habit.id, lastDone(dates, false));
-      }
+      list.anytimeHabits.push(habit);
+      loggedAt.set(habit.id, Math.max(-Infinity, ...dates.map(d => d.getTime())));
+      if (listRowStatus(cadence, dates, user, { habit: true }, now).done > 0) list.loggedTodayIds.push(habit.id);
       return;
     }
     if (snapshot.onVacation) return;
     const { status, skipped } = place(snapshot);
     if (status.state === 'done') {
-      list.recentHabits.push(habit);
-      doneAt.set(habit.id, lastDone(dates, skipped));
+      list.laterHabits.push(habit);
       if (skipped) list.skippedHabitIds.push(habit.id);
       return;
     }
@@ -263,8 +260,7 @@ export function buildDueList(
     if (status.state === 'due') list.dueCategories.push({ ...item, status: rowStatus(cadence, snapshot) });
     else if (status.state === 'upcoming') list.upcomingCategories.push({ item: { ...item, status: rowStatus(cadence, snapshot) }, dueInDays: status.dueInDays });
     else {
-      list.recentCategories.push(item);
-      doneAt.set(category.id, lastDone(dates, skipped));
+      list.laterCategories.push(item);
       if (skipped) list.skippedCategoryIds.push(category.id);
     }
   };
@@ -279,15 +275,9 @@ export function buildDueList(
   }
   uncategorized.forEach(addHabit);
 
-  // The latest logged, kept in the tree's order (ties go to the one first in it)
-  if (doneAt.size > MAX_RECENT) {
-    const order = [...doneAt.keys()];
-    const kept = new Set(order.map((id, i) => ({ id, i, at: doneAt.get(id)! })).sort((a, b) => b.at - a.at || a.i - b.i).slice(0, MAX_RECENT).map(d => d.id));
-    list.recentHabits = list.recentHabits.filter(h => kept.has(h.id));
-    list.recentCategories = list.recentCategories.filter(c => kept.has(c.id));
-    list.skippedHabitIds = list.skippedHabitIds.filter(id => kept.has(id));
-    list.skippedCategoryIds = list.skippedCategoryIds.filter(id => kept.has(id));
-  }
+  // Logged most recently first; a stable sort, so ties keep the tree's order (two never logged differ
+  // by -Infinity - -Infinity, NaN, so `|| 0` makes them a tie)
+  list.anytimeHabits.sort((a, b) => loggedAt.get(b.id)! - loggedAt.get(a.id)! || 0);
 
   return list;
 }

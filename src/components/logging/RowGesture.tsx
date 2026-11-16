@@ -47,8 +47,9 @@ export interface RowSwipe {
 // which slides the row partway open while focused. With a mouse, the row has a visible button for
 // the hold's action instead (see pointerOnly). `hiddenButton={false}` leaves the hold's hidden one
 // out, for a row with a visible button of its own that does the same everywhere (e.g. an Agenda
-// row's ring, see LogRing).
-export default function RowGesture({ onCommit, label, tone = 'accent', hold = true, swipe, busy = false, hiddenButton = true, children }: {
+// row's ring, see LogRing). `className` is for its outer box, e.g. `rounded-full` for a chip, to
+// clip the fill to its shape.
+export default function RowGesture({ onCommit, label, tone = 'accent', hold = true, swipe, busy = false, hiddenButton = true, className = '', children }: {
   onCommit: () => unknown;
   label: string;
   tone?: 'accent' | 'category';
@@ -56,6 +57,7 @@ export default function RowGesture({ onCommit, label, tone = 'accent', hold = tr
   swipe?: RowSwipe;
   busy?: boolean;
   hiddenButton?: boolean;
+  className?: string;
   children: ReactNode;
 }) {
   const [offset, setOffset] = useState(0);
@@ -206,7 +208,7 @@ export default function RowGesture({ onCommit, label, tone = 'accent', hold = tr
   const fillColor = tone === 'category' ? 'bg-category/20' : 'bg-accent/20';
 
   return (
-    <div ref={rowRef} className="relative overflow-hidden">
+    <div ref={rowRef} className={`relative overflow-hidden ${className}`}>
       {swipe && (
         <div className="absolute inset-0 bg-inverse text-on-inverse flex items-center justify-end pane-inset-r" aria-hidden="true">
           <span

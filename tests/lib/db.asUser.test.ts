@@ -67,6 +67,6 @@ describe('logging, skipping, the due list and habit details for a given user', (
 
   it('doesn\'t show anyone else\'s habits in a stranger\'s due list', async () => {
     const list = await dueListOf(asUser(stranger));
-    expect([...list.dueHabits, ...list.upcomingHabits.map(u => u.item), ...list.recentHabits, ...list.uncategorized].map(h => h.id)).not.toContain(habitId);
+    expect([...list.dueHabits, ...list.upcomingHabits.map(u => u.item), ...list.laterHabits, ...list.anytimeHabits, ...list.uncategorized].map(h => h.id)).not.toContain(habitId);
   });
 });

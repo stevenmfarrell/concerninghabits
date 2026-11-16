@@ -61,7 +61,7 @@ export function useHabitLogger(habit: LoggableHabit, { initialData = {}, onLogge
   const pending = optimistic + useQueuedToday([habit.id]);
 
   // An undone entry for this habit, put back in the sheet to correct and log again: one waiting
-  // when this Log button appears (e.g. a habit restored from the Agenda page's done chips), or
+  // when this Log button appears (e.g. a habit restored from the Agenda page's Due Later chips), or
   // arriving while it's showing
   useEffect(() => {
     const reopen = () => {
