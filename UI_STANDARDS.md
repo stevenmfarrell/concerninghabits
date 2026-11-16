@@ -93,6 +93,7 @@ Icons are lucide's (`lucide-react`). One meaning gets one icon everywhere, so a 
 | Consistency (see `ConsistencyLabel`): thriving, taking root, needs care (freshly planted has none) | The health plant (`PlantIcon`, from `public/plant-health.svg`), always whole: all three stages grown (green), the bottom two (green), the bottom one (amber), the rest in the row calendars' empty gray (`surface-strong/70`) | A flame or a count (it's not a streak) |
 | Vacation (everything skipped while away) | `TreePalm` | `Plane`, `Luggage` |
 | Backup & Restore (all your data, in Settings) | `DatabaseBackup` | `Archive`, `Save` |
+| Plan (the hosted version's free and paid plans, in Settings) | `CreditCard` | `Sparkles` (that's AI doing something) |
 | Download as JSON, or as CSV | `FileJson`, `FileSpreadsheet` (`Download` for a heading's single export button) | |
 | Restore from a file you pick | `Upload` | `ArchiveRestore` |
 | The tutorial (`/tutorial`) | `GraduationCap` | `HelpCircle` (reads as a one-off hint) |
