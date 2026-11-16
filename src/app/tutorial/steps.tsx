@@ -108,7 +108,7 @@ export const STEPS: Step[] = [
       if (reached) return undefined;
       if (action.kind === 'log' && action.habit.id === STRETCH.id) {
         return action.how === 'hold'
-          ? met("That's the hold. Stretch is done for today, so it left Due Now, and waits under Recently Logged.")
+          ? met("That's the hold. Stretch is done for today, so it left Due Now, and waits under Due Later.")
           : miss(`That logged Stretch with ${action.how === 'ring' ? 'a tap on its ring' : 'its page'}, which works, but this step is about holding. ${UNDO} Then hold the row instead.`);
       }
       if (action.kind === 'log' && action.how === 'hold') return miss(`Right gesture, but that was Vitamins. ${UNDO} Then hold Stretch.`);

@@ -202,7 +202,7 @@ const SortableHabitItem = ({ habit, status, health, user, people, isOverlay, isR
   const ring = !!status && !health;
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: habit.id });
   const rowRef = useRef<HTMLDivElement | null>(null);
-  // An entry that makes it done sends the row away, on to the Agenda's Done chips
+  // An entry that makes it done sends the row away, on to the Agenda's Due Later chips
   const leave = () => (leavesWhenDone && status && status.done + 1 >= status.needed ? zoomAway(rowRef.current) : undefined);
 
   // On the Agenda, swiped to the left to skip it, while it can be (its status's `skip`)

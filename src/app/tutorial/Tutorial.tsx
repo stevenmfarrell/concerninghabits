@@ -4,6 +4,7 @@ import { useRef, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 import toast from 'react-hot-toast';
 import { Check } from 'lucide-react';
+import RowGesture from '@/components/logging/RowGesture';
 import { notify, ToastCard } from '@/components/toasts/notify';
 import { SkipIcon } from '@/components/logging/skipping';
 import { swipeAway, zoomAway, type Leaving } from '@/components/logging/zoomAway';
@@ -352,7 +353,9 @@ export default function Tutorial({ days, now }: { days: Days; now: number }) {
   }
 
   const shown = step.rows.filter(h => isDue(h, rows[h.id]) || leaving.includes(h.id));
-  const recent = step.view === 'agenda' ? step.rows.filter(h => !isDue(h, rows[h.id]) && !leaving.includes(h.id)) : [];
+  // Done for now, as the Agenda's Due Later chips (see AgendaChips). The steps on the Agenda only have
+  // habits with a cadence, so there's no Anytime here.
+  const later = step.view === 'agenda' ? step.rows.filter(h => !isDue(h, rows[h.id]) && !leaving.includes(h.id)) : [];
 
   return (
     <PanePage width="3xl" header={<PageHeader title="Tutorial" />}>
@@ -413,19 +416,24 @@ export default function Tutorial({ days, now }: { days: Days; now: number }) {
 
       <Said verdict={verdict} className={`${PANE_INSET} pt-4`} />
 
-      {recent.length > 0 && (
+      {later.length > 0 && (
         <section>
-          <PaneHeading>Recently logged</PaneHeading>
-          <ul className={`${PANE_INSET} py-3 flex flex-wrap gap-2`} aria-label="Recently Logged">
-            {recent.map(habit => {
+          <PaneHeading>Due later</PaneHeading>
+          <ul className={`${PANE_INSET} py-3 flex flex-wrap gap-2`} aria-label="Due Later">
+            {later.map(habit => {
               const skipped = rows[habit.id].skipped;
               const blue = !!habit.habits;
               return (
-                <li key={habit.id} className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface border ${skipped ? 'border-line' : blue ? 'border-category-line' : 'border-accent-line-strong'} text-sm font-medium text-ink-secondary`}>
-                  {skipped
-                    ? <SkipIcon postpones={skipLabels(habit.cadence)?.postpones ?? false} className="w-3.5 h-3.5 shrink-0 text-ink-muted" />
-                    : <Check className={`w-3.5 h-3.5 shrink-0 ${blue ? 'text-category-ink' : 'text-accent-ink'}`} strokeWidth={3} />}
-                  <span className="truncate max-w-[14rem]">{habit.name}</span>
+                <li key={habit.id}>
+                  {/* Held, it logs again, as in the app */}
+                  <RowGesture onCommit={() => start(habit, 'hold')} label={blue ? `Log a habit in ${habit.name}` : `Log ${habit.name}`} tone={blue ? 'category' : 'accent'} className="rounded-full">
+                    <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface border ${skipped ? 'border-line' : blue ? 'border-category-line' : 'border-accent-line-strong'} text-sm font-medium text-ink-secondary`}>
+                      {skipped
+                        ? <SkipIcon postpones={skipLabels(habit.cadence)?.postpones ?? false} className="w-3.5 h-3.5 shrink-0 text-ink-muted" />
+                        : <Check className={`w-3.5 h-3.5 shrink-0 ${blue ? 'text-category-ink' : 'text-accent-ink'}`} strokeWidth={3} />}
+                      <span className="truncate max-w-[14rem]">{habit.name}</span>
+                    </span>
+                  </RowGesture>
                 </li>
               );
             })}

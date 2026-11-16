@@ -14,11 +14,13 @@ import type { Leaving } from './zoomAway';
 // the logger, for a row with a button of its own that logs it everywhere instead (`ownButton`, e.g.
 // an Agenda row's ring, see LogRing). `leave` sends the row away once it's done (see useHabitLogger).
 // `swipe` is a second action, done by swiping the row to the left (e.g. skipping it, on the Agenda).
-export default function HoldToLog({ habit, ownButton = false, leave, swipe, children }: {
+// `className` is for the row's outer box (see RowGesture).
+export default function HoldToLog({ habit, ownButton = false, leave, swipe, className, children }: {
   habit: LoggableHabit;
   ownButton?: boolean;
   leave?: () => Leaving | undefined;
   swipe?: RowSwipe;
+  className?: string;
   children: (logButton: ReactNode, logger: HabitLogger) => ReactNode;
 }) {
   const logger = useHabitLogger(habit, { leave });
@@ -31,6 +33,7 @@ export default function HoldToLog({ habit, ownButton = false, leave, swipe, chil
         busy={logger.busy}
         hiddenButton={!ownButton}
         swipe={swipe}
+        className={className}
       >
         {children(ownButton ? null : <span className={`${POINTER_ONLY} relative z-10`}><LogIconButton logger={logger} /></span>, logger)}
       </RowGesture>

@@ -1,11 +1,10 @@
 import { getDefaultUser, getPeople } from '@/app/actions/user';
 import Link from 'next/link';
-import { Check, SkipForward } from 'lucide-react';
-import Icon from '../components/Icon';
 import { SortableHabitList } from './categories/[id]/SortableLists';
 import { getVacation } from './actions/vacation';
 import VacationChip from '@/components/VacationChip';
 import EmptyState from '@/components/EmptyState';
+import { AnytimeChips, DueLaterChips } from '@/components/AgendaChips';
 import DueNowCleared from '@/components/DueNowCleared';
 import SmoothHeight from '@/components/SmoothHeight';
 import CategoryRow from '@/components/CategoryRow';
@@ -52,45 +51,6 @@ function CategoryList({ categories, user, rowOf, leavesWhenDone = true }: { cate
   );
 }
 
-// What was recently logged (see buildDueList), as small chips: white, with the check (and border) in the habit's emerald or
-// the category's blue, so they don't look like the rows above. They can't be held to log, which
-// is what keeps something done from being logged twice by accident; each links to its page, where it
-// can still be logged. A habit or category that's done because it was skipped has the skip icon in
-// place of the check. Links styled as chips, not buttons, so they don't use LinkButton.
-function RecentChips({ habits, categories, skippedIds }: { habits: HabitListItem[]; categories: DueCategory[]; skippedIds: string[] }) {
-  return (
-    <ul className="flex flex-wrap gap-2" aria-label="Recently Logged">
-      {categories.map(category => (
-        <li key={category.id}>
-          <Link
-            href={`/categories/${category.id}`}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface border ${skippedIds.includes(category.id) ? 'border-line' : 'border-category-line'} text-sm font-medium text-ink-secondary hover:bg-surface-subtle transition-colors`}
-          >
-            {skippedIds.includes(category.id)
-              ? <SkipForward className="w-3.5 h-3.5 shrink-0 text-ink-muted" strokeWidth={2.5} aria-label="Skipped" />
-              : <Check className="w-3.5 h-3.5 shrink-0 text-category-ink" strokeWidth={3} />}
-            <Icon name={category.icon || DEFAULT_CATEGORY_ICON} className="w-3.5 h-3.5 shrink-0 text-category-ink" />
-            <span className="truncate max-w-[14rem]">{category.name}</span>
-          </Link>
-        </li>
-      ))}
-      {habits.map(habit => (
-        <li key={habit.id}>
-          <Link
-            href={`/log/${habit.id}`}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface border ${skippedIds.includes(habit.id) ? 'border-line' : 'border-accent-line-strong'} text-sm font-medium text-ink-secondary hover:bg-surface-subtle transition-colors`}
-          >
-            {skippedIds.includes(habit.id)
-              ? <SkipForward className="w-3.5 h-3.5 shrink-0 text-ink-muted" strokeWidth={2.5} aria-label="Skipped" />
-              : <Check className="w-3.5 h-3.5 shrink-0 text-accent-ink" strokeWidth={3} />}
-            <span className="truncate max-w-[14rem]">{habit.name}</span>
-          </Link>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
 // Due Now while no habit or category has a cadence, so nothing ever comes due: how to give one one
 function NoCadenceYet() {
   return (
@@ -102,29 +62,31 @@ function NoCadenceYet() {
   );
 }
 
-// Agenda: every habit and category with a cadence, in three sections: due now (on or past when
-// it's due; a weekly or monthly one only on its last day), upcoming (an every-N-days
-// one done but due again soon, still loggable since doing it early restarts its count, or a weekly
-// or monthly one not yet done with days to spare), limits (never due, so always listed, with how much
-// of each is left), and recently logged, as chips: habits logged
-// lately that aren't in the other two (including ones without a cadence), and categories done for
-// now. Due Now emptied today by doing everything in it shows the hobbit hole (see DueNowCleared).
+// Agenda: every habit, and every category with a cadence, so nothing drops out of sight. As rows:
+// due now (on or past when it's due; a weekly or monthly one only on its last day), upcoming (an
+// every-N-days one done but due again soon, still loggable since doing it early restarts its count,
+// or a weekly or monthly one not yet done with days to spare), and limits (never due, so always
+// listed, with how much of each is left). As chips (see AgendaChips): anytime (habits with no
+// cadence, never due, the latest logged first) and due later (done for now). Due Now emptied today
+// by doing everything in it shows the hobbit hole (see DueNowCleared).
 export default async function AgendaPage() {
   const user = await getDefaultUser();
-  const [{ categories, uncategorized, dueHabits, upcomingHabits, recentHabits, dueCategories, upcomingCategories, recentCategories, limitHabits, limitCategories, statuses, skippedHabitIds, skippedCategoryIds, clearedToday, anyCadence }, people, vacation] = await Promise.all([
+  const [{ categories, uncategorized, dueHabits, upcomingHabits, laterHabits, anytimeHabits, loggedTodayIds, dueCategories, upcomingCategories, laterCategories, limitHabits, limitCategories, statuses, skippedHabitIds, skippedCategoryIds, clearedToday, anyCadence }, people, vacation] = await Promise.all([
     dueListOf(user),
     getPeople(),
     getVacation(),
   ]);
   const anyDue = dueHabits.length > 0 || dueCategories.length > 0;
   const anyUpcoming = upcomingHabits.length > 0 || upcomingCategories.length > 0;
-  const anyRecent = recentHabits.length > 0 || recentCategories.length > 0;
+  const anyLater = laterHabits.length > 0 || laterCategories.length > 0;
   const anyLimits = limitHabits.length > 0 || limitCategories.length > 0;
   const onVacation = !!vacation?.active;
   const anyHabits = uncategorized.length > 0 || categories.some(c => c.habits.length > 0 || c.children.some(child => child.habits.length > 0));
 
   // Each habit as its row has it, with its calendar in place of its entries (see toRowHabit)
   const rowOf = rowHabits(user);
+  // A chip's habit, with only what logging it needs
+  const chipOf = ({ id, name, schema, aiContext }: HabitListItem) => ({ id, name, schema, aiContext });
 
   // Today in the viewer's time zone, following the same bedtime rule as the calendars
   const today = civilDateFor(new Date(), user);
@@ -149,7 +111,7 @@ export default async function AgendaPage() {
         <EmptyState title="No habits here yet" action={<LinkButton href="/tutorial" variant="outline">Take the Tour</LinkButton>}>
           Tap the quill in the middle of the bar below and tell it something you did, or a habit you&apos;d like to start.
         </EmptyState>
-      ) : !anyDue && !anyUpcoming && !anyLimits && !anyRecent && !onVacation ? (
+      ) : !anyDue && !anyUpcoming && !anyLimits && !anyLater && anytimeHabits.length === 0 && !onVacation ? (
         <EmptyState title="Nothing on the agenda" action={<LinkButton href="/habits" variant="outline">Go to Habits</LinkButton>}>
           Nothing has a cadence yet. Give a habit or category one on its page, and it shows up here whenever it&apos;s due.
         </EmptyState>
@@ -191,6 +153,17 @@ export default async function AgendaPage() {
             </PaneSection>
           )}
 
+          {/* Never due, so always here, so they don't drop out of sight */}
+          {anytimeHabits.length > 0 && (
+            <section>
+              <PaneHeading>Anytime</PaneHeading>
+              {/* On the stone rather than white, since they aren't a list */}
+              <div className={`${PANE_INSET} py-3`}>
+                <AnytimeChips habits={anytimeHabits.map(chipOf)} loggedTodayIds={loggedTodayIds} />
+              </div>
+            </section>
+          )}
+
           {/* Never due, so always here, with how much of each is left (see LogRing): a tap logs one */}
           {anyLimits && (
             <PaneSection title="Limits">
@@ -203,12 +176,15 @@ export default async function AgendaPage() {
             </PaneSection>
           )}
 
-          {anyRecent && (
+          {anyLater && (
             <section>
-              <PaneHeading>Recently Logged</PaneHeading>
-              {/* On the stone rather than white, since they aren't a list */}
+              <PaneHeading>Due Later</PaneHeading>
               <div className={`${PANE_INSET} py-3`}>
-                <RecentChips habits={recentHabits} categories={recentCategories} skippedIds={[...skippedHabitIds, ...skippedCategoryIds]} />
+                <DueLaterChips
+                  habits={laterHabits.map(chipOf)}
+                  categories={laterCategories.map(c => ({ id: c.id, name: c.name, icon: c.icon, sections: rowSections(c.sections, rowOf) }))}
+                  skippedIds={[...skippedHabitIds, ...skippedCategoryIds]}
+                />
               </div>
             </section>
           )}
