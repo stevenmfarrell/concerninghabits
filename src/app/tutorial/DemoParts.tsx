@@ -364,7 +364,9 @@ export function DemoPage({ habit, row, days, now, bar, onBack, onLog, onSkip, on
   );
 }
 
-// A habit's entry form, sliding up from the bottom (see LogEntrySheet): its fields, and Log Habit
+// A habit's entry form, sliding up from the bottom (see LogEntrySheet): its fields, and Log Habit in
+// the sheet's footer. Only one is open at a time, so its form's id can be fixed.
+const DEMO_FORM_ID = 'demo-log-form';
 export function DemoLogSheet({ habit, form, values, onChange, onLog, onClose }: {
   habit: DemoHabit;
   form: DemoForm;
@@ -374,9 +376,20 @@ export function DemoLogSheet({ habit, form, values, onChange, onLog, onClose }: 
   onClose: () => void;
 }) {
   return createPortal(
-    <BottomSheet title={habit.name} ariaLabel={`Log ${habit.name}`} onClose={onClose}>
+    <BottomSheet
+      title={habit.name}
+      ariaLabel={`Log ${habit.name}`}
+      onClose={onClose}
+      footer={
+        <Button type="submit" form={DEMO_FORM_ID} size="xl" className="w-full">
+          <QuillIconWavy className="w-6 h-6" strokeWidth={2.5} />
+          Log Habit
+        </Button>
+      }
+    >
       <div className="rjsf-custom">
         <Form
+          id={DEMO_FORM_ID}
           schema={{ type: 'object', title: '', required: form.required, properties: form.properties as never }}
           uiSchema={habitFormUiSchema(form.properties)}
           widgets={HABIT_FORM_WIDGETS}
@@ -387,12 +400,7 @@ export function DemoLogSheet({ habit, form, values, onChange, onLog, onClose }: 
           noHtml5Validate
           showErrorList={false}
           className="rjsf space-y-6"
-        >
-          <Button type="submit" size="xl" className="w-full">
-            <QuillIconWavy className="w-6 h-6" strokeWidth={2.5} />
-            Log Habit
-          </Button>
-        </Form>
+        />
       </div>
     </BottomSheet>,
     document.body,

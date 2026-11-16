@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import Form from '@rjsf/core';
 import validator from '@rjsf/validator-ajv8';
 import { Camera, CalendarClock, Loader2, Mic } from 'lucide-react';
@@ -21,6 +21,7 @@ export default function LogEntrySheet({ logger }: { logger: HabitLogger }) {
   const { habit, schema, properties, hasForm, formData, setFormData, busy, sheetBackdate, sheetLogDate } = logger;
   const [showBackdate, setShowBackdate] = useState(sheetBackdate);
   const [logDate, setLogDate] = useState(() => (sheetLogDate ? toDateTimeInputValue(sheetLogDate) : ''));
+  const formId = useId();
 
   const handleExtracted = (data: Record<string, unknown>, toastId: string, source: string) => logger.fillIn(data, source, toastId);
   const { isListening, isProcessing: voiceProcessing, toggleListen } = useVoiceLogging(habit, handleExtracted, logger.closeSheet);
@@ -36,10 +37,11 @@ export default function LogEntrySheet({ logger }: { logger: HabitLogger }) {
     setShowBackdate(!showBackdate);
   };
 
-  // Split like the Log Habit button on the habit's page: submit, or show the custom date and time
+  // Split like the Log Habit button on the habit's page: submit, or show the custom date and time.
+  // In the sheet's footer, so it stays above the keyboard, and tied to the form by its id.
   const submitButton = (
     <div className="flex">
-      <Button type={hasForm ? 'submit' : 'button'} size="xl" disabled={busy || aiLoading} className="flex-1 rounded-r-none" onClick={hasForm ? undefined : submit}>
+      <Button type={hasForm ? 'submit' : 'button'} form={hasForm ? formId : undefined} size="xl" disabled={busy || aiLoading} className="flex-1 rounded-r-none" onClick={hasForm ? undefined : submit}>
         {busy ? <Loader2 className="w-6 h-6 animate-spin" /> : <QuillIconWavy className="w-6 h-6" strokeWidth={2.5} />}
         {busy ? 'Logging...' : 'Log Habit'}
       </Button>
@@ -63,6 +65,7 @@ export default function LogEntrySheet({ logger }: { logger: HabitLogger }) {
       title={habit.name}
       ariaLabel={`Log ${habit.name}`}
       onClose={logger.closeSheet}
+      footer={submitButton}
       headerActions={
         <>
           {showPhoto && (
@@ -126,6 +129,7 @@ export default function LogEntrySheet({ logger }: { logger: HabitLogger }) {
       {hasForm ? (
         <div className="rjsf-custom">
           <Form
+            id={formId}
             schema={{ ...schema, title: '' }}
             uiSchema={habitFormUiSchema(properties)}
             widgets={HABIT_FORM_WIDGETS}
@@ -137,11 +141,9 @@ export default function LogEntrySheet({ logger }: { logger: HabitLogger }) {
             noHtml5Validate
             showErrorList={false}
             className="rjsf space-y-6"
-          >
-            {submitButton}
-          </Form>
+          />
         </div>
-      ) : submitButton}
+      ) : null}
     </BottomSheet>
   );
 }

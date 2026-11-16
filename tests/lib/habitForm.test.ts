@@ -12,4 +12,8 @@ describe('habitFormUiSchema', () => {
     expect(uiSchema.place).toBeUndefined();
     expect(uiSchema.time).toEqual({ 'ui:widget': 'duration' });
   });
+
+  it('leaves out rjsf\'s own submit button, since each form brings its own', () => {
+    expect(habitFormUiSchema(undefined)['ui:submitButtonOptions']).toEqual({ norender: true });
+  });
 });

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import Form from '@rjsf/core';
 import validator from '@rjsf/validator-ajv8';
 import { Loader2, Save } from 'lucide-react';
@@ -35,6 +35,7 @@ export default function EditEntrySheet({ habit, entry, onClose }: {
   const [formData, setFormData] = useState<Record<string, unknown>>(entry.payload);
   const [time, setTime] = useState(initialTime);
   const [saving, setSaving] = useState(false);
+  const formId = useId();
 
   const save = async () => {
     if (!time) {
@@ -54,15 +55,16 @@ export default function EditEntrySheet({ habit, entry, onClose }: {
     }
   };
 
+  // In the sheet's footer, so it stays above the keyboard, and tied to the form by its id
   const saveButton = (
-    <Button type={hasForm ? 'submit' : 'button'} size="xl" disabled={saving} className="w-full" onClick={hasForm ? undefined : save}>
+    <Button type={hasForm ? 'submit' : 'button'} form={hasForm ? formId : undefined} size="xl" disabled={saving} className="w-full" onClick={hasForm ? undefined : save}>
       {saving ? <Loader2 className="w-6 h-6 animate-spin" /> : <Save className="w-6 h-6" strokeWidth={2.5} />}
       {saving ? 'Saving...' : 'Save Changes'}
     </Button>
   );
 
   return (
-    <BottomSheet title={`Edit ${habit.name} entry`} onClose={onClose}>
+    <BottomSheet title={`Edit ${habit.name} entry`} onClose={onClose} footer={saveButton}>
       <div>
         <label htmlFor={`entry-time-${entry.id}`} className="block text-sm font-medium text-ink-secondary mb-2">Date & Time</label>
         <input
@@ -75,9 +77,10 @@ export default function EditEntrySheet({ habit, entry, onClose }: {
         />
       </div>
 
-      {hasForm ? (
+      {hasForm && (
         <div className="rjsf-custom">
           <Form
+            id={formId}
             schema={{ ...schema, title: '' }}
             uiSchema={habitFormUiSchema(properties)}
             widgets={HABIT_FORM_WIDGETS}
@@ -89,11 +92,9 @@ export default function EditEntrySheet({ habit, entry, onClose }: {
             noHtml5Validate
             showErrorList={false}
             className="rjsf space-y-6"
-          >
-            {saveButton}
-          </Form>
+          />
         </div>
-      ) : saveButton}
+      )}
     </BottomSheet>
   );
 }
