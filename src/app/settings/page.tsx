@@ -3,12 +3,13 @@ import { getVacation } from '../actions/vacation';
 import { describeVacation } from '@/lib/vacation';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
-import { AlarmClock, ChevronRight, Code, DatabaseBackup, ExternalLink, FolderTree, GraduationCap, Users, Sliders, LogOut, KeyRound, TreePalm, Trash2, Zap } from 'lucide-react';
+import { AlarmClock, ChevronRight, Code, CreditCard, DatabaseBackup, ExternalLink, FolderTree, GraduationCap, Users, Sliders, LogOut, KeyRound, TreePalm, Trash2, Zap } from 'lucide-react';
 import Icon from '../../components/Icon';
 import PageHeader from '@/components/PageHeader';
 import { PANE_INSET, PanePage, PaneSection } from '@/components/Pane';
 import { SOURCE_CODE_URL } from '@/lib/constants';
-import { isServerAdmin, usesPasswords } from '@/lib/deployment';
+import { isCloud, isServerAdmin, usesPasswords } from '@/lib/deployment';
+import { describePlan, planOf } from '@/lib/plans';
 
 // A row's icon and text, shared by the link rows and the Log Out button row
 function RowContent({ icon, title, description }: { icon: ReactNode; title: string; description?: string }) {
@@ -84,6 +85,7 @@ export default async function SettingsPage() {
       </PaneSection>
 
       <PaneSection title="Account">
+        {isCloud() && <SettingsLink href="/settings/plan" icon={<CreditCard className="w-5 h-5" />} title="Plan" description={describePlan(planOf(user))} />}
         <SettingsLink href="/settings/backup" icon={<DatabaseBackup className="w-5 h-5" />} title="Backup & Restore" description="Download your data as JSON or CSV, or restore it" />
         <SettingsLink href="/settings/api-keys" icon={<Zap className="w-5 h-5" />} title="API Keys" description="Log habits from Shortcuts, Home Assistant and other apps" />
         {usesPasswords() && <SettingsLink href="/update-password" icon={<KeyRound className="w-5 h-5" />} title="Change Password" />}

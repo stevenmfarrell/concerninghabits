@@ -27,6 +27,13 @@ model User {
   // The time zone the user's browser last reported (see TimeZoneSync), for reminders, which are
   // sent with no request to read it from
   timeZone            String?
+  // The hosted version's plan (see src/lib/plans.ts): AI features are paid for, after a free trial
+  // that starts when the account is made. A self-hosted server ignores both, since everyone there has
+  // everything. When the trial ends, or null for an account that never had one:
+  trialEndsAt         DateTime?
+  // Until when the paid plan is paid for: the end of the subscription's current period, kept up to
+  // date by billing, or set by hand to give someone the paid plan. Null if it never has been.
+  paidUntil           DateTime?
   createdAt           DateTime           @default(now())
   sessions            Session[]
   pushSubscriptions   PushSubscription[]

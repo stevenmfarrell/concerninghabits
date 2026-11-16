@@ -6,6 +6,7 @@ import { decodeIdToken, Google } from 'arctic';
 import { prisma } from './prisma';
 import { appUrl } from './deployment';
 import { seedDefaultCategories } from './defaultCategories';
+import { newTrialEnd } from './plans';
 import { RETURN_TO_PARAM } from './returnTo';
 
 export const GOOGLE_CALLBACK_PATH = '/api/auth/google/callback';
@@ -74,11 +75,12 @@ export function emailAllowed(email: string) {
 }
 
 // The user a Google account signs in as, making one on its first sign-in, with the default
-// categories, as setting up a server does for its first user. Found by Google's id for the account,
-// never by email. An email already on another account isn't linked to it automatically (that would
-// let whoever controls the email take the account over), so it's refused instead. An email that
-// isn't allowed (see emailAllowed) is refused before anything else, so taking someone off the list
-// stops them signing in again, though it doesn't end a session they already have.
+// categories (as setting up a server does for its first user) and the paid plan's free trial (see
+// plans.ts). Found by Google's id for the account, never by email. An email already on another
+// account isn't linked to it automatically (that would let whoever controls the email take the
+// account over), so it's refused instead. An email that isn't allowed (see emailAllowed) is refused
+// before anything else, so taking someone off the list stops them signing in again, though it
+// doesn't end a session they already have.
 export async function userForGoogleAccount(account: GoogleAccount) {
   if (!emailAllowed(account.email)) {
     throw new GoogleSignInFailure('not-allowed', `${account.email} isn't in ALLOWED_EMAILS`);
@@ -99,6 +101,7 @@ export async function userForGoogleAccount(account: GoogleAccount) {
     data: {
       name: account.name,
       email: account.email,
+      trialEndsAt: newTrialEnd(),
       identities: { create: { provider: 'google', subject: account.subject, email: account.email } },
     },
   });

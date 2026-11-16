@@ -11,7 +11,7 @@ import { isSharedHabit } from './userColors';
 
 // `habit` as its row has it: its calendar in place of its entries and skips. A shared habit's days
 // say who logged them, to color by person.
-export function toRowHabit(habit: HabitListItem, user: CadenceUser): HabitListItem {
+export function toRowHabit(habit: HabitListItem, user: CadenceUser, now = new Date()): HabitListItem {
   const { logs = [], skips, ...rest } = habit;
   const shared = isSharedHabit(habit.userId, habit.memberCount ?? 1, logs);
   return {
@@ -25,6 +25,7 @@ export function toRowHabit(habit: HabitListItem, user: CadenceUser): HabitListIt
       since: habit.createdAt,
       weeks: ROW_CALENDAR_WEEKS,
       wholeMonths: false,
+      now,
     }),
   };
 }

@@ -59,7 +59,7 @@ describe('toRowHabit', () => {
   };
 
   it('replaces its entries and skips with four weeks of calendar, saying who logged a shared one', () => {
-    const row = toRowHabit({ ...habit, memberCount: 2 }, user);
+    const row = toRowHabit({ ...habit, memberCount: 2 }, user, now);
     expect(row).not.toHaveProperty('logs');
     expect(row).not.toHaveProperty('skips');
     expect(Object.keys(row.calendar!).every(key => key >= '2026-09-14')).toBe(true);
@@ -69,7 +69,7 @@ describe('toRowHabit', () => {
   });
 
   it('leaves who logged out for a habit only its owner has', () => {
-    const row = toRowHabit({ ...habit, logs: habit.logs.map(l => ({ ...l, userId: 'sam' })), memberCount: 1 }, user);
+    const row = toRowHabit({ ...habit, logs: habit.logs.map(l => ({ ...l, userId: 'sam' })), memberCount: 1 }, user, now);
     expect(Object.values(row.calendar!).some(day => day.loggers)).toBe(false);
   });
 });

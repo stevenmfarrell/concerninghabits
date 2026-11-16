@@ -8,6 +8,8 @@ import { deploymentProblem, signInMethods } from '@/lib/deployment';
 import { googleAccountFrom, GoogleSignInFailure, userForGoogleAccount } from '@/lib/googleSignIn';
 import { GET as startGoogle } from '@/app/api/auth/google/route';
 import { GET as googleCallback } from '@/app/api/auth/google/callback/route';
+import { TRIAL_DAYS } from '@/lib/plans';
+import { DAY_MS } from '@/lib/timezone';
 
 // Google itself: only trading the callback's code for tokens is faked, the rest of Arctic is real
 const { validateAuthorizationCode } = vi.hoisted(() => ({ validateAuthorizationCode: vi.fn() }));
@@ -170,12 +172,13 @@ describe('reading Google\'s ID token', () => {
 });
 
 describe('the user a Google account signs in as', () => {
-  it('is made on the first sign-in, with the default categories, and found by Google\'s id after that', async () => {
+  it('is made on the first sign-in, with the default categories and a free trial, and found by Google\'s id after that', async () => {
     const subject = `google-${crypto.randomUUID()}`;
     const email = `${subject}@example.test`;
     const first = await userForGoogleAccount({ subject, email, name: 'Sam' });
     expect(first).toMatchObject({ name: 'Sam', email, passwordHash: null, isAdmin: false });
     expect(await prisma.category.count({ where: { userId: first.id } })).toBeGreaterThan(0);
+    expect(Math.round((first.trialEndsAt!.getTime() - Date.now()) / DAY_MS)).toBe(TRIAL_DAYS);
 
     // The email changed at Google: still the same account, found by its id
     const again = await userForGoogleAccount({ subject, email: `new-${email}`, name: 'Sam' });
