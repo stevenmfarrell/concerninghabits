@@ -311,6 +311,21 @@ input, textarea, select {
   @apply text-ink;
 }
 
+/* A native <select>'s options inherit the light text of dark mode, but some browsers (Firefox,
+   Chrome on Windows) draw their list on a light background whatever the page's color-scheme, so
+   each option brings its own background. */
+option, optgroup {
+  @apply bg-surface text-ink;
+}
+
+/* Browsers paint an autofilled field pale yellow or blue but keep its text color, which in dark mode
+   is light on light. Keep the field's own colors instead. */
+input:-webkit-autofill, textarea:-webkit-autofill, select:-webkit-autofill {
+  -webkit-text-fill-color: var(--ink);
+  caret-color: var(--ink);
+  box-shadow: 0 0 0 1000px var(--surface-subtle) inset;
+}
+
 /* Text inputs, selects and textareas, in two sizes (see src/components/ui/Input.tsx): `input` for a
    form's fields, `input-sm` for compact ones in a dialog, a sheet's settings or an inline row. In the
    components layer, so a utility on the element (a width, extra padding) always wins over them. */
